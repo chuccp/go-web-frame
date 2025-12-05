@@ -20,7 +20,7 @@ func initDB(c *Config) (*gorm.DB, error) {
 	host := c.GetString("mysql.host")
 	port := c.GetInt("mysql.port")
 	database := c.GetString("mysql.database")
-	if util.IsBlank(username) || util.IsBlank(password) || util.IsBlank(host) || util.IsBlank(database) {
+	if util.IsBlank(username) && util.IsBlank(password) && util.IsBlank(host) {
 		return nil, NoConfigDBError
 	}
 	db, err := util.CreateMysqlConnection(username, password, host, port, database, "utf8")

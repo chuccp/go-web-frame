@@ -1,0 +1,3 @@
+server:
+  port: 20011
+  debug: true

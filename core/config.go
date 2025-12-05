@@ -40,17 +40,18 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	}
 	return c.v.GetBool(key)
 }
-func LoadConfig(path string) (*Config, error) {
-
-	yml, err := util.ReadFileBytes(path)
-	if err != nil {
-		return nil, err
-	}
+func LoadConfig(paths ...string) (*Config, error) {
 	_viper_ := viper.New()
 	_viper_.SetConfigType("yaml")
-	err = _viper_.ReadConfig(bytes.NewBuffer(yml))
-	if err != nil {
-		return nil, err
+	for _, path := range paths {
+		data, err := util.ReadFileBytes(path)
+		if err != nil {
+			return nil, err
+		}
+		err = _viper_.MergeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Config{v: _viper_}, nil
 }

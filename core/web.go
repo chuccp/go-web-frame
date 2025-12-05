@@ -1,9 +1,11 @@
 package core
 
 import (
+	"errors"
 	"log"
 	"sync"
 
+	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -39,26 +41,40 @@ func defaultEngine(port int, log *Logger) *webEngine {
 }
 
 type Web struct {
-	restGroups []*RestGroup
-	log        *Logger
-	config     *Config
-	engines    []*webEngine
-	context    *Context
-	models     []IModel
-	services   []IService
-	db         *gorm.DB
+	restGroups     []*RestGroup
+	log            *Logger
+	config         *Config
+	engines        []*webEngine
+	context        *Context
+	models         []IModel
+	services       []IService
+	rests          []IRest
+	authentication web.Authentication
+	db             *gorm.DB
 }
 
-func NewWeb() *Web {
-	return &Web{
+func CreateWeb(configFiles ...string) *Web {
+	web := &Web{
 		engines:    make([]*webEngine, 0),
 		models:     make([]IModel, 0),
 		services:   make([]IService, 0),
 		restGroups: make([]*RestGroup, 0),
+		rests:      make([]IRest, 0),
 	}
+	loadConfig, err := LoadConfig(configFiles[0])
+	if err != nil {
+		log.Panic("加载配置文件失败:", err)
+		return nil
+	}
+	web.Configure(loadConfig)
+	return web
 }
 func (w *Web) Configure(config *Config) {
 	w.config = config
+}
+
+func (w *Web) AddRest(rest ...IRest) {
+	w.rests = append(w.rests, rest...)
 }
 
 func (w *Web) AddModel(model ...IModel) {
@@ -66,7 +82,6 @@ func (w *Web) AddModel(model ...IModel) {
 	for _, iModel := range model {
 		w.addService(iModel)
 	}
-
 }
 func (w *Web) addService(service IService) {
 	w.services = append(w.services, service)
@@ -87,7 +102,7 @@ func (w *Web) GetRestGroup(port ...int) *RestGroup {
 			return group
 		}
 	}
-	groupGroup := NewRestGroup(_port_)
+	groupGroup := newRestGroup(_port_)
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
@@ -111,12 +126,15 @@ func (w *Web) Start() error {
 	}
 	logZap, err := InitLogger(w.config)
 	if err != nil {
+		log.Panic("初始化日志失败:", err)
 		return err
 	}
 	db, err := initDB(w.config)
-	if err != nil {
+	if err != nil && !errors.Is(err, NoConfigDBError) {
+		log.Panic("初始化数据库失败:", err)
 		return err
 	}
+
 	w.db = db
 	w.log = logZap
 	w.context = &Context{
@@ -135,10 +153,19 @@ func (w *Web) Start() error {
 		service.Init(w.context)
 	}
 	port := cast.ToInt(w.config.GetStringOrDefault("server.port", "9009"))
+	rootGroup := newRestGroup(port).AddRest(w.rests...).Authentication(w.authentication)
+	hasRootGroup := false
 	for _, group := range w.restGroups {
-		if group.port == 0 {
-			group.port = port
+		if group.port == 0 || group.port == port {
+			group.merge(rootGroup)
+			hasRootGroup = true
+			break
 		}
+	}
+	if !hasRootGroup {
+		w.restGroups = append(w.restGroups, rootGroup)
+	}
+	for _, group := range w.restGroups {
 		group.engine = w.getEngine(group.port, logZap)
 		for _, rest := range group.rests {
 			w.context.AddRest(rest)
@@ -162,5 +189,6 @@ func (w *Web) Start() error {
 			}()
 		}
 	}
+
 	return w.engines[0].run()
 }

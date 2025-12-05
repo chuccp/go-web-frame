@@ -21,14 +21,27 @@ func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	rg.rests = append(rg.rests, rest...)
 	return rg
 }
+
+func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
+	rg.rests = append(rg.rests, restGroup.rests...)
+	if rg.digestAuth == nil {
+		rg.digestAuth = restGroup.digestAuth
+	}
+	if rg.port == 0 {
+		rg.port = restGroup.port
+	}
+	return rg
+}
 func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGroup {
-	rg.digestAuth = web.NewDigestAuth(authentication)
+	if rg.digestAuth != nil {
+		rg.digestAuth = web.NewDigestAuth(authentication)
+	}
 	return rg
 }
 func (rg *RestGroup) Run() error {
 	return nil
 }
-func NewRestGroup(port int) *RestGroup {
+func newRestGroup(port int) *RestGroup {
 
 	return &RestGroup{
 		rests: make([]IRest, 0),

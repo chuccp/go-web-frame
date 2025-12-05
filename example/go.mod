@@ -2,12 +2,13 @@ module github.com/chuccp/go-web-frame/example
 
 go 1.25.1
 
+require github.com/chuccp/go-web-frame v0.0.1
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.2 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
-	github.com/chuccp/go-web-frame v0.0.1 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

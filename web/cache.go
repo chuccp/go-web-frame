@@ -24,6 +24,14 @@ func (l *LocalCache) getKey(key ...any) string {
 	}
 	return util.MD5Str(b.String())
 }
+func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*File, error) {
+	file, err := l.GetFile(f, value...)
+	if err == nil {
+		file.Suffix = suffix
+		return file, nil
+	}
+	return nil, err
+}
 func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*File, error) {
 	filename := l.getKey(value...)
 	fileDir := path.Join(l.path, filename[0:2])

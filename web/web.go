@@ -1,9 +1,12 @@
 package web
 
 import (
+	"log"
 	"os"
 	"path"
+	"strings"
 
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -77,12 +80,18 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 						return
 					}
 				case *File:
-					if len(t.GetFilename()) == 0 {
+					if len(t.FileName) == 0 {
 						_, filename := path.Split(t.Path)
 						t.FileName = filename
 					}
-					context.FileAttachment(t.GetPath(), t.GetFilename())
-
+					if util.IsNotBlank(t.Suffix) && !strings.HasSuffix(t.FileName, t.Suffix) {
+						if !strings.HasPrefix(t.Suffix, ".") {
+							t.Suffix = "." + t.Suffix
+						}
+						t.FileName = t.FileName + t.Suffix
+					}
+					log.Println("fileName:", t.FileName)
+					context.FileAttachment(t.Path, t.FileName)
 				case *os.File:
 					context.FileAttachment(t.Name(), t.Name())
 

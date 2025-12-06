@@ -10,9 +10,10 @@ type Api struct {
 }
 
 func (api *Api) test(request *web.Request) (any, error) {
-	return api.context.GetLocalCache().GetFile(func(value ...any) ([]byte, error) {
+	file, err := api.context.GetLocalCache().GetFileForSuffix(".txt", func(value ...any) ([]byte, error) {
 		return []byte("ok"), nil
 	})
+	return file, err
 }
 func (api *Api) Init(context *core.Context) {
 	api.context = context

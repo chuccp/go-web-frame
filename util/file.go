@@ -430,6 +430,19 @@ func WriteBytesFile(file *os.File, dataS ...[]byte) error {
 	}
 	return file.Truncate(0)
 }
+func CreateDirIfNoExists(path string) error {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.MkdirAll(path, 0755)
+		}
+		return err
+	}
+	if !fileInfo.IsDir() {
+		return errors.New("path is not a directory")
+	}
+	return nil
+}
 
 // ExistsFile 判断指定路径是否为**存在的文件**（非目录、非不存在）
 // 返回值：true=文件存在；false=文件不存在/是目录/其他错误

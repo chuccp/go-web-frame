@@ -26,6 +26,11 @@ func (l *LocalCache) getKey(key ...any) string {
 }
 func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*File, error) {
 	filename := l.getKey(value...)
+	fileDir := path.Join(l.path, filename[0:2])
+	err := util.CreateDirIfNoExists(fileDir)
+	if err != nil {
+		return nil, err
+	}
 	filepath := path.Join(l.path, filename[0:2], filename)
 	if util.ExistsFile(filepath) {
 		return &File{Path: filepath}, nil

@@ -31,3 +31,4 @@ profile.cov
 # .idea/
 # .vscode/
 /.idea
+/example/tmp

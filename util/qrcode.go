@@ -58,6 +58,10 @@ func (w *BufferWriteCloser) Close() error {
 	return nil
 }
 
+func (w *BufferWriteCloser) Bytes() []byte {
+	return w.b.Bytes()
+}
+
 func CreateBufferWriteCloser() *BufferWriteCloser {
 	return &BufferWriteCloser{
 		b: new(buffer.Buffer),

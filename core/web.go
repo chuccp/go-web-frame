@@ -146,6 +146,7 @@ func (w *Web) Start() error {
 		serviceMap:  make(map[string]IService),
 		db:          db,
 		transaction: NewTransaction(db),
+		localCache:  web.NewLocalCache(w.config.GetStringOrDefault("cache.path", "tmp/cache")),
 	}
 	w.context.addModel(w.models...)
 	w.context.AddService(w.services...)

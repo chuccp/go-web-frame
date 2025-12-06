@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -431,57 +430,27 @@ func WriteBytesFile(file *os.File, dataS ...[]byte) error {
 	}
 	return file.Truncate(0)
 }
+
+// ExistsFile 判断指定路径是否为**存在的文件**（非目录、非不存在）
+// 返回值：true=文件存在；false=文件不存在/是目录/其他错误
 func ExistsFile(path string) bool {
-	f, err := os.Open(path)
+	// 使用os.Stat获取文件信息，比os.Open更轻量（不打开文件句柄）
+	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return os.IsExist(err)
+		// 明确判断：仅当错误是「文件不存在」时返回false，其他错误（如权限不足）也返回false（避免误判）
+		if errors.Is(err, os.ErrNotExist) {
+			return false
+		}
+		// 记录非「文件不存在」的错误（如权限问题），便于排查
+		log.Printf("failed to stat file %s: %v", path, err)
+		return false
 	}
-	err = f.Close()
-	if err != nil {
-		log.Println("file close fail:", err)
+	// 额外校验：确保路径指向的是文件（而非目录）
+	if fileInfo.IsDir() {
+		log.Printf("path %s is a directory, not a file", path)
+		return false
 	}
 	return true
-}
-
-// ReadOrWriteFile 尝试只读打开文件，若不存在则调用 f 生成内容并原子写入
-// 成功时总是返回一个可读的 *os.File（调用者负责 Close）
-func ReadOrWriteFile(path string, f func() ([]byte, error)) (*os.File, error) {
-	if file, err := os.Open(path); err == nil {
-		return file, nil // 存在且可读 → 直接返回
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("无法读取已有文件 %s: %w", path, err)
-	} // 2. 文件不存在，走写入流程
-	data, err := f()
-	if err != nil {
-		return nil, err
-	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		if os.IsExist(err) {
-			return os.Open(path)
-		}
-		return nil, fmt.Errorf("创建文件失败: %w", err)
-	}
-	cleanup := true
-	defer func() {
-		if !cleanup {
-			return
-		}
-		file.Close()
-		_ = os.Remove(path)
-	}()
-
-	if _, err = file.Write(data); err != nil {
-		return nil, err
-	}
-	if err = file.Sync(); err != nil {
-		return nil, err
-	}
-	if err = file.Close(); err != nil {
-		return nil, fmt.Errorf("close 失败（数据已安全）: %w", err)
-	}
-	cleanup = false
-	return os.Open(path)
 }
 
 func getOtherRootPath() ([]*File, error) {

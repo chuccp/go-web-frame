@@ -1,6 +1,7 @@
 package web
 
 import (
+	"os"
 	"path"
 
 	"github.com/gin-gonic/gin"
@@ -81,6 +82,10 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 						t.FileName = filename
 					}
 					context.FileAttachment(t.GetPath(), t.GetFilename())
+
+				case *os.File:
+					context.FileAttachment(t.Name(), t.Name())
+
 				default:
 					context.JSON(200, Data(value))
 				}

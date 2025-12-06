@@ -1,7 +1,6 @@
 package web
 
 import (
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -90,7 +89,6 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 						}
 						t.FileName = t.FileName + t.Suffix
 					}
-					log.Println("fileName:", t.FileName)
 					context.FileAttachment(t.Path, t.FileName)
 				case *os.File:
 					context.FileAttachment(t.Name(), t.Name())

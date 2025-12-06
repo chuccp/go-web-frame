@@ -5,6 +5,7 @@ import (
 
 	"github.com/yeqown/go-qrcode/v2"
 	"github.com/yeqown/go-qrcode/writer/standard"
+	"go.uber.org/zap/buffer"
 )
 
 func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard.ImageOption) error {
@@ -44,4 +45,21 @@ func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
 func WithRoundedSquareShape() standard.ImageOption {
 	return standard.WithCustomShape(&ShapeRoundedSquare{})
 
+}
+
+type BufferWriteCloser struct {
+	b *buffer.Buffer
+}
+
+func (w *BufferWriteCloser) Write(p []byte) (n int, err error) {
+	return w.b.Write(p)
+}
+func (w *BufferWriteCloser) Close() error {
+	return nil
+}
+
+func CreateBufferWriteCloser() *BufferWriteCloser {
+	return &BufferWriteCloser{
+		b: new(buffer.Buffer),
+	}
 }

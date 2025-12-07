@@ -47,10 +47,8 @@ func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponse
 	fileDir := path.Join(l.path, filename[0:2])
 	filepath := path.Join(fileDir, filename)
 	if util.ExistsFile(filepath) {
-
 		return nil
 	}
-
 	err := util.CreateDirIfNoExists(fileDir)
 	if err != nil {
 		return err
@@ -65,13 +63,11 @@ func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponse
 			log.Println("file close fail:", err)
 		}
 	}(writeFile)
-
 	fileResponseWriteCloser := CreateFileResponseWriteCloser(response, writeFile)
 	err = f(fileResponseWriteCloser)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

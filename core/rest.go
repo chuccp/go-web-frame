@@ -33,7 +33,7 @@ func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGroup {
-	if rg.digestAuth != nil {
+	if rg.digestAuth == nil {
 		rg.digestAuth = web.NewDigestAuth(authentication)
 	}
 	return rg

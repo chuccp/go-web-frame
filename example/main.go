@@ -8,6 +8,7 @@ import (
 
 func main() {
 	web := core.CreateWeb("application.yml")
+	web.GetRestGroup().Authentication(&Authentication{})
 	web.AddRest(&Api{})
 	err := web.Start()
 	if err != nil {

@@ -24,6 +24,12 @@ func (l *LocalCache) getKey(key ...any) string {
 	}
 	return util.MD5Str(b.String())
 }
+func (l *LocalCache) GetPath(value ...any) string {
+	filename := l.getKey(value...)
+	filepath := path.Join(l.path, filename[0:2], filename)
+	return filepath
+}
+
 func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*File, error) {
 	file, err := l.GetFile(f, value...)
 	if err == nil {
@@ -32,14 +38,45 @@ func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byt
 	}
 	return nil, err
 }
-func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*File, error) {
+func (l *LocalCache) HasFile(value ...any) bool {
+	filepath := l.GetPath(value...)
+	return util.FileExists(filepath)
+}
+func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponseWriteCloser *FileResponseWriteCloser) error, value ...any) error {
 	filename := l.getKey(value...)
 	fileDir := path.Join(l.path, filename[0:2])
+	filepath := path.Join(fileDir, filename)
+	if util.ExistsFile(filepath) {
+
+		return nil
+	}
+
 	err := util.CreateDirIfNoExists(fileDir)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	filepath := path.Join(l.path, filename[0:2], filename)
+	writeFile, err := os.OpenFile(filepath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer func(writeFile *os.File) {
+		err := writeFile.Close()
+		if err != nil {
+			log.Println("file close fail:", err)
+		}
+	}(writeFile)
+
+	fileResponseWriteCloser := CreateFileResponseWriteCloser(response, writeFile)
+	err = f(fileResponseWriteCloser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*File, error) {
+	filepath := l.GetPath(value...)
 	if util.ExistsFile(filepath) {
 		return &File{Path: filepath}, nil
 	}
@@ -62,4 +99,32 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 		return nil, err
 	}
 	return &File{Path: filepath}, nil
+}
+
+type FileResponseWriteCloser struct {
+	response Response
+	file     *os.File
+}
+
+func (w *FileResponseWriteCloser) Write(p []byte) (n int, err error) {
+	num, err := w.response.Write(p)
+	if err != nil {
+		return num, err
+	}
+	return w.file.Write(p)
+}
+func (w *FileResponseWriteCloser) Close() error {
+	w.response.Flush()
+	err := w.file.Sync()
+	if err != nil {
+		return err
+	}
+	return w.file.Close()
+}
+
+func CreateFileResponseWriteCloser(response Response, file *os.File) *FileResponseWriteCloser {
+	return &FileResponseWriteCloser{
+		response: response,
+		file:     file,
+	}
 }

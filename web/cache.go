@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"log"
 	"os"
 	"path"
@@ -42,11 +43,29 @@ func (l *LocalCache) HasFile(value ...any) bool {
 	filepath := l.GetPath(value...)
 	return util.FileExists(filepath)
 }
-func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponseWriteCloser *FileResponseWriteCloser) error, value ...any) error {
+func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
+	if len(value) == 0 {
+		log.Panicln("value len is zero")
+	}
 	filename := l.getKey(value...)
 	fileDir := path.Join(l.path, filename[0:2])
 	filepath := path.Join(fileDir, filename)
 	if util.ExistsFile(filepath) {
+		file, err := os.Open(filepath)
+		if err != nil {
+			return err
+		}
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				log.Println("file close fail:", err)
+			}
+		}(file)
+		var reader = bufio.NewReader(file)
+		_, err = reader.WriteTo(response)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 	err := util.CreateDirIfNoExists(fileDir)
@@ -63,8 +82,8 @@ func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponse
 			log.Println("file close fail:", err)
 		}
 	}(writeFile)
-	fileResponseWriteCloser := CreateFileResponseWriteCloser(response, writeFile)
-	err = f(fileResponseWriteCloser)
+	fileResponseWriteCloser := createFileResponseWriteCloser(response, writeFile)
+	err = f(fileResponseWriteCloser, value...)
 	if err != nil {
 		return err
 	}
@@ -118,7 +137,7 @@ func (w *FileResponseWriteCloser) Close() error {
 	return w.file.Close()
 }
 
-func CreateFileResponseWriteCloser(response Response, file *os.File) *FileResponseWriteCloser {
+func createFileResponseWriteCloser(response Response, file *os.File) *FileResponseWriteCloser {
 	return &FileResponseWriteCloser{
 		response: response,
 		file:     file,

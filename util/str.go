@@ -1,18 +1,21 @@
 package util
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"math/rand"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/spf13/cast"
 )
 
 func MD5(data []byte) string {
@@ -308,5 +311,11 @@ func Index2Str(index int, charset string) string {
 		charset = Alphanumeric
 	}
 	return string(charset[index])
-
+}
+func JoinValues(values ...any) string {
+	b := new(bytes.Buffer)
+	for _, v := range values {
+		b.WriteString(cast.ToString(v))
+	}
+	return b.String()
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/chuccp/go-web-frame/core"
@@ -11,13 +12,13 @@ type Authentication struct {
 }
 
 func (a *Authentication) SignIn(user any, request *web.Request) (any, error) {
-	return nil, nil
+	return nil, fmt.Errorf("未实现")
 }
 func (a *Authentication) SignOut(request *web.Request) (any, error) {
-	return nil, nil
+	return nil, fmt.Errorf("未实现")
 }
 func (a *Authentication) User(request *web.Request) (any, error) {
-	return nil, nil
+	return nil, fmt.Errorf("未实现")
 }
 func (a *Authentication) NewUser() any {
 	return nil

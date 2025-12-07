@@ -1,5 +1,5 @@
 go 1.25.4
 use (
 	.
-	./example
+	./example/start
 )

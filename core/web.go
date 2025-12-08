@@ -5,6 +5,9 @@ import (
 	"log"
 	"sync"
 
+	config2 "github.com/chuccp/go-web-frame/config"
+	db2 "github.com/chuccp/go-web-frame/db"
+	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -16,7 +19,7 @@ import (
 type webEngine struct {
 	engine *gin.Engine
 	port   int
-	log    *Logger
+	log    *log2.Logger
 }
 
 func (e *webEngine) run() error {
@@ -24,7 +27,7 @@ func (e *webEngine) run() error {
 	return e.engine.Run(":" + cast.ToString(e.port))
 }
 
-func defaultEngine(port int, log *Logger) *webEngine {
+func defaultEngine(port int, log *log2.Logger) *webEngine {
 	engine := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = false
@@ -42,8 +45,8 @@ func defaultEngine(port int, log *Logger) *webEngine {
 
 type Web struct {
 	restGroups     []*RestGroup
-	log            *Logger
-	config         *Config
+	log            *log2.Logger
+	config         *config2.Config
 	engines        []*webEngine
 	context        *Context
 	models         []IModel
@@ -61,7 +64,7 @@ func CreateWeb(configFiles ...string) *Web {
 		restGroups: make([]*RestGroup, 0),
 		rests:      make([]IRest, 0),
 	}
-	loadConfig, err := LoadConfig(configFiles[0])
+	loadConfig, err := config2.LoadConfig(configFiles[0])
 	if err != nil {
 		log.Panic("加载配置文件失败:", err)
 		return nil
@@ -69,7 +72,7 @@ func CreateWeb(configFiles ...string) *Web {
 	web.Configure(loadConfig)
 	return web
 }
-func (w *Web) Configure(config *Config) {
+func (w *Web) Configure(config *config2.Config) {
 	w.config = config
 }
 
@@ -106,7 +109,7 @@ func (w *Web) GetRestGroup(port ...int) *RestGroup {
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *Web) getEngine(port int, log *Logger) *webEngine {
+func (w *Web) getEngine(port int, log *log2.Logger) *webEngine {
 	for _, engine := range w.engines {
 		if engine.port == port {
 			return engine
@@ -124,13 +127,10 @@ func (w *Web) Start() error {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	logZap, err := InitLogger(w.config)
-	if err != nil {
-		log.Panic("初始化日志失败:", err)
-		return err
-	}
-	db, err := initDB(w.config)
-	if err != nil && !errors.Is(err, NoConfigDBError) {
+	logZap := log2.InitLogger(w.config)
+
+	db, err := db2.InitDB(w.config)
+	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Panic("初始化数据库失败:", err)
 		return err
 	}

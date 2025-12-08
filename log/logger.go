@@ -1,8 +1,9 @@
-package core
+package log
 
 import (
 	"os"
 
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/util"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -34,7 +35,7 @@ func getStdoutLogWriter() zapcore.Core {
 
 type Logger struct {
 	zap    *zap.Logger
-	config *Config
+	config *config2.Config
 }
 
 func (l *Logger) Info(msg string, fields ...zap.Field) {
@@ -56,7 +57,7 @@ func (l *Logger) Sync() error {
 	return l.zap.Sync()
 }
 
-func InitLogger(Config *Config) (*Logger, error) {
+func InitLogger(Config *config2.Config) *Logger {
 	path := Config.GetString("log.path")
 	cores := zapcore.NewTee(getStdoutLogWriter())
 	if len(path) > 0 {
@@ -67,5 +68,5 @@ func InitLogger(Config *Config) (*Logger, error) {
 	return &Logger{
 		zap:    logger,
 		config: Config,
-	}, nil
+	}
 }

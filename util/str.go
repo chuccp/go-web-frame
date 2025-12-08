@@ -168,6 +168,16 @@ func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 	}
 	return false
 }
+func StartsWithAnyIgnoreCase(s string, prefix ...string) bool {
+	sLower := strings.ToLower(s)
+	for _, prefix := range prefix {
+		if strings.HasPrefix(sLower, strings.ToLower(prefix)) {
+			return true
+		}
+	}
+	return false
+}
+
 func BoolToString(b bool) string {
 	if b {
 		return "true"

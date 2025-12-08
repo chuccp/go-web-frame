@@ -3,14 +3,16 @@ package core
 import (
 	"sync"
 
+	config2 "github.com/chuccp/go-web-frame/config"
+	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type Context struct {
-	config      *Config
-	log         *Logger
+	config      *config2.Config
+	log         *log2.Logger
 	engine      *gin.Engine
 	restMap     map[string]IRest
 	modelMap    map[string]IModel
@@ -121,10 +123,10 @@ func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc
 	c.AuthGetRaw(relativePath, handlers...)
 }
 
-func (c *Context) GetLogger() *Logger {
+func (c *Context) GetLogger() *log2.Logger {
 	return c.log
 }
-func (c *Context) GetConfig() *Config {
+func (c *Context) GetConfig() *config2.Config {
 	return c.config
 }
 

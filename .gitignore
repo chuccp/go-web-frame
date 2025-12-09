@@ -32,3 +32,4 @@ profile.cov
 # .vscode/
 /.idea
 /example/tmp
+.DS_Store

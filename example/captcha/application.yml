@@ -1,0 +1,13 @@
+web:
+  server:
+    port: 20011
+    debug: true
+  cache:
+    path: tmp/cache
+  db:
+    type: mysql
+    url: mysql://localhost:3306/test
+    user: root
+    password: 123456
+
+

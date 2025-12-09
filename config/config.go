@@ -2,6 +2,8 @@ package config
 
 import (
 	"bytes"
+	"log"
+	"path/filepath"
 
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/spf13/viper"
@@ -41,10 +43,13 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	return c.v.GetBool(key)
 }
 func LoadConfig(paths ...string) (*Config, error) {
+
 	_viper_ := viper.New()
 	_viper_.SetConfigType("yaml")
 	for _, path := range paths {
-		data, err := util.ReadFileBytes(path)
+		absPath, err := filepath.Abs(path)
+		log.Printf("加载配置文件 %v", absPath)
+		data, err := util.ReadFileBytes(absPath)
 		if err != nil {
 			return nil, err
 		}

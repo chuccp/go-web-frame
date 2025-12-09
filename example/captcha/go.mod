@@ -1,11 +1,8 @@
-module github.com/chuccp/go-web-frame/example/start
+module github.com/chuccp/go-web-frame/example/captcha
 
 go 1.25.5
 
-require (
-	github.com/chuccp/go-web-frame v0.0.3
-	github.com/yeqown/go-qrcode/writer/standard v1.3.0
-)
+require github.com/chuccp/go-web-frame v0.0.3
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -49,6 +46,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/yeqown/go-qrcode/v2 v2.2.5 // indirect
+	github.com/yeqown/go-qrcode/writer/standard v1.3.0 // indirect
 	github.com/yeqown/reedsolomon v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect

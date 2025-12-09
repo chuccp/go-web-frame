@@ -11,32 +11,34 @@ import (
 )
 
 type Context struct {
-	config      *config2.Config
-	log         *log2.Logger
-	engine      *gin.Engine
-	restMap     map[string]IRest
-	modelMap    map[string]IModel
-	rLock       *sync.RWMutex
-	serviceMap  map[string]IService
-	db          *gorm.DB
-	transaction *Transaction
-	localCache  *web.LocalCache
-	digestAuth  *web.DigestAuth
+	config       *config2.Config
+	log          *log2.Logger
+	engine       *gin.Engine
+	restMap      map[string]IRest
+	modelMap     map[string]IModel
+	rLock        *sync.RWMutex
+	serviceMap   map[string]IService
+	db           *gorm.DB
+	transaction  *Transaction
+	localCache   *web.LocalCache
+	digestAuth   *web.DigestAuth
+	componentMap map[string]IComponent
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context {
 	return &Context{
-		config:      c.config,
-		log:         c.log,
-		engine:      engine,
-		restMap:     c.restMap,
-		modelMap:    c.modelMap,
-		rLock:       c.rLock,
-		serviceMap:  c.serviceMap,
-		db:          c.db,
-		transaction: c.transaction,
-		digestAuth:  digestAuth,
-		localCache:  c.localCache,
+		config:       c.config,
+		log:          c.log,
+		engine:       engine,
+		restMap:      c.restMap,
+		modelMap:     c.modelMap,
+		rLock:        c.rLock,
+		serviceMap:   c.serviceMap,
+		db:           c.db,
+		transaction:  c.transaction,
+		digestAuth:   digestAuth,
+		localCache:   c.localCache,
+		componentMap: c.componentMap,
 	}
 }
 
@@ -78,6 +80,14 @@ func (c *Context) addModel(model ...IModel) {
 		c.modelMap[m.Name()] = m
 	}
 }
+func (c *Context) addComponent(components ...IComponent) {
+	c.rLock.Lock()
+	defer c.rLock.Unlock()
+	for _, component := range components {
+		c.componentMap[component.Name()] = component
+	}
+}
+
 func (c *Context) GetModel(name string) IModel {
 	return c.modelMap[name]
 }

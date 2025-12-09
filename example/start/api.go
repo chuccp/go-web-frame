@@ -1,4 +1,4 @@
-package start
+package main
 
 import (
 	"github.com/chuccp/go-web-frame/core"

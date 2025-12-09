@@ -44,6 +44,7 @@ func defaultEngine(port int, log *log2.Logger) *webEngine {
 }
 
 type Web struct {
+	component      []IComponent
 	restGroups     []*RestGroup
 	log            *log2.Logger
 	config         *config2.Config
@@ -57,20 +58,21 @@ type Web struct {
 }
 
 func CreateWeb(configFiles ...string) *Web {
-	web := &Web{
+	w := &Web{
 		engines:    make([]*webEngine, 0),
 		models:     make([]IModel, 0),
 		services:   make([]IService, 0),
 		restGroups: make([]*RestGroup, 0),
 		rests:      make([]IRest, 0),
+		component:  make([]IComponent, 0),
 	}
-	loadConfig, err := config2.LoadConfig(configFiles[0])
+	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
 		log.Panic("加载配置文件失败:", err)
 		return nil
 	}
-	web.Configure(loadConfig)
-	return web
+	w.Configure(loadConfig)
+	return w
 }
 func (w *Web) Configure(config *config2.Config) {
 	w.config = config
@@ -78,6 +80,9 @@ func (w *Web) Configure(config *config2.Config) {
 
 func (w *Web) AddRest(rest ...IRest) {
 	w.rests = append(w.rests, rest...)
+}
+func (w *Web) AddComponent(component ...IComponent) {
+	w.component = append(w.component, component...)
 }
 
 func (w *Web) AddModel(model ...IModel) {
@@ -121,7 +126,7 @@ func (w *Web) getEngine(port int, log *log2.Logger) *webEngine {
 }
 
 func (w *Web) Start() error {
-	debug := w.config.GetBoolOrDefault("server.debug", true)
+	debug := w.config.GetBoolOrDefault("web.server.debug", true)
 	if debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -134,7 +139,9 @@ func (w *Web) Start() error {
 		log.Panic("初始化数据库失败:", err)
 		return err
 	}
-
+	for _, component := range w.component {
+		component.Init(w.config)
+	}
 	w.db = db
 	w.log = logZap
 	w.context = &Context{
@@ -146,14 +153,15 @@ func (w *Web) Start() error {
 		serviceMap:  make(map[string]IService),
 		db:          db,
 		transaction: NewTransaction(db),
-		localCache:  web.NewLocalCache(w.config.GetStringOrDefault("cache.path", "tmp/cache")),
+		localCache:  web.NewLocalCache(w.config.GetStringOrDefault("web.cache.path", "tmp/cache")),
 	}
+	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
 	w.context.AddService(w.services...)
 	for _, service := range w.services {
 		service.Init(w.context)
 	}
-	port := cast.ToInt(w.config.GetStringOrDefault("server.port", "9009"))
+	port := cast.ToInt(w.config.GetStringOrDefault("web.server.port", "9009"))
 	rootGroup := newRestGroup(port).AddRest(w.rests...).Authentication(w.authentication)
 	hasRootGroup := false
 	for _, group := range w.restGroups {

@@ -140,7 +140,11 @@ func (w *Web) Start() error {
 		return err
 	}
 	for _, component := range w.component {
-		component.Init(w.config)
+		err := component.Init(w.config)
+		if err != nil {
+			log.Panic("初始化组件失败:", component.Name(), err)
+			return err
+		}
 	}
 	w.db = db
 	w.log = logZap

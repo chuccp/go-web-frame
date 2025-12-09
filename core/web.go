@@ -134,7 +134,7 @@ func (w *Web) Start() error {
 	}
 	logZap := log2.InitLogger(w.config)
 
-	db, err := db2.InitDB(w.config)
+	db, err := db2.InitDB(w.config, logZap)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Panic("初始化数据库失败:", err)
 		return err

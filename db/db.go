@@ -1,11 +1,10 @@
 package db
 
 import (
-	"net/url"
-
 	"github.com/chuccp/go-web-frame/config"
+	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/spf13/cast"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +14,7 @@ const (
 )
 
 type DB interface {
-	Connection(cfg *config.Config) (db *gorm.DB, err error)
+	Connection(cfg *config.Config, log *log2.Logger) (db *gorm.DB, err error)
 }
 
 type noConfigDBError struct {
@@ -40,55 +39,16 @@ var dbMap = map[string]DB{
 	MYSQL: &Mysql{},
 }
 
-func InitDB(c *config.Config) (*gorm.DB, error) {
-	type_ := c.GetString("db.type")
-	u := c.GetString("db.url")
-	if util.IsNotBlank(type_) || util.IsNotBlank(u) {
+func InitDB(c *config.Config, log *log2.Logger) (*gorm.DB, error) {
+	type_ := c.GetString("web.db.type")
+	log.Info("db type", zap.String("type", type_))
+	if util.IsNotBlank(type_) {
 		for key, db := range dbMap {
-			if util.EqualsAnyIgnoreCase(type_, key) || util.StartsWithAnyIgnoreCase(u, key) {
-				return db.Connection(c)
+			if util.EqualsAnyIgnoreCase(type_, key) {
+				return db.Connection(c, log)
 			}
 		}
 		return nil, ConfigDBError
 	}
 	return nil, NoConfigDBError
-}
-func getUrl(cfg *config.Config) (*url.URL, error) {
-	newURL := &url.URL{}
-	url_ := cfg.GetString("db.url")
-	if util.IsNotBlank(url_) {
-		uu, err := url.Parse(url_)
-		if err != nil {
-			return nil, err
-		}
-		newURL = uu
-	}
-	user := cfg.GetString("db.user")
-	if util.IsBlank(user) {
-		user = cfg.GetString("db.username")
-	}
-	password := cfg.GetString("db.password")
-	if util.IsNotBlank(user) || util.IsNotBlank(password) {
-		if util.IsBlank(user) {
-			user = newURL.User.Username()
-		}
-		if util.IsBlank(password) {
-			password, _ = newURL.User.Password()
-		}
-		newURL.User = url.UserPassword(user, password)
-	}
-
-	host := cfg.GetString("db.host")
-	if util.IsNotBlank(host) {
-		newURL.Host = host
-	}
-	port := cfg.GetInt("db.port")
-	if port > 0 {
-		newURL.Host = newURL.Host + ":" + cast.ToString(port)
-	}
-	dbname := cfg.GetString("db.dbname")
-	if util.IsNotBlank(dbname) {
-		newURL.Path = "/" + dbname
-	}
-	return newURL, nil
 }

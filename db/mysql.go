@@ -1,12 +1,27 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/chuccp/go-web-frame/config"
+	log2 "github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
+type MysqlConfig struct {
+	Dbname   string `json:"dbname"`
+	Database string `json:"database"`
+	Charset  string `json:"charset"`
+	Username string `json:"username"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+}
 type MysqlConfigDBError struct {
 }
 
@@ -17,12 +32,25 @@ func (e *MysqlConfigDBError) Error() string {
 type Mysql struct {
 }
 
-func (ms *Mysql) Connection(cfg *config.Config) (db *gorm.DB, err error) {
-	newURL, err := getUrl(cfg)
+func (ms *Mysql) Connection(cfg *config.Config, log *log2.Logger) (db *gorm.DB, err error) {
+	mysqlConfig := &MysqlConfig{}
+	err = cfg.Unmarshal("web.db", mysqlConfig)
 	if err != nil {
 		return nil, err
 	}
-	newURL.Scheme = "mysql"
-	dsn := newURL.String()
+	if util.IsBlank(mysqlConfig.Username) {
+		mysqlConfig.Username = mysqlConfig.User
+	}
+	if util.IsBlank(mysqlConfig.Database) {
+		mysqlConfig.Database = mysqlConfig.Dbname
+	}
+	if mysqlConfig.Port == 0 {
+		mysqlConfig.Port = 3306
+	}
+	if util.IsBlank(mysqlConfig.Charset) {
+		mysqlConfig.Charset = "utf8"
+	}
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)
+	log.Info("mysql", zap.String("dsn", dsn))
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 }

@@ -25,6 +25,10 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	return v
 }
 
+func (c *Config) Unmarshal(key string, v any) error {
+	return c.v.UnmarshalKey(key, v)
+}
+
 func (c *Config) GetInt(key string) int {
 	return c.v.GetInt(key)
 }

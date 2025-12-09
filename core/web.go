@@ -145,15 +145,16 @@ func (w *Web) Start() error {
 	w.db = db
 	w.log = logZap
 	w.context = &Context{
-		rLock:       new(sync.RWMutex),
-		config:      w.config,
-		log:         logZap,
-		restMap:     make(map[string]IRest),
-		modelMap:    make(map[string]IModel),
-		serviceMap:  make(map[string]IService),
-		db:          db,
-		transaction: NewTransaction(db),
-		localCache:  web.NewLocalCache(w.config.GetStringOrDefault("web.cache.path", "tmp/cache")),
+		rLock:        new(sync.RWMutex),
+		config:       w.config,
+		log:          logZap,
+		restMap:      make(map[string]IRest),
+		modelMap:     make(map[string]IModel),
+		serviceMap:   make(map[string]IService),
+		componentMap: make(map[string]IComponent),
+		db:           db,
+		transaction:  NewTransaction(db),
+		localCache:   web.NewLocalCache(w.config.GetStringOrDefault("web.cache.path", "tmp/cache")),
 	}
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)

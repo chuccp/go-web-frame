@@ -87,6 +87,13 @@ func (c *Context) addComponent(components ...IComponent) {
 		c.componentMap[component.Name()] = component
 	}
 }
+func (c *Context) GetComponent(name string) IComponent {
+	return c.componentMap[name]
+}
+
+func GetComponent[T IComponent](name string, c *Context) T {
+	return c.GetComponent(name).(T)
+}
 
 func (c *Context) GetModel(name string) IModel {
 	return c.modelMap[name]

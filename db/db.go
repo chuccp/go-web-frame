@@ -64,6 +64,9 @@ func getUrl(cfg *config.Config) (*url.URL, error) {
 		newURL = uu
 	}
 	user := cfg.GetString("db.user")
+	if util.IsBlank(user) {
+		user = cfg.GetString("db.username")
+	}
 	password := cfg.GetString("db.password")
 	if util.IsNotBlank(user) || util.IsNotBlank(password) {
 		if util.IsBlank(user) {

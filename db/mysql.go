@@ -22,6 +22,7 @@ func (ms *Mysql) Connection(cfg *config.Config) (db *gorm.DB, err error) {
 	if err != nil {
 		return nil, err
 	}
+	newURL.Scheme = "mysql"
 	dsn := newURL.String()
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 }

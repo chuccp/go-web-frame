@@ -43,7 +43,7 @@ var dbMap = map[string]DB{
 func InitDB(c *config.Config) (*gorm.DB, error) {
 	type_ := c.GetString("db.type")
 	u := c.GetString("db.url")
-	if util.IsNotBlank(type_) && util.IsNotBlank(u) {
+	if util.IsNotBlank(type_) || util.IsNotBlank(u) {
 		for key, db := range dbMap {
 			if util.EqualsAnyIgnoreCase(type_, key) || util.StartsWithAnyIgnoreCase(u, key) {
 				return db.Connection(c)

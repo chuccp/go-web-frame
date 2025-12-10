@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
@@ -12,7 +13,8 @@ type Api struct {
 }
 
 func (api *Api) test(request *web.Request, response web.Response) error {
-	err := api.context.GetLocalCache().GetFileResponseWrite(response, func(fileResponseWriteCloser *web.FileResponseWriteCloser, value ...any) error {
+	localCache := core.GetComponent[*cache.Component](cache.Name, api.context).GetLocalCache()
+	err := localCache.GetFileResponseWrite(response, func(fileResponseWriteCloser *cache.FileResponseWriteCloser, value ...any) error {
 		err := util.GenerateQrcode(
 			"111",
 			fileResponseWriteCloser,

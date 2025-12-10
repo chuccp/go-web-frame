@@ -1,4 +1,4 @@
-package web
+package cache
 
 import (
 	"bufio"
@@ -6,10 +6,35 @@ import (
 	"os"
 	"path"
 
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/chuccp/go-web-frame/web"
 	"github.com/spf13/cast"
 	"go.uber.org/zap/buffer"
 )
+
+const Name = "local_cache_component"
+
+type Component struct {
+	path       string
+	localCache *LocalCache
+}
+
+func (l *Component) Init(config *config2.Config) error {
+	temp := config.GetStringOrDefault("web.cache.path", "tmp/cache")
+	err := util.CreateDirIfNoExists(temp)
+	if err != nil {
+		return err
+	}
+	l.localCache = NewLocalCache(temp)
+	return nil
+}
+func (l *Component) GetLocalCache() *LocalCache {
+	return l.localCache
+}
+func (l *Component) Name() string {
+	return Name
+}
 
 type LocalCache struct {
 	path string
@@ -31,7 +56,7 @@ func (l *LocalCache) GetPath(value ...any) string {
 	return filepath
 }
 
-func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*File, error) {
+func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
 	file, err := l.GetFile(f, value...)
 	if err == nil {
 		file.Suffix = suffix
@@ -43,7 +68,7 @@ func (l *LocalCache) HasFile(value ...any) bool {
 	filepath := l.GetPath(value...)
 	return util.FileExists(filepath)
 }
-func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
+func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
 	if len(value) == 0 {
 		log.Panicln("value len is zero")
 	}
@@ -90,10 +115,10 @@ func (l *LocalCache) GetFileResponseWrite(response Response, f func(fileResponse
 	return nil
 }
 
-func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*File, error) {
+func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
 	filepath := l.GetPath(value...)
 	if util.ExistsFile(filepath) {
-		return &File{Path: filepath}, nil
+		return &web.File{Path: filepath}, nil
 	}
 	data, err := f(value...)
 	if err != nil {
@@ -113,11 +138,11 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 	if err != nil {
 		return nil, err
 	}
-	return &File{Path: filepath}, nil
+	return &web.File{Path: filepath}, nil
 }
 
 type FileResponseWriteCloser struct {
-	response Response
+	response web.Response
 	file     *os.File
 }
 
@@ -137,7 +162,7 @@ func (w *FileResponseWriteCloser) Close() error {
 	return w.file.Close()
 }
 
-func createFileResponseWriteCloser(response Response, file *os.File) *FileResponseWriteCloser {
+func createFileResponseWriteCloser(response web.Response, file *os.File) *FileResponseWriteCloser {
 	return &FileResponseWriteCloser{
 		response: response,
 		file:     file,

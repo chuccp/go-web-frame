@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/web"
 )
@@ -26,6 +27,7 @@ func (a *Authentication) NewUser() any {
 
 func main() {
 	web := core.CreateWeb("application.yml")
+	web.AddComponent(&cache.Component{})
 	web.GetRestGroup().Authentication(&Authentication{})
 	web.AddRest(&Api{})
 	err := web.Start()

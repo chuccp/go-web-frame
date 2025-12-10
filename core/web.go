@@ -158,7 +158,6 @@ func (w *Web) Start() error {
 		componentMap: make(map[string]IComponent),
 		db:           db,
 		transaction:  NewTransaction(db),
-		localCache:   web.NewLocalCache(w.config.GetStringOrDefault("web.cache.path", "tmp/cache")),
 	}
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)

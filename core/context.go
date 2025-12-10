@@ -20,7 +20,6 @@ type Context struct {
 	serviceMap   map[string]IService
 	db           *gorm.DB
 	transaction  *Transaction
-	localCache   *web.LocalCache
 	digestAuth   *web.DigestAuth
 	componentMap map[string]IComponent
 }
@@ -37,14 +36,10 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context 
 		db:           c.db,
 		transaction:  c.transaction,
 		digestAuth:   digestAuth,
-		localCache:   c.localCache,
 		componentMap: c.componentMap,
 	}
 }
 
-func (c *Context) GetLocalCache() *web.LocalCache {
-	return c.localCache
-}
 func (c *Context) GetTransaction() *Transaction {
 	return c.transaction
 }

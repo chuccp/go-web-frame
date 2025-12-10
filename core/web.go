@@ -2,12 +2,11 @@ package core
 
 import (
 	"errors"
-	"log"
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
 	db2 "github.com/chuccp/go-web-frame/db"
-	log2 "github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,15 +18,14 @@ import (
 type webEngine struct {
 	engine *gin.Engine
 	port   int
-	log    *log2.Logger
 }
 
 func (e *webEngine) run() error {
-	e.log.Info("启动服务", zap.String("serving run", "http://127.0.0.1:"+cast.ToString(e.port)))
+	log.Info("启动服务", zap.String("serving run", "http://127.0.0.1:"+cast.ToString(e.port)))
 	return e.engine.Run(":" + cast.ToString(e.port))
 }
 
-func defaultEngine(port int, log *log2.Logger) *webEngine {
+func defaultEngine(port int) *webEngine {
 	engine := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = false
@@ -39,14 +37,12 @@ func defaultEngine(port int, log *log2.Logger) *webEngine {
 	return &webEngine{
 		engine: engine,
 		port:   port,
-		log:    log,
 	}
 }
 
 type WebFrame struct {
 	component      []IComponent
 	restGroups     []*RestGroup
-	log            *log2.Logger
 	config         *config2.Config
 	engines        []*webEngine
 	context        *Context
@@ -68,7 +64,7 @@ func CreateWebFrame(configFiles ...string) *WebFrame {
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
-		log.Panic("加载配置文件失败:", err)
+		log.Panic("加载配置文件失败:", zap.Error(err))
 		return nil
 	}
 	w.Configure(loadConfig)
@@ -99,7 +95,7 @@ func (w *WebFrame) AddService(service ...IService) {
 }
 func (w *WebFrame) GetRestGroup(port ...int) *RestGroup {
 	if len(port) > 1 {
-		log.Panic("参数错误:", "port的数量不能大于1")
+		log.Panic("参数错误:", zap.String("参数错误", "port的数量不能大于1"))
 	}
 	_port_ := 0
 	if len(port) == 1 {
@@ -114,13 +110,13 @@ func (w *WebFrame) GetRestGroup(port ...int) *RestGroup {
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *WebFrame) getEngine(port int, log *log2.Logger) *webEngine {
+func (w *WebFrame) getEngine(port int) *webEngine {
 	for _, engine := range w.engines {
 		if engine.port == port {
 			return engine
 		}
 	}
-	engine := defaultEngine(port, log)
+	engine := defaultEngine(port)
 	w.engines = append(w.engines, engine)
 	return engine
 }
@@ -132,26 +128,24 @@ func (w *WebFrame) Start() error {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	logZap := log2.InitLogger(w.config)
-
-	db, err := db2.InitDB(w.config, logZap)
+	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log")
+	log.InitLogger(logPath)
+	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
-		log.Panic("初始化数据库失败:", err)
+		log.Panic("初始化数据库失败:", zap.Error(err))
 		return err
 	}
 	for _, component := range w.component {
 		err := component.Init(w.config)
 		if err != nil {
-			log.Panic("初始化组件失败:", component.Name(), err)
+			log.Panic("初始化组件失败:", zap.NamedError(component.Name(), err))
 			return err
 		}
 	}
 	w.db = db
-	w.log = logZap
 	w.context = &Context{
 		rLock:        new(sync.RWMutex),
 		config:       w.config,
-		log:          logZap,
 		restMap:      make(map[string]IRest),
 		modelMap:     make(map[string]IModel),
 		serviceMap:   make(map[string]IService),
@@ -179,7 +173,7 @@ func (w *WebFrame) Start() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	for _, group := range w.restGroups {
-		group.engine = w.getEngine(group.port, logZap)
+		group.engine = w.getEngine(group.port)
 		for _, rest := range group.rests {
 			w.context.AddRest(rest)
 		}
@@ -196,7 +190,7 @@ func (w *WebFrame) Start() error {
 			go func() {
 				err := engine.run()
 				if err != nil {
-					log.Panic("启动服务失败:", err)
+					log.Panic("启动服务失败:", zap.Error(err))
 					return
 				}
 			}()

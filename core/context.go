@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
-	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -12,7 +11,6 @@ import (
 
 type Context struct {
 	config       *config2.Config
-	log          *log2.Logger
 	engine       *gin.Engine
 	restMap      map[string]IRest
 	modelMap     map[string]IModel
@@ -27,7 +25,6 @@ type Context struct {
 func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context {
 	return &Context{
 		config:       c.config,
-		log:          c.log,
 		engine:       engine,
 		restMap:      c.restMap,
 		modelMap:     c.modelMap,
@@ -133,10 +130,6 @@ func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc
 }
 func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.AuthGetRaw(relativePath, handlers...)
-}
-
-func (c *Context) GetLogger() *log2.Logger {
-	return c.log
 }
 func (c *Context) GetConfig() *config2.Config {
 	return c.config

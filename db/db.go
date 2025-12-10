@@ -14,7 +14,7 @@ const (
 )
 
 type DB interface {
-	Connection(cfg *config.Config, log *log2.Logger) (db *gorm.DB, err error)
+	Connection(cfg *config.Config) (db *gorm.DB, err error)
 }
 
 type noConfigDBError struct {
@@ -39,13 +39,13 @@ var dbMap = map[string]DB{
 	MYSQL: &Mysql{},
 }
 
-func InitDB(c *config.Config, log *log2.Logger) (*gorm.DB, error) {
+func InitDB(c *config.Config) (*gorm.DB, error) {
 	type_ := c.GetString("web.db.type")
-	log.Info("db type", zap.String("type", type_))
+	log2.Info("db type", zap.String("type", type_))
 	if util.IsNotBlank(type_) {
 		for key, db := range dbMap {
 			if util.EqualsAnyIgnoreCase(type_, key) {
-				return db.Connection(c, log)
+				return db.Connection(c)
 			}
 		}
 		return nil, ConfigDBError

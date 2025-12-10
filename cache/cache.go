@@ -2,14 +2,16 @@ package cache
 
 import (
 	"bufio"
-	"log"
+
 	"os"
 	"path"
 
 	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/spf13/cast"
+	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
 )
 
@@ -82,7 +84,7 @@ func (l *LocalCache) HasFile(value ...any) bool {
 }
 func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
 	if len(value) == 0 {
-		log.Panicln("value len is zero")
+		log.Panic("value len is zero")
 	}
 	filename := l.getKey(value...)
 	fileDir := path.Join(l.path, filename[0:2])
@@ -95,7 +97,7 @@ func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResp
 		defer func(file *os.File) {
 			err := file.Close()
 			if err != nil {
-				log.Println("file close fail:", err)
+				log.Error("file close fail:", zap.Error(err))
 			}
 		}(file)
 		var reader = bufio.NewReader(file)
@@ -116,7 +118,7 @@ func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResp
 	defer func(writeFile *os.File) {
 		err := writeFile.Close()
 		if err != nil {
-			log.Println("file close fail:", err)
+			log.Error("file close fail:", zap.Error(err))
 		}
 	}(writeFile)
 	fileResponseWriteCloser := createFileResponseWriteCloser(response, writeFile)
@@ -143,7 +145,7 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 	defer func(writeFile *os.File) {
 		err := writeFile.Close()
 		if err != nil {
-			log.Println("file close fail:", err)
+			log.Error("file close fail:", zap.Error(err))
 		}
 	}(writeFile)
 	_, err = writeFile.Write(data)

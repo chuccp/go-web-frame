@@ -2,11 +2,12 @@ package config
 
 import (
 	"bytes"
-	"log"
 	"path/filepath"
 
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -52,7 +53,7 @@ func LoadConfig(paths ...string) (*Config, error) {
 	_viper_.SetConfigType("yaml")
 	for _, path := range paths {
 		absPath, err := filepath.Abs(path)
-		log.Printf("加载配置文件 %v", absPath)
+		log.Info("加载配置文件", zap.String("path", absPath))
 		data, err := util.ReadFileBytes(absPath)
 		if err != nil {
 			return nil, err

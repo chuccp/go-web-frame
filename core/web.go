@@ -43,7 +43,7 @@ func defaultEngine(port int, log *log2.Logger) *webEngine {
 	}
 }
 
-type Web struct {
+type WebFrame struct {
 	component      []IComponent
 	restGroups     []*RestGroup
 	log            *log2.Logger
@@ -57,8 +57,8 @@ type Web struct {
 	db             *gorm.DB
 }
 
-func CreateWeb(configFiles ...string) *Web {
-	w := &Web{
+func CreateWebFrame(configFiles ...string) *WebFrame {
+	w := &WebFrame{
 		engines:    make([]*webEngine, 0),
 		models:     make([]IModel, 0),
 		services:   make([]IService, 0),
@@ -74,30 +74,30 @@ func CreateWeb(configFiles ...string) *Web {
 	w.Configure(loadConfig)
 	return w
 }
-func (w *Web) Configure(config *config2.Config) {
+func (w *WebFrame) Configure(config *config2.Config) {
 	w.config = config
 }
 
-func (w *Web) AddRest(rest ...IRest) {
+func (w *WebFrame) AddRest(rest ...IRest) {
 	w.rests = append(w.rests, rest...)
 }
-func (w *Web) AddComponent(component ...IComponent) {
+func (w *WebFrame) AddComponent(component ...IComponent) {
 	w.component = append(w.component, component...)
 }
 
-func (w *Web) AddModel(model ...IModel) {
+func (w *WebFrame) AddModel(model ...IModel) {
 	w.models = append(w.models, model...)
 	for _, iModel := range model {
 		w.addService(iModel)
 	}
 }
-func (w *Web) addService(service IService) {
+func (w *WebFrame) addService(service IService) {
 	w.services = append(w.services, service)
 }
-func (w *Web) AddService(service ...IService) {
+func (w *WebFrame) AddService(service ...IService) {
 	w.services = append(w.services, service...)
 }
-func (w *Web) GetRestGroup(port ...int) *RestGroup {
+func (w *WebFrame) GetRestGroup(port ...int) *RestGroup {
 	if len(port) > 1 {
 		log.Panic("参数错误:", "port的数量不能大于1")
 	}
@@ -114,7 +114,7 @@ func (w *Web) GetRestGroup(port ...int) *RestGroup {
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *Web) getEngine(port int, log *log2.Logger) *webEngine {
+func (w *WebFrame) getEngine(port int, log *log2.Logger) *webEngine {
 	for _, engine := range w.engines {
 		if engine.port == port {
 			return engine
@@ -125,7 +125,7 @@ func (w *Web) getEngine(port int, log *log2.Logger) *webEngine {
 	return engine
 }
 
-func (w *Web) Start() error {
+func (w *WebFrame) Start() error {
 	debug := w.config.GetBoolOrDefault("web.server.debug", true)
 	if debug {
 		gin.SetMode(gin.DebugMode)

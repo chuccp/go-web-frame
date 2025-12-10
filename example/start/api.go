@@ -16,14 +16,14 @@ func (api *Api) test(request *web.Request, response web.Response) error {
 	localCache := core.GetComponent[*cache.Component](cache.Name, api.context).GetLocalCache()
 	err := localCache.GetFileResponseWrite(response, func(fileResponseWriteCloser *cache.FileResponseWriteCloser, value ...any) error {
 		err := util.GenerateQrcode(
-			"111",
+			util.JoinValues(value...),
 			fileResponseWriteCloser,
 			standard.WithBorderWidth(5),
 			standard.WithQRWidth(uint8(5)),
 			util.WithRoundedSquareShape(),
 		)
 		return err
-	}, "1111111111")
+	}, "11111111111")
 	return err
 }
 func (api *Api) Init(context *core.Context) {

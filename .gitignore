@@ -33,3 +33,4 @@ profile.cov
 /.idea
 /example/tmp
 .DS_Store
+/example/start/tmp

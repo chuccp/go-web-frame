@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	web := core.CreateWeb("application.yml")
+	web := core.CreateWebFrame("application.yml")
 	err := web.Start()
 	if err != nil {
 		log.Printf("启动失败 %v", err)

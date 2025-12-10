@@ -55,6 +55,18 @@ func (l *LocalCache) GetPath(value ...any) string {
 	filepath := path.Join(l.path, filename[0:2], filename)
 	return filepath
 }
+func (l *LocalCache) SaveBase64File(base64file string) (string, error) {
+	savePath := l.GetPath(base64file)
+	data, err := util.DecodeFileBase64(base64file)
+	if err != nil {
+		return "", err
+	}
+	err = util.WriteFile(data, savePath)
+	if err != nil {
+		return "", err
+	}
+	return savePath, nil
+}
 
 func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
 	file, err := l.GetFile(f, value...)

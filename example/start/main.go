@@ -26,7 +26,7 @@ func (a *Authentication) NewUser() any {
 }
 
 func main() {
-	web := core.CreateWeb("application.yml")
+	web := core.CreateWebFrame("application.yml")
 	web.AddComponent(&cache.Component{})
 	web.GetRestGroup().Authentication(&Authentication{})
 	web.AddRest(&Api{})

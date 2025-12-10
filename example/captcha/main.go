@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	web := core.CreateWeb("./application.yml")
+	web := core.CreateWebFrame("./application.yml")
 	web.AddRest(&Api{})
 	web.AddComponent(&captcha.Component{})
 	err := web.Start()

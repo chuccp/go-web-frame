@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 
 	"go.uber.org/zap"
@@ -108,14 +109,19 @@ func getDefaultLogger() *logger {
 	}
 }
 
-func InitLogger(path string) {
+func InitLogger(logPath string) {
+	if len(logPath) > 0 {
+		abs, err := filepath.Abs(logPath)
+		if err != nil {
+			Panic("日志文件路径错误", zap.Error(err))
+			return
+		}
+		logPath = abs
+	}
+	Info("日志保存路径", zap.String("logPath", logPath))
 	lock.Lock()
 	defer lock.Unlock()
-	cores := zapcore.NewTee(getStdoutLogWriter())
-	if len(path) > 0 {
-		writeFileCore := getFileLogWriter(path)
-		cores = zapcore.NewTee(writeFileCore, getStdoutLogWriter())
-	}
+	cores := zapcore.NewTee(getFileLogWriter(logPath), getStdoutLogWriter())
 	log := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2))
 	defaultLogger = &logger{
 		zap: log,

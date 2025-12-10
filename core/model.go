@@ -186,6 +186,10 @@ func (a *Model[T]) Edit(t T) error {
 	tx := a.db.Table(a.tableName).Updates(t)
 	return tx.Error
 }
+func (a *Model[T]) Update(id uint, column string, value interface{}) error {
+	tx := a.db.Table(a.tableName).Update(column, value).Where("`id` = ? ", id)
+	return tx.Error
+}
 func (a *Model[T]) EditForMap(id uint, data map[string]interface{}) error {
 	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Updates(data)
 	return tx.Error

@@ -40,26 +40,26 @@ type logger struct {
 	zap *zap.Logger
 }
 
-func (l *logger) Info(msg string, fields ...zap.Field) {
+func (l *logger) info(msg string, fields ...zap.Field) {
 	l.zap.Info(msg, fields...)
 }
-func (l *logger) Error(msg string, fields ...zap.Field) {
+func (l *logger) error(msg string, fields ...zap.Field) {
 	l.zap.Error(msg, fields...)
 }
-func (l *logger) Debug(msg string, fields ...zap.Field) {
+func (l *logger) debug(msg string, fields ...zap.Field) {
 	l.zap.Debug(msg, fields...)
 }
-func (l *logger) Warn(msg string, fields ...zap.Field) {
+func (l *logger) warn(msg string, fields ...zap.Field) {
 	l.zap.Warn(msg, fields...)
 }
-func (l *logger) Fatal(msg string, fields ...zap.Field) {
+func (l *logger) fatal(msg string, fields ...zap.Field) {
 	l.zap.Fatal(msg, fields...)
 }
-func (l *logger) Panic(msg string, fields ...zap.Field) {
+func (l *logger) panic(msg string, fields ...zap.Field) {
 	l.zap.Panic(msg, fields...)
 }
 
-func (l *logger) Sync() error {
+func (l *logger) sync() error {
 	return l.zap.Sync()
 }
 
@@ -68,37 +68,37 @@ var lock *sync.RWMutex = new(sync.RWMutex)
 func Info(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Info(msg, fields...)
+	defaultLogger.info(msg, fields...)
 }
 func Error(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Error(msg, fields...)
+	defaultLogger.error(msg, fields...)
 }
 func Debug(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Debug(msg, fields...)
+	defaultLogger.debug(msg, fields...)
 }
 func Warn(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Warn(msg, fields...)
+	defaultLogger.warn(msg, fields...)
 }
 func Fatal(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Fatal(msg, fields...)
+	defaultLogger.fatal(msg, fields...)
 }
 func Panic(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
-	defaultLogger.Panic(msg, fields...)
+	defaultLogger.panic(msg, fields...)
 }
 func Sync() error {
 	lock.RLock()
 	defer lock.RUnlock()
-	return defaultLogger.Sync()
+	return defaultLogger.sync()
 }
 
 func getDefaultLogger() *logger {

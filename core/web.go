@@ -128,7 +128,7 @@ func (w *WebFrame) Start() error {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log")
+	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {

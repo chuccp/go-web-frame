@@ -56,9 +56,6 @@ func (w *Wheres[T]) UpdateForMap(mapValue map[string]interface{}) error {
 func (w *Wheres[T]) UpdateColumn(column string, value interface{}) error {
 	return w.buildWhere().UpdateColumn(column, value).Error
 }
-func (w *Wheres[T]) UpdateColumns(column string, value interface{}) error {
-	return w.buildWhere().UpdateColumns()
-}
 
 type Query[T IEntry] struct {
 	tx    *gorm.DB

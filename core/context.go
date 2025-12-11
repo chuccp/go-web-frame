@@ -139,28 +139,28 @@ func GetRest[T IRest](name string, c *Context) T {
 }
 
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("Get", zap.String("relativePath", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	log.Debug("Get", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.get(relativePath, handlers...)
 }
 func (c *Context) get(relativePath string, handlers ...web.HandlerFunc) {
 	c.engine.GET(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthGet(relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("AuthGet", zap.String("relativePath", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	log.Debug("AuthGet", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.get(relativePath, web.AuthChecks(handlers...)...)
 }
 func (c *Context) GetAuth(relativePath string, handlers ...web.HandlerFunc) {
 	c.AuthGet(relativePath, handlers...)
 }
 func (c *Context) GetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("GetRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	log.Debug("GetRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
 	c.getRaw(relativePath, handlers...)
 }
 func (c *Context) getRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.engine.GET(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("AuthGetRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	log.Debug("AuthGetRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
 	c.getRaw(relativePath, web.AuthRawChecks(handlers...)...)
 }
 func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
@@ -171,28 +171,28 @@ func (c *Context) GetConfig() *config2.Config {
 }
 
 func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("Post", zap.String("relativePath", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	log.Debug("Post", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.post(relativePath, handlers...)
 }
 func (c *Context) post(relativePath string, handlers ...web.HandlerFunc) {
 	c.engine.POST(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) PostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("PostRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	log.Debug("PostRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
 	c.postRaw(relativePath, handlers...)
 }
 func (c *Context) postRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.engine.POST(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthPostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("AuthPostRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	log.Debug("AuthPostRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
 	c.postRaw(relativePath, web.AuthRawChecks(handlers...)...)
 }
 func (c *Context) PostRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.AuthPostRaw(relativePath, handlers...)
 }
 func (c *Context) AuthPost(relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("AuthPost", zap.String("relativePath", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	log.Debug("AuthPost", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.post(relativePath, web.AuthChecks(handlers...)...)
 }
 func (c *Context) PostAuth(relativePath string, handlers ...web.HandlerFunc) {

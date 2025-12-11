@@ -16,7 +16,7 @@ type contextGroup struct {
 	contexts []IContext
 }
 
-func (cg *contextGroup) AddContext(context IContext) {
+func (cg *contextGroup) addContext(context IContext) {
 	cg.contexts = append(cg.contexts, context)
 }
 
@@ -56,7 +56,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context 
 		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
 	}
-	c.contextGroup.AddContext(context)
+	c.contextGroup.addContext(context)
 	return context
 }
 

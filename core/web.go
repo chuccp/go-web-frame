@@ -122,12 +122,7 @@ func (w *WebFrame) getEngine(port int) *webEngine {
 }
 
 func (w *WebFrame) Start() error {
-	debug := w.config.GetBoolOrDefault("web.server.debug", true)
-	if debug {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	gin.SetMode(gin.ReleaseMode)
 	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
 	db, err := db2.InitDB(w.config)

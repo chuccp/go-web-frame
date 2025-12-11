@@ -3,11 +3,46 @@ package web
 import (
 	"os"
 	"path"
+	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 )
+
+type HandlersChain []HandlerFunc
+
+func (c HandlersChain) GetFuncName() string {
+	return runtime.FuncForPC(reflect.ValueOf(c.Last()).Pointer()).Name()
+}
+
+func (c HandlersChain) Last() HandlerFunc {
+	if length := len(c); length > 0 {
+		return c[length-1]
+	}
+	return nil
+}
+
+func Of(handlerFunc ...HandlerFunc) HandlersChain {
+	return HandlersChain(handlerFunc)
+}
+
+type HandlersRawChain []HandlerRawFunc
+
+func (c HandlersRawChain) GetFuncName() string {
+	return runtime.FuncForPC(reflect.ValueOf(c.Last()).Pointer()).Name()
+}
+
+func (c HandlersRawChain) Last() HandlerRawFunc {
+	if length := len(c); length > 0 {
+		return c[length-1]
+	}
+	return nil
+}
+func OfRaw(handlerRawFunc ...HandlerRawFunc) HandlersRawChain {
+	return HandlersRawChain(handlerRawFunc)
+}
 
 type HandlerFunc func(*Request) (any, error)
 

@@ -13,14 +13,14 @@ import (
 )
 
 type MysqlConfig struct {
-	Dbname   string `json:"dbname"`
-	Database string `json:"database"`
-	Charset  string `json:"charset"`
-	Username string `json:"username"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
+	Dbname   string
+	Database string
+	Charset  string
+	Username string
+	User     string
+	Password string
+	Host     string
+	Port     int
 }
 type MysqlConfigDBError struct {
 }

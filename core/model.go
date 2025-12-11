@@ -53,6 +53,10 @@ func (w *Wheres[T]) UpdateForMap(mapValue map[string]interface{}) error {
 	return w.buildWhere().Updates(mapValue).Error
 }
 
+func (w *Wheres[T]) UpdateColumn(column string, value interface{}) error {
+	return w.buildWhere().UpdateColumn(column, value).Error
+}
+
 type Query[T IEntry] struct {
 	tx    *gorm.DB
 	model T
@@ -222,16 +226,14 @@ func (a *Model[T]) DeleteOne(id uint) error {
 
 func (a *Model[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
-	tx := a.db.Table(a.tableName).Updates(t)
-	return tx.Error
+	return a.Update().Where("`id` = ? ", t.GetId()).Update(t)
 }
 func (a *Model[T]) UpdateColumn(id uint, column string, value interface{}) error {
-	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Update(column, value)
-	return tx.Error
+	return a.Update().Where("`id` = ? ", id).UpdateColumn(column, value)
 }
 func (a *Model[T]) UpdateForMap(id uint, data map[string]interface{}) error {
-	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Updates(data)
-	return tx.Error
+	return a.Update().Where("`id` = ? ", id).UpdateForMap(data)
+
 }
 
 func (a *Model[T]) NewModel(db *gorm.DB) *Model[T] {

@@ -70,7 +70,16 @@ func (q *Query[T]) Order(query interface{}) *Query[T] {
 	q.tx = q.tx.Order(query)
 	return q
 }
-func (q *Query[T]) List(page *web.Page) ([]T, error) {
+func (q *Query[T]) List(size int) ([]T, error) {
+	ts := NewSlice(q.model)
+	tx := q.tx.Limit(size).Find(&ts)
+	if tx.Error == nil {
+		return ts, nil
+	}
+	return nil, tx.Error
+
+}
+func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 	ts := NewSlice(q.model)
 	tx := q.tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if tx.Error == nil {

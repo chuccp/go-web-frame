@@ -9,6 +9,25 @@ import (
 	"gorm.io/gorm"
 )
 
+type IContext interface {
+	AddModel(model ...IModel)
+}
+type contextGroup struct {
+	contexts []IContext
+}
+
+func (cg *contextGroup) AddContext(context IContext) {
+	cg.contexts = append(cg.contexts, context)
+}
+
+func newContextGroup(parent IContext) *contextGroup {
+	contexts := make([]IContext, 0)
+	contexts = append(contexts, parent)
+	return &contextGroup{
+		contexts: contexts,
+	}
+}
+
 type Context struct {
 	config       *config2.Config
 	engine       *gin.Engine
@@ -16,14 +35,15 @@ type Context struct {
 	modelMap     map[string]IModel
 	rLock        *sync.RWMutex
 	serviceMap   map[string]IService
+	componentMap map[string]IComponent
 	db           *gorm.DB
 	transaction  *Transaction
 	digestAuth   *web.DigestAuth
-	componentMap map[string]IComponent
+	contextGroup *contextGroup
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context {
-	return &Context{
+	context := &Context{
 		config:       c.config,
 		engine:       engine,
 		restMap:      c.restMap,
@@ -33,8 +53,11 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context 
 		db:           c.db,
 		transaction:  c.transaction,
 		digestAuth:   digestAuth,
+		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
 	}
+	c.contextGroup.AddContext(context)
+	return context
 }
 
 func (c *Context) GetTransaction() *Transaction {

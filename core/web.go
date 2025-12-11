@@ -153,6 +153,8 @@ func (w *WebFrame) Start() error {
 		db:           db,
 		transaction:  NewTransaction(db),
 	}
+	contextGroup := newContextGroup(w.context)
+	w.context.contextGroup = contextGroup
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
 	w.context.AddService(w.services...)

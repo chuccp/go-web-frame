@@ -154,10 +154,14 @@ func (c *Context) GetAuth(relativePath string, handlers ...web.HandlerFunc) {
 }
 func (c *Context) GetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("GetRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	c.getRaw(relativePath, handlers...)
+}
+func (c *Context) getRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.engine.GET(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.GetRaw(relativePath, web.AuthRawChecks(handlers...)...)
+	log.Debug("AuthGetRaw", zap.String("relativePath", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
+	c.getRaw(relativePath, web.AuthRawChecks(handlers...)...)
 }
 func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.AuthGetRaw(relativePath, handlers...)

@@ -51,6 +51,6 @@ func (ms *Mysql) Connection(cfg *config.Config) (db *gorm.DB, err error) {
 		mysqlConfig.Charset = "utf8"
 	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)
-	log2.Info("mysql", zap.String("dsn", dsn))
+	log2.Debug("mysql", zap.String("dsn", dsn))
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 }

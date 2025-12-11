@@ -24,6 +24,35 @@ type IModel interface {
 	Init(context *Context)
 }
 
+type where struct {
+	query interface{}
+	args  []interface{}
+}
+type Wheres[T IEntry] struct {
+	wheres []*where
+	tx     *gorm.DB
+}
+
+func NewWheres[T IEntry](tx *gorm.DB) *Wheres[T] {
+	return &Wheres[T]{wheres: make([]*where, 0), tx: tx}
+}
+func (w *Wheres[T]) Where(query interface{}, args ...interface{}) *Wheres[T] {
+	w.wheres = append(w.wheres, &where{query: query, args: args})
+	return w
+}
+func (w *Wheres[T]) Update(t T) error {
+	return w.buildWhere().Updates(t).Error
+}
+func (w *Wheres[T]) buildWhere() *gorm.DB {
+	for _, w2 := range w.wheres {
+		w.tx = w.tx.Where(w2.query, w2.args...)
+	}
+	return w.tx
+}
+func (w *Wheres[T]) UpdateForMap(mapValue map[string]interface{}) error {
+	return w.buildWhere().Updates(mapValue).Error
+}
+
 type Query[T IEntry] struct {
 	tx    *gorm.DB
 	model T
@@ -87,6 +116,16 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 		}
 	}
 	return nil, 0, tx.Error
+}
+
+type Update[T IEntry] struct {
+	tx     *gorm.DB
+	model  T
+	wheres *Wheres[T]
+}
+
+func (u *Update[T]) Where(query interface{}, args ...interface{}) *Wheres[T] {
+	return u.wheres.Where(query, args...)
 }
 
 type Model[T IEntry] struct {
@@ -181,16 +220,16 @@ func (a *Model[T]) DeleteOne(id uint) error {
 	return tx.Error
 }
 
-func (a *Model[T]) Edit(t T) error {
+func (a *Model[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
 	tx := a.db.Table(a.tableName).Updates(t)
 	return tx.Error
 }
-func (a *Model[T]) Update(id uint, column string, value interface{}) error {
-	tx := a.db.Table(a.tableName).Update(column, value).Where("`id` = ? ", id)
+func (a *Model[T]) UpdateColumn(id uint, column string, value interface{}) error {
+	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Update(column, value)
 	return tx.Error
 }
-func (a *Model[T]) EditForMap(id uint, data map[string]interface{}) error {
+func (a *Model[T]) UpdateForMap(id uint, data map[string]interface{}) error {
 	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Updates(data)
 	return tx.Error
 }
@@ -208,6 +247,12 @@ func (a *Model[T]) Query() *Query[T] {
 	tx := a.db.Table(a.tableName)
 	return &Query[T]{tx: tx, model: a.model}
 }
+
+func (a *Model[T]) Update() *Update[T] {
+	tx := a.db.Table(a.tableName)
+	return &Update[T]{tx: tx, model: a.model, wheres: NewWheres[T](tx)}
+}
+
 func (a *Model[T]) GetTableName() string {
 	return a.tableName
 }

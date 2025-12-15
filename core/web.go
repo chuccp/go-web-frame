@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	log2 "log"
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -97,12 +96,6 @@ func (w *WebFrame) getHttpServer(port int) *web.HttpServer {
 	httpServer := web.NewHttpServer(port)
 	w.httpServers = append(w.httpServers, httpServer)
 	return httpServer
-}
-func (w *WebFrame) close() {
-	err := log.Sync()
-	if err != nil {
-		log2.Println("log sync fail:", err)
-	}
 }
 func (w *WebFrame) Close() error {
 	errs := make([]error, 0)

@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	log2 "log"
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -127,6 +128,12 @@ func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
+	defer func() {
+		err := log.Sync()
+		if err != nil {
+			log2.Println("log sync fail:", err)
+		}
+	}()
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Error("初始化数据库失败:", zap.Error(err))
@@ -200,5 +207,6 @@ func (w *WebFrame) Start() error {
 			})
 		}
 	}
+
 	return errorsPool.Wait()
 }

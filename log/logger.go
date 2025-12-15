@@ -1,6 +1,7 @@
 package log
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -75,6 +76,16 @@ func Error(msg string, fields ...zap.Field) {
 	defer lock.RUnlock()
 	defaultLogger.error(msg, fields...)
 }
+func Errors(msg string, errs ...error) {
+	lock.RLock()
+	defer lock.RUnlock()
+	fields := make([]zap.Field, len(errs))
+	for i, e := range errs {
+		fields[i] = zap.Error(e)
+	}
+	defaultLogger.error(msg, fields...)
+	log.Println(errs)
+}
 func Debug(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -95,6 +106,17 @@ func Panic(msg string, fields ...zap.Field) {
 	defer lock.RUnlock()
 	defaultLogger.panic(msg, fields...)
 }
+func PanicErrors(msg string, errs ...error) {
+	lock.RLock()
+	defer lock.RUnlock()
+	fields := make([]zap.Field, len(errs))
+	for i, e := range errs {
+		fields[i] = zap.Error(e)
+	}
+	defaultLogger.panic(msg, fields...)
+	log.Println(errs)
+}
+
 func Sync() error {
 	lock.RLock()
 	defer lock.RUnlock()

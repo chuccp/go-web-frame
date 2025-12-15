@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/core"
+	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 )
 
@@ -32,7 +32,7 @@ func main() {
 	web.AddRest(&Api{})
 	err := web.Start()
 	if err != nil {
-		log.Printf("启动失败 %v", err)
+		log2.Errors("启动失败", err)
 		return
 	}
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/sourcegraph/conc/panics"
+	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cast"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -127,13 +129,13 @@ func (w *WebFrame) Start() error {
 	log.InitLogger(logPath)
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
-		log.Panic("初始化数据库失败:", zap.Error(err))
+		log.Error("初始化数据库失败:", zap.Error(err))
 		return err
 	}
 	for _, component := range w.component {
 		err := component.Init(w.config)
 		if err != nil {
-			log.Panic("初始化组件失败:", zap.NamedError(component.Name(), err))
+			log.Error("初始化组件失败:", zap.NamedError(component.Name(), err))
 			return err
 		}
 	}
@@ -181,18 +183,22 @@ func (w *WebFrame) Start() error {
 			rest.Init(context)
 		}
 	}
-
-	if len(w.engines) > 1 {
-		for _, engine := range w.engines[1:] {
-			go func() {
-				err := engine.run()
-				if err != nil {
-					log.Panic("启动服务失败:", zap.Error(err))
-					return
-				}
-			}()
+	var wg = pool.New()
+	wg.WithMaxGoroutines(len(w.engines))
+	errorsPool := wg.WithErrors()
+	if len(w.engines) > 0 {
+		for _, engine := range w.engines {
+			errorsPool.Go(func() error {
+				var catcher panics.Catcher
+				catcher.Try(func() {
+					err := engine.run()
+					if err != nil {
+						log.PanicErrors("启动服务失败:", err)
+					}
+				})
+				return catcher.Recovered().AsError()
+			})
 		}
 	}
-
-	return w.engines[0].run()
+	return errorsPool.Wait()
 }

@@ -113,6 +113,8 @@ func (w *WebFrame) Close() error {
 			errs = append(errs, err)
 		}
 	}
+	err := log.Sync()
+	errs = append(errs, err)
 	if len(errs) == 0 {
 		return nil
 	}
@@ -122,7 +124,7 @@ func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
-	defer w.close()
+
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Error("初始化数据库失败:", zap.Error(err))

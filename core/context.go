@@ -6,7 +6,6 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	log "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -32,7 +31,7 @@ func newContextGroup(parent IContext) *contextGroup {
 
 type Context struct {
 	config       *config2.Config
-	engine       *gin.Engine
+	httpServer   *web.HttpServer
 	restMap      map[string]IRest
 	modelMap     map[string]IModel
 	rLock        *sync.RWMutex
@@ -44,10 +43,10 @@ type Context struct {
 	contextGroup *contextGroup
 }
 
-func (c *Context) Copy(digestAuth *web.DigestAuth, engine *gin.Engine) *Context {
+func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
 	context := &Context{
 		config:       c.config,
-		engine:       engine,
+		httpServer:   httpServer,
 		restMap:      c.restMap,
 		modelMap:     c.modelMap,
 		rLock:        c.rLock,
@@ -143,7 +142,7 @@ func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
 	c.get(relativePath, handlers...)
 }
 func (c *Context) get(relativePath string, handlers ...web.HandlerFunc) {
-	c.engine.GET(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+	c.httpServer.GET(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthGet(relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("AuthGet", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
@@ -157,7 +156,7 @@ func (c *Context) GetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.getRaw(relativePath, handlers...)
 }
 func (c *Context) getRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.engine.GET(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
+	c.httpServer.GET(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("AuthGetRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
@@ -175,14 +174,14 @@ func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) {
 	c.post(relativePath, handlers...)
 }
 func (c *Context) post(relativePath string, handlers ...web.HandlerFunc) {
-	c.engine.POST(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+	c.httpServer.POST(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) PostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("PostRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
 	c.postRaw(relativePath, handlers...)
 }
 func (c *Context) postRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.engine.POST(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
+	c.httpServer.POST(relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
 }
 func (c *Context) AuthPostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("AuthPostRaw", zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))

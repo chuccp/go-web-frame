@@ -9,7 +9,6 @@ import (
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/panics"
 	"github.com/sourcegraph/conc/pool"
@@ -18,36 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type webEngine struct {
-	engine *gin.Engine
-	port   int
-}
-
-func (e *webEngine) run() error {
-	log.Info("启动服务", zap.String("serving run", "http://127.0.0.1:"+cast.ToString(e.port)))
-	return e.engine.Run(":" + cast.ToString(e.port))
-}
-
-func defaultEngine(port int) *webEngine {
-	engine := gin.Default()
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = false
-	config.AllowCredentials = true
-	config.AllowOriginFunc = func(origin string) bool {
-		return true
-	}
-	engine.Use(cors.New(config))
-	return &webEngine{
-		engine: engine,
-		port:   port,
-	}
-}
-
 type WebFrame struct {
 	component      []IComponent
 	restGroups     []*RestGroup
 	config         *config2.Config
-	engines        []*webEngine
+	httpServers    []*web.HttpServer
 	context        *Context
 	models         []IModel
 	services       []IService
@@ -58,12 +32,12 @@ type WebFrame struct {
 
 func CreateWebFrame(configFiles ...string) *WebFrame {
 	w := &WebFrame{
-		engines:    make([]*webEngine, 0),
-		models:     make([]IModel, 0),
-		services:   make([]IService, 0),
-		restGroups: make([]*RestGroup, 0),
-		rests:      make([]IRest, 0),
-		component:  make([]IComponent, 0),
+		httpServers: make([]*web.HttpServer, 0),
+		models:      make([]IModel, 0),
+		services:    make([]IService, 0),
+		restGroups:  make([]*RestGroup, 0),
+		rests:       make([]IRest, 0),
+		component:   make([]IComponent, 0),
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
@@ -113,21 +87,35 @@ func (w *WebFrame) GetRestGroup(port ...int) *RestGroup {
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *WebFrame) getEngine(port int) *webEngine {
-	for _, engine := range w.engines {
-		if engine.port == port {
-			return engine
+func (w *WebFrame) getHttpServer(port int) *web.HttpServer {
+	for _, httpServer := range w.httpServers {
+		if httpServer.Port() == port {
+			return httpServer
 		}
 	}
-	engine := defaultEngine(port)
-	w.engines = append(w.engines, engine)
-	return engine
+	httpServer := web.NewHttpServer(port)
+	w.httpServers = append(w.httpServers, httpServer)
+	return httpServer
 }
 func (w *WebFrame) close() {
 	err := log.Sync()
 	if err != nil {
 		log2.Println("log sync fail:", err)
 	}
+}
+func (w *WebFrame) Close() error {
+	errs := make([]error, 0)
+	for _, server := range w.httpServers {
+		err := server.Close()
+		if err != nil {
+			log.Error("关闭服务失败:", zap.Error(err))
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }
 func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
@@ -179,26 +167,26 @@ func (w *WebFrame) Start() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	for _, group := range w.restGroups {
-		group.engine = w.getEngine(group.port)
+		group.httpServer = w.getHttpServer(group.port)
 		for _, rest := range group.rests {
 			w.context.AddRest(rest)
 		}
 	}
 	for _, group := range w.restGroups {
-		context := w.context.Copy(group.digestAuth, group.engine.engine)
+		context := w.context.Copy(group.digestAuth, group.httpServer)
 		for _, rest := range group.rests {
 			rest.Init(context)
 		}
 	}
 	var wg = pool.New()
-	wg.WithMaxGoroutines(len(w.engines))
+	wg.WithMaxGoroutines(len(w.httpServers))
 	errorsPool := wg.WithErrors()
-	if len(w.engines) > 0 {
-		for _, engine := range w.engines {
+	if len(w.httpServers) > 0 {
+		for _, engine := range w.httpServers {
 			errorsPool.Go(func() error {
 				var catcher panics.Catcher
 				catcher.Try(func() {
-					err := engine.run()
+					err := engine.Run()
 					if err != nil {
 						log.PanicErrors("启动服务失败:", err)
 					}

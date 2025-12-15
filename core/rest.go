@@ -13,7 +13,7 @@ type RestGroup struct {
 	rests      []IRest
 	port       int
 	name       string
-	engine     *webEngine
+	httpServer *web.HttpServer
 	digestAuth *web.DigestAuth
 }
 

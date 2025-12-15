@@ -4,6 +4,7 @@ type Message struct {
 	Code int    `json:"code"`
 	Data any    `json:"data"`
 	Msg  string `json:"msg"`
+	Type string `json:"type"`
 }
 
 func (msg *Message) IsOK() bool {
@@ -25,6 +26,21 @@ func Ok(msg ...string) *Message {
 func Data(data any) *Message {
 	return &Message{
 		Code: 200,
+		Msg:  "ok",
+		Data: data,
+	}
+}
+func DataType(t string, data any) *Message {
+	return &Message{
+		Type: t,
+		Code: 200,
+		Msg:  "ok",
+		Data: data,
+	}
+}
+func DataCode(code int, data any) *Message {
+	return &Message{
+		Code: code,
 		Msg:  "ok",
 		Data: data,
 	}

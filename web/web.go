@@ -87,9 +87,9 @@ func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 				req.c.JSON(err0.Code, err0)
 				req.c.Abort()
 				return nil
-			} else {
-				return handler(req, response)
 			}
+
+			return handler(req, response)
 		}
 	}
 	return hs

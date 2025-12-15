@@ -123,17 +123,17 @@ func (w *WebFrame) getEngine(port int) *webEngine {
 	w.engines = append(w.engines, engine)
 	return engine
 }
-
+func (w *WebFrame) close() {
+	err := log.Sync()
+	if err != nil {
+		log2.Println("log sync fail:", err)
+	}
+}
 func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
-	defer func() {
-		err := log.Sync()
-		if err != nil {
-			log2.Println("log sync fail:", err)
-		}
-	}()
+	defer w.close()
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Error("初始化数据库失败:", zap.Error(err))
@@ -207,6 +207,5 @@ func (w *WebFrame) Start() error {
 			})
 		}
 	}
-
 	return errorsPool.Wait()
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
+	"github.com/kardianos/service"
 	"github.com/sourcegraph/conc/panics"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cast"
@@ -150,8 +151,8 @@ func (w *WebFrame) Start() error {
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
 	w.context.AddService(w.services...)
-	for _, service := range w.services {
-		service.Init(w.context)
+	for _, iService := range w.services {
+		iService.Init(w.context)
 	}
 	port := cast.ToInt(w.config.GetStringOrDefault("web.server.port", "9009"))
 	rootGroup := newRestGroup(port).AddRest(w.rests...).Authentication(w.authentication)
@@ -196,4 +197,8 @@ func (w *WebFrame) Start() error {
 		}
 	}
 	return errorsPool.Wait()
+}
+
+func (w *WebFrame) Daemon(svcConfig *service.Config) {
+	RunDaemon(w, svcConfig)
 }

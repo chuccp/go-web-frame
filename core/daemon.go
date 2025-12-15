@@ -9,13 +9,18 @@ import (
 	"github.com/kardianos/service"
 )
 
+type AppService interface {
+	Start() error
+	Close() error
+}
+
 type AppDaemon struct {
-	webFrame *WebFrame
+	appService AppService
 }
 
 func (a *AppDaemon) Start(s service.Service) error {
 	go func() {
-		err := a.webFrame.Start()
+		err := a.appService.Start()
 		if err != nil {
 			log.Errors("启动服务失败：", err)
 		}
@@ -24,15 +29,15 @@ func (a *AppDaemon) Start(s service.Service) error {
 }
 
 func (a *AppDaemon) Stop(s service.Service) error {
-	return a.webFrame.Close()
+	return a.appService.Close()
 }
 
-func Run(webFrame *WebFrame, svcConfig *service.Config) {
+func RunDaemon(appService AppService, svcConfig *service.Config) {
 	// 解析启停参数
 	stopFlag := flag.Bool("stop", false, "停止服务")
 	flag.Parse()
 	app := &AppDaemon{
-		webFrame: webFrame,
+		appService: appService,
 	}
 	svc, err := service.New(app, svcConfig)
 	if err != nil {

@@ -3,7 +3,6 @@ package web
 import (
 	"crypto/tls"
 	"net/http"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -103,12 +102,9 @@ func (httpServer *HttpServer) Run() error {
 		engine.NoRoute(func(context *gin.Context) {
 			for _, dir := range serverConfig.Locations {
 				_path_ := context.Request.URL.Path
-				if strings.HasSuffix(_path_, "/") {
-					return
-				}
 				filePath := path.Join(dir, _path_)
 				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
-				if util.FileExists(filePath) {
+				if util.ExistsFile(filePath) {
 					context.File(filePath)
 					return
 				}
@@ -209,11 +205,9 @@ func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 		return cm.certManager, nil
 	}
 	certsPath := "certs"
-	if !util.FileExists(certsPath) {
-		err := os.MkdirAll(certsPath, 0700)
-		if err != nil {
-			return nil, err
-		}
+	err := util.CreateDirIfNoExists(certsPath)
+	if err != nil {
+		return nil, err
 	}
 	m := &autocert.Manager{
 		Prompt: autocert.AcceptTOS,

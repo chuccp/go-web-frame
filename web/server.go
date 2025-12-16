@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/panics"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/http2"
 )
@@ -29,8 +31,9 @@ type SSLConfig struct {
 	Hosts   []string
 }
 type ServerConfig struct {
-	Port int
-	SSL  *SSLConfig
+	Port      int
+	Locations []string
+	SSL       *SSLConfig
 }
 
 func DefaultServerConfig(port int) *ServerConfig {
@@ -69,8 +72,9 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 		}
 		certManager.AddPort(serverConfig.Port)
 	}
+	engine := defaultEngine()
 	return &HttpServer{
-		engine:       defaultEngine(),
+		engine:       engine,
 		serverConfig: serverConfig,
 		certManager:  certManager,
 	}
@@ -86,6 +90,28 @@ func (httpServer *HttpServer) POST(relativePath string, handlers ...gin.HandlerF
 }
 
 func (httpServer *HttpServer) Run() error {
+	serverConfig := httpServer.serverConfig
+	engine := httpServer.engine
+	if serverConfig.Locations != nil {
+		for _, dir := range serverConfig.Locations {
+			log.Info("静态文件目录：", zap.String("dir", dir))
+		}
+		engine.NoRoute(func(context *gin.Context) {
+			for _, dir := range serverConfig.Locations {
+				_path_ := context.Request.URL.Path
+				if strings.HasSuffix(_path_, "/") {
+					return
+				}
+				filePath := path.Join(dir, _path_)
+				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
+				if util.FileExists(filePath) {
+					context.File(filePath)
+					return
+				}
+			}
+		})
+
+	}
 	if httpServer.serverConfig.SSL.Enabled {
 		return httpServer.startTLS()
 	}
@@ -96,10 +122,12 @@ func (httpServer *HttpServer) Run() error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
+	log.Info("启动服务：", zap.String("服务", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
 	return httpServer.httpServer.ListenAndServe()
 }
 
 func (httpServer *HttpServer) startTLS() error {
+
 	certManager, err := httpServer.certManager.GetCertManager()
 	if err != nil {
 		return err
@@ -119,6 +147,9 @@ func (httpServer *HttpServer) startTLS() error {
 			NextProtos:     []string{http2.NextProtoTLS, "http/1.1"},
 			MinVersion:     tls.VersionTLS12,
 		},
+	}
+	for _, host := range httpServer.serverConfig.SSL.Hosts {
+		log.Info("启动服务：", zap.String("启动服务", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
 	return httpServer.httpServer.ListenAndServeTLS("", "")
 }

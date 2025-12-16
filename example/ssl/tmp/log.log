@@ -1,3 +1,38 @@
 {"level":"info","ts":"2025-12-16 16:35:35","caller":"db/db.go:44","msg":"db type","type":"mysql"}
 {"level":"error","ts":"2025-12-16 16:35:35","caller":"core/web.go:122","msg":"初始化数据库失败:","error":"dial tcp [::1]:3306: connectex: No connection could be made because the target machine actively refused it."}
 {"level":"info","ts":"2025-12-16 16:35:58","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:33:25","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:33:25","caller":"web/server.go:93","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:34:03","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:34:03","caller":"web/server.go:93","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:34:22","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:34:22","caller":"web/server.go:93","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:35:29","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:35:29","caller":"web/server.go:77","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:35:55","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:35:55","caller":"web/server.go:77","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:36:05","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:36:05","caller":"web/server.go:77","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:37:02","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:37:02","caller":"web/server.go:77","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:39:18","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:39:18","caller":"web/server.go:77","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:42:56","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:42:56","caller":"web/server.go:96","msg":"静态资源：","路径":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:48:03","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:48:54","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:48:54","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:49:16","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:49:16","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:52:12","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:52:12","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:52:12","caller":"web/server.go:122","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-16 17:54:07","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:54:07","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:54:07","caller":"web/server.go:122","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-16 17:55:12","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:55:12","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:55:12","caller":"web/server.go:122","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-16 17:56:36","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-16 17:56:36","caller":"web/server.go:97","msg":"静态文件目录：","dir":"C:\\Users\\cao\\Downloads"}
+{"level":"info","ts":"2025-12-16 17:56:36","caller":"web/server.go:125","msg":"启动服务：","服务":"http://127.0.0.1:20011"}

@@ -2,6 +2,8 @@ web:
   debug: true
   server:
     port: 20011
+    locations:
+        - C:\Users\cao\Downloads
     ssl:
       enabled: false
       hosts:

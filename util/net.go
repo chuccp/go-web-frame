@@ -3,6 +3,7 @@ package util
 import (
 	"net"
 	"net/url"
+	"regexp"
 )
 
 func GetDomainFromURL(rawURL string) string {
@@ -29,4 +30,10 @@ func GetHost(rawURL string) string {
 		return ""
 	}
 	return u.Host
+}
+func IsDomain(str string) bool {
+	// 定义域名的正则表达式
+	domainRegex := `^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`
+	matched, _ := regexp.MatchString(domainRegex, str)
+	return matched
 }

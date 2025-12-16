@@ -27,6 +27,7 @@ type WebFrame struct {
 	rests          []IRest
 	authentication web.Authentication
 	db             *gorm.DB
+	certManager    *web.CertManager
 }
 
 func CreateWebFrame(configFiles ...string) *WebFrame {
@@ -37,6 +38,7 @@ func CreateWebFrame(configFiles ...string) *WebFrame {
 		restGroups:  make([]*RestGroup, 0),
 		rests:       make([]IRest, 0),
 		component:   make([]IComponent, 0),
+		certManager: web.NewCertManager(),
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
@@ -86,7 +88,7 @@ func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer
 			return httpServer
 		}
 	}
-	httpServer := web.NewHttpServer(serverConfig)
+	httpServer := web.NewHttpServer(serverConfig, w.certManager)
 	w.httpServers = append(w.httpServers, httpServer)
 	return httpServer
 }
@@ -191,6 +193,7 @@ func (w *WebFrame) Start() error {
 			})
 		}
 	}
+	w.certManager.Start()
 	return errorsPool.Wait()
 }
 

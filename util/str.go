@@ -329,3 +329,12 @@ func JoinValues(values ...any) string {
 	}
 	return b.String()
 }
+
+func ArrayIntContains(arr []int, str int) bool {
+	for _, item := range arr {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}

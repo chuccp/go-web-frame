@@ -12,6 +12,18 @@ const Name = "captcha_component"
 type Component struct {
 	captcha slide.Captcha
 }
+type SlideCaptchaData struct {
+	TileImage   string `json:"tileImage"`
+	MasterImage string `json:"masterImage"`
+	ThumbX      int    `json:"thumbX"`
+	ThumbY      int    `json:"thumbY"`
+	ThumbWidth  int    `json:"thumbWidth"`
+	ThumbHeight int    `json:"thumbHeight"`
+	ThumbAngle  int    `json:"thumbAngle"`
+}
+
+type SlideCaptcha struct {
+}
 
 func (c *Component) Init(config *config2.Config) error {
 	builder := slide.NewBuilder()
@@ -37,6 +49,30 @@ func (c *Component) Init(config *config2.Config) error {
 }
 func (c *Component) GetCaptcha() slide.Captcha {
 	return c.captcha
+}
+func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
+	captchaData, err := c.captcha.Generate()
+	if err != nil {
+		return nil, err
+	}
+	tile, err := captchaData.GetTileImage().ToBase64()
+	if err != nil {
+		return nil, err
+	}
+	master, err := captchaData.GetMasterImage().ToBase64()
+	if err != nil {
+		return nil, err
+	}
+	block := captchaData.GetData()
+	return &SlideCaptchaData{
+		TileImage:   tile,
+		MasterImage: master,
+		ThumbX:      block.X,
+		ThumbY:      block.Y,
+		ThumbWidth:  block.Width,
+		ThumbHeight: block.Height,
+		ThumbAngle:  block.Angle,
+	}, nil
 }
 func (c *Component) Name() string {
 	return Name

@@ -32,7 +32,7 @@ func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
 		rg.port = restGroup.port
 	}
 	if rg.port == restGroup.port {
-		if rg.serverConfig == nil || rg.serverConfig.SSL == nil || rg.serverConfig.SSL.Enabled == false {
+		if rg.serverConfig == nil || (!rg.serverConfig.SSLEnabled()) {
 			rg.serverConfig = restGroup.serverConfig
 		}
 	}

@@ -36,6 +36,10 @@ type ServerConfig struct {
 	SSL       *SSLConfig
 }
 
+func (s *ServerConfig) SSLEnabled() bool {
+	return s.SSL != nil && s.SSL.Enabled
+}
+
 func DefaultServerConfig(port int) *ServerConfig {
 
 	return &ServerConfig{
@@ -66,7 +70,7 @@ func defaultEngine() *gin.Engine {
 }
 
 func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpServer {
-	if serverConfig.SSL.Enabled {
+	if serverConfig.SSLEnabled() {
 		for _, host := range serverConfig.SSL.Hosts {
 			certManager.AddHost(host)
 		}
@@ -112,7 +116,7 @@ func (httpServer *HttpServer) Run() error {
 		})
 
 	}
-	if httpServer.serverConfig.SSL.Enabled {
+	if httpServer.serverConfig.SSLEnabled() {
 		return httpServer.startTLS()
 	}
 	httpServer.httpServer = &http.Server{

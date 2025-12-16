@@ -200,3 +200,7 @@ func (w *WebFrame) Start() error {
 func (w *WebFrame) Daemon(svcConfig *service.Config) {
 	RunDaemon(w, svcConfig)
 }
+
+func (w *WebFrame) Authentication(authentication web.Authentication) {
+	w.authentication = authentication
+}

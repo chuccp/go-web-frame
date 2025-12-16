@@ -17,24 +17,6 @@ import (
 	"time"
 )
 
-func FileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	if err != nil && os.IsNotExist(err) {
-		return false
-	}
-	return err == nil
-}
-
-func EnsureDir(dirPath string) error {
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		// 创建目录及必要的父目录
-		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func WriteBase64File(base64Str string, dst string) error {
 	base64, err := DecodeFileBase64(base64Str)
 	if err != nil {

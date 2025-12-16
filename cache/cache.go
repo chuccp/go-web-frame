@@ -80,7 +80,7 @@ func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byt
 }
 func (l *LocalCache) HasFile(value ...any) bool {
 	filepath := l.GetPath(value...)
-	return util.FileExists(filepath)
+	return util.ExistsFile(filepath)
 }
 func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
 	if len(value) == 0 {

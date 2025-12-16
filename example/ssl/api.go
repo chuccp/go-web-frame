@@ -1,0 +1,29 @@
+package main
+
+import (
+	"github.com/chuccp/go-web-frame/captcha"
+	"github.com/chuccp/go-web-frame/core"
+	"github.com/chuccp/go-web-frame/web"
+)
+
+type Api struct {
+	context *core.Context
+}
+
+func (api *Api) test(request *web.Request) (any, error) {
+
+	getCaptcha := core.GetComponent[*captcha.Component](captcha.Name, api.context).GetCaptcha()
+	generate, err := getCaptcha.Generate()
+	if err != nil {
+		return nil, err
+	}
+	return generate.GetData(), nil
+}
+func (api *Api) Init(context *core.Context) {
+	api.context = context
+
+	api.context.Get("/test", api.test)
+}
+func (api *Api) Name() string {
+	return "api"
+}

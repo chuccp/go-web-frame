@@ -1,0 +1,11 @@
+web:
+  debug: true
+  server:
+    port: 20011
+    ssl:
+      enabled: false
+      hosts:
+        - www.example.com
+
+
+

@@ -6,4 +6,5 @@ use (
 	./example/captcha
 	./example/conc
 	./example/daemon
+	./example/ssl
 )

@@ -1,0 +1,3 @@
+{"level":"info","ts":"2025-12-16 16:35:35","caller":"db/db.go:44","msg":"db type","type":"mysql"}
+{"level":"error","ts":"2025-12-16 16:35:35","caller":"core/web.go:122","msg":"初始化数据库失败:","error":"dial tcp [::1]:3306: connectex: No connection could be made because the target machine actively refused it."}
+{"level":"info","ts":"2025-12-16 16:35:58","caller":"db/db.go:44","msg":"db type","type":""}

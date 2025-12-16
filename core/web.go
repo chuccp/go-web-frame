@@ -12,7 +12,6 @@ import (
 	"github.com/kardianos/service"
 	"github.com/sourcegraph/conc/panics"
 	"github.com/sourcegraph/conc/pool"
-	"github.com/spf13/cast"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -70,30 +69,24 @@ func (w *WebFrame) addService(service IService) {
 func (w *WebFrame) AddService(service ...IService) {
 	w.services = append(w.services, service...)
 }
-func (w *WebFrame) GetRestGroup(port ...int) *RestGroup {
-	if len(port) > 1 {
-		log.Panic("参数错误:", zap.String("参数错误", "port的数量不能大于1"))
-	}
-	_port_ := 0
-	if len(port) == 1 {
-		_port_ = port[0]
-	}
+func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *RestGroup {
+
 	for _, group := range w.restGroups {
-		if group.port == _port_ {
+		if group.port == serverConfig.Port {
 			return group
 		}
 	}
-	groupGroup := newRestGroup(_port_)
+	groupGroup := newRestGroup(serverConfig)
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *WebFrame) getHttpServer(port int) *web.HttpServer {
+func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
 	for _, httpServer := range w.httpServers {
-		if httpServer.Port() == port {
+		if httpServer.Port() == serverConfig.Port {
 			return httpServer
 		}
 	}
-	httpServer := web.NewHttpServer(port)
+	httpServer := web.NewHttpServer(serverConfig)
 	w.httpServers = append(w.httpServers, httpServer)
 	return httpServer
 }
@@ -149,11 +142,18 @@ func (w *WebFrame) Start() error {
 	for _, iService := range w.services {
 		iService.Init(w.context)
 	}
-	port := cast.ToInt(w.config.GetStringOrDefault("web.server.port", "9009"))
-	rootGroup := newRestGroup(port).AddRest(w.rests...).Authentication(w.authentication)
+	var serverConfig web.ServerConfig
+	err = w.config.Unmarshal("web.server", &serverConfig)
+	if err != nil {
+		return err
+	}
+	if serverConfig.Port == 0 {
+		serverConfig.Port = 9009
+	}
+	rootGroup := newRestGroup(&serverConfig).AddRest(w.rests...).Authentication(w.authentication)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
-		if group.port == 0 || group.port == port {
+		if group.port == 0 || group.port == serverConfig.Port {
 			group.merge(rootGroup)
 			hasRootGroup = true
 			break
@@ -163,7 +163,7 @@ func (w *WebFrame) Start() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	for _, group := range w.restGroups {
-		group.httpServer = w.getHttpServer(group.port)
+		group.httpServer = w.getHttpServer(group.serverConfig)
 		for _, rest := range group.rests {
 			w.context.AddRest(rest)
 		}

@@ -10,11 +10,12 @@ type IRest interface {
 }
 
 type RestGroup struct {
-	rests      []IRest
-	port       int
-	name       string
-	httpServer *web.HttpServer
-	digestAuth *web.DigestAuth
+	rests        []IRest
+	port         int
+	name         string
+	httpServer   *web.HttpServer
+	digestAuth   *web.DigestAuth
+	serverConfig *web.ServerConfig
 }
 
 func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
@@ -30,6 +31,11 @@ func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
 	if rg.port == 0 {
 		rg.port = restGroup.port
 	}
+	if rg.port == restGroup.port {
+		if rg.serverConfig == nil || rg.serverConfig.SSL == nil || rg.serverConfig.SSL.Enabled == false {
+			rg.serverConfig = restGroup.serverConfig
+		}
+	}
 	return rg
 }
 func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGroup {
@@ -41,10 +47,12 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 func (rg *RestGroup) Run() error {
 	return nil
 }
-func newRestGroup(port int) *RestGroup {
+
+func newRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 
 	return &RestGroup{
-		rests: make([]IRest, 0),
-		port:  port,
+		rests:        make([]IRest, 0),
+		port:         serverConfig.Port,
+		serverConfig: serverConfig,
 	}
 }

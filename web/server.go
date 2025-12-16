@@ -103,6 +103,9 @@ func (httpServer *HttpServer) Run() error {
 			for _, dir := range serverConfig.Locations {
 				_path_ := context.Request.URL.Path
 				filePath := path.Join(dir, _path_)
+				if strings.HasSuffix(_path_, "/") {
+					filePath = path.Join(filePath, "index.html")
+				}
 				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
 				if util.ExistsFile(filePath) {
 					context.File(filePath)

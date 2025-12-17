@@ -149,12 +149,13 @@ func (w *WebFrame) Start() error {
 		componentMap: make(map[string]IComponent),
 		db:           db,
 		transaction:  NewTransaction(db),
-		configs:      w.configs,
+		configMap:    make(map[string]IConfig),
 	}
 	contextGroup := newContextGroup(w.context)
 	w.context.contextGroup = contextGroup
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
+	w.context.addConfig(w.configs...)
 	w.context.AddService(w.services...)
 	for _, iService := range w.services {
 		iService.Init(w.context)

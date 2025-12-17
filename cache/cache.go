@@ -24,11 +24,13 @@ type Component struct {
 
 func (l *Component) Init(config *config2.Config) error {
 	temp := config.GetStringOrDefault("web.cache.path", "tmp/cache")
+	open := config.GetBoolOrDefault("web.cache.open", false)
+	log.Info("cache:", zap.String("path", temp), zap.Bool("是否写文件", open))
 	err := util.CreateDirIfNoExists(temp)
 	if err != nil {
 		return err
 	}
-	l.localCache = NewLocalCache(temp)
+	l.localCache = NewLocalCache(temp, open)
 	return nil
 }
 func (l *Component) GetLocalCache() *LocalCache {
@@ -40,10 +42,11 @@ func (l *Component) Name() string {
 
 type LocalCache struct {
 	path string
+	open bool
 }
 
-func NewLocalCache(path string) *LocalCache {
-	return &LocalCache{path: path}
+func NewLocalCache(path string, open bool) *LocalCache {
+	return &LocalCache{path: path, open: open}
 }
 func (l *LocalCache) getKey(key ...any) string {
 	b := new(buffer.Buffer)
@@ -85,6 +88,14 @@ func (l *LocalCache) HasFile(value ...any) bool {
 func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResponseWriteCloser *FileResponseWriteCloser, value ...any) error, value ...any) error {
 	if len(value) == 0 {
 		log.Panic("value len is zero")
+	}
+	if !l.open {
+		fileResponseWriteCloser := createFileResponseWriteCloser(response, nil)
+		err := f(fileResponseWriteCloser, value...)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	filename := l.getKey(value...)
 	fileDir := path.Join(l.path, filename[0:2])
@@ -165,15 +176,21 @@ func (w *FileResponseWriteCloser) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return num, err
 	}
+	if w.file == nil {
+		return num, err
+	}
 	return w.file.Write(p)
 }
 func (w *FileResponseWriteCloser) Close() error {
 	w.response.Flush()
+	if w.file == nil {
+		return nil
+	}
 	err := w.file.Sync()
 	if err != nil {
 		return err
 	}
-	return w.file.Close()
+	return nil
 }
 
 func createFileResponseWriteCloser(response web.Response, file *os.File) *FileResponseWriteCloser {

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"image/color"
 	"io"
 
 	"github.com/yeqown/go-qrcode/v2"
@@ -22,13 +23,30 @@ func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard
 }
 
 type ShapeRoundedSquare struct {
+	Color color.Color
 }
 
+var rgbaWhite = color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})
+
+func IsWhite(c color.Color) bool {
+	return color.White == c || color.Transparent == c || rgbaWhite == c
+
+}
 func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
 	w, h := ctx.Edge()
 	fw0, fh0 := float64(w), float64(h)
 	x0, y0 := ctx.UpperLeft()
-	ctx.SetColor(ctx.Color())
+
+	if s.Color != nil {
+		if IsWhite(ctx.Color()) {
+			ctx.SetColor(ctx.Color())
+		} else {
+			ctx.SetColor(s.Color)
+		}
+	} else {
+		ctx.SetColor(ctx.Color())
+	}
+
 	ctx.DrawRoundedRectangle(x0+1, y0+1, fw0-2, fh0-2, fw0/3)
 	ctx.Fill()
 }
@@ -37,7 +55,16 @@ func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
 	w, h := ctx.Edge()
 	fw0, fh0 := float64(w), float64(h)
 	x0, y0 := ctx.UpperLeft()
-	ctx.SetColor(ctx.Color())
+
+	if s.Color != nil {
+		if IsWhite(ctx.Color()) {
+			ctx.SetColor(ctx.Color())
+		} else {
+			ctx.SetColor(s.Color)
+		}
+	} else {
+		ctx.SetColor(ctx.Color())
+	}
 	ctx.DrawRectangle(x0, y0, fw0, fh0)
 	ctx.Fill()
 }

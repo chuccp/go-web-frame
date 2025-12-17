@@ -41,7 +41,7 @@ type Context struct {
 	transaction  *Transaction
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
-	configs      []IConfig
+	configMap    map[string]IConfig
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
@@ -57,7 +57,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		digestAuth:   digestAuth,
 		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
-		configs:      c.configs,
+		configMap:    c.configMap,
 	}
 	c.contextGroup.addContext(context)
 	return context
@@ -91,6 +91,15 @@ func (c *Context) GetDB() *gorm.DB {
 	return c.db
 }
 
+func (c *Context) addConfig(config ...IConfig) {
+	c.rLock.Lock()
+	defer c.rLock.Unlock()
+	for _, config := range config {
+		c.configMap[config.Key()] = config
+	}
+
+}
+
 func (c *Context) addModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
@@ -115,23 +124,22 @@ func GetComponent[T IComponent](name string, c *Context) T {
 }
 
 func (c *Context) GetConfig(key string) IConfig {
-	for _, config := range c.configs {
-		if config.Key() == key {
-			return config
-		}
-	}
-	return nil
+	return c.configMap[key]
 }
 func GetConfig[T IConfig](c *Context) T {
 	var t T
-	log.Debug("GetConfig", zap.Any("config", t))
-	for _, v := range c.configs {
+	for _, v := range c.configMap {
 		t, ok := v.(T)
 		if ok {
 			return t
 		}
 	}
 	return t
+}
+func GetConfigByKey[T IConfig](key string, c *Context) T {
+	v, _ := c.GetConfig(key).(T)
+	return v
+
 }
 
 func (c *Context) GetModel(name string) IModel {

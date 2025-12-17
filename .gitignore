@@ -34,3 +34,4 @@ profile.cov
 /example/tmp
 .DS_Store
 /example/start/tmp
+/example/config/tmp

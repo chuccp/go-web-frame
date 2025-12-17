@@ -5,3 +5,22 @@
 {"level":"info","ts":"2025-12-17 10:38:20","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
 {"level":"info","ts":"2025-12-17 10:39:36","caller":"db/db.go:44","msg":"db type","type":""}
 {"level":"info","ts":"2025-12-17 10:39:36","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 20:42:29","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 20:42:29","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 20:43:30","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 20:43:30","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:03:33","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:03:33","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:04:16","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:04:16","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:05:46","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:05:49","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:21:33","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:21:33","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:22:34","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:22:34","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"error","ts":"2025-12-17 21:22:38","caller":"cache/cache.go:121","msg":"file close fail:","error":"close tmp/cache/ad/adbc91a43e988a3b5b745b8529a90b61: file already closed"}
+{"level":"info","ts":"2025-12-17 21:42:40","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:42:40","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}
+{"level":"info","ts":"2025-12-17 21:43:35","caller":"db/db.go:44","msg":"db type","type":""}
+{"level":"info","ts":"2025-12-17 21:43:35","caller":"web/server.go:128","msg":"启动服务：","服务":"http://127.0.0.1:20011"}

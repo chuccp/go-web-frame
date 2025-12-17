@@ -4,6 +4,9 @@ web:
     debug: true
   cache:
     path: tmp/cache
+  log:
+    path: tmp/log.log
+    level: info
 db:
   type: mysql
   url: mysql://localhost:3306/test

@@ -8,8 +8,30 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+type Config struct {
+	Level string
+	Path  string
+}
+
+func (c *Config) Key() string {
+	return "web.log"
+}
+func defaultConfig() *Config {
+	return &Config{
+		Level: "info",
+		Path:  "",
+	}
+}
+func IsBackgroundMode() bool {
+	isStdoutTTY := term.IsTerminal(int(os.Stdout.Fd()))
+	isStderrTTY := term.IsTerminal(int(os.Stderr.Fd()))
+	_, hasNohup := os.LookupEnv("NOHUP")
+	return hasNohup && (!isStdoutTTY || !isStderrTTY)
+}
 
 var TimestampFormat = "2006-01-02 15:04:05"
 var defaultLogger = getDefaultLogger()
@@ -38,7 +60,8 @@ func getStdoutLogWriter() zapcore.Core {
 }
 
 type logger struct {
-	zap *zap.Logger
+	zap       *zap.Logger
+	logConfig *Config
 }
 
 func (l *logger) info(msg string, fields ...zap.Field) {
@@ -125,27 +148,42 @@ func Sync() error {
 
 func getDefaultLogger() *logger {
 	cores := zapcore.NewTee(getStdoutLogWriter())
-	log := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2))
+	l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2))
 	return &logger{
-		zap: log,
+		zap: l,
 	}
 }
-
-func InitLogger(logPath string) {
-	if len(logPath) > 0 {
-		abs, err := filepath.Abs(logPath)
-		if err != nil {
-			Panic("日志文件路径错误", zap.Error(err))
-			return
-		}
-		logPath = abs
+func InitLogger(logConfig *Config) {
+	mode := IsBackgroundMode()
+	level, err := zapcore.ParseLevel(logConfig.Level)
+	if err != nil {
+		level = zapcore.InfoLevel
+		Error("日志级别错误", zap.Error(err), zap.String("level", level.String()))
 	}
-	Info("日志保存路径", zap.String("logPath", logPath))
+	Info("运行模式", zap.String("level", logConfig.Level), zap.Bool("是否后台运行写日志", mode))
+	if !mode {
+		if len(logConfig.Path) > 0 {
+			abs, err := filepath.Abs(logConfig.Path)
+			if err == nil {
+				logConfig.Path = abs
+				Info("日志保存路径", zap.String("logPath", logConfig.Path))
+				cores := zapcore.NewTee(getFileLogWriter(logConfig.Path), getStdoutLogWriter())
+				l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level))
+				lock.Lock()
+				defer lock.Unlock()
+				defaultLogger = &logger{
+					zap: l,
+				}
+				return
+			}
+			Error("日志文件路径错误", zap.Error(err))
+		} else {
+			Info("日志保存路径没有设置")
+		}
+	}
 	lock.Lock()
 	defer lock.Unlock()
-	cores := zapcore.NewTee(getFileLogWriter(logPath), getStdoutLogWriter())
-	log := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2))
 	defaultLogger = &logger{
-		zap: log,
+		zap: zap.New(getStdoutLogWriter(), zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level)),
 	}
 }

@@ -114,8 +114,12 @@ func (w *WebFrame) Close() error {
 }
 func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
-	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
-	log.InitLogger(logPath)
+	var logConfig log.Config
+	err := w.config.Unmarshal(logConfig.Key(), &logConfig)
+	if err != nil {
+		return err
+	}
+	log.InitLogger(&logConfig)
 	for _, config := range w.configs {
 		err := w.config.Unmarshal(config.Key(), config)
 		if err != nil {

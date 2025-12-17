@@ -110,7 +110,8 @@ func (c *Context) GetComponent(name string) IComponent {
 }
 
 func GetComponent[T IComponent](name string, c *Context) T {
-	return c.GetComponent(name).(T)
+	v, _ := c.GetComponent(name).(T)
+	return v
 }
 
 func (c *Context) GetConfig(key string) IConfig {
@@ -123,6 +124,7 @@ func (c *Context) GetConfig(key string) IConfig {
 }
 func GetConfig[T IConfig](c *Context) T {
 	var t T
+	log.Debug("GetConfig", zap.Any("config", t))
 	for _, v := range c.configs {
 		t, ok := v.(T)
 		if ok {
@@ -147,15 +149,47 @@ func (c *Context) GetService(name string) IService {
 }
 
 func GetGetService[T IService](name string, c *Context) T {
-	return c.GetService(name).(T)
+	v, _ := c.GetService(name).(T)
+	return v
+}
+func GetServiceAuto[T IService](c *Context) T {
+	var t T
+	for _, s := range c.serviceMap {
+		t, ok := s.(T)
+		if ok {
+			return t
+		}
+	}
+	return t
 }
 
 func GetModel[T IModel](name string, c *Context) T {
-	return c.GetModel(name).(T)
+	v, _ := c.GetModel(name).(T)
+	return v
 }
-
+func GetModelAuto[T IModel](c *Context) T {
+	var v T
+	for _, m := range c.modelMap {
+		v, ok := m.(T)
+		if ok {
+			return v
+		}
+	}
+	return v
+}
 func GetRest[T IRest](name string, c *Context) T {
-	return c.GetRest(name).(T)
+	v, _ := c.GetRest(name).(T)
+	return v
+}
+func GetRestAuto[T IRest](c *Context) T {
+	var v T
+	for _, r := range c.restMap {
+		v, ok := r.(T)
+		if ok {
+			return v
+		}
+	}
+	return v
 }
 
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {

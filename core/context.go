@@ -41,6 +41,7 @@ type Context struct {
 	transaction  *Transaction
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
+	configs      []IConfig
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
@@ -56,6 +57,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		digestAuth:   digestAuth,
 		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
+		configs:      c.configs,
 	}
 	c.contextGroup.addContext(context)
 	return context
@@ -109,6 +111,25 @@ func (c *Context) GetComponent(name string) IComponent {
 
 func GetComponent[T IComponent](name string, c *Context) T {
 	return c.GetComponent(name).(T)
+}
+
+func (c *Context) GetConfig(key string) IConfig {
+	for _, config := range c.configs {
+		if config.Key() == key {
+			return config
+		}
+	}
+	return nil
+}
+func GetConfig[T IConfig](c *Context) T {
+	var t T
+	for _, v := range c.configs {
+		t, ok := v.(T)
+		if ok {
+			return t
+		}
+	}
+	return t
 }
 
 func (c *Context) GetModel(name string) IModel {
@@ -165,7 +186,7 @@ func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc
 func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.AuthGetRaw(relativePath, handlers...)
 }
-func (c *Context) GetConfig() *config2.Config {
+func (c *Context) GetRawConfig() *config2.Config {
 	return c.config
 }
 

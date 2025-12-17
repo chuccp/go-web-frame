@@ -24,13 +24,14 @@ type WebFrame struct {
 	context        *Context
 	models         []IModel
 	services       []IService
+	configs        []IConfig
 	rests          []IRest
 	authentication web.Authentication
 	db             *gorm.DB
 	certManager    *web.CertManager
 }
 
-func CreateWebFrame(configFiles ...string) *WebFrame {
+func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
 	w := &WebFrame{
 		httpServers: make([]*web.HttpServer, 0),
 		models:      make([]IModel, 0),
@@ -42,13 +43,13 @@ func CreateWebFrame(configFiles ...string) *WebFrame {
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
-		log.Panic("加载配置文件失败:", zap.Error(err))
-		return nil
+		log.Error("加载配置文件失败:", zap.Error(err))
+		return nil, err
 	}
-	w.Configure(loadConfig)
-	return w
+	w.configure(loadConfig)
+	return w, nil
 }
-func (w *WebFrame) Configure(config *config2.Config) {
+func (w *WebFrame) configure(config *config2.Config) {
 	w.config = config
 }
 
@@ -64,6 +65,9 @@ func (w *WebFrame) AddModel(model ...IModel) {
 	for _, iModel := range model {
 		w.addService(iModel)
 	}
+}
+func (w *WebFrame) RegisterConfig(config IConfig) {
+	w.configs = append(w.configs, config)
 }
 func (w *WebFrame) addService(service IService) {
 	w.services = append(w.services, service)
@@ -112,6 +116,12 @@ func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	logPath := w.config.GetStringOrDefault("web.log.path", "tmp/log.log")
 	log.InitLogger(logPath)
+	for _, config := range w.configs {
+		err := w.config.Unmarshal(config.Key(), config)
+		if err != nil {
+			log.Error("加载配置文件失败:", zap.Any(config.Key(), config), zap.Error(err))
+		}
+	}
 
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
@@ -135,6 +145,7 @@ func (w *WebFrame) Start() error {
 		componentMap: make(map[string]IComponent),
 		db:           db,
 		transaction:  NewTransaction(db),
+		configs:      w.configs,
 	}
 	contextGroup := newContextGroup(w.context)
 	w.context.contextGroup = contextGroup

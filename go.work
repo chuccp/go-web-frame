@@ -7,4 +7,5 @@ use (
 	./example/conc
 	./example/daemon
 	./example/ssl
+	./example/config
 )

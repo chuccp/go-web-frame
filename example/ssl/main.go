@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	web := core.CreateWebFrame("application.yml")
+	web, _ := core.CreateWebFrame("application.yml")
 	web.AddRest(&Api{})
 	web.AddComponent(&cache.Component{})
 	web.AddComponent(&captcha.Component{})

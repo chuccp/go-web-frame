@@ -82,6 +82,9 @@ func (r *Request) IsPost() bool {
 func (r *Request) GetQuery(key string) string {
 	return r.c.Query(key)
 }
+func (r *Request) Param(key string) string {
+	return r.c.Param(key)
+}
 func (r *Request) Cookie() *Cookie {
 	return r.cookie
 }

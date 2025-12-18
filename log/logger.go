@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Level string
 	Path  string
+	Write bool
 }
 
 func (c *Config) Key() string {
@@ -24,13 +25,16 @@ func defaultConfig() *Config {
 	return &Config{
 		Level: "info",
 		Path:  "",
+		Write: false,
 	}
 }
+
 func IsBackgroundMode() bool {
 	isStdoutTTY := term.IsTerminal(int(os.Stdout.Fd()))
 	isStderrTTY := term.IsTerminal(int(os.Stderr.Fd()))
 	_, hasNohup := os.LookupEnv("NOHUP")
-	return hasNohup && (!isStdoutTTY || !isStderrTTY)
+	Info("运行模式", zap.Bool("isStdoutTTY", isStdoutTTY), zap.Bool("isStderrTTY", isStderrTTY), zap.Bool("hasNohup", hasNohup))
+	return hasNohup && (isStdoutTTY || isStderrTTY)
 }
 
 var TimestampFormat = "2006-01-02 15:04:05"
@@ -154,7 +158,7 @@ func getDefaultLogger() *logger {
 	}
 }
 func InitLogger(logConfig *Config) {
-	mode := IsBackgroundMode()
+	mode := logConfig.Write
 	level, err := zapcore.ParseLevel(logConfig.Level)
 	if err != nil {
 		level = zapcore.InfoLevel

@@ -47,6 +47,9 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	}
 	return c.v.GetBool(key)
 }
+func NewConfig() *Config {
+	return &Config{v: viper.New()}
+}
 func LoadConfig(paths ...string) (*Config, error) {
 
 	_viper_ := viper.New()

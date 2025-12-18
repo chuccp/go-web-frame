@@ -110,8 +110,8 @@ func Errors(msg string, errs ...error) {
 	for i, e := range errs {
 		fields[i] = zap.Error(e)
 	}
-	defaultLogger.error(msg, fields...)
 	log.Println(errs)
+	defaultLogger.error(msg, fields...)
 }
 func Debug(msg string, fields ...zap.Field) {
 	lock.RLock()
@@ -140,8 +140,9 @@ func PanicErrors(msg string, errs ...error) {
 	for i, e := range errs {
 		fields[i] = zap.Error(e)
 	}
-	defaultLogger.panic(msg, fields...)
 	log.Println(errs)
+	defaultLogger.panic(msg, fields...)
+
 }
 
 func Sync() error {

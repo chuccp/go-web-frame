@@ -184,11 +184,11 @@ func GetServiceAuto[T IService](c *Context) T {
 	return t
 }
 
-func GetModel[T IModel](name string, c *Context) T {
+func GetModelByName[T IModel](name string, c *Context) T {
 	v, _ := c.GetModel(name).(T)
 	return v
 }
-func GetModelAuto[T IModel](c *Context) T {
+func GetModel[T IModel](c *Context) T {
 	var v T
 	for _, m := range c.modelMap {
 		v, ok := m.(T)
@@ -198,11 +198,11 @@ func GetModelAuto[T IModel](c *Context) T {
 	}
 	return v
 }
-func GetRest[T IRest](name string, c *Context) T {
+func GetRestByName[T IRest](name string, c *Context) T {
 	v, _ := c.GetRest(name).(T)
 	return v
 }
-func GetRestAuto[T IRest](c *Context) T {
+func GetRest[T IRest](c *Context) T {
 	var v T
 	for _, r := range c.restMap {
 		v, ok := r.(T)

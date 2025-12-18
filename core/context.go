@@ -42,6 +42,7 @@ type Context struct {
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
 	configMap    map[string]IConfig
+	schedule     *Schedule
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
@@ -58,6 +59,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
 		configMap:    c.configMap,
+		schedule:     c.schedule,
 	}
 	c.contextGroup.addContext(context)
 	return context
@@ -65,6 +67,9 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 
 func (c *Context) GetTransaction() *Transaction {
 	return c.transaction
+}
+func (c *Context) GetSchedule() *Schedule {
+	return c.schedule
 }
 func (c *Context) AddRest(rests ...IRest) {
 	c.rLock.Lock()

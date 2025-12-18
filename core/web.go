@@ -29,6 +29,7 @@ type WebFrame struct {
 	authentication web.Authentication
 	db             *gorm.DB
 	certManager    *web.CertManager
+	schedule       *Schedule
 }
 
 func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
@@ -40,6 +41,7 @@ func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
 		rests:       make([]IRest, 0),
 		component:   make([]IComponent, 0),
 		certManager: web.NewCertManager(),
+		schedule:    NewSchedule(),
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {
@@ -138,6 +140,11 @@ func (w *WebFrame) Start() error {
 			log.Error("初始化组件失败:", zap.NamedError(component.Name(), err))
 			return err
 		}
+	}
+	err = w.schedule.Init(w.config)
+	if err != nil {
+		log.Error("初始化计划任务失败:", zap.Error(err))
+		return err
 	}
 	w.db = db
 	w.context = &Context{

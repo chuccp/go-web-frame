@@ -159,21 +159,11 @@ func (c *Context) GetService(name string) IService {
 	return c.serviceMap[name]
 }
 
-func GetGetServiceByName[T IService](name string, c *Context) T {
+func GetServiceByName[T IService](name string, c *Context) T {
 	v, _ := c.GetService(name).(T)
 	return v
 }
-func GetGetService[T IService](c *Context) T {
-	var t T
-	for _, v := range c.serviceMap {
-		t, ok := v.(T)
-		if ok {
-			return t
-		}
-	}
-	return t
-}
-func GetServiceAuto[T IService](c *Context) T {
+func GetService[T IService](c *Context) T {
 	var t T
 	for _, s := range c.serviceMap {
 		t, ok := s.(T)

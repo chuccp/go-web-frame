@@ -1,5 +1,7 @@
 package web
 
+import "net/http"
+
 type Message struct {
 	Code int    `json:"code"`
 	Data any    `json:"data"`
@@ -86,5 +88,12 @@ func Unauthorized(data any, msg ...error) *Message {
 		Code: 401,
 		Msg:  m,
 		Data: data,
+	}
+}
+func Redirect(url string) *Message {
+	return &Message{
+		Code: http.StatusMovedPermanently,
+		Msg:  "redirect",
+		Data: url,
 	}
 }

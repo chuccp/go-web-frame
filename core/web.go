@@ -73,8 +73,10 @@ func (w *WebFrame) AddModel(model ...IModel) {
 		w.addService(iModel)
 	}
 }
-func (w *WebFrame) RegisterConfig(config IConfig) {
-	w.configs = append(w.configs, config)
+func (w *WebFrame) RegisterConfig(configs ...IConfig) {
+	for _, config := range configs {
+		w.configs = append(w.configs, config)
+	}
 }
 func (w *WebFrame) addService(service IService) {
 	w.services = append(w.services, service)

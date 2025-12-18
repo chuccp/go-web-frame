@@ -151,8 +151,6 @@ func (c *Context) GetModel(name string) IModel {
 	return c.modelMap[name]
 }
 func (c *Context) AddService(services ...IService) {
-	c.rLock.RLock()
-	defer c.rLock.RUnlock()
 	for _, s := range services {
 		c.serviceMap[s.Name()] = s
 	}
@@ -264,10 +262,4 @@ func (c *Context) AuthPost(relativePath string, handlers ...web.HandlerFunc) {
 }
 func (c *Context) PostAuth(relativePath string, handlers ...web.HandlerFunc) {
 	c.AuthPost(relativePath, handlers...)
-}
-
-func (c *Context) Rest(name string) IRest {
-	c.rLock.RLock()
-	defer c.rLock.RUnlock()
-	return c.restMap[name]
 }

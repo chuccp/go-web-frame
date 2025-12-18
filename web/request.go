@@ -31,6 +31,9 @@ type Request struct {
 	digestAuth *DigestAuth
 }
 
+func (r *Request) GinContext() *gin.Context {
+	return r.c
+}
 func (r *Request) GetDigestAuth() *DigestAuth {
 	return r.digestAuth
 }

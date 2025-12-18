@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/http"
 	"os"
 	"path"
 	"reflect"
@@ -106,6 +107,11 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 			if value != nil {
 				switch t := value.(type) {
 				case *Message:
+					if t.Code == http.StatusMovedPermanently {
+						context.Redirect(http.StatusMovedPermanently, t.Data.(string))
+						context.Abort()
+						return
+					}
 					context.JSON(t.Code, value)
 				case string:
 					_, err2 := context.Writer.Write([]byte(t))

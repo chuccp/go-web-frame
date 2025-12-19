@@ -36,7 +36,8 @@ var NoConfigDBError = &noConfigDBError{}
 var ConfigDBError = &configDBError{}
 
 var dbMap = map[string]DB{
-	MYSQL: &Mysql{},
+	MYSQL:  &Mysql{},
+	SQLITE: &SQLite{},
 }
 
 func InitDB(c config.IConfig) (*gorm.DB, error) {

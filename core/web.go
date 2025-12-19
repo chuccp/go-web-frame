@@ -46,7 +46,6 @@ func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
 	if configFiles == nil || len(configFiles) == 0 {
 		w.configure(config2.NewConfig())
 		return w, nil
-		return nil, errors.New("请指定配置文件")
 	}
 	loadConfig, err := config2.LoadConfig(configFiles...)
 	if err != nil {

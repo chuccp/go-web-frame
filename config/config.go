@@ -102,3 +102,6 @@ func LoadConfig(paths ...string) (*Config, error) {
 	}
 	return &Config{v: _viper_}, nil
 }
+func LoadAutoConfig() *Config {
+	return NewConfig()
+}

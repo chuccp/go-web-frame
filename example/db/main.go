@@ -3,12 +3,17 @@ package main
 import (
 	"log"
 
+	"github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 )
 
 func main() {
-	web, _ := core.CreateWebFrame("application.yml")
-	err := web.Start()
+	loadConfig, err := config.LoadConfig("application.yml")
+	if err != nil {
+		return
+	}
+	web := core.New(loadConfig)
+	err = web.Start()
 	if err != nil {
 		log.Printf("启动失败 %v", err)
 		return

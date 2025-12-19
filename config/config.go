@@ -70,6 +70,10 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 		return nil, err
 	}
 	log.Info("加载配置文件", zap.String("path", absPath))
+	err = util.CreateFileIfNoExists(absPath)
+	if err != nil {
+		return nil, err
+	}
 	_viper_ := viper.New()
 	_viper_.SetConfigFile(absPath)
 	err = _viper_.ReadInConfig()

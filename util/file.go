@@ -426,6 +426,24 @@ func CreateDirIfNoExists(path string) error {
 	return nil
 }
 
+func CreateFileIfNoExists(path string) error {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			file, err := os.Create(path)
+			if err != nil {
+				return err
+			}
+			return file.Close()
+		}
+		return err
+	}
+	if fileInfo.IsDir() {
+		return errors.New("path is a directory")
+	}
+	return nil
+}
+
 // ExistsFile 判断指定路径是否为**存在的文件**（非目录、非不存在）
 // 返回值：true=文件存在；false=文件不存在/是目录/其他错误
 func ExistsFile(path string) bool {

@@ -115,7 +115,7 @@ func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error
 
 }
 
-func (a *EntryModel[T]) NewModel(db *gorm.DB) *EntryModel[T] {
+func (a *EntryModel[T]) NewEntryModel(db *gorm.DB) *EntryModel[T] {
 	return &EntryModel[T]{&Model[T]{db, a.tableName, a.entry}}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {

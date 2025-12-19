@@ -16,7 +16,7 @@ type IEntry interface {
 }
 
 type EntryModel[T IEntry] struct {
-	*Model[T]
+	model *Model[T]
 }
 
 func NewPtr[T any](v T) T {
@@ -52,33 +52,26 @@ func NewEntryModel[T IEntry](db *gorm.DB, tableName string, entry T) *EntryModel
 	return &EntryModel[T]{NewModel(db, tableName, entry)}
 }
 
-//func (a *EntryModel[T]) IsExist() bool {
-//	return a.db.Migrator().HasTable(a.tableName)
-//}
-//func (a *EntryModel[T]) CreateTable() error {
-//	if a.IsExist() {
-//		return nil
-//	}
-//	t := NewPtr(a.entry)
-//	err := a.db.Table(a.tableName).AutoMigrate(t)
-//	return err
-//}
-//func (a *EntryModel[T]) DeleteTable() error {
-//	t := NewPtr(a.entry)
-//	tx := a.db.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
-//	return tx.Error
-//}
+func (a *EntryModel[T]) IsExist() bool {
+	return a.model.IsExist()
+}
+func (a *EntryModel[T]) CreateTable() error {
+	return a.model.CreateTable()
+}
+func (a *EntryModel[T]) DeleteTable() error {
+	return a.model.DeleteTable()
+}
 
 func (a *EntryModel[T]) Save(t T) error {
 	t.SetCreateTime(time.Now())
 	t.SetUpdateTime(time.Now())
-	return a.Model.Save(t)
+	return a.model.Save(t)
 }
 
 func (a *EntryModel[T]) FindById(id uint) (T, error) {
-	t := NewPtr(a.entry)
+	t := NewPtr(a.model.entry)
 	t.SetId(id)
-	tx := a.db.Table(a.tableName).First(&t)
+	tx := a.model.db.Table(a.model.tableName).First(&t)
 	if tx.Error == nil {
 		return t, nil
 	}
@@ -86,8 +79,8 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 }
 
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
-	t := NewPtr(a.entry)
-	tx := a.db.Table(a.tableName).Where(query, args...).First(&t)
+	t := NewPtr(a.model.entry)
+	tx := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
 	if tx.Error == nil {
 		return t, nil
 	}
@@ -95,49 +88,51 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
-	return a.Query().Where("`id` in (?) ", id).All()
+	return a.model.Query().Where("`id` in (?) ", id).All()
 }
 func (a *EntryModel[T]) DeleteOne(id uint) error {
-	t := NewPtr(a.entry)
-	tx := a.db.Table(a.tableName).Where("`id` = ? ", id).Delete(t)
+	t := NewPtr(a.model.entry)
+	tx := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
 	return tx.Error
 }
 
 func (a *EntryModel[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
-	return a.Update().Where("`id` = ? ", t.GetId()).Update(t)
+	return a.model.Update().Where("`id` = ? ", t.GetId()).Update(t)
 }
 func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) error {
-	return a.Update().Where("`id` = ? ", id).UpdateColumn(column, value)
+	return a.model.Update().Where("`id` = ? ", id).UpdateColumn(column, value)
 }
 func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error {
-	return a.Update().Where("`id` = ? ", id).UpdateForMap(data)
+	return a.model.Update().Where("`id` = ? ", id).UpdateForMap(data)
 
 }
 
 func (a *EntryModel[T]) NewEntryModel(db *gorm.DB) *EntryModel[T] {
-	return &EntryModel[T]{&Model[T]{db, a.tableName, a.entry}}
+	return &EntryModel[T]{&Model[T]{db, a.model.tableName, a.model.entry}}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
-	return a.Query().Order("`id` desc").Page(page)
+	return a.model.Query().Order("`id` desc").Page(page)
 }
 func (a *EntryModel[T]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
-	return a.Query().Where(query, args...).Order("`id` desc").Page(page)
+	return a.model.Query().Where(query, args...).Order("`id` desc").Page(page)
 }
 
-//func (a *EntryModel[T]) Query() *Query[T] {
-//	tx := a.db.Table(a.tableName)
-//	return &Query[T]{tx: tx, entry: a.entry}
-//}
+func (a *EntryModel[T]) Query() *Query[T] {
 
-//func (a *EntryModel[T]) Update() *Update[T] {
-//	tx := a.db.Table(a.tableName)
-//	return &Update[T]{tx: tx, model: a.entry, wheres: NewUpdateWheres[T](tx)}
-//}
+	return a.model.Query()
+}
 
-//func (a *EntryModel[T]) GetTableName() string {
-//	return a.tableName
-//}
+func (a *EntryModel[T]) Update() *Update[T] {
+	return a.model.Update()
+}
+func (a *EntryModel[T]) Delete() *Delete[T] {
+	return a.model.Delete()
+}
+
+func (a *EntryModel[T]) GetTableName() string {
+	return a.model.tableName
+}
 
 type Transaction struct {
 	db *gorm.DB

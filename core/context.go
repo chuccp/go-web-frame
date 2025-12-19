@@ -41,7 +41,7 @@ type Context struct {
 	transaction  *Transaction
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
-	configMap    map[string]IConfig
+	configMap    map[string]IValueConfig
 	schedule     *Schedule
 }
 
@@ -96,7 +96,7 @@ func (c *Context) GetDB() *gorm.DB {
 	return c.db
 }
 
-func (c *Context) addConfig(config ...IConfig) {
+func (c *Context) addConfig(config ...IValueConfig) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, config := range config {
@@ -128,10 +128,10 @@ func GetComponent[T IComponent](name string, c *Context) T {
 	return v
 }
 
-func (c *Context) GetConfig(key string) IConfig {
+func (c *Context) GetValueConfig(key string) IValueConfig {
 	return c.configMap[key]
 }
-func GetConfig[T IConfig](c *Context) T {
+func GetValueConfig[T IValueConfig](c *Context) T {
 	var t T
 	for _, v := range c.configMap {
 		t, ok := v.(T)
@@ -141,10 +141,9 @@ func GetConfig[T IConfig](c *Context) T {
 	}
 	return t
 }
-func GetConfigByKey[T IConfig](key string, c *Context) T {
-	v, _ := c.GetConfig(key).(T)
+func GetValueConfigByKey[T IValueConfig](key string, c *Context) T {
+	v, _ := c.GetValueConfig(key).(T)
 	return v
-
 }
 
 func (c *Context) GetModel(name string) IModel {

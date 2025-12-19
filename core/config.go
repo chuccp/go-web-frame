@@ -1,5 +1,5 @@
 package core
 
-type IConfig interface {
+type IValueConfig interface {
 	Key() string
 }

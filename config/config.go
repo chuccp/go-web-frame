@@ -10,6 +10,15 @@ import (
 	"go.uber.org/zap"
 )
 
+type IFileConfig interface {
+	GetString(key string) string
+	GetStringOrDefault(key string, defaultValue string) string
+	GetInt(key string) int
+	GetIntOrDefault(key string, defaultValue int) int
+	GetBoolOrDefault(key string, defaultValue bool) bool
+	Unmarshal(key string, v any) error
+}
+
 type Config struct {
 	v *viper.Viper
 }

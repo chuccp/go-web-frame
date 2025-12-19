@@ -24,7 +24,7 @@ type WebFrame struct {
 	context        *Context
 	models         []IModel
 	services       []IService
-	configs        []IConfig
+	configs        []IValueConfig
 	rests          []IRest
 	authentication web.Authentication
 	db             *gorm.DB
@@ -73,7 +73,7 @@ func (w *WebFrame) AddModel(model ...IModel) {
 		w.addService(iModel)
 	}
 }
-func (w *WebFrame) RegisterConfig(configs ...IConfig) {
+func (w *WebFrame) RegisterConfig(configs ...IValueConfig) {
 	for _, config := range configs {
 		w.configs = append(w.configs, config)
 	}
@@ -163,7 +163,7 @@ func (w *WebFrame) Start() error {
 		componentMap: make(map[string]IComponent),
 		db:           db,
 		transaction:  NewTransaction(db),
-		configMap:    make(map[string]IConfig),
+		configMap:    make(map[string]IValueConfig),
 	}
 	contextGroup := newContextGroup(w.context)
 	w.context.contextGroup = contextGroup

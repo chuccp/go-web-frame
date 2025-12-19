@@ -5,6 +5,7 @@ import (
 
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -38,7 +39,7 @@ type Context struct {
 	serviceMap   map[string]IService
 	componentMap map[string]IComponent
 	db           *gorm.DB
-	transaction  *Transaction
+	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
 	configMap    map[string]IValueConfig
@@ -65,7 +66,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 	return context
 }
 
-func (c *Context) GetTransaction() *Transaction {
+func (c *Context) GetTransaction() *model.Transaction {
 	return c.transaction
 }
 func (c *Context) GetSchedule() *Schedule {

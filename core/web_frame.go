@@ -7,6 +7,7 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
@@ -148,7 +149,7 @@ func (w *WebFrame) Start() error {
 		serviceMap:   make(map[string]IService),
 		componentMap: make(map[string]IComponent),
 		db:           db,
-		transaction:  NewTransaction(db),
+		transaction:  model.NewTransaction(db),
 		configMap:    make(map[string]IValueConfig),
 	}
 	contextGroup := newContextGroup(w.context)

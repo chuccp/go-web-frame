@@ -1,6 +1,6 @@
-package core
+package model
 
-type Page[T IEntry] struct {
+type Page[T any] struct {
 	Total int `json:"total"`
 	List  []T `json:"list"`
 }

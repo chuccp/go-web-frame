@@ -32,7 +32,7 @@ type WebFrame struct {
 	schedule       *Schedule
 }
 
-func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
+func New(config *config2.Config) *WebFrame {
 	w := &WebFrame{
 		httpServers: make([]*web.HttpServer, 0),
 		models:      make([]IModel, 0),
@@ -42,20 +42,11 @@ func CreateWebFrame(configFiles ...string) (*WebFrame, error) {
 		component:   make([]IComponent, 0),
 		certManager: web.NewCertManager(),
 		schedule:    NewSchedule(),
+		config:      config,
 	}
-	if configFiles == nil || len(configFiles) == 0 {
-		w.configure(config2.NewConfig())
-		return w, nil
-	}
-	loadConfig, err := config2.LoadConfig(configFiles...)
-	if err != nil {
-		log.Error("加载配置文件失败:", zap.Error(err))
-		return nil, err
-	}
-	w.configure(loadConfig)
-	return w, nil
+	return w
 }
-func (w *WebFrame) configure(config *config2.Config) {
+func (w *WebFrame) Configure(config *config2.Config) {
 	w.config = config
 }
 

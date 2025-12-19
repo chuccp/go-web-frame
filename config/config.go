@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"path/filepath"
 
 	"github.com/chuccp/go-web-frame/log"
@@ -10,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type IFileConfig interface {
+type IConfig interface {
 	GetString(key string) string
 	GetStringOrDefault(key string, defaultValue string) string
 	GetInt(key string) int
@@ -56,21 +55,43 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	}
 	return c.v.GetBool(key)
 }
+
+type SingleFileConfig struct {
+	*Config
+	path string
+}
+
+func (c *SingleFileConfig) WriteConfig() error {
+	return c.v.WriteConfig()
+}
+func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("加载配置文件", zap.String("path", absPath))
+	_viper_ := viper.New()
+	_viper_.SetConfigFile(absPath)
+	err = _viper_.ReadInConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &SingleFileConfig{Config: &Config{v: _viper_}, path: absPath}, nil
+}
+
 func NewConfig() *Config {
 	return &Config{v: viper.New()}
 }
 func LoadConfig(paths ...string) (*Config, error) {
-
 	_viper_ := viper.New()
-	_viper_.SetConfigType("yaml")
 	for _, path := range paths {
-		absPath, err := filepath.Abs(path)
-		log.Info("加载配置文件", zap.String("path", absPath))
-		data, err := util.ReadFileBytes(absPath)
+		viper2 := viper.New()
+		viper2.SetConfigFile(path)
+		err := viper2.ReadInConfig()
 		if err != nil {
 			return nil, err
 		}
-		err = _viper_.MergeConfig(bytes.NewReader(data))
+		err = _viper_.MergeConfigMap(viper2.AllSettings())
 		if err != nil {
 			return nil, err
 		}

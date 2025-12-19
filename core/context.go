@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
-	log "github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

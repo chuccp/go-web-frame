@@ -151,7 +151,7 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 	return v, ok, err
 }
 
-func (c *Schedule) Init(config *config2.Config) error {
+func (c *Schedule) Init(config config2.IConfig) error {
 	var scheduleConfig ScheduleConfig
 	err := config.Unmarshal(scheduleConfig.Key(), &scheduleConfig)
 	if err != nil {

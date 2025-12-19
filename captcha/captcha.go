@@ -25,7 +25,7 @@ type SlideCaptchaData struct {
 type SlideCaptcha struct {
 }
 
-func (c *Component) Init(config *config2.Config) error {
+func (c *Component) Init(config config2.IConfig) error {
 	builder := slide.NewBuilder()
 	images, err := imagesv2.GetImages()
 	if err != nil {

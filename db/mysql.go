@@ -32,7 +32,7 @@ func (e *MysqlConfigDBError) Error() string {
 type Mysql struct {
 }
 
-func (ms *Mysql) Connection(cfg *config.Config) (db *gorm.DB, err error) {
+func (ms *Mysql) Connection(cfg config.IConfig) (db *gorm.DB, err error) {
 	mysqlConfig := &MysqlConfig{}
 	err = cfg.Unmarshal("web.db", mysqlConfig)
 	if err != nil {

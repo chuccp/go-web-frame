@@ -30,7 +30,7 @@ func newContextGroup(parent IContext) *contextGroup {
 }
 
 type Context struct {
-	config       *config2.Config
+	config       config2.IConfig
 	httpServer   *web.HttpServer
 	restMap      map[string]IRest
 	modelMap     map[string]IModel
@@ -230,7 +230,7 @@ func (c *Context) AuthGetRaw(relativePath string, handlers ...web.HandlerRawFunc
 func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.AuthGetRaw(relativePath, handlers...)
 }
-func (c *Context) GetRawConfig() *config2.Config {
+func (c *Context) GetRawConfig() config2.IConfig {
 	return c.config
 }
 

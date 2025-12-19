@@ -14,7 +14,7 @@ const (
 )
 
 type DB interface {
-	Connection(cfg *config.Config) (db *gorm.DB, err error)
+	Connection(cfg config.IConfig) (db *gorm.DB, err error)
 }
 
 type noConfigDBError struct {
@@ -39,7 +39,7 @@ var dbMap = map[string]DB{
 	MYSQL: &Mysql{},
 }
 
-func InitDB(c *config.Config) (*gorm.DB, error) {
+func InitDB(c config.IConfig) (*gorm.DB, error) {
 	type_ := c.GetString("web.db.type")
 	log2.Info("db type", zap.String("type", type_))
 	if util.IsNotBlank(type_) {

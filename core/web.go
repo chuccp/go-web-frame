@@ -19,7 +19,7 @@ import (
 type WebFrame struct {
 	component      []IComponent
 	restGroups     []*RestGroup
-	config         *config2.Config
+	config         config2.IConfig
 	httpServers    []*web.HttpServer
 	context        *Context
 	models         []IModel
@@ -32,7 +32,7 @@ type WebFrame struct {
 	schedule       *Schedule
 }
 
-func New(config *config2.Config) *WebFrame {
+func New(config config2.IConfig) *WebFrame {
 	w := &WebFrame{
 		httpServers: make([]*web.HttpServer, 0),
 		models:      make([]IModel, 0),
@@ -46,10 +46,6 @@ func New(config *config2.Config) *WebFrame {
 	}
 	return w
 }
-func (w *WebFrame) Configure(config *config2.Config) {
-	w.config = config
-}
-
 func (w *WebFrame) AddRest(rest ...IRest) {
 	w.rests = append(w.rests, rest...)
 }

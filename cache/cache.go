@@ -22,7 +22,7 @@ type Component struct {
 	localCache *LocalCache
 }
 
-func (l *Component) Init(config *config2.Config) error {
+func (l *Component) Init(config config2.IConfig) error {
 	temp := config.GetStringOrDefault("web.cache.path", "tmp/cache")
 	open := config.GetBoolOrDefault("web.cache.open", false)
 	log.Info("cache:", zap.String("path", temp), zap.Bool("是否写文件", open))

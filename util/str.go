@@ -338,3 +338,22 @@ func ArrayIntContains(arr []int, str int) bool {
 	}
 	return false
 }
+
+// SubStringAndPadSpace 截取字符串到指定长度，若原字符串长度不足则右侧补空格
+// 参数:
+//
+//	value - 原始字符串
+//	length - 目标字符串长度
+//
+// 返回值:
+//
+//	截取/填充后的指定长度字符串
+func SubStringAndPadSpace(value string, length int) string {
+	value = Trim(value)
+	strLen := len(value)
+	if strLen >= length {
+		return value[:length]
+	}
+	padding := strings.Repeat(" ", length-strLen)
+	return value + padding
+}

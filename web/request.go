@@ -82,6 +82,15 @@ func (r *Request) IsPost() bool {
 	return r.c.Request.Method == "POST"
 }
 
+// Query returns the keyed url query value if it exists,
+// otherwise it returns an empty string `("")`.
+// It is shortcut for `c.Request.URL.Query().Get(key)`
+//
+//	    GET /path?id=1234&name=Manu&value=
+//		   c.Query("id") == "1234"
+//		   c.Query("name") == "Manu"
+//		   c.Query("value") == ""
+//		   c.Query("wtf") == ""
 func (r *Request) GetQuery(key string) string {
 	return r.c.Query(key)
 }

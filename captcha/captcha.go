@@ -2,12 +2,16 @@ package captcha
 
 import (
 	"encoding/json"
+	"math"
 
 	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/spf13/cast"
 	"github.com/wenlng/go-captcha-assets/resources/imagesv2"
 	"github.com/wenlng/go-captcha-assets/resources/tiles"
 	"github.com/wenlng/go-captcha/v2/slide"
+	"go.uber.org/zap"
 )
 
 const Name = "captcha_component"
@@ -18,6 +22,7 @@ type Component struct {
 	iv      string
 }
 type SlideCaptchaData struct {
+	Type        string `json:"type"`
 	TileImage   string `json:"tileImage"`
 	MasterImage string `json:"masterImage"`
 	ThumbX      int    `json:"thumbX"`
@@ -27,7 +32,10 @@ type SlideCaptchaData struct {
 	ThumbHeight int    `json:"thumbHeight"`
 	ThumbAngle  int    `json:"thumbAngle"`
 }
-
+type Data struct {
+	Type        string `json:"type"`
+	CaptchaCode string `json:"captchaCode"`
+}
 type Config struct {
 	CodeKey string
 	CodeIv  string
@@ -86,10 +94,10 @@ func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
 		return nil, err
 	}
 	block := captchaData.GetData()
-	data := util.OfMap2("time", util.NowDateTime(), "thumbX", block.X)
-	js, _ := json.Marshal(data)
-	v := util.EncryptByCBC(string(js), c.key, c.iv)
+
+	v := c.generateCode(cast.ToString(block.X))
 	return &SlideCaptchaData{
+		Type:        "slide",
 		TileImage:   tile,
 		MasterImage: master,
 		ThumbX:      0,
@@ -99,6 +107,51 @@ func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
 		ThumbAngle:  block.Angle,
 		ThumbCode:   v,
 	}, nil
+}
+func (c *Component) generateCode(value string) string {
+	data := util.OfMap2("time", util.NowDateFormatTime(util.TimestampFormat), "thumbX", value)
+	js, _ := json.Marshal(data)
+	return util.EncryptByCBC(string(js), c.key, c.iv)
+}
+func (c *Component) ValidateThumb(code string, x string) (*Data, bool) {
+	v, err := util.DecryptByCBC(code, c.key, c.iv)
+	if err != nil {
+		log.Errors("ValidateThumb", err)
+		return nil, false
+	}
+	var data map[string]interface{}
+	err = json.Unmarshal([]byte(v), &data)
+	if err != nil {
+		return nil, false
+	}
+	thumbX := cast.ToString(data["thumbX"])
+	x0 := cast.ToInt(thumbX)
+	x1 := cast.ToInt(x)
+	n := x0 - x1
+	log.Debug("ValidateThumb", zap.String("thumbX", thumbX), zap.String("x", x), zap.Int("n", n))
+	if math.Abs(float64(n)) < 3 {
+		v := c.generateCode(util.CRC(6, c.key[:6]))
+		return &Data{CaptchaCode: v, Type: "code"}, true
+	}
+	return nil, false
+}
+func (c *Component) ValidateCode(code string) bool {
+	v, err := util.DecryptByCBC(code, c.key, c.iv)
+	if err != nil {
+		log.Errors("ValidateCode", err)
+		return false
+	}
+	var data map[string]interface{}
+	err = json.Unmarshal([]byte(v), &data)
+	if err != nil {
+		return false
+	}
+	time := cast.ToString(data["time"])
+	if util.IsBlank(time) {
+		return false
+	}
+	return util.IsAfter(time, util.GetNowTime(), util.TimestampFormat)
+
 }
 func (c *Component) Name() string {
 	return Name

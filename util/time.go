@@ -27,12 +27,32 @@ var DateFormat = "2006-01-02"
 func FormatDate(tm time.Time) string {
 	return tm.Format(DateFormat)
 }
+
+func ParseFormatTime(timeStr, timestampFormat string) (time.Time, error) {
+	parse, err := time.Parse(timestampFormat, timeStr)
+	if err != nil {
+		return parse, err
+	}
+	return parse, nil
+}
+
 func NowDateTime() string {
 	return FormatTime(time.Now())
 }
-
+func NowDateFormatTime(timestampFormat string) string {
+	return time.Now().Format(timestampFormat)
+}
 func GetNowTime() time.Time {
 
 	return time.Now()
+
+}
+
+func IsAfter(pre string, now time.Time, timestampFormat string) bool {
+	formatTime, err := ParseFormatTime(pre, timestampFormat)
+	if err != nil {
+		return false
+	}
+	return now.After(formatTime)
 
 }

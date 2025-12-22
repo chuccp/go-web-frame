@@ -47,30 +47,30 @@ func EncryptByCBC(text string, key string, iv string) string {
 }
 
 // DecryptByCBC AES-256-CBC 解密实现
-func DecryptByCBC(cipherText string, key string, iv string) string {
+func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 	// 校验密钥和IV长度（与加密保持一致）
 	if len(key) != 32 {
-		panic(errors.New("AES-256 密钥长度必须为 32 字节"))
+		return "", errors.New("AES-256 密钥长度必须为 32 字节")
 	}
 	if len(iv) != 16 {
-		panic(errors.New("CBC模式IV长度必须为16字节"))
+		return "", errors.New("CBC模式IV长度必须为16字节")
 	}
 
 	// 先对密文进行Base64解码（加密时做了Base64编码）
 	ciphertext, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// 创建AES密码块
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// 检查密文长度是否为块大小的整数倍（解密要求）
 	if len(ciphertext)%aes.BlockSize != 0 {
-		panic(errors.New("密文长度必须是16字节的整数倍"))
+		return "", errors.New("密文长度必须是16字节的整数倍")
 	}
 
 	// 创建CBC模式的解密流
@@ -83,10 +83,9 @@ func DecryptByCBC(cipherText string, key string, iv string) string {
 	// 去除PKCS#7填充（加密时添加的填充）
 	padding := int(plaintext[len(plaintext)-1])
 	if padding < 1 || padding > aes.BlockSize {
-		panic(errors.New("无效的填充数据"))
+		return "", errors.New("无效的填充数据")
 	}
 	plaintext = plaintext[:len(plaintext)-padding]
-
 	// 转换为字符串返回
-	return string(plaintext)
+	return string(plaintext), nil
 }

@@ -72,6 +72,20 @@ func (l *LocalCache) SaveBase64File(base64file string) (string, error) {
 	}
 	return savePath, nil
 }
+func (l *LocalCache) SaveBase64FileForPath(base64file string, savePath string, suffix string) (string, error) {
+	filename := l.getKey(base64file)
+	filename = filename + "." + suffix
+	saveFilePath := path.Join(savePath, filename[0:2], filename)
+	data, err := util.DecodeFileBase64(base64file)
+	if err != nil {
+		return "", err
+	}
+	err = util.WriteFile(data, saveFilePath)
+	if err != nil {
+		return "", err
+	}
+	return path.Join(filename[0:2], filename), nil
+}
 
 func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
 	file, err := l.GetFile(f, value...)

@@ -2,6 +2,7 @@ package web
 
 import (
 	"errors"
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -36,6 +37,9 @@ type Request struct {
 // See example in GitHub.
 func (r *Request) Next() {
 	r.c.Next()
+}
+func (r *Request) FullPath() string {
+	return r.c.FullPath()
 }
 func (r *Request) GinContext() *gin.Context {
 	return r.c
@@ -199,6 +203,18 @@ func (r *Request) BindJSON(value any) error {
 	}
 	err := r.c.BindJSON(value)
 	return err
+}
+
+func (r *Request) JSON(code int, value any) {
+	r.c.JSON(code, value)
+}
+func (r *Request) Message(t *Message) {
+	if t.Code == http.StatusMovedPermanently {
+		r.c.Redirect(http.StatusMovedPermanently, t.Data.(string))
+		r.c.Abort()
+		return
+	}
+	r.c.JSON(t.Code, t)
 }
 
 func NewRequest(c *gin.Context, digestAuth *DigestAuth) *Request {

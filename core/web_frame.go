@@ -83,6 +83,9 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
+func (w *WebFrame) AddMiddleware(middlewareFunc ...MiddlewareFunc) {
+	w.middlewareFunc = append(w.middlewareFunc, middlewareFunc...)
+}
 func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
 	for _, httpServer := range w.httpServers {
 		if httpServer.Port() == serverConfig.Port {

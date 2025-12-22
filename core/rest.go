@@ -55,7 +55,7 @@ func (rg *RestGroup) UseMiddleware(context *Context) {
 
 	for _, middlewareFunc := range rg.middlewareFunc {
 		rg.httpServer.Use(func(ctx *gin.Context) {
-			middlewareFunc(web.NewRequest(ctx, rg.digestAuth))
+			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)
 		})
 	}
 }

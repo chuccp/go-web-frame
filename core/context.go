@@ -105,6 +105,8 @@ func (c *Context) addConfig(config ...IValueConfig) {
 	}
 
 }
+func (c *Context) Add() {
+}
 
 func (c *Context) addModel(model ...IModel) {
 	c.rLock.Lock()

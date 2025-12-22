@@ -91,7 +91,9 @@ func (httpServer *HttpServer) GET(relativePath string, handlers ...gin.HandlerFu
 func (httpServer *HttpServer) POST(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.POST(relativePath, handlers...)
 }
-
+func (httpServer *HttpServer) Use(handlers ...gin.HandlerFunc) {
+	httpServer.engine.Use(handlers...)
+}
 func (httpServer *HttpServer) Run() error {
 	serverConfig := httpServer.serverConfig
 	engine := httpServer.engine

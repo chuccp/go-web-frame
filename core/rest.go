@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/chuccp/go-web-frame/web"
+	"github.com/gin-gonic/gin"
 )
 
 type IRest interface {
@@ -10,16 +11,22 @@ type IRest interface {
 }
 
 type RestGroup struct {
-	rests        []IRest
-	port         int
-	name         string
-	httpServer   *web.HttpServer
-	digestAuth   *web.DigestAuth
-	serverConfig *web.ServerConfig
+	rests          []IRest
+	port           int
+	name           string
+	httpServer     *web.HttpServer
+	digestAuth     *web.DigestAuth
+	serverConfig   *web.ServerConfig
+	middlewareFunc []MiddlewareFunc
 }
 
 func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	rg.rests = append(rg.rests, rest...)
+	return rg
+}
+
+func (rg *RestGroup) AddMiddlewares(middlewareFunc ...MiddlewareFunc) *RestGroup {
+	rg.middlewareFunc = append(rg.middlewareFunc, middlewareFunc...)
 	return rg
 }
 
@@ -44,8 +51,13 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	}
 	return rg
 }
-func (rg *RestGroup) Run() error {
-	return nil
+func (rg *RestGroup) UseMiddleware(context *Context) {
+
+	for _, middlewareFunc := range rg.middlewareFunc {
+		rg.httpServer.Use(func(ctx *gin.Context) {
+			middlewareFunc(web.NewRequest(ctx, rg.digestAuth))
+		})
+	}
 }
 
 func newRestGroup(serverConfig *web.ServerConfig) *RestGroup {

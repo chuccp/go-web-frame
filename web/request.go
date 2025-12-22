@@ -31,6 +31,12 @@ type Request struct {
 	digestAuth *DigestAuth
 }
 
+// Next should be used only inside middleware.
+// It executes the pending handlers in the chain inside the calling handler.
+// See example in GitHub.
+func (r *Request) Next() {
+	r.c.Next()
+}
 func (r *Request) GinContext() *gin.Context {
 	return r.c
 }
@@ -82,7 +88,7 @@ func (r *Request) IsPost() bool {
 	return r.c.Request.Method == "POST"
 }
 
-// Query returns the keyed url query value if it exists,
+// Query  returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
 // It is shortcut for `c.Request.URL.Query().Get(key)`
 //
@@ -91,7 +97,7 @@ func (r *Request) IsPost() bool {
 //		   c.Query("name") == "Manu"
 //		   c.Query("value") == ""
 //		   c.Query("wtf") == ""
-func (r *Request) GetQuery(key string) string {
+func (r *Request) Query(key string) string {
 	return r.c.Query(key)
 }
 func (r *Request) Param(key string) string {

@@ -27,6 +27,7 @@ type WebFrame struct {
 	services       []IService
 	configs        []IValueConfig
 	rests          []IRest
+	middlewareFunc []MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
 	certManager    *web.CertManager
@@ -169,7 +170,7 @@ func (w *WebFrame) Start() error {
 	if serverConfig.Port == 0 {
 		serverConfig.Port = 9009
 	}
-	rootGroup := newRestGroup(&serverConfig).AddRest(w.rests...).Authentication(w.authentication)
+	rootGroup := newRestGroup(&serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
 		if group.port == 0 || group.port == serverConfig.Port {
@@ -192,6 +193,7 @@ func (w *WebFrame) Start() error {
 		for _, rest := range group.rests {
 			rest.Init(context)
 		}
+		group.UseMiddleware(context)
 	}
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(w.httpServers))

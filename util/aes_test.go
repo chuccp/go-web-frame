@@ -8,7 +8,7 @@ func TestEncryptByCBC(t *testing.T) {
 	iv := "1234567890123456"
 	text := "hello world"
 	cipherText := EncryptByCBC(text, key, iv)
-	plainText := DecryptByCBC(cipherText, key, iv)
+	plainText, _ := DecryptByCBC(cipherText, key, iv)
 	if plainText != text {
 		t.Errorf("EncryptByCBC failed, expected %s, got %s", text, plainText)
 	} else {

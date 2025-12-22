@@ -43,7 +43,7 @@ func EncryptByCBC(text string, key string, iv string) string {
 	mode.CryptBlocks(ciphertext, plaintext)
 
 	// 加密结果使用Base64编码返回（便于传输和存储）
-	return base64.StdEncoding.EncodeToString(ciphertext)
+	return base64.URLEncoding.EncodeToString(ciphertext)
 }
 
 // DecryptByCBC AES-256-CBC 解密实现
@@ -57,7 +57,7 @@ func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 	}
 
 	// 先对密文进行Base64解码（加密时做了Base64编码）
-	ciphertext, err := base64.StdEncoding.DecodeString(cipherText)
+	ciphertext, err := base64.URLEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", err
 	}

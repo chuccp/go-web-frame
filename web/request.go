@@ -216,7 +216,9 @@ func (r *Request) Message(t *Message) {
 	}
 	r.c.JSON(t.Code, t)
 }
-
+func (r *Request) Abort() {
+	r.c.Abort()
+}
 func NewRequest(c *gin.Context, digestAuth *DigestAuth) *Request {
 	return &Request{c: c, cookie: NewCookie(c), digestAuth: digestAuth}
 }

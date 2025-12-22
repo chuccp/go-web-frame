@@ -43,6 +43,7 @@ func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
 			rg.serverConfig = restGroup.serverConfig
 		}
 	}
+	rg.middlewareFunc = append(rg.middlewareFunc, restGroup.middlewareFunc...)
 	return rg
 }
 func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGroup {

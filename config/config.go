@@ -12,11 +12,14 @@ import (
 
 type IConfig interface {
 	GetString(key string) string
+	Put(key string, value any)
+	HasKey(key string) bool
 	GetStringOrDefault(key string, defaultValue string) string
 	GetInt(key string) int
 	GetIntOrDefault(key string, defaultValue int) int
 	GetBoolOrDefault(key string, defaultValue bool) bool
 	Unmarshal(key string, v any) error
+	ReplaceKey(key string, newKey string)
 }
 
 type Config struct {
@@ -26,7 +29,9 @@ type Config struct {
 func (c *Config) GetString(key string) string {
 	return c.v.GetString(key)
 }
-
+func (c *Config) Put(key string, value any) {
+	c.v.Set(key, value)
+}
 func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	v := c.v.GetString(key)
 	if util.IsBlank(v) {
@@ -34,7 +39,9 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	}
 	return v
 }
-
+func (c *Config) HasKey(key string) bool {
+	return c.v.IsSet(key)
+}
 func (c *Config) Unmarshal(key string, v any) error {
 	return c.v.UnmarshalKey(key, v)
 }
@@ -55,6 +62,11 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 		return defaultValue
 	}
 	return c.v.GetBool(key)
+}
+func (c *Config) ReplaceKey(key string, newKey string) {
+	if c.v.IsSet(key) {
+		c.v.Set(newKey, c.v.Get(key))
+	}
 }
 
 type SingleFileConfig struct {

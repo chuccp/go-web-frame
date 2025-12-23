@@ -35,14 +35,18 @@ type ServerConfig struct {
 	SSL       *SSLConfig
 }
 
+func (s *ServerConfig) Key() string {
+	return "web.server"
+}
+
 func (s *ServerConfig) SSLEnabled() bool {
 	return s.SSL != nil && s.SSL.Enabled
 }
 
-func DefaultServerConfig(port int) *ServerConfig {
+func DefaultServerConfig() *ServerConfig {
 
 	return &ServerConfig{
-		Port: port,
+		Port: 9009,
 		SSL: &SSLConfig{
 			Enabled: false,
 		},

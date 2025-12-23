@@ -32,21 +32,26 @@ type WebFrame struct {
 	db             *gorm.DB
 	certManager    *web.CertManager
 	schedule       *Schedule
+	serverConfig   *web.ServerConfig
 }
 
 func New(config config2.IConfig) *WebFrame {
 	w := &WebFrame{
-		httpServers: make([]*web.HttpServer, 0),
-		models:      make([]IModel, 0),
-		services:    make([]IService, 0),
-		restGroups:  make([]*RestGroup, 0),
-		rests:       make([]IRest, 0),
-		component:   make([]IComponent, 0),
-		certManager: web.NewCertManager(),
-		schedule:    NewSchedule(),
-		config:      config,
+		httpServers:  make([]*web.HttpServer, 0),
+		models:       make([]IModel, 0),
+		services:     make([]IService, 0),
+		restGroups:   make([]*RestGroup, 0),
+		rests:        make([]IRest, 0),
+		component:    make([]IComponent, 0),
+		certManager:  web.NewCertManager(),
+		schedule:     NewSchedule(),
+		config:       config,
+		serverConfig: web.DefaultServerConfig(),
 	}
 	return w
+}
+func (w *WebFrame) GetServerConfig() *web.ServerConfig {
+	return w.serverConfig
 }
 func (w *WebFrame) AddRest(rest ...IRest) {
 	w.rests = append(w.rests, rest...)
@@ -165,18 +170,14 @@ func (w *WebFrame) Start() error {
 	for _, iService := range w.services {
 		iService.Init(w.context)
 	}
-	var serverConfig web.ServerConfig
-	err = w.config.Unmarshal("web.server", &serverConfig)
+	err = w.config.Unmarshal(w.serverConfig.Key(), w.serverConfig)
 	if err != nil {
 		return err
 	}
-	if serverConfig.Port == 0 {
-		serverConfig.Port = 9009
-	}
-	rootGroup := newRestGroup(&serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	rootGroup := newRestGroup(w.serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
-		if group.port == 0 || group.port == serverConfig.Port {
+		if group.port == 0 || group.port == w.serverConfig.Port {
 			group.merge(rootGroup)
 			hasRootGroup = true
 			break

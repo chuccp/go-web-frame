@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 
+	"github.com/chuccp/go-web-frame/config/ini"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/spf13/viper"
@@ -65,6 +66,11 @@ func (c *SingleFileConfig) WriteConfig() error {
 	return c.v.WriteConfig()
 }
 func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
+	registry := viper.NewCodecRegistry()
+	er := registry.RegisterCodec("ini", ini.NewCodec())
+	if er != nil {
+		return nil, er
+	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -74,7 +80,7 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	_viper_ := viper.New()
+	_viper_ := viper.NewWithOptions(viper.WithCodecRegistry(registry))
 	_viper_.SetConfigFile(absPath)
 	err = _viper_.ReadInConfig()
 	if err != nil {
@@ -87,9 +93,14 @@ func NewConfig() *Config {
 	return &Config{v: viper.New()}
 }
 func LoadConfig(paths ...string) (*Config, error) {
+	registry := viper.NewCodecRegistry()
+	er := registry.RegisterCodec("ini", ini.NewCodec())
+	if er != nil {
+		return nil, er
+	}
 	_viper_ := viper.New()
 	for _, path := range paths {
-		viper2 := viper.New()
+		viper2 := viper.NewWithOptions(viper.WithCodecRegistry(registry))
 		viper2.SetConfigFile(path)
 		err := viper2.ReadInConfig()
 		if err != nil {

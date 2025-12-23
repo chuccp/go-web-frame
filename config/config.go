@@ -3,9 +3,9 @@ package config
 import (
 	"path/filepath"
 
-	"github.com/chuccp/go-web-frame/config/ini"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/go-viper/encoding/ini"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -67,7 +67,7 @@ func (c *SingleFileConfig) WriteConfig() error {
 }
 func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	registry := viper.NewCodecRegistry()
-	er := registry.RegisterCodec("ini", ini.NewCodec())
+	er := registry.RegisterCodec("ini", ini.Codec{})
 	if er != nil {
 		return nil, er
 	}
@@ -94,7 +94,7 @@ func NewConfig() *Config {
 }
 func LoadConfig(paths ...string) (*Config, error) {
 	registry := viper.NewCodecRegistry()
-	er := registry.RegisterCodec("ini", ini.NewCodec())
+	er := registry.RegisterCodec("ini", ini.Codec{})
 	if er != nil {
 		return nil, er
 	}

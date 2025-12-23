@@ -95,6 +95,12 @@ func (httpServer *HttpServer) GET(relativePath string, handlers ...gin.HandlerFu
 func (httpServer *HttpServer) POST(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.POST(relativePath, handlers...)
 }
+func (httpServer *HttpServer) DELETE(relativePath string, handlers ...gin.HandlerFunc) {
+	httpServer.engine.DELETE(relativePath, handlers...)
+}
+func (httpServer *HttpServer) PUT(relativePath string, handlers ...gin.HandlerFunc) {
+	httpServer.engine.PUT(relativePath, handlers...)
+}
 func (httpServer *HttpServer) Use(handlers ...gin.HandlerFunc) {
 	httpServer.engine.Use(handlers...)
 }

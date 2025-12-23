@@ -265,3 +265,17 @@ func (c *Context) AuthPost(relativePath string, handlers ...web.HandlerFunc) {
 func (c *Context) PostAuth(relativePath string, handlers ...web.HandlerFunc) {
 	c.AuthPost(relativePath, handlers...)
 }
+func (c *Context) delete(relativePath string, handlers ...web.HandlerFunc) {
+	c.httpServer.DELETE(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+}
+func (c *Context) put(relativePath string, handlers ...web.HandlerFunc) {
+	c.httpServer.PUT(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+}
+func (c *Context) DeleteAuth(relativePath string, handlers ...web.HandlerFunc) {
+	log.Debug("DeleteAuth", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	c.delete(relativePath, web.AuthChecks(handlers...)...)
+}
+func (c *Context) PutAuth(relativePath string, handlers ...web.HandlerFunc) {
+	log.Debug("PutAuth", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	c.put(relativePath, web.AuthChecks(handlers...)...)
+}

@@ -107,6 +107,12 @@ func (r *Request) Query(key string) string {
 func (r *Request) Param(key string) string {
 	return r.c.Param(key)
 }
+func (r *Request) ParamInt(key string) int {
+	return cast.ToInt(r.Param(key))
+}
+func (r *Request) ParamUint(key string) uint {
+	return cast.ToUint(r.Param(key))
+}
 func (r *Request) Cookie() *Cookie {
 	return r.cookie
 }

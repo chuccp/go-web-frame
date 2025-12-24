@@ -38,7 +38,14 @@ func (a *EntryModel[T]) Save(t T) error {
 	t.SetUpdateTime(time.Now())
 	return a.model.Save(t)
 }
+func (a *EntryModel[T]) Saves(ts []T) error {
+	for _, t := range ts {
+		t.SetCreateTime(time.Now())
+		t.SetUpdateTime(time.Now())
+	}
+	return a.model.Saves(ts)
 
+}
 func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	t := util.NewPtr(a.model.entry)
 	t.SetId(id)

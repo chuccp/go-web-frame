@@ -34,6 +34,10 @@ func (a *Model[T]) Save(entry T) error {
 	return a.db.Table(a.tableName).Save(entry).Error
 }
 
+func (a *Model[T]) Saves(entry []T) error {
+	return a.db.Table(a.tableName).Create(&entry).Error
+}
+
 func (a *Model[T]) Query() *Query[T] {
 	tx := a.db.Table(a.tableName)
 	return &Query[T]{tx: tx, entry: a.entry}

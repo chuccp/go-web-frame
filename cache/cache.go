@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 
+	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
@@ -168,7 +169,7 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 		return nil, err
 	}
 	defer func(writeFile *os.File) {
-		err := log.WrapError(writeFile.Close())
+		err := errors.WithStack(writeFile.Close())
 		if err != nil {
 			log.Error("file close fail:", zap.Error(err))
 		}

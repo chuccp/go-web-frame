@@ -1,9 +1,10 @@
 package log
 
 import (
-	"errors"
 	"log"
 	"testing"
+
+	"emperror.dev/errors"
 )
 
 func TestName(t *testing.T) {
@@ -16,7 +17,7 @@ func lowLevel() error {
 
 func middle() error {
 	if err := lowLevel(); err != nil {
-		return Wrap(err, "middle failed")
+		return errors.WithStack(err)
 	}
 	return nil
 }

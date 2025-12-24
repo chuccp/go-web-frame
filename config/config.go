@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/go-viper/encoding/ini"
@@ -43,7 +44,7 @@ func (c *Config) HasKey(key string) bool {
 	return c.v.IsSet(key)
 }
 func (c *Config) Unmarshal(key string, v any) error {
-	return log.WrapError(c.v.UnmarshalKey(key, v))
+	return errors.WithStack(c.v.UnmarshalKey(key, v))
 }
 
 func (c *Config) GetInt(key string) int {

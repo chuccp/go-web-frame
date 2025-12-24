@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-contrib/cors"
@@ -138,7 +139,7 @@ func (httpServer *HttpServer) Run() error {
 		ReadTimeout:       MaxReadTimeout,
 	}
 	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
-	return httpServer.httpServer.ListenAndServe()
+	return errors.WithStack(httpServer.httpServer.ListenAndServe())
 }
 
 func (httpServer *HttpServer) startTLS() error {
@@ -166,7 +167,7 @@ func (httpServer *HttpServer) startTLS() error {
 	for _, host := range httpServer.serverConfig.SSL.Hosts {
 		log.Info("Start the service：", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
-	return httpServer.httpServer.ListenAndServeTLS("", "")
+	return errors.WithStack(httpServer.httpServer.ListenAndServeTLS("", ""))
 }
 
 func (httpServer *HttpServer) Close() error {

@@ -3,7 +3,7 @@ package util
 import (
 	"bufio"
 	"bytes"
-	"errors"
+
 	"log"
 	"os"
 	"os/exec"
@@ -15,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"emperror.dev/errors"
 )
 
 func WriteBase64File(base64Str string, dst string) error {
@@ -353,7 +355,7 @@ func logicalDisk() (storageInfos []*storageInfo, err error) {
 	cmd := exec.Command("wmic", "logicaldisk", "get", "DeviceID,FreeSpace,Size,DriveType")
 	stdout, err1 := cmd.StdoutPipe()
 	if err1 != nil {
-		return storageInfos, err
+		return storageInfos, errors.WithStack(err)
 	}
 	err = cmd.Start()
 	if err == nil {
@@ -418,7 +420,7 @@ func CreateDirIfNoExists(path string) error {
 		if os.IsNotExist(err) {
 			return os.MkdirAll(path, 0755)
 		}
-		return err
+		return errors.WithStack(err)
 	}
 	if !fileInfo.IsDir() {
 		return errors.New("path is not a directory")

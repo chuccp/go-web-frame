@@ -1,9 +1,9 @@
 package core
 
 import (
-	"errors"
 	"sync"
 
+	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
@@ -115,14 +115,14 @@ func (w *WebFrame) Close() error {
 	if len(errs) == 0 {
 		return nil
 	}
-	return errors.Join(errs...)
+	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.Unmarshal(logConfig.Key(), &logConfig)
 	if err != nil {
-		return log.WrapError(err)
+		return err
 	}
 	log.InitLogger(&logConfig)
 	for _, config := range w.configs {
@@ -141,13 +141,13 @@ func (w *WebFrame) Start() error {
 		err := component.Init(w.config)
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.NamedError(component.Name(), err))
-			return log.WrapError(err)
+			return err
 		}
 	}
 	err = w.schedule.Init(w.config)
 	if err != nil {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
-		return log.WrapError(err)
+		return err
 	}
 	w.db = db
 	w.context = &Context{
@@ -208,17 +208,17 @@ func (w *WebFrame) Start() error {
 			errorsPool.Go(func() error {
 				var catcher panics.Catcher
 				catcher.Try(func() {
-					err := log.WrapError(engine.Run())
+					err := engine.Run()
 					if err != nil {
 						log.PanicErrors("Failed to start the HTTP service", err)
 					}
 				})
-				return log.WrapError(catcher.Recovered().AsError())
+				return catcher.Recovered().AsError()
 			})
 		}
 	}
 	w.certManager.Start()
-	return log.WrapError(errorsPool.Wait())
+	return errors.WithStack(errorsPool.Wait())
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

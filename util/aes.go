@@ -50,10 +50,10 @@ func EncryptByCBC(text string, key string, iv string) string {
 func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 	// 校验密钥和IV长度（与加密保持一致）
 	if len(key) != 32 {
-		return "", errors.New("AES-256 密钥长度必须为 32 字节")
+		return "", errors.New("The key length of AES-256 must be 32 bytes")
 	}
 	if len(iv) != 16 {
-		return "", errors.New("CBC模式IV长度必须为16字节")
+		return "", errors.New("The IV length in CBC mode must be 16 bytes")
 	}
 
 	// 先对密文进行Base64解码（加密时做了Base64编码）
@@ -70,7 +70,7 @@ func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 
 	// 检查密文长度是否为块大小的整数倍（解密要求）
 	if len(ciphertext)%aes.BlockSize != 0 {
-		return "", errors.New("密文长度必须是16字节的整数倍")
+		return "", errors.New("The ciphertext length must be an integer multiple of 16 bytes")
 	}
 
 	// 创建CBC模式的解密流
@@ -83,7 +83,7 @@ func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 	// 去除PKCS#7填充（加密时添加的填充）
 	padding := int(plaintext[len(plaintext)-1])
 	if padding < 1 || padding > aes.BlockSize {
-		return "", errors.New("无效的填充数据")
+		return "", errors.New("Invalid padding data")
 	}
 	plaintext = plaintext[:len(plaintext)-padding]
 	// 转换为字符串返回

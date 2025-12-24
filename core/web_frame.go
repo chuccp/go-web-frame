@@ -128,25 +128,25 @@ func (w *WebFrame) Start() error {
 	for _, config := range w.configs {
 		err := w.config.Unmarshal(config.Key(), config)
 		if err != nil {
-			log.Error("加载配置文件失败:", zap.Any(config.Key(), config), zap.Error(err))
+			log.Error("Loading configuration file failed", zap.Any(config.Key(), config), zap.Error(err))
 		}
 	}
 
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
-		log.Error("初始化数据库失败:", zap.Error(err))
+		log.Error("Failed to initialize the database", zap.Error(err))
 		return err
 	}
 	for _, component := range w.component {
 		err := component.Init(w.config)
 		if err != nil {
-			log.Error("初始化组件失败:", zap.NamedError(component.Name(), err))
+			log.Error("Failed to initialize the component", zap.NamedError(component.Name(), err))
 			return err
 		}
 	}
 	err = w.schedule.Init(w.config)
 	if err != nil {
-		log.Error("初始化计划任务失败:", zap.Error(err))
+		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
 	w.db = db
@@ -210,7 +210,7 @@ func (w *WebFrame) Start() error {
 				catcher.Try(func() {
 					err := engine.Run()
 					if err != nil {
-						log.PanicErrors("启动服务失败:", err)
+						log.PanicErrors("Failed to start the HTTP service", err)
 					}
 				})
 				return catcher.Recovered().AsError()

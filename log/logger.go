@@ -163,15 +163,15 @@ func InitLogger(logConfig *Config) {
 	level, err := zapcore.ParseLevel(logConfig.Level)
 	if err != nil {
 		level = zapcore.InfoLevel
-		Error("日志级别错误", zap.Error(err), zap.String("level", level.String()))
+		Error("log level", zap.Error(err), zap.String("level", level.String()))
 	}
-	Info("运行模式", zap.String("level", logConfig.Level), zap.Bool("是否后台运行写日志", mode))
+	Info("Running Mode", zap.String("level", logConfig.Level), zap.Bool("run in the background", mode))
 	if !mode {
 		if len(logConfig.Path) > 0 {
 			abs, err := filepath.Abs(logConfig.Path)
 			if err == nil {
 				logConfig.Path = abs
-				Info("日志保存路径", zap.String("logPath", logConfig.Path))
+				Info(" log save path", zap.String("logPath", logConfig.Path))
 				cores := zapcore.NewTee(getFileLogWriter(logConfig.Path), getStdoutLogWriter())
 				l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level))
 				lock.Lock()
@@ -181,9 +181,9 @@ func InitLogger(logConfig *Config) {
 				}
 				return
 			}
-			Error("日志文件路径错误", zap.Error(err))
+			Error("log file path", zap.Error(err))
 		} else {
-			Info("日志保存路径没有设置")
+			Info(" log save path has not been set")
 		}
 	}
 	lock.Lock()

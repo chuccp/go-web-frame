@@ -137,7 +137,7 @@ func (httpServer *HttpServer) Run() error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
-	log.Info("启动服务：", zap.String("服务", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
+	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
 	return httpServer.httpServer.ListenAndServe()
 }
 
@@ -164,7 +164,7 @@ func (httpServer *HttpServer) startTLS() error {
 		},
 	}
 	for _, host := range httpServer.serverConfig.SSL.Hosts {
-		log.Info("启动服务：", zap.String("启动服务", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
+		log.Info("Start the service：", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
 	return httpServer.httpServer.ListenAndServeTLS("", "")
 }
@@ -241,12 +241,12 @@ func (cm *CertManager) Start() {
 			go catcher.Try(func() {
 				manager, err := cm.GetCertManager()
 				if err != nil {
-					log.Errors("证书获取管理失败：", err)
+					log.Errors("Failed to obtain certificate management：", err)
 					return
 				}
 				err = http.ListenAndServe(":80", manager.HTTPHandler(nil))
 				if err != nil {
-					log.Errors("证书启动80端口失败：", err)
+					log.Errors("Failed to start the certificate service on port 80", err)
 				}
 			})
 		}
@@ -259,7 +259,7 @@ func (cm *CertManager) Start() {
 				}
 				err = http.ListenAndServe(":443", manager.HTTPHandler(nil))
 				if err != nil {
-					log.Errors("证书启动443端口失败：", err)
+					log.Errors("Failed to start the certificate service on port 443", err)
 				}
 			})
 		}

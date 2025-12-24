@@ -25,7 +25,7 @@ type Component struct {
 func (l *Component) Init(config config2.IConfig) error {
 	temp := config.GetStringOrDefault("web.cache.path", "tmp/cache")
 	open := config.GetBoolOrDefault("web.cache.open", false)
-	log.Info("cache:", zap.String("path", temp), zap.Bool("是否写文件", open))
+	log.Info("cache:", zap.String("path", temp), zap.Bool("write data to the file", open))
 	err := util.CreateDirIfNoExists(temp)
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 	defer func(writeFile *os.File) {
 		err := writeFile.Close()
 		if err != nil {
-			log.Error("file close fail:", zap.Error(err))
+			log.Error("file close fail", zap.Error(err))
 		}
 	}(writeFile)
 	_, err = writeFile.Write(data)

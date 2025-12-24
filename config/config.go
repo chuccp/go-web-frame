@@ -87,7 +87,7 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("加载配置文件", zap.String("path", absPath))
+	log.Info("Load the configuration file", zap.String("path", absPath))
 	err = util.CreateFileIfNoExists(absPath)
 	if err != nil {
 		return nil, err

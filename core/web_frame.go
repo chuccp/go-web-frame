@@ -218,7 +218,7 @@ func (w *WebFrame) Start() error {
 		}
 	}
 	w.certManager.Start()
-	return errors.WithStack(errorsPool.Wait())
+	return errors.WithStackIf(errorsPool.Wait())
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

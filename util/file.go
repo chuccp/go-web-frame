@@ -355,7 +355,7 @@ func logicalDisk() (storageInfos []*storageInfo, err error) {
 	cmd := exec.Command("wmic", "logicaldisk", "get", "DeviceID,FreeSpace,Size,DriveType")
 	stdout, err1 := cmd.StdoutPipe()
 	if err1 != nil {
-		return storageInfos, errors.WithStack(err)
+		return storageInfos, errors.WithStackIf(err)
 	}
 	err = cmd.Start()
 	if err == nil {
@@ -420,7 +420,7 @@ func CreateDirIfNoExists(path string) error {
 		if os.IsNotExist(err) {
 			return os.MkdirAll(path, 0755)
 		}
-		return errors.WithStack(err)
+		return errors.WithStackIf(err)
 	}
 	if !fileInfo.IsDir() {
 		return errors.New("path is not a directory")

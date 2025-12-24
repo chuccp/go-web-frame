@@ -169,7 +169,7 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 		return nil, err
 	}
 	defer func(writeFile *os.File) {
-		err := errors.WithStack(writeFile.Close())
+		err := errors.WithStackIf(writeFile.Close())
 		if err != nil {
 			log.Error("file close fail:", zap.Error(err))
 		}

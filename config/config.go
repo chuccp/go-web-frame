@@ -44,7 +44,7 @@ func (c *Config) HasKey(key string) bool {
 	return c.v.IsSet(key)
 }
 func (c *Config) Unmarshal(key string, v any) error {
-	return errors.WithStack(c.v.UnmarshalKey(key, v))
+	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
 }
 
 func (c *Config) GetInt(key string) int {

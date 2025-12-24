@@ -19,12 +19,12 @@ func (a *Model[T]) CreateTable() error {
 		return nil
 	}
 	t := NewPtr(a.entry)
-	return errors.WithStack(a.db.Table(a.tableName).AutoMigrate(t))
+	return errors.WithStackIf(a.db.Table(a.tableName).AutoMigrate(t))
 }
 func (a *Model[T]) DeleteTable() error {
 	t := NewPtr(a.entry)
 	tx := a.db.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
-	return errors.WithStack(tx.Error)
+	return errors.WithStackIf(tx.Error)
 }
 func (a *Model[T]) GetTableName() string {
 	return a.tableName

@@ -17,7 +17,7 @@ func lowLevel() error {
 
 func middle() error {
 	if err := lowLevel(); err != nil {
-		return errors.WithStack(err)
+		return errors.WithStackIf(err)
 	}
 	return nil
 }

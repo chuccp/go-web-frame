@@ -25,7 +25,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, errors.WithStack(tx.Error)
+	return nil, errors.WithStackIf(tx.Error)
 
 }
 func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
@@ -34,7 +34,7 @@ func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, errors.WithStack(tx.Error)
+	return nil, errors.WithStackIf(tx.Error)
 
 }
 func (q *Query[T]) All() ([]T, error) {
@@ -43,7 +43,7 @@ func (q *Query[T]) All() ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, errors.WithStack(tx.Error)
+	return nil, errors.WithStackIf(tx.Error)
 }
 func (q *Query[T]) One() (T, error) {
 	t := NewPtr(q.entry)
@@ -51,7 +51,7 @@ func (q *Query[T]) One() (T, error) {
 	if tx.Error == nil {
 		return t, nil
 	}
-	return t, errors.WithStack(tx.Error)
+	return t, errors.WithStackIf(tx.Error)
 }
 
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
@@ -64,7 +64,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 			return ts, int(num), nil
 		}
 	}
-	return nil, 0, errors.WithStack(tx.Error)
+	return nil, 0, errors.WithStackIf(tx.Error)
 
 }
 func (q *Query[T]) Size(size int) ([]T, int, error) {
@@ -77,7 +77,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 			return ts, int(num), nil
 		}
 	}
-	return nil, 0, errors.WithStack(tx.Error)
+	return nil, 0, errors.WithStackIf(tx.Error)
 }
 
 type where struct {

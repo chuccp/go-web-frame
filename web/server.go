@@ -139,7 +139,7 @@ func (httpServer *HttpServer) Run() error {
 		ReadTimeout:       MaxReadTimeout,
 	}
 	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
-	return errors.WithStack(httpServer.httpServer.ListenAndServe())
+	return errors.WithStackIf(httpServer.httpServer.ListenAndServe())
 }
 
 func (httpServer *HttpServer) startTLS() error {
@@ -167,7 +167,7 @@ func (httpServer *HttpServer) startTLS() error {
 	for _, host := range httpServer.serverConfig.SSL.Hosts {
 		log.Info("Start the service：", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
-	return errors.WithStack(httpServer.httpServer.ListenAndServeTLS("", ""))
+	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
 }
 
 func (httpServer *HttpServer) Close() error {

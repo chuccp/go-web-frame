@@ -434,11 +434,11 @@ func CreateFileIfNoExists(path string) error {
 		if os.IsNotExist(err) {
 			file, err := os.Create(path)
 			if err != nil {
-				return err
+				return errors.WithStackIf(err)
 			}
 			return file.Close()
 		}
-		return err
+		return errors.WithStackIf(err)
 	}
 	if fileInfo.IsDir() {
 		return errors.New("path is a directory")

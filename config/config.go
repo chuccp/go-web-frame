@@ -82,11 +82,11 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	registry := viper.NewCodecRegistry()
 	er := registry.RegisterCodec("ini", ini.Codec{})
 	if er != nil {
-		return nil, er
+		return nil, errors.WithStackIf(er)
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStackIf(er)
 	}
 	log.Info("Load the configuration file", zap.String("path", absPath))
 	err = util.CreateFileIfNoExists(absPath)
@@ -97,7 +97,7 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	_viper_.SetConfigFile(absPath)
 	err = _viper_.ReadInConfig()
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStackIf(err)
 	}
 	return &SingleFileConfig{Config: &Config{v: _viper_}, path: absPath}, nil
 }
@@ -107,9 +107,9 @@ func NewConfig() *Config {
 }
 func LoadConfig(paths ...string) (*Config, error) {
 	registry := viper.NewCodecRegistry()
-	er := registry.RegisterCodec("ini", ini.Codec{})
-	if er != nil {
-		return nil, er
+	err := registry.RegisterCodec("ini", ini.Codec{})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
 	}
 	_viper_ := viper.New()
 	for _, path := range paths {
@@ -117,11 +117,11 @@ func LoadConfig(paths ...string) (*Config, error) {
 		viper2.SetConfigFile(path)
 		err := viper2.ReadInConfig()
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackIf(err)
 		}
 		err = _viper_.MergeConfigMap(viper2.AllSettings())
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackIf(err)
 		}
 	}
 	return &Config{v: _viper_}, nil

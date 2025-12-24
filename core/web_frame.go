@@ -73,7 +73,7 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 			return group
 		}
 	}
-	groupGroup := newRestGroup(serverConfig)
+	groupGroup := newRestGroup(serverConfig, w.certManager)
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }

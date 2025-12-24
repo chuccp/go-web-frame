@@ -163,11 +163,11 @@ func (w *WebFrame) Start() error {
 	if !hasRootGroup {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	for _, group := range w.restGroups {
-		for _, rest := range group.rests {
-			w.context.AddRest(rest)
-		}
-	}
+	//for _, group := range w.restGroups {
+	//	for _, rest := range group.rests {
+	//		w.context.AddRest(rest)
+	//	}
+	//}
 	for _, group := range w.restGroups {
 		context := w.context.Copy(group.digestAuth, group.httpServer)
 		group.Init(context)

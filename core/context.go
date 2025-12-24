@@ -44,6 +44,7 @@ type Context struct {
 	contextGroup *contextGroup
 	configMap    map[string]IValueConfig
 	schedule     *Schedule
+	certManager  *web.CertManager
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
@@ -61,6 +62,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		componentMap: c.componentMap,
 		configMap:    c.configMap,
 		schedule:     c.schedule,
+		certManager:  c.certManager,
 	}
 	c.contextGroup.addContext(context)
 	return context
@@ -278,4 +280,8 @@ func (c *Context) DeleteAuth(relativePath string, handlers ...web.HandlerFunc) {
 func (c *Context) PutAuth(relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("PutAuth", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.put(relativePath, web.AuthChecks(handlers...)...)
+}
+
+func (c *Context) GetCertManager() *web.CertManager {
+	return c.certManager
 }

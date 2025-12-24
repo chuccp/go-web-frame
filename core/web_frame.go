@@ -32,26 +32,21 @@ type WebFrame struct {
 	db             *gorm.DB
 	certManager    *web.CertManager
 	schedule       *Schedule
-	serverConfig   *web.ServerConfig
 }
 
 func New(config config2.IConfig) *WebFrame {
 	w := &WebFrame{
-		httpServers:  make([]*web.HttpServer, 0),
-		models:       make([]IModel, 0),
-		services:     make([]IService, 0),
-		restGroups:   make([]*RestGroup, 0),
-		rests:        make([]IRest, 0),
-		component:    make([]IComponent, 0),
-		certManager:  web.NewCertManager(),
-		schedule:     NewSchedule(),
-		config:       config,
-		serverConfig: web.DefaultServerConfig(),
+		httpServers: make([]*web.HttpServer, 0),
+		models:      make([]IModel, 0),
+		services:    make([]IService, 0),
+		restGroups:  make([]*RestGroup, 0),
+		rests:       make([]IRest, 0),
+		component:   make([]IComponent, 0),
+		certManager: web.NewCertManager(),
+		schedule:    NewSchedule(),
+		config:      config,
 	}
 	return w
-}
-func (w *WebFrame) GetServerConfig() *web.ServerConfig {
-	return w.serverConfig
 }
 func (w *WebFrame) AddRest(rest ...IRest) {
 	w.rests = append(w.rests, rest...)
@@ -91,16 +86,17 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 func (w *WebFrame) AddMiddleware(middlewareFunc ...MiddlewareFunc) {
 	w.middlewareFunc = append(w.middlewareFunc, middlewareFunc...)
 }
-func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
-	for _, httpServer := range w.httpServers {
-		if httpServer.Port() == serverConfig.Port {
-			return httpServer
-		}
-	}
-	httpServer := web.NewHttpServer(serverConfig, w.certManager)
-	w.httpServers = append(w.httpServers, httpServer)
-	return httpServer
-}
+
+//	func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
+//		for _, httpServer := range w.httpServers {
+//			if httpServer.Port() == serverConfig.Port {
+//				return httpServer
+//			}
+//		}
+//		httpServer := web.NewHttpServer(serverConfig, w.certManager)
+//		w.httpServers = append(w.httpServers, httpServer)
+//		return httpServer
+//	}
 func (w *WebFrame) Close() error {
 	errs := make([]error, 0)
 	for _, server := range w.httpServers {
@@ -160,6 +156,8 @@ func (w *WebFrame) Start() error {
 		db:           db,
 		transaction:  model.NewTransaction(db),
 		configMap:    make(map[string]IValueConfig),
+		schedule:     w.schedule,
+		certManager:  w.certManager,
 	}
 	contextGroup := newContextGroup(w.context)
 	w.context.contextGroup = contextGroup
@@ -170,14 +168,15 @@ func (w *WebFrame) Start() error {
 	for _, iService := range w.services {
 		iService.Init(w.context)
 	}
-	err = w.config.Unmarshal(w.serverConfig.Key(), w.serverConfig)
+	var serverConfig = web.DefaultServerConfig()
+	err = w.config.Unmarshal(serverConfig.Key(), &serverConfig)
 	if err != nil {
 		return err
 	}
-	rootGroup := newRestGroup(w.serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	rootGroup := newRestGroup(serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
-		if group.port == 0 || group.port == w.serverConfig.Port {
+		if group.port == 0 || group.port == serverConfig.Port {
 			group.merge(rootGroup)
 			hasRootGroup = true
 			break
@@ -187,28 +186,23 @@ func (w *WebFrame) Start() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	for _, group := range w.restGroups {
-		group.httpServer = w.getHttpServer(group.serverConfig)
 		for _, rest := range group.rests {
 			w.context.AddRest(rest)
 		}
 	}
 	for _, group := range w.restGroups {
 		context := w.context.Copy(group.digestAuth, group.httpServer)
-		group.UseMiddleware(context)
-		for _, rest := range group.rests {
-			rest.Init(context)
-		}
-
+		group.Init(context)
 	}
 	var wg = pool.New()
-	wg.WithMaxGoroutines(len(w.httpServers))
+	wg.WithMaxGoroutines(len(w.restGroups))
 	errorsPool := wg.WithErrors()
-	if len(w.httpServers) > 0 {
-		for _, engine := range w.httpServers {
+	if len(w.restGroups) > 0 {
+		for _, rg := range w.restGroups {
 			errorsPool.Go(func() error {
 				var catcher panics.Catcher
 				catcher.Try(func() {
-					err := engine.Run()
+					err := rg.Run()
 					if err != nil {
 						log.PanicErrors("Failed to start the HTTP service", err)
 					}

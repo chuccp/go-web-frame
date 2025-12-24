@@ -52,13 +52,20 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	}
 	return rg
 }
-func (rg *RestGroup) UseMiddleware(context *Context) {
 
+func (rg *RestGroup) Init(context *Context) {
+	rg.httpServer = web.NewHttpServer(rg.serverConfig, context.GetCertManager())
 	for _, middlewareFunc := range rg.middlewareFunc {
 		rg.httpServer.Use(func(ctx *gin.Context) {
 			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)
 		})
 	}
+	for _, rest := range rg.rests {
+		rest.Init(context)
+	}
+}
+func (rg *RestGroup) Run() error {
+	return rg.httpServer.Run()
 }
 
 func newRestGroup(serverConfig *web.ServerConfig) *RestGroup {

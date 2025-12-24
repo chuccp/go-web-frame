@@ -151,7 +151,7 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	rootGroup := newRestGroup(serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	rootGroup := newRestGroup(serverConfig, w.certManager).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
 		if group.port == 0 || group.port == serverConfig.Port {

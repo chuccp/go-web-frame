@@ -99,9 +99,6 @@ func (c *Context) GetDB() *gorm.DB {
 	return c.db
 }
 
-func (c *Context) Add() {
-}
-
 func (c *Context) addModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()

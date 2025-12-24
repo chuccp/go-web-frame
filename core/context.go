@@ -144,7 +144,7 @@ func GetValueConfig[T any](key string, c *Context) T {
 //	func (c *Context) GetModel(name string) IModel {
 //		return c.modelMap[name]
 //	}
-func (c *Context) AddService(services ...IService) {
+func (c *Context) addService(services ...IService) {
 	for _, s := range services {
 		name := util.GetStructFullName(s)
 		c.serviceMap[name] = s

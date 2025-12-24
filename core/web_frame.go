@@ -139,7 +139,7 @@ func (w *WebFrame) Start() error {
 	w.context.contextGroup = contextGroup
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
-	w.context.AddService(w.services...)
+	w.context.addService(w.services...)
 	for _, iService := range w.services {
 		err := iService.Init(w.context)
 		if err != nil {

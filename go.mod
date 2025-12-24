@@ -3,6 +3,7 @@ module github.com/chuccp/go-web-frame
 go 1.25.5
 
 require (
+	emperror.dev/errors v0.8.1
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/encoding/ini v0.1.1
@@ -28,7 +29,6 @@ require (
 )
 
 require (
-	emperror.dev/errors v0.8.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.2 // indirect

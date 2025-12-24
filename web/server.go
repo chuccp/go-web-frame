@@ -33,6 +33,7 @@ type SSLConfig struct {
 type ServerConfig struct {
 	Port      int
 	Locations []string
+	Page404   string
 	SSL       *SSLConfig
 }
 
@@ -119,8 +120,18 @@ func (httpServer *HttpServer) Run() error {
 				if strings.HasSuffix(_path_, "/") {
 					filePath = path.Join(filePath, "index.html")
 				}
-				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
+
 				if util.ExistsFile(filePath) {
+					log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
+					context.File(filePath)
+					return
+				}
+			}
+			for _, dir := range serverConfig.Locations {
+				filePath := path.Join(dir, serverConfig.Page404)
+
+				if util.ExistsFile(filePath) {
+					log.Debug("静态文件：", zap.String("dir", dir), zap.String("filePath", filePath))
 					context.File(filePath)
 					return
 				}

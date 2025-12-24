@@ -2,6 +2,7 @@ package model
 
 import (
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"gorm.io/gorm"
 )
@@ -20,7 +21,7 @@ func (q *Query[T]) Order(query interface{}) *Query[T] {
 	return q
 }
 func (q *Query[T]) List(size int) ([]T, error) {
-	ts := NewSlice(q.entry)
+	ts := util.NewSlice(q.entry)
 	tx := q.tx.Limit(size).Find(&ts)
 	if tx.Error == nil {
 		return ts, nil
@@ -29,7 +30,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 
 }
 func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
-	ts := NewSlice(q.entry)
+	ts := util.NewSlice(q.entry)
 	tx := q.tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if tx.Error == nil {
 		return ts, nil
@@ -38,7 +39,7 @@ func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 
 }
 func (q *Query[T]) All() ([]T, error) {
-	ts := NewSlice(q.entry)
+	ts := util.NewSlice(q.entry)
 	tx := q.tx.Find(&ts)
 	if tx.Error == nil {
 		return ts, nil
@@ -46,7 +47,7 @@ func (q *Query[T]) All() ([]T, error) {
 	return nil, errors.WithStackIf(tx.Error)
 }
 func (q *Query[T]) One() (T, error) {
-	t := NewPtr(q.entry)
+	t := util.NewPtr(q.entry)
 	tx := q.tx.Limit(1).First(&t)
 	if tx.Error == nil {
 		return t, nil
@@ -55,7 +56,7 @@ func (q *Query[T]) One() (T, error) {
 }
 
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
-	ts := NewSlice(q.entry)
+	ts := util.NewSlice(q.entry)
 	tx := q.tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if tx.Error == nil {
 		var num int64
@@ -68,7 +69,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 
 }
 func (q *Query[T]) Size(size int) ([]T, int, error) {
-	ts := NewSlice(q.entry)
+	ts := util.NewSlice(q.entry)
 	tx := q.tx.Limit(size).Find(&ts)
 	if tx.Error == nil {
 		var num int64

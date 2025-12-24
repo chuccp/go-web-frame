@@ -55,6 +55,7 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 
 func (rg *RestGroup) Init(context *Context) {
 	rg.httpServer = web.NewHttpServer(rg.serverConfig, context.GetCertManager())
+	context.httpServer = rg.httpServer
 	for _, middlewareFunc := range rg.middlewareFunc {
 		rg.httpServer.Use(func(ctx *gin.Context) {
 			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)

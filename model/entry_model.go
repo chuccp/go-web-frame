@@ -1,9 +1,9 @@
 package model
 
 import (
-	"reflect"
 	"time"
 
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"gorm.io/gorm"
 )
@@ -17,35 +17,6 @@ type IEntry interface {
 
 type EntryModel[T IEntry] struct {
 	model *Model[T]
-}
-
-func NewPtr[T any](v T) T {
-	type_ := reflect.TypeOf(v)
-	switch type_.Kind() {
-	case reflect.Ptr:
-		return newPtr(type_.Elem()).(T)
-	case reflect.Struct:
-		return newPtr(type_).(T)
-	default:
-		panic("unhandled default case")
-	}
-}
-
-func NewSlice[T any](v T) []T {
-	elemType := reflect.TypeOf(v)
-	if elemType.Kind() == reflect.Ptr {
-		elemType = elemType.Elem()
-	}
-	ptrType := reflect.PointerTo(elemType)
-	sliceType := reflect.SliceOf(ptrType)
-	slice := reflect.MakeSlice(sliceType, 0, 0)
-	return slice.Interface().([]T)
-}
-
-func newPtr(type_ reflect.Type) interface{} {
-	value := reflect.New(type_)
-	u := value.Interface()
-	return u
 }
 
 func NewEntryModel[T IEntry](db *gorm.DB, tableName string, entry T) *EntryModel[T] {
@@ -69,7 +40,7 @@ func (a *EntryModel[T]) Save(t T) error {
 }
 
 func (a *EntryModel[T]) FindById(id uint) (T, error) {
-	t := NewPtr(a.model.entry)
+	t := util.NewPtr(a.model.entry)
 	t.SetId(id)
 	tx := a.model.db.Table(a.model.tableName).First(&t)
 	if tx.Error == nil {
@@ -79,7 +50,7 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 }
 
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
-	t := NewPtr(a.model.entry)
+	t := util.NewPtr(a.model.entry)
 	tx := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
 	if tx.Error == nil {
 		return t, nil
@@ -91,7 +62,7 @@ func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
 	return a.model.Query().Where("`id` in (?) ", id).All()
 }
 func (a *EntryModel[T]) DeleteOne(id uint) error {
-	t := NewPtr(a.model.entry)
+	t := util.NewPtr(a.model.entry)
 	tx := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
 	return tx.Error
 }

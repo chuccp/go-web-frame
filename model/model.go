@@ -2,6 +2,7 @@ package model
 
 import (
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/util"
 	"gorm.io/gorm"
 )
 
@@ -18,11 +19,11 @@ func (a *Model[T]) CreateTable() error {
 	if a.IsExist() {
 		return nil
 	}
-	t := NewPtr(a.entry)
+	t := util.NewPtr(a.entry)
 	return errors.WithStackIf(a.db.Table(a.tableName).AutoMigrate(t))
 }
 func (a *Model[T]) DeleteTable() error {
-	t := NewPtr(a.entry)
+	t := util.NewPtr(a.entry)
 	tx := a.db.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
 	return errors.WithStackIf(tx.Error)
 }

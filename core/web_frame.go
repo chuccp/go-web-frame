@@ -25,7 +25,6 @@ type WebFrame struct {
 	context        *Context
 	models         []IModel
 	services       []IService
-	configs        []IValueConfig
 	rests          []IRest
 	middlewareFunc []MiddlewareFunc
 	authentication web.Authentication
@@ -61,11 +60,6 @@ func (w *WebFrame) AddModel(model ...IModel) {
 		w.addService(iModel)
 	}
 }
-func (w *WebFrame) RegisterConfig(configs ...IValueConfig) {
-	for _, config := range configs {
-		w.configs = append(w.configs, config)
-	}
-}
 func (w *WebFrame) addService(service IService) {
 	w.services = append(w.services, service)
 }
@@ -87,16 +81,6 @@ func (w *WebFrame) AddMiddleware(middlewareFunc ...MiddlewareFunc) {
 	w.middlewareFunc = append(w.middlewareFunc, middlewareFunc...)
 }
 
-//	func (w *WebFrame) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
-//		for _, httpServer := range w.httpServers {
-//			if httpServer.Port() == serverConfig.Port {
-//				return httpServer
-//			}
-//		}
-//		httpServer := web.NewHttpServer(serverConfig, w.certManager)
-//		w.httpServers = append(w.httpServers, httpServer)
-//		return httpServer
-//	}
 func (w *WebFrame) Close() error {
 	errs := make([]error, 0)
 	for _, server := range w.httpServers {
@@ -121,22 +105,15 @@ func (w *WebFrame) Start() error {
 		return err
 	}
 	log.InitLogger(&logConfig)
-	for _, config := range w.configs {
-		err := w.config.Unmarshal(config.Key(), config)
-		if err != nil {
-			log.Error("Loading configuration file failed", zap.Any(config.Key(), config), zap.Error(err))
-		}
-	}
-
 	db, err := db2.InitDB(w.config)
 	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
 		log.Error("Failed to initialize the database", zap.Error(err))
 		return err
 	}
 	for _, component := range w.component {
-		err := component.Init(w.config)
+		err := errors.WithStackIf(component.Init(w.config))
 		if err != nil {
-			log.Error("Failed to initialize the component", zap.NamedError(component.Name(), err))
+			log.Error("Failed to initialize the component", zap.Error(err))
 			return err
 		}
 	}
@@ -155,7 +132,6 @@ func (w *WebFrame) Start() error {
 		componentMap: make(map[string]IComponent),
 		db:           db,
 		transaction:  model.NewTransaction(db),
-		configMap:    make(map[string]IValueConfig),
 		schedule:     w.schedule,
 		certManager:  w.certManager,
 	}
@@ -163,10 +139,12 @@ func (w *WebFrame) Start() error {
 	w.context.contextGroup = contextGroup
 	w.context.addComponent(w.component...)
 	w.context.addModel(w.models...)
-	w.context.addConfig(w.configs...)
 	w.context.AddService(w.services...)
 	for _, iService := range w.services {
-		iService.Init(w.context)
+		err := iService.Init(w.context)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
 	}
 	var serverConfig = web.DefaultServerConfig()
 	err = w.config.Unmarshal(serverConfig.Key(), &serverConfig)

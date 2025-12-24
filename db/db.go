@@ -1,6 +1,7 @@
 package db
 
 import (
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/config"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
@@ -46,10 +47,14 @@ func InitDB(c config.IConfig) (*gorm.DB, error) {
 	if util.IsNotBlank(type_) {
 		for key, db := range dbMap {
 			if util.EqualsAnyIgnoreCase(type_, key) {
-				return db.Connection(c)
+				connection, err := db.Connection(c)
+				if err != nil {
+					return nil, errors.WithStackIf(err)
+				}
+				return connection, nil
 			}
 		}
-		return nil, ConfigDBError
+		return nil, errors.WithStackIf(ConfigDBError)
 	}
-	return nil, NoConfigDBError
+	return nil, errors.WithStackIf(NoConfigDBError)
 }

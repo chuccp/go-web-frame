@@ -1,12 +1,20 @@
 package util
 
-import "testing"
+import (
+	"testing"
+)
+
+func GetValue[T any]() T {
+	var t T
+
+	return NewPtr(t)
+}
 
 func TestNewPtr(t *testing.T) {
 	type User struct {
 		Id   uint
 		Name string
 	}
-	user := NewSlice(&User{}).([]*User)
-	t.Log(user)
+	t.Log(GetValue[*User]())
+
 }

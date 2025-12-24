@@ -6,6 +6,7 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/model"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -42,7 +43,6 @@ type Context struct {
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	contextGroup *contextGroup
-	configMap    map[string]IValueConfig
 	schedule     *Schedule
 	certManager  *web.CertManager
 }
@@ -60,7 +60,6 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		digestAuth:   digestAuth,
 		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
-		configMap:    c.configMap,
 		schedule:     c.schedule,
 		certManager:  c.certManager,
 	}
@@ -89,7 +88,8 @@ func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, m := range model {
-		c.modelMap[m.Name()] = m
+		name := util.GetStructFullName(m)
+		c.modelMap[name] = m
 	}
 }
 func (c *Context) GetRest(name string) IRest {
@@ -99,14 +99,6 @@ func (c *Context) GetDB() *gorm.DB {
 	return c.db
 }
 
-func (c *Context) addConfig(config ...IValueConfig) {
-	c.rLock.Lock()
-	defer c.rLock.Unlock()
-	for _, config := range config {
-		c.configMap[config.Key()] = config
-	}
-
-}
 func (c *Context) Add() {
 }
 
@@ -114,59 +106,58 @@ func (c *Context) addModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, m := range model {
-		c.modelMap[m.Name()] = m
+		name := util.GetStructFullName(m)
+		c.modelMap[name] = m
 	}
 }
 func (c *Context) addComponent(components ...IComponent) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, component := range components {
-		c.componentMap[component.Name()] = component
+		name := util.GetStructFullName(component)
+		c.componentMap[name] = component
 	}
 }
-func (c *Context) GetComponent(name string) IComponent {
-	return c.componentMap[name]
-}
 
-func GetComponent[T IComponent](name string, c *Context) T {
-	v, _ := c.GetComponent(name).(T)
-	return v
-}
-
-func (c *Context) GetValueConfig(key string) IValueConfig {
-	return c.configMap[key]
-}
-func GetValueConfig[T IValueConfig](c *Context) T {
+func GetComponent[T IComponent](c *Context) T {
 	var t T
-	for _, v := range c.configMap {
-		t, ok := v.(T)
+	for _, s := range c.componentMap {
+		t, ok := s.(T)
 		if ok {
 			return t
 		}
 	}
 	return t
 }
-func GetValueConfigByKey[T IValueConfig](key string, c *Context) T {
-	v, _ := c.GetValueConfig(key).(T)
-	return v
+
+func GetValueConfig[T any](key string, c *Context) T {
+	var t T
+	newValue := util.NewPtr(t)
+	err := c.config.Unmarshal(key, newValue)
+	if err != nil {
+		log.Error("GetValueConfig", zap.Error(err))
+		return t
+	}
+	return newValue
 }
 
-func (c *Context) GetModel(name string) IModel {
-	return c.modelMap[name]
-}
+//	func (c *Context) GetModel(name string) IModel {
+//		return c.modelMap[name]
+//	}
 func (c *Context) AddService(services ...IService) {
 	for _, s := range services {
-		c.serviceMap[s.Name()] = s
+		name := util.GetStructFullName(s)
+		c.serviceMap[name] = s
 	}
 }
 func (c *Context) GetService(name string) IService {
 	return c.serviceMap[name]
 }
 
-func GetServiceByName[T IService](name string, c *Context) T {
-	v, _ := c.GetService(name).(T)
-	return v
-}
+//	func GetServiceByName[T IService](name string, c *Context) T {
+//		v, _ := c.GetService(name).(T)
+//		return v
+//	}
 func GetService[T IService](c *Context) T {
 	var t T
 	for _, s := range c.serviceMap {
@@ -178,10 +169,10 @@ func GetService[T IService](c *Context) T {
 	return t
 }
 
-func GetModelByName[T IModel](name string, c *Context) T {
-	v, _ := c.GetModel(name).(T)
-	return v
-}
+//	func GetModelByName[T IModel](name string, c *Context) T {
+//		v, _ := c.GetModel(name).(T)
+//		return v
+//	}
 func GetModel[T IModel](c *Context) T {
 	var v T
 	for _, m := range c.modelMap {
@@ -192,10 +183,11 @@ func GetModel[T IModel](c *Context) T {
 	}
 	return v
 }
-func GetRestByName[T IRest](name string, c *Context) T {
-	v, _ := c.GetRest(name).(T)
-	return v
-}
+
+//	func GetRestByName[T IRest](name string, c *Context) T {
+//		v, _ := c.GetRest(name).(T)
+//		return v
+//	}
 func GetRest[T IRest](c *Context) T {
 	var v T
 	for _, r := range c.restMap {

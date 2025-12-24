@@ -5,6 +5,5 @@ type IModel interface {
 	CreateTable() error
 	DeleteTable() error
 	GetTableName() string
-	Name() string
-	Init(context *Context)
+	Init(context *Context) error
 }

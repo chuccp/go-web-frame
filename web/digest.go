@@ -1,6 +1,6 @@
 package web
 
-import "errors"
+import "emperror.dev/errors"
 
 var NoLogin = &NoLoginError{}
 

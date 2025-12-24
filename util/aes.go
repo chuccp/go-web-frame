@@ -4,7 +4,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
-	"errors"
+
+	"emperror.dev/errors"
 )
 
 // EncryptByCBC AES-256-CBC 加密实现

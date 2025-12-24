@@ -2,11 +2,12 @@ package sqlite
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"emperror.dev/errors"
 
 	"gorm.io/gorm/migrator"
 )

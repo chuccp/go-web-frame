@@ -1,9 +1,10 @@
 package core
 
 import (
-	"errors"
 	"sync"
 	"time"
+
+	"emperror.dev/errors"
 
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"

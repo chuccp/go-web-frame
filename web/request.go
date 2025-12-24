@@ -1,10 +1,11 @@
 package web
 
 import (
-	"errors"
 	"net/http"
 	"reflect"
 	"strings"
+
+	"emperror.dev/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"

@@ -1,9 +1,10 @@
 package util
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
+
+	"emperror.dev/errors"
 )
 
 func FormatMail(name, mail string) string {

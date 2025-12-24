@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
@@ -14,13 +13,13 @@ type Authentication struct {
 }
 
 func (a *Authentication) SignIn(user any, request *web.Request) (any, error) {
-	return nil, fmt.Errorf("未实现")
+	return nil, errors.New("This method is not implemented.")
 }
 func (a *Authentication) SignOut(request *web.Request) (any, error) {
-	return nil, fmt.Errorf("未实现")
+	return nil, errors.New("This method is not implemented.")
 }
 func (a *Authentication) User(request *web.Request) (any, error) {
-	return nil, fmt.Errorf("未实现")
+	return nil, errors.New("This method is not implemented.")
 }
 func (a *Authentication) NewUser() any {
 	return nil

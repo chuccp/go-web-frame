@@ -67,7 +67,7 @@ func User[T any](r *Request) (T, error) {
 	}
 	v, ok := u.(T)
 	if !ok {
-		return v, errors.New("类型转换错误,请检查是否为指针类型" + reflect.TypeOf(u).Name())
+		return v, errors.New("Type conversion error. Please check if it is a pointer type." + reflect.TypeOf(u).Name())
 	}
 	return u.(T), err
 

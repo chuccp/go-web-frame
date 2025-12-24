@@ -95,7 +95,10 @@ func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
 	}
 	block := captchaData.GetData()
 
-	v := c.generateCode(cast.ToString(block.X))
+	v, err := c.generateCode(cast.ToString(block.X))
+	if err != nil {
+		return nil, err
+	}
 	return &SlideCaptchaData{
 		Type:        "slide",
 		TileImage:   tile,
@@ -108,7 +111,7 @@ func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
 		ThumbCode:   v,
 	}, nil
 }
-func (c *Component) generateCode(value string) string {
+func (c *Component) generateCode(value string) (string, error) {
 	data := util.OfMap2("time", util.NowDateFormatTime(util.TimestampFormat), "thumbX", value)
 	js, _ := json.Marshal(data)
 	return util.EncryptByCBC(string(js), c.key, c.iv)
@@ -130,7 +133,11 @@ func (c *Component) ValidateThumb(code string, x string) (*Data, bool) {
 	n := x0 - x1
 	log.Debug("ValidateThumb", zap.String("thumbX", thumbX), zap.String("x", x), zap.Int("n", n))
 	if math.Abs(float64(n)) < 3 {
-		v := c.generateCode(util.CRC(6, c.key[:6]))
+		v, err := c.generateCode(util.CRC(6, c.key[:6]))
+		if err != nil {
+			log.Errors("ValidateThumb", err)
+			return nil, false
+		}
 		return &Data{CaptchaCode: v, Type: "code"}, true
 	}
 	return nil, false

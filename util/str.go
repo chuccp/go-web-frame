@@ -160,6 +160,36 @@ func ContainsAnyIgnoreCase(s string, strs ...string) bool {
 	}
 	return false
 }
+func AnyContainsIgnoreCase(s string, strs ...string) bool {
+	sLower := strings.ToLower(s)
+	for _, str := range strs {
+		if strings.Contains(strings.ToLower(str), sLower) {
+			return true
+		}
+	}
+	return false
+}
+
+// AnyArrayContainsIgnoreCase 检查目标字符串切片 s 中是否存在任意一个字符串，忽略大小写地包含任意一个待匹配字符串 strs
+// 参数 s: 源字符串切片
+// 参数 strs: 可变参数，待匹配的一个或多个子字符串
+// 返回值: 只要 s 中有一个字符串包含任意一个 strs 中的子字符串（忽略大小写），返回 true；否则返回 false
+func AnyArrayContainsIgnoreCase(s []string, strs ...string) bool {
+	// 遍历源切片中的每一个字符串
+	for _, sourceStr := range s {
+		// 遍历所有待匹配的子字符串
+		for _, targetSubStr := range strs {
+			// 忽略大小写判断：sourceStr 是否包含 targetSubStr 作为子串
+			if strings.Contains(strings.ToLower(sourceStr), strings.ToLower(targetSubStr)) {
+				// 找到任意一组包含关系，立即返回true（提前终止，提升效率）
+				return true
+			}
+		}
+	}
+	// 遍历完所有元素未找到任何包含关系，返回false
+	return false
+}
+
 func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 	sLower := strings.ToLower(s)
 	for _, str := range strs {

@@ -127,13 +127,16 @@ func (httpServer *HttpServer) Run() error {
 					return
 				}
 			}
-			for _, dir := range serverConfig.Locations {
-				filePath := path.Join(dir, serverConfig.Page404)
-
-				if util.ExistsFile(filePath) {
-					log.Debug("静态文件：", zap.String("dir", dir), zap.String("filePath", filePath))
-					context.File(filePath)
-					return
+			accepted := context.Request.Header.Get("Accept")
+			log.Debug("静态文件：", zap.Any("accepted", accepted))
+			if strings.Contains(accepted, "html") {
+				for _, dir := range serverConfig.Locations {
+					filePath := path.Join(dir, serverConfig.Page404)
+					if util.ExistsFile(filePath) {
+						log.Debug("静态文件：", zap.String("dir", dir), zap.String("filePath", filePath))
+						context.File(filePath)
+						return
+					}
 				}
 			}
 		})

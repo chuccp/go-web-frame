@@ -114,8 +114,9 @@ func (httpServer *HttpServer) Run() error {
 			log.Info("静态文件目录：", zap.String("dir", dir))
 		}
 		engine.NoRoute(func(context *gin.Context) {
+			_path_ := context.Request.URL.Path
 			for _, dir := range serverConfig.Locations {
-				_path_ := context.Request.URL.Path
+
 				filePath := path.Join(dir, _path_)
 				if strings.HasSuffix(_path_, "/") {
 					filePath = path.Join(filePath, "index.html")
@@ -129,7 +130,7 @@ func (httpServer *HttpServer) Run() error {
 			}
 			accepted := context.Request.Header.Get("Accept")
 			log.Debug("静态文件：", zap.Any("accepted", accepted))
-			if strings.Contains(accepted, "html") {
+			if strings.Contains(accepted, "html") && !util.IsImagePath(_path_) {
 				for _, dir := range serverConfig.Locations {
 					filePath := path.Join(dir, serverConfig.Page404)
 					if util.ExistsFile(filePath) {

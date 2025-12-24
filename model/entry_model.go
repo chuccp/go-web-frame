@@ -61,6 +61,9 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
 	return a.model.Query().Where("`id` in (?) ", id).All()
 }
+func (a *EntryModel[T]) FindAll() ([]T, error) {
+	return a.model.Query().All()
+}
 func (a *EntryModel[T]) DeleteOne(id uint) error {
 	t := util.NewPtr(a.model.entry)
 	tx := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)

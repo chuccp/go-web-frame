@@ -3,6 +3,7 @@ package web
 import (
 	"crypto/tls"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -118,15 +119,24 @@ func (httpServer *HttpServer) Run() error {
 			for _, dir := range serverConfig.Locations {
 
 				filePath := path.Join(dir, _path_)
+				fileInfo, err := os.Stat(filePath)
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						continue
+					}
+				}
 				if strings.HasSuffix(_path_, "/") {
 					filePath = path.Join(filePath, "index.html")
+				} else {
+					if fileInfo.IsDir() {
+						context.Redirect(http.StatusMovedPermanently, _path_+"/")
+						return
+					}
 				}
+				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
+				context.File(filePath)
+				return
 
-				if util.ExistsFile(filePath) {
-					log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
-					context.File(filePath)
-					return
-				}
 			}
 			accepted := context.Request.Header.Get("Accept")
 			log.Debug("静态文件：", zap.Any("accepted", accepted))

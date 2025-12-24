@@ -125,10 +125,10 @@ func (httpServer *HttpServer) Run() error {
 						continue
 					}
 				}
-				if strings.HasSuffix(_path_, "/") {
-					filePath = path.Join(filePath, "index.html")
-				} else {
-					if fileInfo.IsDir() {
+				if fileInfo.IsDir() {
+					if strings.HasSuffix(_path_, "/") {
+						filePath = path.Join(filePath, "index.html")
+					} else {
 						context.Redirect(http.StatusMovedPermanently, _path_+"/")
 						return
 					}

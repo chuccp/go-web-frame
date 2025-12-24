@@ -1,7 +1,29 @@
 package log
 
-import "testing"
+import (
+	"errors"
+	"log"
+	"testing"
+)
 
 func TestName(t *testing.T) {
 	t.Log(IsBackgroundMode())
+}
+
+func lowLevel() error {
+	return errors.New("root cause at low level")
+}
+
+func middle() error {
+	if err := lowLevel(); err != nil {
+		return Wrap(err, "middle failed")
+	}
+	return nil
+}
+
+func TestName2(t *testing.T) {
+	if err := middle(); err != nil {
+		//fmt.Printf("Detailed Error: %+v\n", err)
+		log.Printf("%+v\n", err)
+	}
 }

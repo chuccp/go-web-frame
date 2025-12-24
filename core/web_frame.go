@@ -122,7 +122,7 @@ func (w *WebFrame) Start() error {
 	var logConfig log.Config
 	err := w.config.Unmarshal(logConfig.Key(), &logConfig)
 	if err != nil {
-		return err
+		return log.WrapError(err)
 	}
 	log.InitLogger(&logConfig)
 	for _, config := range w.configs {
@@ -141,13 +141,13 @@ func (w *WebFrame) Start() error {
 		err := component.Init(w.config)
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.NamedError(component.Name(), err))
-			return err
+			return log.WrapError(err)
 		}
 	}
 	err = w.schedule.Init(w.config)
 	if err != nil {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
-		return err
+		return log.WrapError(err)
 	}
 	w.db = db
 	w.context = &Context{
@@ -208,17 +208,17 @@ func (w *WebFrame) Start() error {
 			errorsPool.Go(func() error {
 				var catcher panics.Catcher
 				catcher.Try(func() {
-					err := engine.Run()
+					err := log.WrapError(engine.Run())
 					if err != nil {
 						log.PanicErrors("Failed to start the HTTP service", err)
 					}
 				})
-				return catcher.Recovered().AsError()
+				return log.WrapError(catcher.Recovered().AsError())
 			})
 		}
 	}
 	w.certManager.Start()
-	return errorsPool.Wait()
+	return log.WrapError(errorsPool.Wait())
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

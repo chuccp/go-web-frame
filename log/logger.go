@@ -101,6 +101,11 @@ func Info(msg string, fields ...zap.Field) {
 func Error(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
+	//for _, field := range fields {
+	//	if field.Type == zapcore.ErrorType {
+	//		log.Printf("%+v\n", field.Interface)
+	//	}
+	//}
 	defaultLogger.error(msg, fields...)
 }
 func Errors(msg string, errs ...error) {
@@ -110,7 +115,9 @@ func Errors(msg string, errs ...error) {
 	for i, e := range errs {
 		fields[i] = zap.Error(e)
 	}
-	log.Println(errs)
+	//for _, err := range errs {
+	//	log.Printf("%+v\n", err)
+	//}
 	defaultLogger.error(msg, fields...)
 }
 func Debug(msg string, fields ...zap.Field) {
@@ -131,6 +138,11 @@ func Fatal(msg string, fields ...zap.Field) {
 func Panic(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
+	for _, field := range fields {
+		if field.Type == zapcore.ErrorType {
+			log.Printf("%+v\n", field.Interface)
+		}
+	}
 	defaultLogger.panic(msg, fields...)
 }
 func PanicErrors(msg string, errs ...error) {
@@ -140,7 +152,9 @@ func PanicErrors(msg string, errs ...error) {
 	for i, e := range errs {
 		fields[i] = zap.Error(e)
 	}
-	log.Println(errs)
+	for _, err := range errs {
+		log.Printf("%+v\n", err)
+	}
 	defaultLogger.panic(msg, fields...)
 
 }

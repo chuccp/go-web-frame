@@ -168,9 +168,9 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 		return nil, err
 	}
 	defer func(writeFile *os.File) {
-		err := writeFile.Close()
+		err := log.WrapError(writeFile.Close())
 		if err != nil {
-			log.Error("file close fail", zap.Error(err))
+			log.Error("file close fail:", zap.Error(err))
 		}
 	}(writeFile)
 	_, err = writeFile.Write(data)

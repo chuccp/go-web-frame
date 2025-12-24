@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"gorm.io/gorm"
 )
@@ -24,7 +25,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, tx.Error
+	return nil, log.WrapError(tx.Error)
 
 }
 func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
@@ -33,7 +34,7 @@ func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, tx.Error
+	return nil, log.WrapError(tx.Error)
 
 }
 func (q *Query[T]) All() ([]T, error) {
@@ -42,7 +43,7 @@ func (q *Query[T]) All() ([]T, error) {
 	if tx.Error == nil {
 		return ts, nil
 	}
-	return nil, tx.Error
+	return nil, log.WrapError(tx.Error)
 }
 func (q *Query[T]) One() (T, error) {
 	t := NewPtr(q.entry)
@@ -50,7 +51,7 @@ func (q *Query[T]) One() (T, error) {
 	if tx.Error == nil {
 		return t, nil
 	}
-	return t, tx.Error
+	return t, log.WrapError(tx.Error)
 }
 
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
@@ -63,7 +64,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 			return ts, int(num), nil
 		}
 	}
-	return nil, 0, tx.Error
+	return nil, 0, log.WrapError(tx.Error)
 
 }
 func (q *Query[T]) Size(size int) ([]T, int, error) {
@@ -76,7 +77,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 			return ts, int(num), nil
 		}
 	}
-	return nil, 0, tx.Error
+	return nil, 0, log.WrapError(tx.Error)
 }
 
 type where struct {

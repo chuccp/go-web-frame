@@ -20,7 +20,7 @@ type AppDaemon struct {
 
 func (a *AppDaemon) Start(s service.Service) error {
 	go func() {
-		err := a.appService.Start()
+		err := log.WrapError(a.appService.Start())
 		if err != nil {
 			log.Errors("Failed to start the Daemon service", err)
 		}

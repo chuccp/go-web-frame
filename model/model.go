@@ -1,6 +1,9 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"github.com/chuccp/go-web-frame/log"
+	"gorm.io/gorm"
+)
 
 type Model[T any] struct {
 	db        *gorm.DB
@@ -16,12 +19,12 @@ func (a *Model[T]) CreateTable() error {
 		return nil
 	}
 	t := NewPtr(a.entry)
-	return a.db.Table(a.tableName).AutoMigrate(t)
+	return log.WrapError(a.db.Table(a.tableName).AutoMigrate(t))
 }
 func (a *Model[T]) DeleteTable() error {
 	t := NewPtr(a.entry)
 	tx := a.db.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
-	return tx.Error
+	return log.WrapError(tx.Error)
 }
 func (a *Model[T]) GetTableName() string {
 	return a.tableName

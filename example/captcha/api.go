@@ -19,10 +19,11 @@ func (api *Api) test(request *web.Request) (any, error) {
 	}
 	return generate.GetData(), nil
 }
-func (api *Api) Init(context *core.Context) {
+func (api *Api) Init(context *core.Context) error {
 	api.context = context
 
 	api.context.Get("/test", api.test)
+	return nil
 }
 func (api *Api) Name() string {
 	return "api"

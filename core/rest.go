@@ -6,8 +6,7 @@ import (
 )
 
 type IRest interface {
-	Init(context *Context)
-	Name() string
+	IService
 }
 
 type RestGroup struct {

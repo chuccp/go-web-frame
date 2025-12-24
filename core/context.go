@@ -77,7 +77,8 @@ func (c *Context) AddRest(rests ...IRest) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, s := range rests {
-		c.restMap[s.Name()] = s
+		name := util.GetStructFullName(s)
+		c.restMap[name] = s
 	}
 }
 func (c *Context) GetDigestAuth() *web.DigestAuth {

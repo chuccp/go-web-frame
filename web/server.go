@@ -3,8 +3,6 @@ package web
 import (
 	"crypto/tls"
 	"net/http"
-	"os"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,10 +55,11 @@ func DefaultServerConfig() *ServerConfig {
 }
 
 type HttpServer struct {
-	httpServer   *http.Server
-	engine       *gin.Engine
-	serverConfig *ServerConfig
-	certManager  *CertManager
+	httpServer    *http.Server
+	engine        *gin.Engine
+	serverConfig  *ServerConfig
+	certManager   *CertManager
+	memFileSystem *MemFileSystem
 }
 
 func defaultEngine() *gin.Engine {
@@ -84,9 +83,10 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 	}
 	engine := defaultEngine()
 	return &HttpServer{
-		engine:       engine,
-		serverConfig: serverConfig,
-		certManager:  certManager,
+		engine:        engine,
+		serverConfig:  serverConfig,
+		certManager:   certManager,
+		memFileSystem: DefaultMemFileSystem(serverConfig),
 	}
 }
 func (httpServer *HttpServer) Port() int {
@@ -112,43 +112,21 @@ func (httpServer *HttpServer) Run() error {
 	engine := httpServer.engine
 	if serverConfig.Locations != nil {
 		for _, dir := range serverConfig.Locations {
-			log.Info("静态文件目录：", zap.String("dir", dir))
+			log.Info("Static Files Directory", zap.String("dir", dir))
 		}
 		engine.NoRoute(func(context *gin.Context) {
 			_path_ := context.Request.URL.Path
-			for _, dir := range serverConfig.Locations {
-
-				filePath := path.Join(dir, _path_)
-				fileInfo, err := os.Stat(filePath)
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						continue
-					}
-				}
-				if fileInfo.IsDir() {
-					if strings.HasSuffix(_path_, "/") {
-						filePath = path.Join(filePath, "index.html")
-					} else {
-						context.Redirect(http.StatusMovedPermanently, _path_+"/")
-						return
-					}
-				}
-				log.Debug("静态文件：", zap.String("path", _path_), zap.String("filePath", filePath))
-				context.File(filePath)
+			exists, err := httpServer.memFileSystem.Exists(_path_)
+			if err != nil {
 				return
-
+			}
+			if exists {
+				context.FileFromFS(_path_, httpServer.memFileSystem)
+				return
 			}
 			accepted := context.Request.Header.Get("Accept")
-			log.Debug("静态文件：", zap.Any("accepted", accepted))
 			if strings.Contains(accepted, "html") && !util.IsImagePath(_path_) {
-				for _, dir := range serverConfig.Locations {
-					filePath := path.Join(dir, serverConfig.Page404)
-					if util.ExistsFile(filePath) {
-						log.Debug("静态文件：", zap.String("dir", dir), zap.String("filePath", filePath))
-						context.File(filePath)
-						return
-					}
-				}
+				context.FileFromFS("/"+serverConfig.Page404, httpServer.memFileSystem)
 			}
 		})
 

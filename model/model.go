@@ -52,6 +52,7 @@ func (a *Model[T]) Delete() *Delete[T] {
 	return &Delete[T]{tx: tx, model: a.entry, wheres: NewDeleteWheres[T](tx, a.entry)}
 }
 
-func NewModel[T any](db *gorm.DB, tableName string, entry T) *Model[T] {
-	return &Model[T]{db: db, tableName: tableName, entry: entry}
+func NewModel[T any](db *gorm.DB, tableName string) *Model[T] {
+	var entryPtr T
+	return &Model[T]{db: db, tableName: tableName, entry: util.NewPtr(entryPtr)}
 }

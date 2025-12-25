@@ -19,8 +19,8 @@ type EntryModel[T IEntry] struct {
 	model *Model[T]
 }
 
-func NewEntryModel[T IEntry](db *gorm.DB, tableName string, entry T) *EntryModel[T] {
-	return &EntryModel[T]{NewModel(db, tableName, entry)}
+func NewEntryModel[T IEntry](db *gorm.DB, tableName string) *EntryModel[T] {
+	return &EntryModel[T]{NewModel[T](db, tableName)}
 }
 
 func (a *EntryModel[T]) IsExist() bool {

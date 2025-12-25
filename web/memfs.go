@@ -18,6 +18,9 @@ type MemFileSystem struct {
 
 func (m *MemFileSystem) Open(name string) (http.File, error) {
 	var err0 error
+	if m.serverConfig == nil || m.serverConfig.Locations == nil || len(m.serverConfig.Locations) == 0 {
+		return m.fs.Open(name)
+	}
 	for _, location := range m.serverConfig.Locations {
 		filePath := path.Join(location, name)
 		exists, err := afero.Exists(m.fs, filePath)
@@ -38,17 +41,11 @@ func (m *MemFileSystem) Open(name string) (http.File, error) {
 	return nil, err0
 
 }
-func (m *MemFileSystem) ExistsFile(name string) bool {
-	stat, err := m.fs.Stat(name)
-	if err != nil {
-		return false
-	}
-	if stat.IsDir() {
-		return false
-	}
-	return true
-}
 func (m *MemFileSystem) Exists(name string) (bool, error) {
+
+	if m.serverConfig == nil || m.serverConfig.Locations == nil || len(m.serverConfig.Locations) == 0 {
+		return afero.Exists(m.fs, name)
+	}
 
 	for _, location := range m.serverConfig.Locations {
 		exists, err := afero.Exists(m.fs, path.Join(location, name))
@@ -63,7 +60,22 @@ func (m *MemFileSystem) Exists(name string) (bool, error) {
 
 }
 func (m *MemFileSystem) Stat(name string) (os.FileInfo, error) {
-	return m.fs.Stat(name)
+	if m.serverConfig == nil || m.serverConfig.Locations == nil || len(m.serverConfig.Locations) == 0 {
+		return m.fs.Stat(name)
+	}
+	var err0 error
+	for _, location := range m.serverConfig.Locations {
+		filePath := path.Join(location, name)
+		exists, err := afero.Exists(m.fs, filePath)
+		if err != nil {
+			err0 = err
+			continue
+		}
+		if exists {
+			return m.fs.Stat(filePath)
+		}
+	}
+	return nil, err0
 }
 func NewMemFileSystem(cacheTime time.Duration, serverConfig *ServerConfig) *MemFileSystem {
 	baseFs := afero.NewOsFs()

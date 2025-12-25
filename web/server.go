@@ -3,6 +3,7 @@ package web
 import (
 	"crypto/tls"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -119,17 +120,31 @@ func (httpServer *HttpServer) Run() error {
 		}
 		engine.NoRoute(func(context *gin.Context) {
 			_path_ := context.Request.URL.Path
-			exists, err := httpServer.memFileSystem.Exists(_path_)
-			if err != nil {
-				return
+			info, err := httpServer.memFileSystem.Stat(_path_)
+			if info != nil && err == nil {
+				if info.IsDir() {
+					indexPage := filepath.Join(_path_, "index.html")
+					exists, err := httpServer.memFileSystem.Exists(indexPage)
+					if exists && err == nil {
+						context.FileFromFS(_path_, httpServer.memFileSystem)
+						return
+					}
+				} else {
+					context.FileFromFS(_path_, httpServer.memFileSystem)
+					return
+				}
 			}
-			if exists {
-				context.FileFromFS(_path_, httpServer.memFileSystem)
-				return
-			}
+
 			accepted := context.Request.Header.Get("Accept")
 			if strings.Contains(accepted, "html") && !util.IsImagePath(_path_) {
-				context.FileFromFS("/"+serverConfig.Page404, httpServer.memFileSystem)
+				exists, err := httpServer.memFileSystem.Exists(serverConfig.Page404)
+				if err != nil {
+					log.Error("File not found", zap.String("file", serverConfig.Page404))
+					return
+				}
+				if exists {
+					context.FileFromFS(serverConfig.Page404, httpServer.memFileSystem)
+				}
 			}
 		})
 

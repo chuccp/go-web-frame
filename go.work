@@ -8,4 +8,5 @@ use (
 	./example/daemon
 	./example/ssl
 	./example/config
+	./example/caddy
 )

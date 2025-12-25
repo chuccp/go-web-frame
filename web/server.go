@@ -104,6 +104,9 @@ func (httpServer *HttpServer) DELETE(relativePath string, handlers ...gin.Handle
 func (httpServer *HttpServer) PUT(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.PUT(relativePath, handlers...)
 }
+func (httpServer *HttpServer) Any(relativePath string, handlers ...gin.HandlerFunc) {
+	httpServer.engine.Any(relativePath, handlers...)
+}
 func (httpServer *HttpServer) Use(handlers ...gin.HandlerFunc) {
 	httpServer.engine.Use(handlers...)
 }

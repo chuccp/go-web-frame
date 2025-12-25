@@ -6,6 +6,7 @@ import (
 	"path"
 	"time"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/spf13/afero"
 	"go.uber.org/zap"
@@ -33,12 +34,12 @@ func (m *MemFileSystem) Open(name string) (http.File, error) {
 			open, err := m.fs.Open(filePath)
 			if err != nil {
 				log.Errors("open file", err)
-				return nil, err
+				return nil, errors.WithStackIf(err)
 			}
 			return open, nil
 		}
 	}
-	return nil, err0
+	return nil, errors.WithStackIf(err0)
 
 }
 func (m *MemFileSystem) Exists(name string) (bool, error) {
@@ -50,7 +51,7 @@ func (m *MemFileSystem) Exists(name string) (bool, error) {
 	for _, location := range m.serverConfig.Locations {
 		exists, err := afero.Exists(m.fs, path.Join(location, name))
 		if err != nil {
-			return false, err
+			return false, errors.WithStackIf(err)
 		}
 		if exists {
 			return true, nil
@@ -83,7 +84,7 @@ func (m *MemFileSystem) Stat(name string) (os.FileInfo, error) {
 			return m.fs.Stat(filePath)
 		}
 	}
-	return nil, err0
+	return nil, errors.WithStackIf(err0)
 }
 func NewMemFileSystem(cacheTime time.Duration, serverConfig *ServerConfig) *MemFileSystem {
 	baseFs := afero.NewOsFs()

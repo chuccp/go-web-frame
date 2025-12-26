@@ -1,6 +1,7 @@
 package core
 
 import (
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 )
@@ -61,7 +62,7 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	return rg
 }
 
-func (rg *RestGroup) Init(context *Context) {
+func (rg *RestGroup) Init(context *Context) error {
 	context.httpServer = rg.httpServer
 	for _, middlewareFunc := range rg.middlewareFunc {
 		rg.httpServer.Use(func(ctx *gin.Context) {
@@ -69,8 +70,12 @@ func (rg *RestGroup) Init(context *Context) {
 		})
 	}
 	for _, rest := range rg.rests {
-		rest.Init(context)
+		err := rest.Init(context)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
 	}
+	return nil
 }
 func (rg *RestGroup) Run() error {
 	return rg.httpServer.Run()

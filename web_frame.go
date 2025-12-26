@@ -149,7 +149,10 @@ func (w *WebFrame) Start() error {
 	}
 	for _, group := range w.restGroups {
 		context := w.context.Copy(group.DigestAuth(), group.HttpServer())
-		group.Init(context)
+		err := group.Init(context)
+		if err != nil {
+			return err
+		}
 	}
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(w.restGroups))

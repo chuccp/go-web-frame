@@ -159,6 +159,14 @@ func GetRest[T IRest](c *Context) T {
 	return v
 }
 
+func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
+	for _, middlewareFunc := range middlewareFunc {
+		c.httpServer.Use(func(ctx *gin.Context) {
+			middlewareFunc(web.NewRequest(ctx, c.digestAuth), c)
+		})
+	}
+}
+
 func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
 	c.httpServer.Handle(httpMethod, relativePath, handlers...)
 }

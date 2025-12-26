@@ -5,7 +5,6 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
 )
 
@@ -31,11 +30,7 @@ func (server *Server) Init(context *Context) error {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
 		restContext := context.Copy(restGroup.digestAuth, httpServer)
-		for _, middlewareFunc := range restGroup.middlewareFunc {
-			httpServer.Use(func(ctx *gin.Context) {
-				middlewareFunc(web.NewRequest(ctx, restGroup.digestAuth), restContext)
-			})
-		}
+		restContext.Use(restGroup.middlewareFunc...)
 		for _, rest := range restGroup.rests {
 			err := rest.Init(restContext)
 			if err != nil {

@@ -125,7 +125,10 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	rootGroup := core.NewRestGroup(serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	rootGroup := core.NewRestGroup(serverConfig)
+	rootGroup.AddRest(w.rests...)
+	rootGroup.Authentication(w.authentication)
+	rootGroup.AddMiddlewares(w.middlewareFunc...)
 	w.restGroups = append(w.restGroups, rootGroup)
 	server := core.NewServer(w.restGroups)
 	err = server.Init(w.context)

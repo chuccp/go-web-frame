@@ -159,7 +159,8 @@ func (c *Schedule) Init(config config2.IConfig) error {
 		return errors.WithStackIf(err)
 	}
 	if c.config.Enable {
-		c.Start()
+		return c.Run()
+
 	}
 	return nil
 }
@@ -167,11 +168,13 @@ func (c *Schedule) Name() string {
 	return "schedule"
 }
 
-func (c *Schedule) Start() {
+func (c *Schedule) Run() error {
 	c.cron.Start()
+	return nil
 }
-func (c *Schedule) Stop() {
+func (c *Schedule) Stop() error {
 	if c.config.Enable {
 		c.cron.Stop()
 	}
+	return nil
 }

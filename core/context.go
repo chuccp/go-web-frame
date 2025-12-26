@@ -287,3 +287,45 @@ func (c *Context) PutRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 func (c *Context) PutRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.authHandleRaw(http.MethodPut, relativePath, handlers...)
 }
+
+func GetService[T IService](c *Context) T {
+	t, _ := c.GetService(func(m IService) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func GetModel[T IModel](c *Context) T {
+	t, _ := c.GetModel(func(m IModel) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+func GetComponent[T IComponent](c *Context) T {
+	t, _ := c.GetComponent(func(m IComponent) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func GetRunner[T IRunner](c *Context) T {
+	t, _ := c.GetRunner(func(m IRunner) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func UnmarshalConfig[T any](key string, c *Context) T {
+	var t T
+	newValue := util.NewPtr(t)
+	err := c.GetConfig().Unmarshal(key, newValue)
+	if err != nil {
+		log.Error("GetValueConfig", zap.Error(err))
+		return t
+	}
+	return newValue
+}

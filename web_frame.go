@@ -15,45 +15,23 @@ import (
 )
 
 func GetService[T core.IService](c *core.Context) T {
-	t, _ := c.GetService(func(m core.IService) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	return t
+	return core.GetService[T](c)
 }
 
 func GetModel[T core.IModel](c *core.Context) T {
-	t, _ := c.GetModel(func(m core.IModel) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	return t
+	return core.GetModel[T](c)
 }
 func GetComponent[T core.IComponent](c *core.Context) T {
-	t, _ := c.GetComponent(func(m core.IComponent) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	return t
+	return core.GetComponent[T](c)
 }
 
 func GetRunner[T core.IRunner](c *core.Context) T {
-	t, _ := c.GetRunner(func(m core.IRunner) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	return t
+	return core.GetRunner[T](c)
+
 }
 
 func UnmarshalConfig[T any](key string, c *core.Context) T {
-	var t T
-	newValue := util.NewPtr(t)
-	err := c.GetConfig().Unmarshal(key, newValue)
-	if err != nil {
-		log.Error("GetValueConfig", zap.Error(err))
-		return t
-	}
-	return newValue
+	return core.UnmarshalConfig[T](key, c)
 }
 
 type WebFrame struct {

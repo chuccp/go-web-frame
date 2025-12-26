@@ -2,9 +2,9 @@ package main
 
 import (
 	"emperror.dev/errors"
+	wf "github.com/chuccp/go-web-frame"
 	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/config"
-	"github.com/chuccp/go-web-frame/core"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 )
@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		return
 	}
-	webFrame := core.New(loadConfig)
+	webFrame := wf.New(loadConfig)
 	webFrame.AddComponent(&cache.Component{})
 	webFrame.Authentication(&Authentication{})
 	webFrame.AddRest(&Api{})

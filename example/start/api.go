@@ -26,10 +26,11 @@ func (api *Api) test(request *web.Request, response web.Response) error {
 	}, "11111111111")
 	return err
 }
-func (api *Api) Init(context *core.Context) {
+func (api *Api) Init(context *core.Context) error {
 	api.context = context
 
 	api.context.GetRaw("/test", api.test)
+	return nil
 }
 func (api *Api) Name() string {
 	return "api"

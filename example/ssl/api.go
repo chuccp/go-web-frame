@@ -12,17 +12,18 @@ type Api struct {
 
 func (api *Api) test(request *web.Request) (any, error) {
 
-	getCaptcha := core.GetComponent[*captcha.Component](captcha.Name, api.context).GetCaptcha()
+	getCaptcha := core.GetComponent[*captcha.Component](api.context).GetCaptcha()
 	generate, err := getCaptcha.Generate()
 	if err != nil {
 		return nil, err
 	}
 	return generate.GetData(), nil
 }
-func (api *Api) Init(context *core.Context) {
+func (api *Api) Init(context *core.Context) error {
 	api.context = context
 
 	api.context.Get("/test", api.test)
+	return nil
 }
 func (api *Api) Name() string {
 	return "api"

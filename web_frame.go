@@ -1,13 +1,11 @@
-package core
+package wf
 
 import (
-	"sync"
-
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
-	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
@@ -18,66 +16,66 @@ import (
 )
 
 type WebFrame struct {
-	component      []IComponent
-	restGroups     []*RestGroup
+	component      []core.IComponent
+	restGroups     []*core.RestGroup
 	config         config2.IConfig
 	httpServers    []*web.HttpServer
-	context        *Context
-	models         []IModel
-	services       []IService
-	rests          []IRest
-	middlewareFunc []MiddlewareFunc
+	context        *core.Context
+	models         []core.IModel
+	services       []core.IService
+	rests          []core.IRest
+	middlewareFunc []core.MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
 	certManager    *web.CertManager
-	schedule       *Schedule
+	schedule       *core.Schedule
 }
 
 func New(config config2.IConfig) *WebFrame {
 	w := &WebFrame{
 		httpServers: make([]*web.HttpServer, 0),
-		models:      make([]IModel, 0),
-		services:    make([]IService, 0),
-		restGroups:  make([]*RestGroup, 0),
-		rests:       make([]IRest, 0),
-		component:   make([]IComponent, 0),
+		models:      make([]core.IModel, 0),
+		services:    make([]core.IService, 0),
+		restGroups:  make([]*core.RestGroup, 0),
+		rests:       make([]core.IRest, 0),
+		component:   make([]core.IComponent, 0),
 		certManager: web.NewCertManager(),
-		schedule:    NewSchedule(),
+		schedule:    core.NewSchedule(),
 		config:      config,
 	}
 	return w
 }
-func (w *WebFrame) AddRest(rest ...IRest) {
+func (w *WebFrame) AddRest(rest ...core.IRest) {
 	w.rests = append(w.rests, rest...)
 }
-func (w *WebFrame) AddComponent(component ...IComponent) {
+func (w *WebFrame) AddComponent(component ...core.IComponent) {
 	w.component = append(w.component, component...)
 }
 
-func (w *WebFrame) AddModel(model ...IModel) {
+func (w *WebFrame) AddModel(model ...core.IModel) {
 	w.models = append(w.models, model...)
 	for _, iModel := range model {
 		w.addService(iModel)
 	}
 }
-func (w *WebFrame) addService(service IService) {
+func (w *WebFrame) addService(service core.IService) {
 	w.services = append(w.services, service)
 }
-func (w *WebFrame) AddService(service ...IService) {
+func (w *WebFrame) AddService(service ...core.IService) {
 	w.services = append(w.services, service...)
 }
-func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *RestGroup {
+func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
 
 	for _, group := range w.restGroups {
-		if group.port == serverConfig.Port {
+		if group.Port() == serverConfig.Port {
 			return group
 		}
 	}
-	groupGroup := newRestGroup(serverConfig, w.certManager)
+	groupGroup := core.NewRestGroup(serverConfig, w.certManager)
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *WebFrame) AddMiddleware(middlewareFunc ...MiddlewareFunc) {
+func (w *WebFrame) AddMiddleware(middlewareFunc ...core.MiddlewareFunc) {
 	w.middlewareFunc = append(w.middlewareFunc, middlewareFunc...)
 }
 
@@ -122,24 +120,10 @@ func (w *WebFrame) Start() error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	w.db = db
-	w.context = &Context{
-		rLock:        new(sync.RWMutex),
-		config:       w.config,
-		restMap:      make(map[string]IRest),
-		modelMap:     make(map[string]IModel),
-		serviceMap:   make(map[string]IService),
-		componentMap: make(map[string]IComponent),
-		db:           db,
-		transaction:  model.NewTransaction(db),
-		schedule:     w.schedule,
-		certManager:  w.certManager,
-	}
-	contextGroup := newContextGroup(w.context)
-	w.context.contextGroup = contextGroup
-	w.context.addComponent(w.component...)
-	w.context.addModel(w.models...)
-	w.context.addService(w.services...)
+	w.context = core.NewContext(w.config, db, w.schedule, w.certManager)
+	w.context.AddComponent(w.component...)
+	w.context.AddModel(w.models...)
+	w.context.AddService(w.services...)
 	for _, iService := range w.services {
 		err := iService.Init(w.context)
 		if err != nil {
@@ -151,11 +135,11 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	rootGroup := newRestGroup(serverConfig, w.certManager).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	rootGroup := core.NewRestGroup(serverConfig, w.certManager).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
 	hasRootGroup := false
 	for _, group := range w.restGroups {
-		if group.port == 0 || group.port == serverConfig.Port {
-			group.merge(rootGroup)
+		if group.Port() == 0 || group.Port() == serverConfig.Port {
+			group.Merge(rootGroup)
 			hasRootGroup = true
 			break
 		}
@@ -163,13 +147,8 @@ func (w *WebFrame) Start() error {
 	if !hasRootGroup {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	//for _, group := range w.restGroups {
-	//	for _, rest := range group.rests {
-	//		w.context.AddRest(rest)
-	//	}
-	//}
 	for _, group := range w.restGroups {
-		context := w.context.Copy(group.digestAuth, group.httpServer)
+		context := w.context.Copy(group.DigestAuth(), group.HttpServer())
 		group.Init(context)
 	}
 	var wg = pool.New()
@@ -194,7 +173,7 @@ func (w *WebFrame) Start() error {
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {
-	RunDaemon(w, svcConfig)
+	core.RunDaemon(w, svcConfig)
 }
 
 func (w *WebFrame) Authentication(authentication web.Authentication) {

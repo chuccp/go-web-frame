@@ -19,6 +19,15 @@ type RestGroup struct {
 	middlewareFunc []MiddlewareFunc
 }
 
+func (rg *RestGroup) DigestAuth() *web.DigestAuth {
+	return rg.digestAuth
+}
+func (rg *RestGroup) HttpServer() *web.HttpServer {
+	return rg.httpServer
+}
+func (rg *RestGroup) Port() int {
+	return rg.port
+}
 func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	rg.rests = append(rg.rests, rest...)
 	return rg
@@ -29,7 +38,7 @@ func (rg *RestGroup) AddMiddlewares(middlewareFunc ...MiddlewareFunc) *RestGroup
 	return rg
 }
 
-func (rg *RestGroup) merge(restGroup *RestGroup) *RestGroup {
+func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	rg.rests = append(rg.rests, restGroup.rests...)
 	if rg.digestAuth == nil {
 		rg.digestAuth = restGroup.digestAuth
@@ -67,7 +76,7 @@ func (rg *RestGroup) Run() error {
 	return rg.httpServer.Run()
 }
 
-func newRestGroup(serverConfig *web.ServerConfig, certManager *web.CertManager) *RestGroup {
+func NewRestGroup(serverConfig *web.ServerConfig, certManager *web.CertManager) *RestGroup {
 
 	return &RestGroup{
 		rests:        make([]IRest, 0),

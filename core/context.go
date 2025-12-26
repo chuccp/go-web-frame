@@ -15,21 +15,6 @@ import (
 type IContext interface {
 	AddModel(model ...IModel)
 }
-type contextGroup struct {
-	contexts []IContext
-}
-
-func (cg *contextGroup) addContext(context IContext) {
-	cg.contexts = append(cg.contexts, context)
-}
-
-func newContextGroup(parent IContext) *contextGroup {
-	contexts := make([]IContext, 0)
-	contexts = append(contexts, parent)
-	return &contextGroup{
-		contexts: contexts,
-	}
-}
 
 type Context struct {
 	config       config2.IConfig
@@ -42,9 +27,24 @@ type Context struct {
 	db           *gorm.DB
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
-	contextGroup *contextGroup
 	schedule     *Schedule
 	certManager  *web.CertManager
+}
+
+func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule, certManager *web.CertManager) *Context {
+	context := &Context{
+		config:       config,
+		restMap:      make(map[string]IRest),
+		modelMap:     make(map[string]IModel),
+		rLock:        new(sync.RWMutex),
+		serviceMap:   make(map[string]IService),
+		componentMap: make(map[string]IComponent),
+		transaction:  model.NewTransaction(db),
+		db:           db,
+		schedule:     schedule,
+		certManager:  certManager,
+	}
+	return context
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
@@ -58,12 +58,10 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		db:           c.db,
 		transaction:  c.transaction,
 		digestAuth:   digestAuth,
-		contextGroup: c.contextGroup,
 		componentMap: c.componentMap,
 		schedule:     c.schedule,
 		certManager:  c.certManager,
 	}
-	c.contextGroup.addContext(context)
 	return context
 }
 
@@ -85,6 +83,13 @@ func (c *Context) GetDigestAuth() *web.DigestAuth {
 	return c.digestAuth
 }
 
+func (c *Context) GetRest(name string) IRest {
+	return c.restMap[name]
+}
+func (c *Context) GetDB() *gorm.DB {
+	return c.db
+}
+
 func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
@@ -93,22 +98,7 @@ func (c *Context) AddModel(model ...IModel) {
 		c.modelMap[name] = m
 	}
 }
-func (c *Context) GetRest(name string) IRest {
-	return c.restMap[name]
-}
-func (c *Context) GetDB() *gorm.DB {
-	return c.db
-}
-
-func (c *Context) addModel(model ...IModel) {
-	c.rLock.Lock()
-	defer c.rLock.Unlock()
-	for _, m := range model {
-		name := util.GetStructFullName(m)
-		c.modelMap[name] = m
-	}
-}
-func (c *Context) addComponent(components ...IComponent) {
+func (c *Context) AddComponent(components ...IComponent) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, component := range components {
@@ -142,7 +132,7 @@ func GetValueConfig[T any](key string, c *Context) T {
 //	func (c *Context) GetModel(name string) IModel {
 //		return c.modelMap[name]
 //	}
-func (c *Context) addService(services ...IService) {
+func (c *Context) AddService(services ...IService) {
 	for _, s := range services {
 		name := util.GetStructFullName(s)
 		c.serviceMap[name] = s

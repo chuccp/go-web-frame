@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
+	"github.com/chuccp/go-web-frame"
 	"github.com/chuccp/go-web-frame/cache"
 	"github.com/chuccp/go-web-frame/config"
-	"github.com/chuccp/go-web-frame/core"
 )
 
 func main() {
@@ -14,9 +14,8 @@ func main() {
 		return
 	}
 
-	web := core.New(loadConfig)
+	web := wf.New(loadConfig)
 	web.AddComponent(&cache.Component{})
-	web.RegisterConfig(&System{})
 	web.AddRest(&Api{})
 	err = web.Start()
 	if err != nil {

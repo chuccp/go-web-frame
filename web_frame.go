@@ -120,12 +120,12 @@ func (w *WebFrame) Start() error {
 			return errors.WithStackIf(err)
 		}
 	}
-	var serverConfig = web.DefaultServerConfig()
-	err = w.config.Unmarshal(serverConfig.Key(), &serverConfig)
-	if err != nil {
-		return err
-	}
-	if len(w.rests) > 0 {
+	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
+		var serverConfig = web.DefaultServerConfig()
+		err = w.config.Unmarshal(web.ServerConfigKey, &serverConfig)
+		if err != nil {
+			return err
+		}
 		rootGroup := core.NewRestGroup(serverConfig)
 		rootGroup.AddRest(w.rests...)
 		rootGroup.Authentication(w.authentication)

@@ -37,9 +37,7 @@ type ServerConfig struct {
 	SSL       *SSLConfig
 }
 
-func (s *ServerConfig) Key() string {
-	return "web.server"
-}
+const ServerConfigKey = "web.server"
 
 func (s *ServerConfig) SSLEnabled() bool {
 	return s.SSL != nil && s.SSL.Enabled

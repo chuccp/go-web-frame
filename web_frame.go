@@ -175,7 +175,7 @@ func (w *WebFrame) Start() error {
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {
-	core.RunDaemon(w, svcConfig)
+	RunDaemon(w, svcConfig)
 }
 
 func (w *WebFrame) Authentication(authentication web.Authentication) {

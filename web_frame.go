@@ -6,7 +6,6 @@ import (
 	"github.com/chuccp/go-web-frame/core"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
-	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
@@ -38,7 +37,6 @@ type WebFrame struct {
 	component      []core.IComponent
 	restGroups     []*core.RestGroup
 	config         config2.IConfig
-	httpServers    []*web.HttpServer
 	models         []core.IModel
 	services       []core.IService
 	rests          []core.IRest
@@ -47,19 +45,19 @@ type WebFrame struct {
 	authentication web.Authentication
 	db             *gorm.DB
 	schedule       *core.Schedule
+	server         *core.Server
 }
 
 func New(config config2.IConfig) *WebFrame {
 	w := &WebFrame{
-		httpServers: make([]*web.HttpServer, 0),
-		models:      make([]core.IModel, 0),
-		services:    make([]core.IService, 0),
-		restGroups:  make([]*core.RestGroup, 0),
-		rests:       make([]core.IRest, 0),
-		component:   make([]core.IComponent, 0),
-		runners:     make([]core.IRunner, 0),
-		config:      config,
-		schedule:    core.NewSchedule(),
+		models:     make([]core.IModel, 0),
+		services:   make([]core.IService, 0),
+		restGroups: make([]*core.RestGroup, 0),
+		rests:      make([]core.IRest, 0),
+		component:  make([]core.IComponent, 0),
+		runners:    make([]core.IRunner, 0),
+		config:     config,
+		schedule:   core.NewSchedule(),
 	}
 	return w
 }
@@ -95,25 +93,14 @@ func (w *WebFrame) AddMiddleware(middlewareFunc ...core.MiddlewareFunc) {
 
 func (w *WebFrame) Close() error {
 	errs := make([]error, 0)
-	for _, server := range w.httpServers {
-		err := server.Close()
-		if err != nil {
-			log.Error("关闭服务失败:", zap.Error(err))
-			errs = append(errs, err)
-		}
-	}
-	err := log.Sync()
+	err := w.server.Stop()
+	errs = append(errs, err)
+	err = log.Sync()
+	errs = append(errs, err)
+	err = w.schedule.Stop()
 	errs = append(errs, err)
 	if len(errs) == 0 {
 		return nil
-	}
-	w.schedule.Stop()
-	for _, runner := range w.runners {
-		err := runner.Stop()
-		if err != nil {
-			log.Errors(util.GetStructName(runner), err)
-			errs = append(errs, err)
-		}
 	}
 	return errors.Combine(errs...)
 }
@@ -149,12 +136,7 @@ func (w *WebFrame) Start() error {
 			return errors.WithStackIf(err)
 		}
 	}
-	for _, runner := range w.runners {
-		err := runner.Init(context)
-		if err != nil {
-			return errors.WithStackIf(err)
-		}
-	}
+
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
 		var serverConfig = web.DefaultServerConfig()
 		err = w.config.Unmarshal(web.ServerConfigKey, &serverConfig)
@@ -167,8 +149,8 @@ func (w *WebFrame) Start() error {
 		rootGroup.AddMiddlewares(w.middlewareFunc...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	server := core.NewServer(w.restGroups, w.runners)
-	err = server.Init(context)
+	w.server = core.NewServer(w.restGroups, w.runners)
+	err = w.server.Init(context)
 	if err != nil {
 		return err
 	}
@@ -177,7 +159,7 @@ func (w *WebFrame) Start() error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	return server.Run()
+	return w.server.Run()
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

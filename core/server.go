@@ -27,6 +27,12 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	return httpServer
 }
 func (server *Server) Init(context *Context) error {
+	for _, runner := range server.runners {
+		err := runner.Init(context)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
+	}
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
@@ -57,6 +63,18 @@ func (server *Server) Run() error {
 	}
 	server.certManager.Start()
 	return errorsPool.Wait()
+}
+func (server *Server) Stop() error {
+	errs := make([]error, 0)
+	for _, httpServer := range server.httpServers {
+		err := httpServer.Close()
+		errs = append(errs, err)
+	}
+	for _, runner := range server.runners {
+		err := runner.Stop()
+		errs = append(errs, err)
+	}
+	return errors.Combine(errs...)
 }
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{

@@ -142,6 +142,7 @@ func (w *WebFrame) Start() error {
 	context.AddComponent(w.component...)
 	context.AddModel(w.models...)
 	context.AddService(w.services...)
+	context.AddRunner(w.runners...)
 	for _, iService := range w.services {
 		err := iService.Init(context)
 		if err != nil {

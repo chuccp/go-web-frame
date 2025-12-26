@@ -156,7 +156,7 @@ func (c *Schedule) Init(config config2.IConfig) error {
 
 	err := config.Unmarshal(c.config.Key(), c.config)
 	if err != nil {
-		return err
+		return errors.WithStackIf(err)
 	}
 	if c.config.Enable {
 		c.Start()

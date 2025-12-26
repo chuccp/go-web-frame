@@ -153,13 +153,12 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 }
 
 func (c *Schedule) Init(config config2.IConfig) error {
-	var scheduleConfig ScheduleConfig
-	err := config.Unmarshal(scheduleConfig.Key(), &scheduleConfig)
+
+	err := config.Unmarshal(c.config.Key(), c.config)
 	if err != nil {
 		return err
 	}
-	if scheduleConfig.Enable {
-		c.config = &scheduleConfig
+	if c.config.Enable {
 		c.Start()
 	}
 	return nil
@@ -172,5 +171,7 @@ func (c *Schedule) Start() {
 	c.cron.Start()
 }
 func (c *Schedule) Stop() {
-	c.cron.Stop()
+	if c.config.Enable {
+		c.cron.Stop()
+	}
 }

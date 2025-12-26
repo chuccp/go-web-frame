@@ -53,13 +53,13 @@ type WebFrame struct {
 	restGroups     []*core.RestGroup
 	config         config2.IConfig
 	httpServers    []*web.HttpServer
-	context        *core.Context
 	models         []core.IModel
 	services       []core.IService
 	rests          []core.IRest
 	middlewareFunc []core.MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
+	schedule       *core.Schedule
 }
 
 func New(config config2.IConfig) *WebFrame {
@@ -71,6 +71,7 @@ func New(config config2.IConfig) *WebFrame {
 		rests:       make([]core.IRest, 0),
 		component:   make([]core.IComponent, 0),
 		config:      config,
+		schedule:    core.NewSchedule(),
 	}
 	return w
 }
@@ -116,6 +117,7 @@ func (w *WebFrame) Close() error {
 	if len(errs) == 0 {
 		return nil
 	}
+	w.schedule.Stop()
 	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
@@ -138,18 +140,13 @@ func (w *WebFrame) Start() error {
 			return err
 		}
 	}
-	schedule := core.NewSchedule()
-	err = schedule.Init(w.config)
-	if err != nil {
-		log.Error("Failed to initialize the scheduled task", zap.Error(err))
-		return err
-	}
-	w.context = core.NewContext(w.config, db, schedule)
-	w.context.AddComponent(w.component...)
-	w.context.AddModel(w.models...)
-	w.context.AddService(w.services...)
+
+	context := core.NewContext(w.config, db, w.schedule)
+	context.AddComponent(w.component...)
+	context.AddModel(w.models...)
+	context.AddService(w.services...)
 	for _, iService := range w.services {
-		err := iService.Init(w.context)
+		err := iService.Init(context)
 		if err != nil {
 			return errors.WithStackIf(err)
 		}
@@ -167,8 +164,13 @@ func (w *WebFrame) Start() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	server := core.NewServer(w.restGroups)
-	err = server.Init(w.context)
+	err = server.Init(context)
 	if err != nil {
+		return err
+	}
+	err = w.schedule.Init(w.config)
+	if err != nil {
+		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
 	return server.Run()

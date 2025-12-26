@@ -4,10 +4,6 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 )
 
-type IRest interface {
-	IService
-}
-
 type RestGroup struct {
 	rests          []IRest
 	port           int

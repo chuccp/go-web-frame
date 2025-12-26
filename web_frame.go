@@ -6,12 +6,47 @@ import (
 	"github.com/chuccp/go-web-frame/core"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+func GetService[T core.IService](c *core.Context) T {
+	t, _ := c.GetService(func(m core.IService) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func GetModel[T core.IModel](c *core.Context) T {
+	t, _ := c.GetModel(func(m core.IModel) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+func GetComponent[T core.IComponent](c *core.Context) T {
+	t, _ := c.GetComponent(func(m core.IComponent) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func UnmarshalConfig[T any](key string, c *core.Context) T {
+	var t T
+	newValue := util.NewPtr(t)
+	err := c.GetConfig().Unmarshal(key, newValue)
+	if err != nil {
+		log.Error("GetValueConfig", zap.Error(err))
+		return t
+	}
+	return newValue
+}
 
 type WebFrame struct {
 	component      []core.IComponent

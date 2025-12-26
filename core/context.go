@@ -107,59 +107,31 @@ func (c *Context) AddService(services ...IService) {
 		c.serviceMap[name] = s
 	}
 }
-
-func GetService[T IService](c *Context) T {
-	var t T
+func (c *Context) GetService(f func(m IService) bool) IService {
 	for _, s := range c.serviceMap {
-		t, ok := s.(T)
-		if ok {
-			return t
+		if f(s) {
+			return s
 		}
 	}
-	return t
+	return nil
 }
-
-func GetModel[T IModel](c *Context) T {
-	var v T
-	for _, m := range c.modelMap {
-		v, ok := m.(T)
-		if ok {
-			return v
-		}
-	}
-	return v
-}
-func GetRest[T IRest](c *Context) T {
-	var v T
-	for _, r := range c.restMap {
-		v, ok := r.(T)
-		if ok {
-			return v
-		}
-	}
-	return v
-}
-func GetComponent[T IComponent](c *Context) T {
-	var t T
+func (c *Context) GetComponent(f func(m IComponent) bool) IComponent {
 	for _, s := range c.componentMap {
-		t, ok := s.(T)
-		if ok {
-			return t
+		if f(s) {
+			return s
 		}
 	}
-	return t
+	return nil
+}
+func (c *Context) GetModel(f func(m IModel) bool) IModel {
+	for _, m := range c.modelMap {
+		if f(m) {
+			return m
+		}
+	}
+	return nil
 }
 
-func UnmarshalConfig[T any](key string, c *Context) T {
-	var t T
-	newValue := util.NewPtr(t)
-	err := c.config.Unmarshal(key, newValue)
-	if err != nil {
-		log.Error("GetValueConfig", zap.Error(err))
-		return t
-	}
-	return newValue
-}
 func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	for _, middlewareFunc := range middlewareFunc {
 		c.httpServer.Use(func(ctx *gin.Context) {

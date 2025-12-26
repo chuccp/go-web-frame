@@ -1,6 +1,8 @@
 package wf
 
 import (
+	"sync"
+
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
@@ -46,6 +48,8 @@ type WebFrame struct {
 	db             *gorm.DB
 	schedule       *core.Schedule
 	server         *core.Server
+	lock           *sync.Mutex
+	isClose        bool
 }
 
 func New(config config2.IConfig) *WebFrame {
@@ -58,6 +62,8 @@ func New(config config2.IConfig) *WebFrame {
 		runners:    make([]core.IRunner, 0),
 		config:     config,
 		schedule:   core.NewSchedule(),
+		lock:       new(sync.Mutex),
+		isClose:    false,
 	}
 	return w
 }
@@ -92,6 +98,9 @@ func (w *WebFrame) AddMiddleware(middlewareFunc ...core.MiddlewareFunc) {
 }
 
 func (w *WebFrame) Close() error {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.isClose = true
 	errs := make([]error, 0)
 	err := w.server.Stop()
 	errs = append(errs, err)
@@ -105,6 +114,18 @@ func (w *WebFrame) Close() error {
 	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
+	err := w.init()
+	if err != nil {
+		return err
+	}
+	if w.isClose {
+		return errors.New("The service has been closed")
+	}
+	return w.server.Run()
+}
+func (w *WebFrame) init() error {
+	w.lock.Lock()
+	defer w.lock.Unlock()
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.Unmarshal(logConfig.Key(), &logConfig)
@@ -159,7 +180,7 @@ func (w *WebFrame) Start() error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	return w.server.Run()
+	return nil
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

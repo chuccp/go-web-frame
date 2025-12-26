@@ -51,26 +51,6 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	}
 	return rg
 }
-
-//func (rg *RestGroup) Init(context *Context) error {
-//	for _, middlewareFunc := range rg.middlewareFunc {
-//		rg.httpServer.Use(func(ctx *gin.Context) {
-//			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)
-//		})
-//	}
-//	for _, rest := range rg.rests {
-//		err := rest.Init(context)
-//		if err != nil {
-//			return errors.WithStackIf(err)
-//		}
-//	}
-//	return nil
-//}
-
-//func (rg *RestGroup) Run() error {
-//	return rg.httpServer.Run()
-//}
-
 func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 
 	return &RestGroup{

@@ -17,7 +17,6 @@ import (
 type Context struct {
 	config       config2.IConfig
 	httpServer   *web.HttpServer
-	restMap      map[string]IRest
 	modelMap     map[string]IModel
 	rLock        *sync.RWMutex
 	serviceMap   map[string]IService
@@ -32,7 +31,6 @@ type Context struct {
 func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Context {
 	context := &Context{
 		config:       config,
-		restMap:      make(map[string]IRest),
 		modelMap:     make(map[string]IModel),
 		rLock:        new(sync.RWMutex),
 		serviceMap:   make(map[string]IService),
@@ -49,7 +47,6 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 	context := &Context{
 		config:       c.config,
 		httpServer:   httpServer,
-		restMap:      c.restMap,
 		modelMap:     c.modelMap,
 		rLock:        c.rLock,
 		serviceMap:   c.serviceMap,
@@ -69,17 +66,7 @@ func (c *Context) GetTransaction() *model.Transaction {
 func (c *Context) GetSchedule() *Schedule {
 	return c.schedule
 }
-func (c *Context) AddRest(rests ...IRest) {
-	c.rLock.Lock()
-	defer c.rLock.Unlock()
-	for _, s := range rests {
-		name := util.GetStructFullName(s)
-		c.restMap[name] = s
-	}
-}
-func (c *Context) GetRest(name string) IRest {
-	return c.restMap[name]
-}
+
 func (c *Context) GetDB() *gorm.DB {
 	return c.db
 }

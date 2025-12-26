@@ -25,7 +25,6 @@ type WebFrame struct {
 	middlewareFunc []core.MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
-	schedule       *core.Schedule
 }
 
 func New(config config2.IConfig) *WebFrame {
@@ -36,7 +35,6 @@ func New(config config2.IConfig) *WebFrame {
 		restGroups:  make([]*core.RestGroup, 0),
 		rests:       make([]core.IRest, 0),
 		component:   make([]core.IComponent, 0),
-		schedule:    core.NewSchedule(),
 		config:      config,
 	}
 	return w
@@ -105,12 +103,13 @@ func (w *WebFrame) Start() error {
 			return err
 		}
 	}
-	err = w.schedule.Init(w.config)
+	schedule := core.NewSchedule()
+	err = schedule.Init(w.config)
 	if err != nil {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	w.context = core.NewContext(w.config, db, w.schedule)
+	w.context = core.NewContext(w.config, db, schedule)
 	w.context.AddComponent(w.component...)
 	w.context.AddModel(w.models...)
 	w.context.AddService(w.services...)

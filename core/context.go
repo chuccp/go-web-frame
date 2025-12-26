@@ -26,6 +26,7 @@ type Context struct {
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	schedule     *Schedule
+	routeTree    RouteTree
 }
 
 func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Context {
@@ -39,6 +40,7 @@ func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Contex
 		transaction:  model.NewTransaction(db),
 		db:           db,
 		schedule:     schedule,
+		routeTree:    make(RouteTree),
 	}
 	return context
 }
@@ -56,6 +58,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		digestAuth:   digestAuth,
 		componentMap: c.componentMap,
 		schedule:     c.schedule,
+		routeTree:    make(RouteTree),
 	}
 	return context
 }
@@ -162,12 +165,15 @@ func GetRest[T IRest](c *Context) T {
 func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	for _, middlewareFunc := range middlewareFunc {
 		c.httpServer.Use(func(ctx *gin.Context) {
-			middlewareFunc(web.NewRequest(ctx, c.digestAuth), c)
+			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
+				middlewareFunc(web.NewRequest(ctx, c.digestAuth), c)
+			}
 		})
 	}
 }
 
 func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
+	c.routeTree.Set(httpMethod, relativePath)
 	c.httpServer.Handle(httpMethod, relativePath, handlers...)
 }
 

@@ -112,7 +112,7 @@ func GetComponent[T IComponent](c *Context) T {
 	return t
 }
 
-func GetValueConfig[T any](key string, c *Context) T {
+func UnmarshalConfig[T any](key string, c *Context) T {
 	var t T
 	newValue := util.NewPtr(t)
 	err := c.config.Unmarshal(key, newValue)

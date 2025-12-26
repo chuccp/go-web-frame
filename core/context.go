@@ -12,10 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type IContext interface {
-	AddModel(model ...IModel)
-}
-
 type Context struct {
 	config       config2.IConfig
 	httpServer   *web.HttpServer
@@ -28,10 +24,9 @@ type Context struct {
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	schedule     *Schedule
-	certManager  *web.CertManager
 }
 
-func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule, certManager *web.CertManager) *Context {
+func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Context {
 	context := &Context{
 		config:       config,
 		restMap:      make(map[string]IRest),
@@ -42,7 +37,6 @@ func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule, certMan
 		transaction:  model.NewTransaction(db),
 		db:           db,
 		schedule:     schedule,
-		certManager:  certManager,
 	}
 	return context
 }
@@ -60,7 +54,6 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		digestAuth:   digestAuth,
 		componentMap: c.componentMap,
 		schedule:     c.schedule,
-		certManager:  c.certManager,
 	}
 	return context
 }
@@ -79,10 +72,6 @@ func (c *Context) AddRest(rests ...IRest) {
 		c.restMap[name] = s
 	}
 }
-func (c *Context) GetDigestAuth() *web.DigestAuth {
-	return c.digestAuth
-}
-
 func (c *Context) GetRest(name string) IRest {
 	return c.restMap[name]
 }
@@ -129,23 +118,13 @@ func GetValueConfig[T any](key string, c *Context) T {
 	return newValue
 }
 
-//	func (c *Context) GetModel(name string) IModel {
-//		return c.modelMap[name]
-//	}
 func (c *Context) AddService(services ...IService) {
 	for _, s := range services {
 		name := util.GetStructFullName(s)
 		c.serviceMap[name] = s
 	}
 }
-func (c *Context) GetService(name string) IService {
-	return c.serviceMap[name]
-}
 
-//	func GetServiceByName[T IService](name string, c *Context) T {
-//		v, _ := c.GetService(name).(T)
-//		return v
-//	}
 func GetService[T IService](c *Context) T {
 	var t T
 	for _, s := range c.serviceMap {
@@ -157,10 +136,6 @@ func GetService[T IService](c *Context) T {
 	return t
 }
 
-//	func GetModelByName[T IModel](name string, c *Context) T {
-//		v, _ := c.GetModel(name).(T)
-//		return v
-//	}
 func GetModel[T IModel](c *Context) T {
 	var v T
 	for _, m := range c.modelMap {
@@ -171,11 +146,6 @@ func GetModel[T IModel](c *Context) T {
 	}
 	return v
 }
-
-//	func GetRestByName[T IRest](name string, c *Context) T {
-//		v, _ := c.GetRest(name).(T)
-//		return v
-//	}
 func GetRest[T IRest](c *Context) T {
 	var v T
 	for _, r := range c.restMap {
@@ -274,8 +244,4 @@ func (c *Context) DeleteAuth(relativePath string, handlers ...web.HandlerFunc) {
 func (c *Context) PutAuth(relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("PutAuth", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.put(relativePath, web.AuthChecks(handlers...)...)
-}
-
-func (c *Context) GetCertManager() *web.CertManager {
-	return c.certManager
 }

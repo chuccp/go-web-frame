@@ -1,9 +1,7 @@
 package core
 
 import (
-	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-gonic/gin"
 )
 
 type IRest interface {
@@ -14,17 +12,13 @@ type RestGroup struct {
 	rests          []IRest
 	port           int
 	name           string
-	httpServer     *web.HttpServer
 	digestAuth     *web.DigestAuth
-	serverConfig   *web.ServerConfig
 	middlewareFunc []MiddlewareFunc
+	serverConfig   *web.ServerConfig
 }
 
 func (rg *RestGroup) DigestAuth() *web.DigestAuth {
 	return rg.digestAuth
-}
-func (rg *RestGroup) HttpServer() *web.HttpServer {
-	return rg.httpServer
 }
 func (rg *RestGroup) Port() int {
 	return rg.port
@@ -62,31 +56,30 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	return rg
 }
 
-func (rg *RestGroup) Init(context *Context) error {
-	context.httpServer = rg.httpServer
-	for _, middlewareFunc := range rg.middlewareFunc {
-		rg.httpServer.Use(func(ctx *gin.Context) {
-			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)
-		})
-	}
-	for _, rest := range rg.rests {
-		err := rest.Init(context)
-		if err != nil {
-			return errors.WithStackIf(err)
-		}
-	}
-	return nil
-}
-func (rg *RestGroup) Run() error {
-	return rg.httpServer.Run()
-}
+//func (rg *RestGroup) Init(context *Context) error {
+//	for _, middlewareFunc := range rg.middlewareFunc {
+//		rg.httpServer.Use(func(ctx *gin.Context) {
+//			middlewareFunc(web.NewRequest(ctx, rg.digestAuth), context)
+//		})
+//	}
+//	for _, rest := range rg.rests {
+//		err := rest.Init(context)
+//		if err != nil {
+//			return errors.WithStackIf(err)
+//		}
+//	}
+//	return nil
+//}
 
-func NewRestGroup(serverConfig *web.ServerConfig, certManager *web.CertManager) *RestGroup {
+//func (rg *RestGroup) Run() error {
+//	return rg.httpServer.Run()
+//}
+
+func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 
 	return &RestGroup{
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
-		httpServer:   web.NewHttpServer(serverConfig, certManager),
 	}
 }

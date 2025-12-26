@@ -9,8 +9,6 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
-	"github.com/sourcegraph/conc/panics"
-	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -27,7 +25,6 @@ type WebFrame struct {
 	middlewareFunc []core.MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
-	certManager    *web.CertManager
 	schedule       *core.Schedule
 }
 
@@ -39,7 +36,6 @@ func New(config config2.IConfig) *WebFrame {
 		restGroups:  make([]*core.RestGroup, 0),
 		rests:       make([]core.IRest, 0),
 		component:   make([]core.IComponent, 0),
-		certManager: web.NewCertManager(),
 		schedule:    core.NewSchedule(),
 		config:      config,
 	}
@@ -65,13 +61,7 @@ func (w *WebFrame) AddService(service ...core.IService) {
 	w.services = append(w.services, service...)
 }
 func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
-
-	for _, group := range w.restGroups {
-		if group.Port() == serverConfig.Port {
-			return group
-		}
-	}
-	groupGroup := core.NewRestGroup(serverConfig, w.certManager)
+	groupGroup := core.NewRestGroup(serverConfig)
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
@@ -120,7 +110,7 @@ func (w *WebFrame) Start() error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	w.context = core.NewContext(w.config, db, w.schedule, w.certManager)
+	w.context = core.NewContext(w.config, db, w.schedule)
 	w.context.AddComponent(w.component...)
 	w.context.AddModel(w.models...)
 	w.context.AddService(w.services...)
@@ -135,44 +125,14 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	rootGroup := core.NewRestGroup(serverConfig, w.certManager).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
-	hasRootGroup := false
-	for _, group := range w.restGroups {
-		if group.Port() == 0 || group.Port() == serverConfig.Port {
-			group.Merge(rootGroup)
-			hasRootGroup = true
-			break
-		}
+	rootGroup := core.NewRestGroup(serverConfig).AddRest(w.rests...).Authentication(w.authentication).AddMiddlewares(w.middlewareFunc...)
+	w.restGroups = append(w.restGroups, rootGroup)
+	server := core.NewServer(w.restGroups)
+	err = server.Init(w.context)
+	if err != nil {
+		return err
 	}
-	if !hasRootGroup {
-		w.restGroups = append(w.restGroups, rootGroup)
-	}
-	for _, group := range w.restGroups {
-		context := w.context.Copy(group.DigestAuth(), group.HttpServer())
-		err := group.Init(context)
-		if err != nil {
-			return err
-		}
-	}
-	var wg = pool.New()
-	wg.WithMaxGoroutines(len(w.restGroups))
-	errorsPool := wg.WithErrors()
-	if len(w.restGroups) > 0 {
-		for _, rg := range w.restGroups {
-			errorsPool.Go(func() error {
-				var catcher panics.Catcher
-				catcher.Try(func() {
-					err := rg.Run()
-					if err != nil {
-						log.PanicErrors("Failed to start the HTTP service", err)
-					}
-				})
-				return catcher.Recovered().AsError()
-			})
-		}
-	}
-	w.certManager.Start()
-	return errors.WithStackIf(errorsPool.Wait())
+	return server.Run()
 }
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {

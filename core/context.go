@@ -101,28 +101,6 @@ func (c *Context) AddComponent(components ...IComponent) {
 	}
 }
 
-func GetComponent[T IComponent](c *Context) T {
-	var t T
-	for _, s := range c.componentMap {
-		t, ok := s.(T)
-		if ok {
-			return t
-		}
-	}
-	return t
-}
-
-func UnmarshalConfig[T any](key string, c *Context) T {
-	var t T
-	newValue := util.NewPtr(t)
-	err := c.config.Unmarshal(key, newValue)
-	if err != nil {
-		log.Error("GetValueConfig", zap.Error(err))
-		return t
-	}
-	return newValue
-}
-
 func (c *Context) AddService(services ...IService) {
 	for _, s := range services {
 		name := util.GetStructFullName(s)
@@ -161,7 +139,27 @@ func GetRest[T IRest](c *Context) T {
 	}
 	return v
 }
+func GetComponent[T IComponent](c *Context) T {
+	var t T
+	for _, s := range c.componentMap {
+		t, ok := s.(T)
+		if ok {
+			return t
+		}
+	}
+	return t
+}
 
+func UnmarshalConfig[T any](key string, c *Context) T {
+	var t T
+	newValue := util.NewPtr(t)
+	err := c.config.Unmarshal(key, newValue)
+	if err != nil {
+		log.Error("GetValueConfig", zap.Error(err))
+		return t
+	}
+	return newValue
+}
 func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	for _, middlewareFunc := range middlewareFunc {
 		c.httpServer.Use(func(ctx *gin.Context) {

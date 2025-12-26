@@ -26,6 +26,7 @@ type Context struct {
 	digestAuth   *web.DigestAuth
 	schedule     *Schedule
 	routeTree    RouteTree
+	runnerMap    map[string]IRunner
 }
 
 func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Context {
@@ -36,6 +37,7 @@ func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Contex
 		serviceMap:   make(map[string]IService),
 		componentMap: make(map[string]IComponent),
 		transaction:  model.NewTransaction(db),
+		runnerMap:    make(map[string]IRunner),
 		db:           db,
 		schedule:     schedule,
 		routeTree:    make(RouteTree),
@@ -56,6 +58,7 @@ func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *
 		componentMap: c.componentMap,
 		schedule:     c.schedule,
 		routeTree:    make(RouteTree),
+		runnerMap:    c.runnerMap,
 	}
 	return context
 }
@@ -79,6 +82,15 @@ func (c *Context) AddModel(model ...IModel) {
 		c.modelMap[name] = m
 	}
 }
+
+func (c *Context) AddRunner(runner ...IRunner) {
+	c.rLock.Lock()
+	defer c.rLock.Unlock()
+	for _, r := range runner {
+		name := util.GetStructFullName(r)
+		c.runnerMap[name] = r
+	}
+}
 func (c *Context) AddComponent(components ...IComponent) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
@@ -89,12 +101,27 @@ func (c *Context) AddComponent(components ...IComponent) {
 }
 
 func (c *Context) AddService(services ...IService) {
+	c.rLock.Lock()
+	defer c.rLock.Unlock()
 	for _, s := range services {
 		name := util.GetStructFullName(s)
 		c.serviceMap[name] = s
 	}
 }
+func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	for _, r := range c.runnerMap {
+		if f(r) {
+			return r
+		}
+	}
+	return nil
+}
+
 func (c *Context) GetService(f func(m IService) bool) IService {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
 	for _, s := range c.serviceMap {
 		if f(s) {
 			return s
@@ -103,6 +130,8 @@ func (c *Context) GetService(f func(m IService) bool) IService {
 	return nil
 }
 func (c *Context) GetComponent(f func(m IComponent) bool) IComponent {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
 	for _, s := range c.componentMap {
 		if f(s) {
 			return s
@@ -111,6 +140,8 @@ func (c *Context) GetComponent(f func(m IComponent) bool) IComponent {
 	return nil
 }
 func (c *Context) GetModel(f func(m IModel) bool) IModel {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
 	for _, m := range c.modelMap {
 		if f(m) {
 			return m

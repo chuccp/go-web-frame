@@ -20,3 +20,9 @@ type IComponent interface {
 type IService interface {
 	Init(Config *Context) error
 }
+
+type IRunner interface {
+	Init(Config *Context) error
+	Run() error
+	Stop() error
+}

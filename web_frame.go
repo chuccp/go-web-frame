@@ -37,6 +37,14 @@ func GetComponent[T core.IComponent](c *core.Context) T {
 	return t
 }
 
+func GetRunner[T core.IRunner](c *core.Context) T {
+	t, _ := c.GetRunner(func(m core.IRunner) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
 func UnmarshalConfig[T any](key string, c *core.Context) T {
 	var t T
 	newValue := util.NewPtr(t)
@@ -56,6 +64,7 @@ type WebFrame struct {
 	models         []core.IModel
 	services       []core.IService
 	rests          []core.IRest
+	runners        []core.IRunner
 	middlewareFunc []core.MiddlewareFunc
 	authentication web.Authentication
 	db             *gorm.DB
@@ -70,6 +79,7 @@ func New(config config2.IConfig) *WebFrame {
 		restGroups:  make([]*core.RestGroup, 0),
 		rests:       make([]core.IRest, 0),
 		component:   make([]core.IComponent, 0),
+		runners:     make([]core.IRunner, 0),
 		config:      config,
 		schedule:    core.NewSchedule(),
 	}
@@ -81,7 +91,9 @@ func (w *WebFrame) AddRest(rest ...core.IRest) {
 func (w *WebFrame) AddComponent(component ...core.IComponent) {
 	w.component = append(w.component, component...)
 }
-
+func (w *WebFrame) AddRunner(runner ...core.IRunner) {
+	w.runners = append(w.runners, runner...)
+}
 func (w *WebFrame) AddModel(model ...core.IModel) {
 	w.models = append(w.models, model...)
 	for _, iModel := range model {
@@ -118,6 +130,13 @@ func (w *WebFrame) Close() error {
 		return nil
 	}
 	w.schedule.Stop()
+	for _, runner := range w.runners {
+		err := runner.Stop()
+		if err != nil {
+			log.Errors(util.GetStructName(runner), err)
+			errs = append(errs, err)
+		}
+	}
 	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
@@ -151,6 +170,12 @@ func (w *WebFrame) Start() error {
 			return errors.WithStackIf(err)
 		}
 	}
+	for _, runner := range w.runners {
+		err := runner.Init(context)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
+	}
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
 		var serverConfig = web.DefaultServerConfig()
 		err = w.config.Unmarshal(web.ServerConfigKey, &serverConfig)
@@ -163,7 +188,7 @@ func (w *WebFrame) Start() error {
 		rootGroup.AddMiddlewares(w.middlewareFunc...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	server := core.NewServer(w.restGroups)
+	server := core.NewServer(w.restGroups, w.runners)
 	err = server.Init(context)
 	if err != nil {
 		return err

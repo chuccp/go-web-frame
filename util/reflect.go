@@ -43,3 +43,13 @@ func GetStructFullName(v any) string {
 	}
 	return t.String() // 带包路径和指针符号
 }
+func GetStructName(v any) string {
+	if v == nil {
+		return "<nil>"
+	}
+	t := reflect.TypeOf(v)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t.Name()
+}

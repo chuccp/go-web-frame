@@ -13,6 +13,7 @@ type Server struct {
 	restGroups  []*RestGroup
 	httpServers map[int]*web.HttpServer
 	lock        *sync.RWMutex
+	runners     []IRunner
 }
 
 func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
@@ -42,21 +43,27 @@ func (server *Server) Init(context *Context) error {
 }
 func (server *Server) Run() error {
 	var wg = pool.New()
-	wg.WithMaxGoroutines(len(server.httpServers))
+	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
 	errorsPool := wg.WithErrors()
 	for _, httpServer := range server.httpServers {
 		errorsPool.Go(func() error {
 			return errors.WithStackIf(httpServer.Run())
 		})
 	}
+	for _, runner := range server.runners {
+		errorsPool.Go(func() error {
+			return errors.WithStackIf(runner.Run())
+		})
+	}
 	server.certManager.Start()
 	return errorsPool.Wait()
 }
-func NewServer(restGroups []*RestGroup) *Server {
+func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
 		certManager: web.NewCertManager(),
 		restGroups:  restGroups,
 		httpServers: make(map[int]*web.HttpServer),
 		lock:        new(sync.RWMutex),
+		runners:     runners,
 	}
 }

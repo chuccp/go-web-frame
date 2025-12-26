@@ -164,6 +164,13 @@ func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
 func (c *Context) get(relativePath string, handlers ...web.HandlerFunc) {
 	c.httpServer.GET(relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
 }
+func (c *Context) authHandle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(httpMethod, relativePath, web.AuthChecks(handlers...)...)
+}
+func (c *Context) handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
+	c.httpServer.Handle(httpMethod, relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+}
+
 func (c *Context) AuthGet(relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("AuthGet", zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
 	c.get(relativePath, web.AuthChecks(handlers...)...)

@@ -96,6 +96,9 @@ func (httpServer *HttpServer) Port() int {
 func (httpServer *HttpServer) GET(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.GET(relativePath, handlers...)
 }
+func (httpServer *HttpServer) Handle(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
+	httpServer.engine.Handle(httpMethod, relativePath, handlers...)
+}
 func (httpServer *HttpServer) POST(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.POST(relativePath, handlers...)
 }

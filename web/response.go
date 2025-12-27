@@ -4,7 +4,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Response gin.ResponseWriter
+type Response interface {
+	gin.ResponseWriter
+	SetAttachmentFileName(fileName string)
+}
+
+type response struct {
+	gin.ResponseWriter
+}
+
+func (r *response) SetAttachmentFileName(fileName string) {
+	r.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
+}
+func newResponse(responseWriter gin.ResponseWriter) *response {
+	return &response{
+		ResponseWriter: responseWriter,
+	}
+}
 
 type ResponseWriteCloser struct {
 	response Response

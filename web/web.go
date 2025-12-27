@@ -145,7 +145,7 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 }
 func toGinHandlerRawFunc(digestAuth *DigestAuth, handler HandlerRawFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		err := handler(NewRequest(context, digestAuth), context.Writer)
+		err := handler(NewRequest(context, digestAuth), newResponse(context.Writer))
 		if err != nil {
 			err0 := Error(err)
 			context.JSON(err0.Code, err0)

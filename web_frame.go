@@ -49,10 +49,13 @@ type WebFrame struct {
 	schedule       *core.Schedule
 	server         *core.Server
 	lock           *sync.Mutex
-	isClose        bool
+	//context        context.Context
+	//cancel         context.CancelFunc
+	isClose bool
 }
 
 func New(config config2.IConfig) *WebFrame {
+	//ctx2, cancel := context.WithCancel(context.Background())
 	w := &WebFrame{
 		models:     make([]core.IModel, 0),
 		services:   make([]core.IService, 0),
@@ -64,6 +67,8 @@ func New(config config2.IConfig) *WebFrame {
 		schedule:   core.NewSchedule(),
 		lock:       new(sync.Mutex),
 		isClose:    false,
+		//context:    ctx2,
+		//cancel:     cancel,
 	}
 	return w
 }
@@ -111,6 +116,7 @@ func (w *WebFrame) Close() error {
 	if len(errs) == 0 {
 		return nil
 	}
+	//w.cancel()
 	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
@@ -146,13 +152,13 @@ func (w *WebFrame) init() error {
 		}
 	}
 
-	context := core.NewContext(w.config, db, w.schedule)
-	context.AddComponent(w.component...)
-	context.AddModel(w.models...)
-	context.AddService(w.services...)
-	context.AddRunner(w.runners...)
+	coreContext := core.NewContext(w.config, db, w.schedule)
+	coreContext.AddComponent(w.component...)
+	coreContext.AddModel(w.models...)
+	coreContext.AddService(w.services...)
+	coreContext.AddRunner(w.runners...)
 	for _, iService := range w.services {
-		err := iService.Init(context)
+		err := iService.Init(coreContext)
 		if err != nil {
 			return errors.WithStackIf(err)
 		}
@@ -171,7 +177,7 @@ func (w *WebFrame) init() error {
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	w.server = core.NewServer(w.restGroups, w.runners)
-	err = w.server.Init(context)
+	err = w.server.Init(coreContext)
 	if err != nil {
 		return err
 	}

@@ -40,6 +40,9 @@ func (l *Component) GetLocalCache() *LocalCache {
 func (l *Component) Name() string {
 	return Name
 }
+func (l *Component) Destroy() error {
+	return nil
+}
 
 type LocalCache struct {
 	path string

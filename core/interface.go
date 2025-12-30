@@ -16,6 +16,7 @@ type IRest interface {
 }
 type IComponent interface {
 	Init(Config config2.IConfig) error
+	Destroy() error
 }
 type IService interface {
 	Init(Config *Context) error

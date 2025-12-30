@@ -160,6 +160,6 @@ func (c *Component) ValidateCode(code string) bool {
 	return util.IsAfter(time, util.GetNowTime(), util.TimestampFormat)
 
 }
-func (c *Component) Name() string {
-	return Name
+func (c *Component) Destroy() error {
+	return nil
 }

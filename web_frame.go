@@ -113,6 +113,10 @@ func (w *WebFrame) Close() error {
 	errs = append(errs, err)
 	err = w.schedule.Stop()
 	errs = append(errs, err)
+	for _, component := range w.component {
+		err = component.Destroy()
+		errs = append(errs, err)
+	}
 	if len(errs) == 0 {
 		return nil
 	}

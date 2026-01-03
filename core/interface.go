@@ -4,16 +4,15 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 )
 
+type IService interface {
+	Init(Config *Context) error
+}
 type IModel interface {
+	IService
 	IsExist() bool
 	CreateTable() error
 	DeleteTable() error
 	GetTableName() string
-	Init(context *Context) error
-}
-
-type IService interface {
-	Init(Config *Context) error
 }
 type IDestroy interface {
 	Destroy() error

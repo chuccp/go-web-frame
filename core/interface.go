@@ -2,6 +2,7 @@ package core
 
 import (
 	config2 "github.com/chuccp/go-web-frame/config"
+	"gorm.io/gorm"
 )
 
 type IService interface {
@@ -13,6 +14,7 @@ type IModel interface {
 	CreateTable() error
 	DeleteTable() error
 	GetTableName() string
+	ReNew(db *gorm.DB, c *Context) IModel
 }
 type IDestroy interface {
 	Destroy() error

@@ -303,6 +303,18 @@ func GetModel[T IModel](c *Context) T {
 	}).(T)
 	return t
 }
+
+func GetReNewModel[T IModel](db *gorm.DB, c *Context) T {
+	t, ok := c.GetModel(func(m IModel) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	if ok {
+		t, _ = t.ReNew(db, c).(T)
+		return t
+	}
+	return t
+}
 func GetComponent[T IComponent](c *Context) T {
 	t, _ := c.GetComponent(func(m IComponent) bool {
 		_, ok := m.(T)

@@ -22,13 +22,15 @@ func GetService[T core.IService](c *core.Context) T {
 func GetModel[T core.IModel](c *core.Context) T {
 	return core.GetModel[T](c)
 }
+func GetReNewModel[T core.IModel](db *gorm.DB, c *core.Context) T {
+	return core.GetReNewModel[T](db, c)
+}
 func GetComponent[T core.IComponent](c *core.Context) T {
 	return core.GetComponent[T](c)
 }
 
 func GetRunner[T core.IRunner](c *core.Context) T {
 	return core.GetRunner[T](c)
-
 }
 
 func UnmarshalConfig[T any](key string, c *core.Context) T {

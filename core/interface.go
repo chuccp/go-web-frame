@@ -15,17 +15,19 @@ type IModel interface {
 type IService interface {
 	Init(Config *Context) error
 }
-
+type IDestroy interface {
+	Destroy() error
+}
 type IRest interface {
 	IService
 }
 type IComponent interface {
 	Init(Config config2.IConfig) error
-	Destroy() error
+	IDestroy
 }
 
 type IRunner interface {
 	IService
+	IDestroy
 	Run() error
-	Destroy() error
 }

@@ -172,7 +172,7 @@ func (c *Schedule) Run() error {
 	c.cron.Start()
 	return nil
 }
-func (c *Schedule) Stop() error {
+func (c *Schedule) Destroy() error {
 	if c.config.Enable {
 		c.cron.Stop()
 	}

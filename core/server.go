@@ -64,14 +64,14 @@ func (server *Server) Run() error {
 	server.certManager.Start()
 	return errorsPool.Wait()
 }
-func (server *Server) Stop() error {
+func (server *Server) Destroy() error {
 	errs := make([]error, 0)
 	for _, httpServer := range server.httpServers {
 		err := httpServer.Close()
 		errs = append(errs, err)
 	}
 	for _, runner := range server.runners {
-		err := runner.Stop()
+		err := runner.Destroy()
 		errs = append(errs, err)
 	}
 	return errors.Combine(errs...)

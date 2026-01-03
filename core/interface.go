@@ -11,6 +11,11 @@ type IModel interface {
 	GetTableName() string
 	Init(context *Context) error
 }
+
+type IService interface {
+	Init(Config *Context) error
+}
+
 type IRest interface {
 	IService
 }
@@ -18,12 +23,9 @@ type IComponent interface {
 	Init(Config config2.IConfig) error
 	Destroy() error
 }
-type IService interface {
-	Init(Config *Context) error
-}
 
 type IRunner interface {
-	Init(Config *Context) error
+	IService
 	Run() error
-	Stop() error
+	Destroy() error
 }

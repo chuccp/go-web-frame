@@ -107,11 +107,11 @@ func (w *WebFrame) Close() error {
 	defer w.lock.Unlock()
 	w.isClose = true
 	errs := make([]error, 0)
-	err := w.server.Stop()
+	err := w.server.Destroy()
 	errs = append(errs, err)
 	err = log.Sync()
 	errs = append(errs, err)
-	err = w.schedule.Stop()
+	err = w.schedule.Destroy()
 	errs = append(errs, err)
 	for _, component := range w.component {
 		err = component.Destroy()

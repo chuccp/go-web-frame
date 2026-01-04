@@ -40,7 +40,7 @@ func (r *RateLimit) Init(Config config2.IConfig) error {
 	})
 	counter := stats.NewCounter()
 	cache, err := otter.New[string, *rate.Limiter](&otter.Options[string, *rate.Limiter]{
-		MaximumSize:      10_000,
+		MaximumSize:      1000_000,
 		ExpiryCalculator: otter.ExpiryAccessing[string, *rate.Limiter](time.Hour), // 最后访问后 1 小时过期
 		StatsRecorder:    counter,
 	})

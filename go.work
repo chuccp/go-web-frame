@@ -9,4 +9,7 @@ use (
 	./example/ssl
 	./example/config
 	./example/caddy
+	./component/cache
+	./component/localcache
+	./component/ratelimit
 )

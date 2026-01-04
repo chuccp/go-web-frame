@@ -21,11 +21,13 @@ type Config struct {
 type RateLimit struct {
 	cache         *otter.Cache[string, *rate.Limiter]
 	limiterLoader otter.Loader[string, *rate.Limiter]
+	ctx           context.Context
+	cancelFunc    context.CancelFunc
 }
 
 // Allow 瞬间检查是否允许（不阻塞，直接返回 false 拒绝）
-func (r *RateLimit) Allow(ctx context.Context, key string) bool {
-	limiter, err := r.cache.Get(ctx, key, r.limiterLoader)
+func (r *RateLimit) Allow(key string) bool {
+	limiter, err := r.cache.Get(r.ctx, key, r.limiterLoader)
 	if err != nil {
 		return false
 	}
@@ -33,12 +35,12 @@ func (r *RateLimit) Allow(ctx context.Context, key string) bool {
 }
 
 // Wait 阻塞等待直到允许通过（推荐用于严格限流）
-func (r *RateLimit) Wait(ctx context.Context, key string) error {
-	limiter, err := r.cache.Get(ctx, key, r.limiterLoader)
+func (r *RateLimit) Wait(key string) error {
+	limiter, err := r.cache.Get(r.ctx, key, r.limiterLoader)
 	if err != nil {
 		return err
 	}
-	return limiter.Wait(ctx)
+	return limiter.Wait(r.ctx)
 }
 func (r *RateLimit) Init(config config2.IConfig) error {
 	lConfig := &Config{
@@ -47,6 +49,8 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 		MaxSize: 1000_000,
 		Expiry:  3600,
 	}
+
+	r.ctx, r.cancelFunc = context.WithCancel(context.Background())
 	err := config.Unmarshal("rate_limit", lConfig)
 	if err != nil {
 		return errors.WithStackIf(err)
@@ -69,10 +73,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 }
 
 func (r *RateLimit) Destroy() error {
-	// otter v2 支持主动关闭，释放内部资源
-	if stopped := r.cache.StopAllGoroutines(); stopped {
-		// 可选：记录日志 "otter cache goroutines stopped"
-	}
+	r.cancelFunc()
 	r.cache.CleanUp()
 	return nil
 }

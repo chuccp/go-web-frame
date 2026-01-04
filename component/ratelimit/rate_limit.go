@@ -23,11 +23,19 @@ type RateLimit struct {
 	limiterLoader otter.Loader[string, *rate.Limiter]
 	ctx           context.Context
 	cancelFunc    context.CancelFunc
+	config        *Config
 }
 
 // Allow 瞬间检查是否允许（不阻塞，直接返回 false 拒绝）
 func (r *RateLimit) Allow(key string) bool {
 	limiter, err := r.cache.Get(r.ctx, key, r.limiterLoader)
+	if err != nil {
+		return false
+	}
+	return limiter.Allow()
+}
+func (r *RateLimit) AllowSBurst(key string, burst int) bool {
+	limiter, err := r.cache.Get(r.ctx, key, r._limiterLoader(burst))
 	if err != nil {
 		return false
 	}
@@ -42,6 +50,12 @@ func (r *RateLimit) Wait(key string) error {
 	}
 	return limiter.Wait(r.ctx)
 }
+func (r *RateLimit) _limiterLoader(burst int) otter.Loader[string, *rate.Limiter] {
+	return otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
+		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
+		return rate.NewLimiter(rate.Every(time.Duration(r.config.Limit)*time.Second), burst), nil
+	})
+}
 func (r *RateLimit) Init(config config2.IConfig) error {
 	lConfig := &Config{
 		Limit:   600,
@@ -55,6 +69,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
+	r.config = lConfig
 	r.limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
 		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
 		return rate.NewLimiter(rate.Every(time.Duration(lConfig.Limit)*time.Second), lConfig.Burst), nil

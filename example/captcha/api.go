@@ -2,7 +2,7 @@ package main
 
 import (
 	wf "github.com/chuccp/go-web-frame"
-	"github.com/chuccp/go-web-frame/captcha"
+	"github.com/chuccp/go-web-frame/component/captcha"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/web"
 )
@@ -13,7 +13,7 @@ type Api struct {
 
 func (api *Api) test(request *web.Request) (any, error) {
 
-	getCaptcha := wf.GetComponent[*captcha.Component](api.context).GetCaptcha()
+	getCaptcha := wf.GetComponent[*captcha.captcha](api.context).GetCaptcha()
 	generate, err := getCaptcha.Generate()
 	if err != nil {
 		return nil, err

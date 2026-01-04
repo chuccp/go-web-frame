@@ -16,7 +16,7 @@ import (
 
 const Name = "captcha_component"
 
-type Component struct {
+type Captcha struct {
 	captcha slide.Captcha
 	key     string
 	iv      string
@@ -48,7 +48,7 @@ func (c *Config) Key() string {
 type SlideCaptcha struct {
 }
 
-func (c *Component) Init(config config2.IConfig) error {
+func (c *Captcha) Init(config config2.IConfig) error {
 	var cfg Config
 	err := config.Unmarshal(cfg.Key(), &cfg)
 	if err != nil {
@@ -77,10 +77,10 @@ func (c *Component) Init(config config2.IConfig) error {
 	c.captcha = builder.Make()
 	return nil
 }
-func (c *Component) GetCaptcha() slide.Captcha {
+func (c *Captcha) GetCaptcha() slide.Captcha {
 	return c.captcha
 }
-func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
+func (c *Captcha) GetCaptchaData() (*SlideCaptchaData, error) {
 	captchaData, err := c.captcha.Generate()
 	if err != nil {
 		return nil, err
@@ -111,12 +111,12 @@ func (c *Component) GetCaptchaData() (*SlideCaptchaData, error) {
 		ThumbCode:   v,
 	}, nil
 }
-func (c *Component) generateCode(value string) (string, error) {
+func (c *Captcha) generateCode(value string) (string, error) {
 	data := util.OfMap2("time", util.NowDateFormatTime(util.TimestampFormat), "thumbX", value)
 	js, _ := json.Marshal(data)
 	return util.EncryptByCBC(string(js), c.key, c.iv)
 }
-func (c *Component) ValidateThumb(code string, x string) (*Data, bool) {
+func (c *Captcha) ValidateThumb(code string, x string) (*Data, bool) {
 	v, err := util.DecryptByCBC(code, c.key, c.iv)
 	if err != nil {
 		log.Errors("ValidateThumb", err)
@@ -142,7 +142,7 @@ func (c *Component) ValidateThumb(code string, x string) (*Data, bool) {
 	}
 	return nil, false
 }
-func (c *Component) ValidateCode(code string) bool {
+func (c *Captcha) ValidateCode(code string) bool {
 	v, err := util.DecryptByCBC(code, c.key, c.iv)
 	if err != nil {
 		log.Errors("ValidateCode", err)
@@ -160,6 +160,6 @@ func (c *Component) ValidateCode(code string) bool {
 	return util.IsAfter(time, util.GetNowTime(), util.TimestampFormat)
 
 }
-func (c *Component) Destroy() error {
+func (c *Captcha) Destroy() error {
 	return nil
 }

@@ -11,6 +11,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type Config struct {
+	Limit   int // 每秒限制
+	Burst   int // 最大令牌数
+	MaxSize int // 最大缓存数量
+}
+
 type RateLimit struct {
 	cache         *otter.Cache[string, *rate.Limiter]
 	limiterLoader otter.Loader[string, *rate.Limiter]
@@ -33,14 +39,23 @@ func (r *RateLimit) Wait(ctx context.Context, key string) error {
 	}
 	return limiter.Wait(ctx)
 }
-func (r *RateLimit) Init(Config config2.IConfig) error {
+func (r *RateLimit) Init(config config2.IConfig) error {
+	lConfig := &Config{
+		Limit:   600,
+		Burst:   3,
+		MaxSize: 1000_000,
+	}
+	err := config.Unmarshal("rate_limit", lConfig)
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
 	r.limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
 		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
-		return rate.NewLimiter(rate.Every(5*time.Minute), 3), nil
+		return rate.NewLimiter(rate.Every(time.Duration(lConfig.Limit)*time.Second), lConfig.Burst), nil
 	})
 	counter := stats.NewCounter()
 	cache, err := otter.New[string, *rate.Limiter](&otter.Options[string, *rate.Limiter]{
-		MaximumSize:      1000_000,
+		MaximumSize:      lConfig.MaxSize,
 		ExpiryCalculator: otter.ExpiryAccessing[string, *rate.Limiter](time.Hour), // 最后访问后 1 小时过期
 		StatsRecorder:    counter,
 	})

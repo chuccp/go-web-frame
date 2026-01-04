@@ -35,7 +35,7 @@ func (l *LocalCache) Init(cfg config2.IConfig) error {
 	if len(config.Path) == 0 {
 		config.Open = false
 	}
-	log.Info("cache:", zap.String("path", config.Path), zap.Bool("write data to the file", config.Open))
+	log.Info("localCache:", zap.String("path", config.Path), zap.Bool("write data to the file", config.Open))
 	err = util.CreateDirIfNoExists(config.Path)
 	if err != nil {
 		return errors.WithStackIf(err)

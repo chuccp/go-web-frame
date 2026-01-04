@@ -27,7 +27,7 @@ type LocalCache struct {
 
 func (l *LocalCache) Init(cfg config2.IConfig) error {
 	var config Config
-	err := cfg.Unmarshal("local_cache", config)
+	err := cfg.Unmarshal("local_cache", &config)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

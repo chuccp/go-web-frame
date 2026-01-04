@@ -15,6 +15,7 @@ type Config struct {
 	Limit   int // 每秒限制
 	Burst   int // 最大令牌数
 	MaxSize int // 最大缓存数量
+	Expiry  int // 缓存过期时间 单位秒
 }
 
 type RateLimit struct {
@@ -44,6 +45,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 		Limit:   600,
 		Burst:   3,
 		MaxSize: 1000_000,
+		Expiry:  3600,
 	}
 	err := config.Unmarshal("rate_limit", lConfig)
 	if err != nil {
@@ -56,7 +58,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 	counter := stats.NewCounter()
 	cache, err := otter.New[string, *rate.Limiter](&otter.Options[string, *rate.Limiter]{
 		MaximumSize:      lConfig.MaxSize,
-		ExpiryCalculator: otter.ExpiryAccessing[string, *rate.Limiter](time.Hour), // 最后访问后 1 小时过期
+		ExpiryCalculator: otter.ExpiryAccessing[string, *rate.Limiter](time.Duration(lConfig.Expiry) * time.Second), // 最后访问后 1 小时过期
 		StatsRecorder:    counter,
 	})
 	if err != nil {

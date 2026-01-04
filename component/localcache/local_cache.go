@@ -1,4 +1,4 @@
-package cache
+package localcahe
 
 import (
 	"bufio"
@@ -16,41 +16,35 @@ import (
 	"go.uber.org/zap/buffer"
 )
 
-const Name = "local_cache_component"
-
-type Component struct {
-	path       string
-	localCache *LocalCache
-}
-
-func (l *Component) Init(config config2.IConfig) error {
-	temp := config.GetStringOrDefault("web.cache.path", "tmp/cache")
-	open := config.GetBoolOrDefault("web.cache.open", false)
-	log.Info("cache:", zap.String("path", temp), zap.Bool("write data to the file", open))
-	err := util.CreateDirIfNoExists(temp)
-	if err != nil {
-		return err
-	}
-	l.localCache = NewLocalCache(temp, open)
-	return nil
-}
-func (l *Component) GetLocalCache() *LocalCache {
-	return l.localCache
-}
-func (l *Component) Name() string {
-	return Name
-}
-func (l *Component) Destroy() error {
-	return nil
+type Config struct {
+	Path string
+	Open bool
 }
 
 type LocalCache struct {
-	path string
-	open bool
+	config *Config
 }
 
-func NewLocalCache(path string, open bool) *LocalCache {
-	return &LocalCache{path: path, open: open}
+func (l *LocalCache) Init(cfg config2.IConfig) error {
+	var config Config
+	err := cfg.Unmarshal("local_cache", config)
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	l.config = &config
+	if len(config.Path) == 0 {
+		config.Open = false
+	}
+	log.Info("cache:", zap.String("path", config.Path), zap.Bool("write data to the file", config.Open))
+	err = util.CreateDirIfNoExists(config.Path)
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	return nil
+}
+
+func (l *LocalCache) Destroy() error {
+	return nil
 }
 func (l *LocalCache) getKey(key ...any) string {
 	b := new(buffer.Buffer)
@@ -61,7 +55,7 @@ func (l *LocalCache) getKey(key ...any) string {
 }
 func (l *LocalCache) GetPath(value ...any) string {
 	filename := l.getKey(value...)
-	filepath := path.Join(l.path, filename[0:2], filename)
+	filepath := path.Join(l.config.Path, filename[0:2], filename)
 	return filepath
 }
 func (l *LocalCache) SaveBase64File(base64file string) (string, error) {
@@ -107,7 +101,7 @@ func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResp
 	if len(value) == 0 {
 		log.Panic("value len is zero")
 	}
-	if !l.open {
+	if !l.config.Open {
 		fileResponseWriteCloser := createFileResponseWriteCloser(response, nil)
 		err := f(fileResponseWriteCloser, value...)
 		if err != nil {
@@ -116,7 +110,7 @@ func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResp
 		return nil
 	}
 	filename := l.getKey(value...)
-	fileDir := path.Join(l.path, filename[0:2])
+	fileDir := path.Join(l.config.Path, filename[0:2])
 	filepath := path.Join(fileDir, filename)
 	if util.ExistsFile(filepath) {
 		file, err := os.Open(filepath)

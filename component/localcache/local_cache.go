@@ -1,4 +1,4 @@
-package localcahe
+package localcache
 
 import (
 	"bufio"

@@ -46,7 +46,7 @@ func (s *ServerConfig) SSLEnabled() bool {
 func DefaultServerConfig() *ServerConfig {
 
 	return &ServerConfig{
-		Port: 9009,
+		Port: 19009,
 		SSL: &SSLConfig{
 			Enabled: false,
 		},

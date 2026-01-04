@@ -1,0 +1,68 @@
+package rate_limit
+
+import (
+	"context"
+	"time"
+
+	"emperror.dev/errors"
+	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/maypok86/otter/v2"
+	"github.com/maypok86/otter/v2/stats"
+	"golang.org/x/time/rate"
+)
+
+type RateLimit struct {
+	cache *otter.Cache[string, *rate.Limiter]
+}
+
+// Allow 瞬间检查是否允许（不阻塞，直接返回 false 拒绝）
+func (r *RateLimit) Allow(ctx context.Context, key string) bool {
+	limiter, err := r.cache.Get(ctx, key, limiterLoader)
+	if err != nil {
+		return false
+	}
+	return limiter.Allow()
+}
+
+// Wait 阻塞等待直到允许通过（推荐用于严格限流）
+func (r *RateLimit) Wait(ctx context.Context, key string) error {
+	limiter, err := r.cache.Get(ctx, key, limiterLoader)
+	if err != nil {
+		return err
+	}
+	return limiter.Wait(ctx)
+}
+
+// 统一的 limiter 创建函数（作为 Loader）
+var limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
+	// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
+	return rate.NewLimiter(rate.Every(5*time.Minute), 3), nil
+})
+
+func (r *RateLimit) Init(Config config2.IConfig) error {
+	counter := stats.NewCounter()
+	cache, err := otter.New[string, *rate.Limiter](&otter.Options[string, *rate.Limiter]{
+		MaximumSize:      10_000,
+		ExpiryCalculator: otter.ExpiryAccessing[string, *rate.Limiter](time.Hour), // 最后访问后 1 小时过期
+		StatsRecorder:    counter,
+	})
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	r.cache = cache
+	return nil
+}
+
+func (r *RateLimit) Destroy() error {
+	// otter v2 支持主动关闭，释放内部资源
+	if stopped := r.cache.StopAllGoroutines(); stopped {
+		// 可选：记录日志 "otter cache goroutines stopped"
+	}
+	r.cache.CleanUp()
+	return nil
+}
+
+// 可选：获取缓存统计（命中率、驱逐数等）
+func (r *RateLimit) Stats() stats.Stats {
+	return r.cache.Stats()
+}

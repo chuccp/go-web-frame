@@ -9,6 +9,11 @@ import (
 	"github.com/maypok86/otter/v2/stats"
 )
 
+type Config struct {
+	MaxSize int // 最大缓存数量
+	Expiry  int // 缓存过期时间 单位秒
+}
+
 type Cache struct {
 	cache *otter.Cache[string, any]
 }
@@ -32,11 +37,15 @@ func (c *Cache) Stats() stats.Stats {
 	return c.cache.Stats()
 }
 
-func (c *Cache) Init(Config config2.IConfig) error {
+func (c *Cache) Init(config config2.IConfig) error {
+	lConfig := &Config{
+		MaxSize: 1000_000,
+		Expiry:  3600,
+	}
 	counter := stats.NewCounter()
 	cache, err := otter.New(&otter.Options[string, any]{
-		MaximumSize:      100_000,
-		ExpiryCalculator: otter.ExpiryAccessing[string, any](time.Hour),
+		MaximumSize:      lConfig.MaxSize,
+		ExpiryCalculator: otter.ExpiryAccessing[string, any](time.Duration(lConfig.Expiry) * time.Second),
 		StatsRecorder:    counter,
 	})
 	if err != nil {

@@ -12,12 +12,13 @@ import (
 )
 
 type RateLimit struct {
-	cache *otter.Cache[string, *rate.Limiter]
+	cache         *otter.Cache[string, *rate.Limiter]
+	limiterLoader otter.Loader[string, *rate.Limiter]
 }
 
 // Allow 瞬间检查是否允许（不阻塞，直接返回 false 拒绝）
 func (r *RateLimit) Allow(ctx context.Context, key string) bool {
-	limiter, err := r.cache.Get(ctx, key, limiterLoader)
+	limiter, err := r.cache.Get(ctx, key, r.limiterLoader)
 	if err != nil {
 		return false
 	}
@@ -26,20 +27,17 @@ func (r *RateLimit) Allow(ctx context.Context, key string) bool {
 
 // Wait 阻塞等待直到允许通过（推荐用于严格限流）
 func (r *RateLimit) Wait(ctx context.Context, key string) error {
-	limiter, err := r.cache.Get(ctx, key, limiterLoader)
+	limiter, err := r.cache.Get(ctx, key, r.limiterLoader)
 	if err != nil {
 		return err
 	}
 	return limiter.Wait(ctx)
 }
-
-// 统一的 limiter 创建函数（作为 Loader）
-var limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
-	// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
-	return rate.NewLimiter(rate.Every(5*time.Minute), 3), nil
-})
-
 func (r *RateLimit) Init(Config config2.IConfig) error {
+	r.limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
+		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
+		return rate.NewLimiter(rate.Every(5*time.Minute), 3), nil
+	})
 	counter := stats.NewCounter()
 	cache, err := otter.New[string, *rate.Limiter](&otter.Options[string, *rate.Limiter]{
 		MaximumSize:      10_000,
@@ -62,7 +60,7 @@ func (r *RateLimit) Destroy() error {
 	return nil
 }
 
-// Stats 可选：获取缓存统计（命中率、驱逐数等）
+// Stats o可选：获取缓存统计（命中率、驱逐数等）
 func (r *RateLimit) Stats() stats.Stats {
 	return r.cache.Stats()
 }

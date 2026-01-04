@@ -62,7 +62,7 @@ func (r *RateLimit) Destroy() error {
 	return nil
 }
 
-// 可选：获取缓存统计（命中率、驱逐数等）
+// Stats 可选：获取缓存统计（命中率、驱逐数等）
 func (r *RateLimit) Stats() stats.Stats {
 	return r.cache.Stats()
 }

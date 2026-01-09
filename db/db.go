@@ -3,9 +3,7 @@ package db
 import (
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/config"
-	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -136,39 +134,38 @@ var NoConfigDBError = &noConfigDBError{}
 
 var ConfigDBError = &configDBError{}
 
-//var dbMap = map[string]Source{
-//	MYSQL:  &Mysql{},
-//	SQLITE: &SQLite{},
-//}
+type IConfig interface {
+	Connection() (*DB, error)
+}
+type Config struct {
+	Type string
+}
 
-func InitDB(c config.IConfig) (*DB, error) {
-	type_ := c.GetString("web.db.type")
-	log2.Info("db type", zap.String("type", type_))
-	if util.IsNotBlank(type_) {
-		if util.EqualsAnyIgnoreCase(type_, MYSQL) {
+const ConfigKey = "web.db"
+
+func CreateDB(c config.IConfig) (*DB, error) {
+	var config2 Config
+	err := c.Unmarshal(ConfigKey, &config2)
+	if err != nil {
+		return nil, err
+	}
+	if util.IsNotBlank(config2.Type) {
+		if util.EqualsAnyIgnoreCase(config2.Type, MYSQL) {
 			var mysqlConfig MysqlConfig
-			err := c.Unmarshal("web.db", &MysqlConfig{})
+			err := c.Unmarshal(ConfigKey, &mysqlConfig)
 			if err != nil {
 				return nil, err
 			}
-			connection, err := (&Mysql{}).Connection(&mysqlConfig)
-			if err != nil {
-				return nil, errors.WithStackIf(err)
-			}
-			return &DB{db: connection}, nil
-		} else if util.EqualsAnyIgnoreCase(type_, SQLITE) {
-			var sqliteConfig SQLiteConfig
-			err := c.Unmarshal("web.db", &sqliteConfig)
-			if err != nil {
-				return nil, err
-			}
-			connection, err := (&SQLite{}).Connection(&sqliteConfig)
-			if err != nil {
-				return nil, errors.WithStackIf(err)
-			}
-			return &DB{db: connection}, nil
+			return mysqlConfig.Connection()
 		}
-		return nil, errors.WithStackIf(ConfigDBError)
+		if util.EqualsAnyIgnoreCase(config2.Type, SQLITE) {
+			var sqliteConfig SQLiteConfig
+			err := c.Unmarshal(ConfigKey, &sqliteConfig)
+			if err != nil {
+				return nil, err
+			}
+			return sqliteConfig.Connection()
+		}
 	}
 	return nil, errors.WithStackIf(NoConfigDBError)
 }

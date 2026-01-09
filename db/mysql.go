@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 
+	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"go.uber.org/zap"
@@ -21,22 +22,8 @@ type MysqlConfig struct {
 	Host     string
 	Port     int
 }
-type MysqlConfigDBError struct {
-}
 
-func (e *MysqlConfigDBError) Error() string {
-	return "config db error"
-}
-
-type Mysql struct {
-}
-
-func (ms *Mysql) Connection(mysqlConfig *MysqlConfig) (db *gorm.DB, err error) {
-	//mysqlConfig := &MysqlConfig{}
-	//err = cfg.Unmarshal("web.db", mysqlConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
+func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if util.IsBlank(mysqlConfig.Username) {
 		mysqlConfig.Username = mysqlConfig.User
 	}
@@ -51,5 +38,9 @@ func (ms *Mysql) Connection(mysqlConfig *MysqlConfig) (db *gorm.DB, err error) {
 	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)
 	log2.Debug("mysql", zap.String("dsn", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, "******", mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)))
-	return gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+	db_, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+	return &DB{db: db_}, err
 }

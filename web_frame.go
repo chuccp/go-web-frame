@@ -38,39 +38,39 @@ func UnmarshalConfig[T any](key string, c *core.Context) T {
 }
 
 type WebFrame struct {
-	component      []core.IComponent
-	restGroups     []*core.RestGroup
-	config         config2.IConfig
-	models         []core.IModel
-	services       []core.IService
-	rests          []core.IRest
-	runners        []core.IRunner
-	middlewareFunc []core.MiddlewareFunc
-	authentication web.Authentication
-	db             *gorm.DB
-	schedule       *core.Schedule
-	server         *core.Server
-	lock           *sync.Mutex
-	//context        context.Context
-	//cancel         context.CancelFunc
-	isClose bool
+	component         []core.IComponent
+	restGroups        []*core.RestGroup
+	modelGroup        []core.IModelGroup
+	config            config2.IConfig
+	models            []core.IModel
+	services          []core.IService
+	rests             []core.IRest
+	runners           []core.IRunner
+	middlewareFunc    []core.MiddlewareFunc
+	authentication    web.Authentication
+	db                *gorm.DB
+	schedule          *core.Schedule
+	server            *core.Server
+	lock              *sync.Mutex
+	defaultModelGroup core.IModelGroup
+	isClose           bool
 }
 
 func New(config config2.IConfig) *WebFrame {
 	//ctx2, cancel := context.WithCancel(context.Background())
 	w := &WebFrame{
-		models:     make([]core.IModel, 0),
-		services:   make([]core.IService, 0),
-		restGroups: make([]*core.RestGroup, 0),
-		rests:      make([]core.IRest, 0),
-		component:  make([]core.IComponent, 0),
-		runners:    make([]core.IRunner, 0),
-		config:     config,
-		schedule:   core.NewSchedule(),
-		lock:       new(sync.Mutex),
-		isClose:    false,
-		//context:    ctx2,
-		//cancel:     cancel,
+		models:            make([]core.IModel, 0),
+		services:          make([]core.IService, 0),
+		restGroups:        make([]*core.RestGroup, 0),
+		modelGroup:        make([]core.IModelGroup, 0),
+		rests:             make([]core.IRest, 0),
+		component:         make([]core.IComponent, 0),
+		runners:           make([]core.IRunner, 0),
+		config:            config,
+		schedule:          core.NewSchedule(),
+		lock:              new(sync.Mutex),
+		defaultModelGroup: core.DefaultModelGroup(),
+		isClose:           false,
 	}
 	return w
 }
@@ -119,7 +119,6 @@ func (w *WebFrame) Close() error {
 	if len(errs) == 0 {
 		return nil
 	}
-	//w.cancel()
 	return errors.Combine(errs...)
 }
 func (w *WebFrame) Start() error {
@@ -142,11 +141,7 @@ func (w *WebFrame) init() error {
 		return err
 	}
 	log.InitLogger(&logConfig)
-	//db, err := db2.InitDB(w.config)
-	//if err != nil && !errors.Is(err, db2.NoConfigDBError) {
-	//	log.Error("Failed to initialize the database", zap.Error(err))
-	//	return err
-	//}
+
 	for _, component := range w.component {
 		err := errors.WithStackIf(component.Init(w.config))
 		if err != nil {
@@ -155,12 +150,39 @@ func (w *WebFrame) init() error {
 		}
 	}
 
-	coreContext := core.NewContext(w.config, w.schedule)
+	coreContext := core.NewContext(w.config, w.schedule, w.defaultModelGroup)
 	coreContext.AddComponent(w.component...)
-	coreContext.AddModel(w.models...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
-	
+
+	if len(w.models) > 0 {
+		coreContext.AddModel(w.models...)
+		w.defaultModelGroup.AddModel(w.models...)
+	}
+	if w.config.HasKey(db2.ConfigKey) {
+		db, err := db2.CreateDB(w.config)
+		if err != nil {
+			log.Error("Failed to initialize the database", zap.Error(err))
+			return err
+		}
+		err = w.defaultModelGroup.SwitchDB(db, coreContext)
+		if err != nil {
+			log.Error("Failed to switch the database", zap.Error(err))
+			return err
+		}
+	}
+
+	if len(w.modelGroup) > 0 {
+		coreContext.AddModelGroup(w.modelGroup...)
+		for _, modelGroup := range w.modelGroup {
+			coreContext.AddModel(modelGroup.GetModel()...)
+			err := modelGroup.Init(coreContext)
+			if err != nil {
+				return errors.WithStackIf(err)
+			}
+		}
+	}
+
 	for _, iService := range w.services {
 		err := iService.Init(coreContext)
 		if err != nil {

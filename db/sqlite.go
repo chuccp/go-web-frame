@@ -1,6 +1,7 @@
 package db
 
 import (
+	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/sqlite"
 	"go.uber.org/zap"
@@ -11,15 +12,12 @@ import (
 type SQLiteConfig struct {
 	FilePath string
 }
-type SQLite struct {
-}
 
-func (sq *SQLite) Connection(sqliteConfig *SQLiteConfig) (db *gorm.DB, err error) {
-	//sqliteConfig := &SQLiteConfig{}
-	//err = cfg.Unmarshal("web.db", sqliteConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
+func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 	log2.Debug("sqlite", zap.String("dsn", sqliteConfig.FilePath))
-	return gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+	sb, err := gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+	return &DB{db: sb}, err
 }

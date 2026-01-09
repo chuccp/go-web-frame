@@ -15,20 +15,21 @@ import (
 )
 
 type Context struct {
-	config       config2.IConfig
-	httpServer   *web.HttpServer
-	modelMap     map[string]IModel
-	rLock        *sync.RWMutex
-	serviceMap   map[string]IService
-	componentMap map[string]IComponent
-	transaction  *model.Transaction
-	digestAuth   *web.DigestAuth
-	schedule     *Schedule
-	routeTree    RouteTree
-	runnerMap    map[string]IRunner
+	config            config2.IConfig
+	httpServer        *web.HttpServer
+	modelMap          map[string]IModel
+	rLock             *sync.RWMutex
+	serviceMap        map[string]IService
+	componentMap      map[string]IComponent
+	digestAuth        *web.DigestAuth
+	schedule          *Schedule
+	routeTree         RouteTree
+	runnerMap         map[string]IRunner
+	defaultModelGroup IModelGroup
+	modelGroup        map[string]IModelGroup
 }
 
-func NewContext(config config2.IConfig, schedule *Schedule) *Context {
+func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IModelGroup) *Context {
 	context := &Context{
 		config:       config,
 		modelMap:     make(map[string]IModel),
@@ -36,42 +37,39 @@ func NewContext(config config2.IConfig, schedule *Schedule) *Context {
 		serviceMap:   make(map[string]IService),
 		componentMap: make(map[string]IComponent),
 		//transaction:  model.NewTransaction(db),
-		runnerMap: make(map[string]IRunner),
-		schedule:  schedule,
-		routeTree: make(RouteTree),
+		runnerMap:         make(map[string]IRunner),
+		schedule:          schedule,
+		routeTree:         make(RouteTree),
+		modelGroup:        make(map[string]IModelGroup),
+		defaultModelGroup: defaultModelGroup,
 	}
 	return context
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
 	context := &Context{
-		config:     c.config,
-		httpServer: httpServer,
-		modelMap:   c.modelMap,
-		rLock:      c.rLock,
-		serviceMap: c.serviceMap,
-		//db:           c.db,
-		transaction:  c.transaction,
-		digestAuth:   digestAuth,
-		componentMap: c.componentMap,
-		schedule:     c.schedule,
-		routeTree:    make(RouteTree),
-		runnerMap:    c.runnerMap,
+		config:            c.config,
+		httpServer:        httpServer,
+		modelMap:          c.modelMap,
+		rLock:             c.rLock,
+		serviceMap:        c.serviceMap,
+		digestAuth:        digestAuth,
+		componentMap:      c.componentMap,
+		schedule:          c.schedule,
+		routeTree:         make(RouteTree),
+		runnerMap:         c.runnerMap,
+		modelGroup:        c.modelGroup,
+		defaultModelGroup: c.defaultModelGroup,
 	}
 	return context
 }
 
 func (c *Context) GetTransaction() *model.Transaction {
-	return c.transaction
+	return c.defaultModelGroup.GetTransaction()
 }
 func (c *Context) GetSchedule() *Schedule {
 	return c.schedule
 }
-
-//func (c *Context) GetDB() *db.DB {
-//	return c.db
-//}
-
 func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
@@ -89,6 +87,29 @@ func (c *Context) AddRunner(runner ...IRunner) {
 		c.runnerMap[name] = r
 	}
 }
+
+func (c *Context) AddModelGroup(modelGroup ...IModelGroup) {
+	c.rLock.Lock()
+	defer c.rLock.Unlock()
+	for _, m := range modelGroup {
+		c.modelGroup[m.Name()] = m
+	}
+}
+func (c *Context) DefaultModelGroup() IModelGroup {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	return c.defaultModelGroup
+}
+
+func (c *Context) GetModelGroup(name string) IModelGroup {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	if m, ok := c.modelGroup[name]; ok {
+		return m
+	}
+	return nil
+}
+
 func (c *Context) AddComponent(components ...IComponent) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()

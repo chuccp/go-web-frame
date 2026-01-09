@@ -3,6 +3,7 @@ package core
 import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/db"
+	"github.com/chuccp/go-web-frame/model"
 )
 
 type IService interface {
@@ -31,4 +32,13 @@ type IRunner interface {
 	IService
 	IDestroy
 	Run() error
+}
+
+type IModelGroup interface {
+	AddModel(model ...IModel)
+	GetModel() []IModel
+	Init(context *Context) error
+	SwitchDB(db *db.DB, context *Context) error
+	Name() string
+	GetTransaction() *model.Transaction
 }

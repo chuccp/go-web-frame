@@ -5,13 +5,13 @@ import (
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type Context struct {
@@ -21,7 +21,7 @@ type Context struct {
 	rLock        *sync.RWMutex
 	serviceMap   map[string]IService
 	componentMap map[string]IComponent
-	db           *gorm.DB
+	db           *db.DB
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	schedule     *Schedule
@@ -29,7 +29,7 @@ type Context struct {
 	runnerMap    map[string]IRunner
 }
 
-func NewContext(config config2.IConfig, db *gorm.DB, schedule *Schedule) *Context {
+func NewContext(config config2.IConfig, db *db.DB, schedule *Schedule) *Context {
 	context := &Context{
 		config:       config,
 		modelMap:     make(map[string]IModel),
@@ -70,7 +70,7 @@ func (c *Context) GetSchedule() *Schedule {
 	return c.schedule
 }
 
-func (c *Context) GetDB() *gorm.DB {
+func (c *Context) GetDB() *db.DB {
 	return c.db
 }
 
@@ -304,7 +304,7 @@ func GetModel[T IModel](c *Context) T {
 	return t
 }
 
-func GetReNewModel[T IModel](db *gorm.DB, c *Context) T {
+func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	t, ok := c.GetModel(func(m IModel) bool {
 		_, ok := m.(T)
 		return ok

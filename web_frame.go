@@ -22,7 +22,7 @@ func GetService[T core.IService](c *core.Context) T {
 func GetModel[T core.IModel](c *core.Context) T {
 	return core.GetModel[T](c)
 }
-func GetReNewModel[T core.IModel](db *gorm.DB, c *core.Context) T {
+func GetReNewModel[T core.IModel](db *db2.DB, c *core.Context) T {
 	return core.GetReNewModel[T](db, c)
 }
 func GetComponent[T core.IComponent](c *core.Context) T {

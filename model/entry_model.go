@@ -3,9 +3,9 @@ package model
 import (
 	"time"
 
+	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
-	"gorm.io/gorm"
 )
 
 type IEntry interface {
@@ -19,7 +19,7 @@ type EntryModel[T IEntry] struct {
 	model *Model[T]
 }
 
-func NewEntryModel[T IEntry](db *gorm.DB, tableName string) *EntryModel[T] {
+func NewEntryModel[T IEntry](db *db.DB, tableName string) *EntryModel[T] {
 	return &EntryModel[T]{NewModel[T](db, tableName)}
 }
 
@@ -49,20 +49,14 @@ func (a *EntryModel[T]) Saves(ts []T) error {
 func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	t := util.NewPtr(a.model.entry)
 	t.SetId(id)
-	tx := a.model.db.Table(a.model.tableName).First(&t)
-	if tx.Error == nil {
-		return t, nil
-	}
-	return t, tx.Error
+	err := a.model.db.Table(a.model.tableName).First(&t)
+	return t, err
 }
 
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
 	t := util.NewPtr(a.model.entry)
-	tx := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
-	if tx.Error == nil {
-		return t, nil
-	}
-	return t, tx.Error
+	err := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
+	return t, err
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
@@ -73,8 +67,8 @@ func (a *EntryModel[T]) FindAll() ([]T, error) {
 }
 func (a *EntryModel[T]) DeleteOne(id uint) error {
 	t := util.NewPtr(a.model.entry)
-	tx := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
-	return tx.Error
+	err := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
+	return err
 }
 
 func (a *EntryModel[T]) UpdateById(t T) error {
@@ -89,7 +83,7 @@ func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error
 
 }
 
-func (a *EntryModel[T]) NewEntryModel(db *gorm.DB) *EntryModel[T] {
+func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
 	return &EntryModel[T]{&Model[T]{db, a.model.tableName, a.model.entry}}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
@@ -116,13 +110,13 @@ func (a *EntryModel[T]) GetTableName() string {
 }
 
 type Transaction struct {
-	db *gorm.DB
+	db *db.DB
 }
 
-func (t *Transaction) Exec(fc func(tx *gorm.DB) error) error {
+func (t *Transaction) Exec(fc func(tx *db.DB) error) error {
 	return t.db.Transaction(fc)
 }
 
-func NewTransaction(db *gorm.DB) *Transaction {
+func NewTransaction(db *db.DB) *Transaction {
 	return &Transaction{db: db}
 }

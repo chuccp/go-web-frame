@@ -17,6 +17,15 @@ const (
 type Source interface {
 	Connection(cfg config.IConfig) (db *gorm.DB, err error)
 }
+type Session struct {
+	db *DB
+}
+
+func (s *Session) Delete(value any, conds ...any) error {
+	err := s.db.Delete(value, conds...)
+	return err
+}
+
 type DB struct {
 	db *gorm.DB
 }
@@ -36,8 +45,8 @@ func (d *DB) Table(name string) *DB {
 	return &DB{db: tx}
 }
 
-func (d *DB) Session(g *gorm.Session) *DB {
-	return &DB{db: d.db.Session(g)}
+func (d *DB) Session(g *gorm.Session) *Session {
+	return &Session{db: &DB{db: d.db.Session(g)}}
 }
 
 func (d *DB) AutoMigrate(t ...any) error {

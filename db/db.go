@@ -18,12 +18,85 @@ type Source interface {
 	Connection(cfg config.IConfig) (db *gorm.DB, err error)
 }
 type Session struct {
-	db *DB
+	db *gorm.DB
 }
 
 func (s *Session) Delete(value any, conds ...any) error {
-	err := s.db.Delete(value, conds...)
-	return err
+	tx := s.db.Delete(value, conds...)
+	return tx.Error
+}
+
+type Table struct {
+	db *gorm.DB
+}
+
+func (t *Table) Session(g *gorm.Session) *Session {
+	return &Session{db: t.db.Session(g)}
+}
+
+func (t *Table) AutoMigrate(v ...any) error {
+	return t.db.AutoMigrate(v)
+}
+
+func (t *Table) Delete(value any, conds ...any) error {
+	tx := t.db.Delete(value, conds...)
+	return tx.Error
+}
+
+func (t *Table) Save(entry any) error {
+	tx := t.db.Save(entry)
+	return tx.Error
+}
+
+func (t *Table) Create(value any) error {
+	tx := t.db.Create(value)
+	return tx.Error
+}
+
+func (t *Table) Where(query any, args ...any) *Table {
+	t.db = t.db.Where(query, args...)
+	return t
+}
+
+func (t *Table) Offset(i int) *Table {
+	tx := t.db.Offset(i)
+	return &Table{db: tx}
+}
+
+func (t *Table) Order(query any) *Table {
+	tx := t.db.Order(query)
+	return &Table{db: tx}
+}
+
+func (t *Table) Limit(size int) *Table {
+	tx := t.db.Limit(size)
+	return &Table{db: tx}
+}
+
+func (t *Table) Find(dest any, conds ...any) error {
+	tx := t.db.Find(dest, conds...)
+	return tx.Error
+
+}
+
+func (t *Table) First(dest any, conds ...any) error {
+	tx := t.db.First(dest, conds...)
+	return tx.Error
+}
+
+func (t *Table) Count(i *int64) error {
+	tx := t.db.Count(i)
+	return tx.Error
+}
+
+func (t *Table) Updates(values any) error {
+	tx := t.db.Updates(values)
+	return tx.Error
+}
+
+func (t *Table) UpdateColumn(column string, value any) error {
+	tx := t.db.UpdateColumn(column, value)
+	return tx.Error
 }
 
 type DB struct {
@@ -40,77 +113,9 @@ func (d *DB) Migrator() gorm.Migrator {
 	return d.db.Migrator()
 }
 
-func (d *DB) Table(name string) *DB {
+func (d *DB) Table(name string) *Table {
 	tx := d.db.Table(name)
-	return &DB{db: tx}
-}
-
-func (d *DB) Session(g *gorm.Session) *Session {
-	return &Session{db: &DB{db: d.db.Session(g)}}
-}
-
-func (d *DB) AutoMigrate(t ...any) error {
-	return d.db.AutoMigrate(t)
-}
-
-func (d *DB) Delete(value any, conds ...any) error {
-	tx := d.db.Delete(value, conds...)
-	return tx.Error
-}
-
-func (d *DB) Save(entry any) error {
-	tx := d.db.Save(entry)
-	return tx.Error
-}
-
-func (d *DB) Create(value any) error {
-	tx := d.db.Create(value)
-	return tx.Error
-}
-
-func (d *DB) Where(query any, args ...any) *DB {
-	return &DB{db: d.db.Where(query, args...)}
-}
-
-func (d *DB) Offset(i int) *DB {
-	tx := d.db.Offset(i)
-	return &DB{db: tx}
-}
-
-func (d *DB) Order(query any) *DB {
-	tx := d.db.Order(query)
-	return &DB{db: tx}
-}
-
-func (d *DB) Limit(size int) *DB {
-	tx := d.db.Limit(size)
-	return &DB{db: tx}
-}
-
-func (d *DB) Find(dest any, conds ...any) error {
-	tx := d.db.Find(dest, conds...)
-	return tx.Error
-
-}
-
-func (d *DB) First(dest any, conds ...any) error {
-	tx := d.db.First(dest, conds...)
-	return tx.Error
-}
-
-func (d *DB) Count(i *int64) error {
-	tx := d.db.Count(i)
-	return tx.Error
-}
-
-func (d *DB) Updates(values any) error {
-	tx := d.db.Updates(values)
-	return tx.Error
-}
-
-func (d *DB) UpdateColumn(column string, value any) error {
-	tx := d.db.UpdateColumn(column, value)
-	return tx.Error
+	return &Table{db: tx}
 }
 
 type noConfigDBError struct {

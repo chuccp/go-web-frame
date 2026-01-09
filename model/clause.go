@@ -8,7 +8,7 @@ import (
 )
 
 type Query[T any] struct {
-	tx    *db.DB
+	tx    *db.Table
 	entry T
 }
 
@@ -75,10 +75,10 @@ type where struct {
 }
 type UpdateWheres[T any] struct {
 	wheres []*where
-	tx     *db.DB
+	tx     *db.Table
 }
 
-func NewUpdateWheres[T any](tx *db.DB) *UpdateWheres[T] {
+func NewUpdateWheres[T any](tx *db.Table) *UpdateWheres[T] {
 	return &UpdateWheres[T]{wheres: make([]*where, 0), tx: tx}
 }
 func (w *UpdateWheres[T]) Where(query interface{}, args ...interface{}) *UpdateWheres[T] {
@@ -86,7 +86,7 @@ func (w *UpdateWheres[T]) Where(query interface{}, args ...interface{}) *UpdateW
 	return w
 }
 
-func (w *UpdateWheres[T]) buildWhere() *db.DB {
+func (w *UpdateWheres[T]) buildWhere() *db.Table {
 	for _, w2 := range w.wheres {
 		w.tx = w.tx.Where(w2.query, w2.args...)
 	}
@@ -106,11 +106,11 @@ func (w *UpdateWheres[T]) Update(t T) error {
 
 type DeleteWheres[T any] struct {
 	wheres []*where
-	tx     *db.DB
+	tx     *db.Table
 	entry  T
 }
 
-func (w *DeleteWheres[T]) buildWhere() *db.DB {
+func (w *DeleteWheres[T]) buildWhere() *db.Table {
 	for _, w2 := range w.wheres {
 		w.tx = w.tx.Where(w2.query, w2.args...)
 	}
@@ -123,12 +123,12 @@ func (w *DeleteWheres[T]) Where(query interface{}, args ...interface{}) *DeleteW
 	w.wheres = append(w.wheres, &where{query: query, args: args})
 	return w
 }
-func NewDeleteWheres[T any](tx *db.DB, entry T) *DeleteWheres[T] {
+func NewDeleteWheres[T any](tx *db.Table, entry T) *DeleteWheres[T] {
 	return &DeleteWheres[T]{wheres: make([]*where, 0), entry: entry, tx: tx}
 }
 
 type Update[T any] struct {
-	tx     *db.DB
+	tx     *db.Table
 	model  T
 	wheres *UpdateWheres[T]
 }
@@ -138,7 +138,7 @@ func (u *Update[T]) Where(query any, args ...any) *UpdateWheres[T] {
 }
 
 type Delete[T any] struct {
-	tx     *db.DB
+	tx     *db.Table
 	model  T
 	wheres *DeleteWheres[T]
 }

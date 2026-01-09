@@ -3,7 +3,6 @@ package db
 import (
 	"fmt"
 
-	"github.com/chuccp/go-web-frame/config"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"go.uber.org/zap"
@@ -32,12 +31,12 @@ func (e *MysqlConfigDBError) Error() string {
 type Mysql struct {
 }
 
-func (ms *Mysql) Connection(cfg config.IConfig) (db *gorm.DB, err error) {
-	mysqlConfig := &MysqlConfig{}
-	err = cfg.Unmarshal("web.db", mysqlConfig)
-	if err != nil {
-		return nil, err
-	}
+func (ms *Mysql) Connection(mysqlConfig *MysqlConfig) (db *gorm.DB, err error) {
+	//mysqlConfig := &MysqlConfig{}
+	//err = cfg.Unmarshal("web.db", mysqlConfig)
+	//if err != nil {
+	//	return nil, err
+	//}
 	if util.IsBlank(mysqlConfig.Username) {
 		mysqlConfig.Username = mysqlConfig.User
 	}

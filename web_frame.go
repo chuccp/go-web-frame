@@ -85,9 +85,6 @@ func (w *WebFrame) AddRunner(runner ...core.IRunner) {
 }
 func (w *WebFrame) AddModel(model ...core.IModel) {
 	w.models = append(w.models, model...)
-	for _, iModel := range model {
-		w.addService(iModel)
-	}
 }
 func (w *WebFrame) addService(service core.IService) {
 	w.services = append(w.services, service)
@@ -145,11 +142,11 @@ func (w *WebFrame) init() error {
 		return err
 	}
 	log.InitLogger(&logConfig)
-	db, err := db2.InitDB(w.config)
-	if err != nil && !errors.Is(err, db2.NoConfigDBError) {
-		log.Error("Failed to initialize the database", zap.Error(err))
-		return err
-	}
+	//db, err := db2.InitDB(w.config)
+	//if err != nil && !errors.Is(err, db2.NoConfigDBError) {
+	//	log.Error("Failed to initialize the database", zap.Error(err))
+	//	return err
+	//}
 	for _, component := range w.component {
 		err := errors.WithStackIf(component.Init(w.config))
 		if err != nil {
@@ -158,11 +155,12 @@ func (w *WebFrame) init() error {
 		}
 	}
 
-	coreContext := core.NewContext(w.config, db, w.schedule)
+	coreContext := core.NewContext(w.config, w.schedule)
 	coreContext.AddComponent(w.component...)
 	coreContext.AddModel(w.models...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
+	
 	for _, iService := range w.services {
 		err := iService.Init(coreContext)
 		if err != nil {

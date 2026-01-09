@@ -136,23 +136,37 @@ var NoConfigDBError = &noConfigDBError{}
 
 var ConfigDBError = &configDBError{}
 
-var dbMap = map[string]Source{
-	MYSQL:  &Mysql{},
-	SQLITE: &SQLite{},
-}
+//var dbMap = map[string]Source{
+//	MYSQL:  &Mysql{},
+//	SQLITE: &SQLite{},
+//}
 
 func InitDB(c config.IConfig) (*DB, error) {
 	type_ := c.GetString("web.db.type")
 	log2.Info("db type", zap.String("type", type_))
 	if util.IsNotBlank(type_) {
-		for key, db := range dbMap {
-			if util.EqualsAnyIgnoreCase(type_, key) {
-				connection, err := db.Connection(c)
-				if err != nil {
-					return nil, errors.WithStackIf(err)
-				}
-				return &DB{db: connection}, nil
+		if util.EqualsAnyIgnoreCase(type_, MYSQL) {
+			var mysqlConfig MysqlConfig
+			err := c.Unmarshal("web.db", &MysqlConfig{})
+			if err != nil {
+				return nil, err
 			}
+			connection, err := (&Mysql{}).Connection(&mysqlConfig)
+			if err != nil {
+				return nil, errors.WithStackIf(err)
+			}
+			return &DB{db: connection}, nil
+		} else if util.EqualsAnyIgnoreCase(type_, SQLITE) {
+			var sqliteConfig SQLiteConfig
+			err := c.Unmarshal("web.db", &sqliteConfig)
+			if err != nil {
+				return nil, err
+			}
+			connection, err := (&SQLite{}).Connection(&sqliteConfig)
+			if err != nil {
+				return nil, errors.WithStackIf(err)
+			}
+			return &DB{db: connection}, nil
 		}
 		return nil, errors.WithStackIf(ConfigDBError)
 	}

@@ -6,10 +6,10 @@ import (
 )
 
 type IService interface {
-	Init(Config *Context) error
+	Init(ctx *Context) error
 }
 type IModel interface {
-	IService
+	Init(db *db.DB, c *Context) error
 	IsExist() bool
 	CreateTable() error
 	DeleteTable() error
@@ -23,7 +23,7 @@ type IRest interface {
 	IService
 }
 type IComponent interface {
-	Init(Config config2.IConfig) error
+	Init(config config2.IConfig) error
 	IDestroy
 }
 

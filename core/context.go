@@ -21,7 +21,6 @@ type Context struct {
 	rLock        *sync.RWMutex
 	serviceMap   map[string]IService
 	componentMap map[string]IComponent
-	db           *db.DB
 	transaction  *model.Transaction
 	digestAuth   *web.DigestAuth
 	schedule     *Schedule
@@ -29,30 +28,29 @@ type Context struct {
 	runnerMap    map[string]IRunner
 }
 
-func NewContext(config config2.IConfig, db *db.DB, schedule *Schedule) *Context {
+func NewContext(config config2.IConfig, schedule *Schedule) *Context {
 	context := &Context{
 		config:       config,
 		modelMap:     make(map[string]IModel),
 		rLock:        new(sync.RWMutex),
 		serviceMap:   make(map[string]IService),
 		componentMap: make(map[string]IComponent),
-		transaction:  model.NewTransaction(db),
-		runnerMap:    make(map[string]IRunner),
-		db:           db,
-		schedule:     schedule,
-		routeTree:    make(RouteTree),
+		//transaction:  model.NewTransaction(db),
+		runnerMap: make(map[string]IRunner),
+		schedule:  schedule,
+		routeTree: make(RouteTree),
 	}
 	return context
 }
 
 func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
 	context := &Context{
-		config:       c.config,
-		httpServer:   httpServer,
-		modelMap:     c.modelMap,
-		rLock:        c.rLock,
-		serviceMap:   c.serviceMap,
-		db:           c.db,
+		config:     c.config,
+		httpServer: httpServer,
+		modelMap:   c.modelMap,
+		rLock:      c.rLock,
+		serviceMap: c.serviceMap,
+		//db:           c.db,
 		transaction:  c.transaction,
 		digestAuth:   digestAuth,
 		componentMap: c.componentMap,
@@ -70,9 +68,9 @@ func (c *Context) GetSchedule() *Schedule {
 	return c.schedule
 }
 
-func (c *Context) GetDB() *db.DB {
-	return c.db
-}
+//func (c *Context) GetDB() *db.DB {
+//	return c.db
+//}
 
 func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()

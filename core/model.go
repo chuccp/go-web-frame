@@ -1,6 +1,7 @@
 package core
 
 import (
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/model"
@@ -30,7 +31,7 @@ func (m *ModelGroup) SwitchDB(db *db.DB, context *Context) error {
 	for _, model := range m.models {
 		err := model.Init(m.db, context)
 		if err != nil {
-			return err
+			return errors.WithStackIf(err)
 		}
 	}
 	return nil

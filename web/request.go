@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/util"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -232,7 +233,7 @@ func (r *Request) Abort() {
 }
 
 func (r *Request) IsMultipartForm() bool {
-	return strings.Contains(r.ContentType(), "multipart/form-data")
+	return util.ContainsAnyIgnoreCase(r.ContentType(), "multipart/form-data")
 
 }
 

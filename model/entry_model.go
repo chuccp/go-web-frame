@@ -89,6 +89,9 @@ func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
 	return a.model.Query().Order("`id` desc").Page(page)
 }
+func (a *EntryModel[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
+	return a.model.Query().Order("`id` desc").PageForWeb(page)
+}
 func (a *EntryModel[T]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
 	return a.model.Query().Where(query, args...).Order("`id` desc").Page(page)
 }

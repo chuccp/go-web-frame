@@ -56,6 +56,15 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	return nil, 0, errors.WithStackIf(err)
 
 }
+
+func (q *Query[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
+	values, num, err := q.Page(page)
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+	return web.ToPage[T](int64(num), values), nil
+}
+
 func (q *Query[T]) Size(size int) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	err := q.tx.Limit(size).Find(&ts)

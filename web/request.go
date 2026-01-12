@@ -1,6 +1,7 @@
 package web
 
 import (
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"strings"
@@ -211,6 +212,9 @@ func (r *Request) BindJSON(value any) error {
 	err := r.c.BindJSON(value)
 	return err
 }
+func (r *Request) ContentType() string {
+	return r.GinContext().ContentType()
+}
 
 func (r *Request) JSON(code int, value any) {
 	r.c.JSON(code, value)
@@ -225,6 +229,20 @@ func (r *Request) Message(t *Message) {
 }
 func (r *Request) Abort() {
 	r.c.Abort()
+}
+
+func (r *Request) IsMultipartForm() bool {
+	return strings.Contains(r.ContentType(), "multipart/form-data")
+
+}
+
+func (r *Request) GetHeader(s string) string {
+	return r.c.GetHeader(s)
+}
+
+func (r *Request) MultipartForm() (*multipart.Form, error) {
+	return r.c.MultipartForm()
+
 }
 func NewRequest(c *gin.Context, digestAuth *DigestAuth) *Request {
 	return &Request{c: c, cookie: NewCookie(c), digestAuth: digestAuth}

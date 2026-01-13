@@ -65,7 +65,7 @@ func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
 func (a *EntryModel[T]) FindAll() ([]T, error) {
 	return a.model.Query().All()
 }
-func (a *EntryModel[T]) DeleteOne(id uint) error {
+func (a *EntryModel[T]) DeleteById(id uint) error {
 	t := util.NewPtr(a.model.entry)
 	err := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
 	return err

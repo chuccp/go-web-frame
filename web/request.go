@@ -3,6 +3,7 @@ package web
 import (
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 
@@ -61,7 +62,9 @@ func (r *Request) SignOut() (any, error) {
 func (r *Request) User() (any, error) {
 	return r.digestAuth.User(r)
 }
-
+func (r *Request) URL() *url.URL {
+	return r.c.Request.URL
+}
 func User[T any](r *Request) (T, error) {
 	u, err := r.User()
 	if err != nil {
@@ -244,6 +247,10 @@ func (r *Request) GetHeader(s string) string {
 func (r *Request) MultipartForm() (*multipart.Form, error) {
 	return r.c.MultipartForm()
 
+}
+
+func (r *Request) Request() *http.Request {
+	return r.c.Request
 }
 func NewRequest(c *gin.Context, digestAuth *DigestAuth) *Request {
 	return &Request{c: c, cookie: NewCookie(c), digestAuth: digestAuth}

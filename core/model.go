@@ -42,8 +42,8 @@ func (m *ModelGroup) Name() string {
 }
 func (m *ModelGroup) Init(context *Context) error {
 	if m.db != nil {
-		for _, model := range m.models {
-			err := model.Init(m.db, context)
+		for _, iModel := range m.models {
+			err := iModel.Init(m.db, context)
 			if err != nil {
 				return err
 			}

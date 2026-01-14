@@ -142,22 +142,26 @@ func (c *Captcha) ValidateThumb(code string, x string) (*Data, bool) {
 	}
 	return nil, false
 }
-func (c *Captcha) ValidateCode(code string) bool {
+func (c *Captcha) ValidateCode(code string) (bool, error) {
 	v, err := util.DecryptByCBC(code, c.key, c.iv)
 	if err != nil {
 		log.Errors("ValidateCode", err)
-		return false
+		return false, err
 	}
 	var data map[string]interface{}
 	err = json.Unmarshal([]byte(v), &data)
 	if err != nil {
-		return false
+		return false, err
 	}
 	time := cast.ToString(data["time"])
 	if util.IsBlank(time) {
-		return false
+		return false, nil
 	}
-	return util.IsAfter(time, util.GetNowTime(), util.TimestampFormat)
+	fa, err := util.IsAfterTime(time, util.GetNowTime())
+	if err != nil {
+		return false, err
+	}
+	return fa, nil
 
 }
 func (c *Captcha) Destroy() error {

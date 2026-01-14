@@ -47,12 +47,13 @@ func GetNowTime() time.Time {
 	return time.Now()
 
 }
-
-func IsAfter(pre string, now time.Time, timestampFormat string) bool {
+func IsAfterTime(pre string, now time.Time) (bool, error) {
+	return IsAfter(pre, now, TimestampFormat)
+}
+func IsAfter(pre string, now time.Time, timestampFormat string) (bool, error) {
 	formatTime, err := ParseFormatTime(pre, timestampFormat)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return now.After(formatTime)
-
+	return formatTime.After(now), nil
 }

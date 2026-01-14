@@ -50,7 +50,7 @@ type SlideCaptcha struct {
 
 func (c *Captcha) Init(config config2.IConfig) error {
 	var cfg Config
-	err := config.Unmarshal(cfg.Key(), &cfg)
+	err := config.UnmarshalKey(cfg.Key(), &cfg)
 	if err != nil {
 		return err
 	}

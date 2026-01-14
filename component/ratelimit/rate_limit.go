@@ -65,7 +65,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 	}
 
 	r.ctx, r.cancelFunc = context.WithCancel(context.Background())
-	err := config.Unmarshal("rate_limit", lConfig)
+	err := config.UnmarshalKey("rate_limit", lConfig)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

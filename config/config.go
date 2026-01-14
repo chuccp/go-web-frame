@@ -43,8 +43,12 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 func (c *Config) HasKey(key string) bool {
 	return c.v.IsSet(key)
 }
-func (c *Config) Unmarshal(key string, v any) error {
+func (c *Config) UnmarshalKey(key string, v any) error {
 	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
+}
+
+func (c *Config) Unmarshal(v any) error {
+	return errors.WithStackIf(c.v.Unmarshal(v))
 }
 
 func (c *Config) GetInt(key string) int {

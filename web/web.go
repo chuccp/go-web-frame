@@ -56,9 +56,9 @@ func OfRaw(handlerRawFunc ...HandlerRawFunc) HandlersRawChain {
 	return HandlersRawChain(handlerRawFunc)
 }
 
-type HandlerFunc func(*HttpContext) (any, error)
+type HandlerFunc func(*Request) (any, error)
 
-type HandlerRawFunc func(*HttpContext, Response) error
+type HandlerRawFunc func(*Request, Response) error
 
 func ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
@@ -78,7 +78,7 @@ func ToGinHandlerRawFunc(handlerConfig *HandlerConfig, handlers ...HandlerRawFun
 func AuthChecks(handlers ...HandlerFunc) []HandlerFunc {
 	var hs = make([]HandlerFunc, len(handlers))
 	for i, handler := range handlers {
-		hs[i] = func(req *HttpContext) (any, error) {
+		hs[i] = func(req *Request) (any, error) {
 			check, err := req.GetDigestAuth().User(req)
 			if err != nil || check == nil {
 				return Unauthorized("", err), nil
@@ -92,7 +92,7 @@ func AuthChecks(handlers ...HandlerFunc) []HandlerFunc {
 func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 	var hs = make([]HandlerRawFunc, len(handlers))
 	for i, handler := range handlers {
-		hs[i] = func(req *HttpContext, response Response) error {
+		hs[i] = func(req *Request, response Response) error {
 			check, err := req.GetDigestAuth().User(req)
 			if err != nil || check == nil {
 				err0 := Unauthorized("", err)
@@ -109,16 +109,16 @@ func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 
 func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		req := NewHttpContext(context, handlerConfig)
+		req := NewRequest(context, handlerConfig)
 		value, err := handler(req)
-		handlerConfig.converter(value, err, req)
+		handlerConfig.converter(value, err, req, newResponse(context))
 	}
 	return handlerFunc
 }
 func toGinHandlerRawFunc(handlerConfig *HandlerConfig, handler HandlerRawFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		req := NewHttpContext(context, handlerConfig)
-		err := handler(req, newResponse(context.Writer))
+		req := NewRequest(context, handlerConfig)
+		err := handler(req, newResponse(context))
 		if err != nil {
 			err0 := Error(err)
 			context.JSON(err0.Code, err0)

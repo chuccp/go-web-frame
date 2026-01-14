@@ -7,18 +7,38 @@ import (
 type Response interface {
 	gin.ResponseWriter
 	SetAttachmentFileName(fileName string)
+	JSON(code int, value any)
+	Abort()
+	Redirect(code int, location string)
+	FileAttachment(path string, name string)
 }
 
 type response struct {
 	gin.ResponseWriter
+	ctx *gin.Context
 }
 
 func (r *response) SetAttachmentFileName(fileName string) {
 	r.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
 }
-func newResponse(responseWriter gin.ResponseWriter) *response {
+
+func (r *response) JSON(code int, value any) {
+	r.ctx.JSON(code, value)
+}
+func (r *response) Abort() {
+	r.ctx.Abort()
+}
+func (r *response) Redirect(code int, location string) {
+	r.ctx.Redirect(code, location)
+}
+func (r *response) FileAttachment(path string, name string) {
+	r.ctx.FileAttachment(path, name)
+}
+
+func newResponse(ctx *gin.Context) *response {
 	return &response{
-		ResponseWriter: responseWriter,
+		ResponseWriter: ctx.Writer,
+		ctx:            ctx,
 	}
 }
 

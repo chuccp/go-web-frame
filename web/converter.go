@@ -9,27 +9,27 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 )
 
-type Converter func(value any, err error, ctx *HttpContext)
+type Converter func(value any, err error, ctx *Request, response Response)
 
-var DefaultConverter Converter = func(value any, err error, ctx *HttpContext) {
+var DefaultConverter Converter = func(value any, err error, ctx_ *Request, response Response) {
 	if err != nil {
 		err0 := Errors(value, err)
-		ctx.JSON(err0.Code, err0)
-		ctx.Abort()
+		response.JSON(err0.Code, err0)
+		response.Abort()
 	} else {
 		if value != nil {
 			switch t := value.(type) {
 			case *Message:
 				if t.Code == http.StatusMovedPermanently {
-					ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
-					ctx.Abort()
+					response.Redirect(http.StatusMovedPermanently, t.Data.(string))
+					response.Abort()
 					return
 				}
-				ctx.JSON(t.Code, value)
+				response.JSON(t.Code, value)
 			case string:
-				_, err2 := ctx.Write([]byte(t))
+				_, err2 := response.Write([]byte(t))
 				if err2 != nil {
-					ctx.Abort()
+					response.Abort()
 					return
 				}
 			case *File:
@@ -43,11 +43,11 @@ var DefaultConverter Converter = func(value any, err error, ctx *HttpContext) {
 					}
 					t.FileName = t.FileName + t.Suffix
 				}
-				ctx.FileAttachment(t.Path, t.FileName)
+				response.FileAttachment(t.Path, t.FileName)
 			case *os.File:
-				ctx.FileAttachment(t.Name(), t.Name())
+				response.FileAttachment(t.Name(), t.Name())
 			default:
-				ctx.JSON(200, Data(value))
+				response.JSON(200, Data(value))
 			}
 		}
 	}

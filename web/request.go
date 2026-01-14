@@ -31,10 +31,11 @@ func (o JsonObject) GetIntForDefault(key string, defaultValue int) int {
 }
 
 type HttpContext struct {
-	c          *gin.Context
-	cookie     *Cookie
-	jsonBody   *JsonObject
-	digestAuth *DigestAuth
+	c        *gin.Context
+	cookie   *Cookie
+	jsonBody *JsonObject
+	//digestAuth *DigestAuth
+	handlerConfig *HandlerConfig
 }
 
 // Next should be used only inside middleware.
@@ -50,18 +51,18 @@ func (r *HttpContext) GinContext() *gin.Context {
 	return r.c
 }
 func (r *HttpContext) GetDigestAuth() *DigestAuth {
-	return r.digestAuth
+	return r.handlerConfig.digestAuth
 }
 
 func (r *HttpContext) SignIn(user any) (any, error) {
-	return r.digestAuth.SignIn(user, r)
+	return r.GetDigestAuth().SignIn(user, r)
 }
 func (r *HttpContext) SignOut() (any, error) {
-	return r.digestAuth.SignOut(r)
+	return r.GetDigestAuth().SignOut(r)
 }
 
 func (r *HttpContext) User() (any, error) {
-	return r.digestAuth.User(r)
+	return r.GetDigestAuth().User(r)
 }
 func (r *HttpContext) URL() *url.URL {
 	return r.c.Request.URL
@@ -268,6 +269,6 @@ func (r *HttpContext) Write(bytes []byte) (int, error) {
 func (r *HttpContext) FileAttachment(path string, name string) {
 	r.c.FileAttachment(path, name)
 }
-func NewHttpContext(c *gin.Context, digestAuth *DigestAuth) *HttpContext {
-	return &HttpContext{c: c, cookie: NewCookie(c), digestAuth: digestAuth}
+func NewHttpContext(c *gin.Context, handlerConfig *HandlerConfig) *HttpContext {
+	return &HttpContext{c: c, cookie: NewCookie(c), handlerConfig: handlerConfig}
 }

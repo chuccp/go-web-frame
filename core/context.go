@@ -21,12 +21,12 @@ type Context struct {
 	rLock             *sync.RWMutex
 	serviceMap        map[string]IService
 	componentMap      map[string]IComponent
-	digestAuth        *web.DigestAuth
 	schedule          *Schedule
 	routeTree         RouteTree
 	runnerMap         map[string]IRunner
 	defaultModelGroup IModelGroup
 	modelGroup        map[string]IModelGroup
+	handlerConfig     *web.HandlerConfig
 }
 
 func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IModelGroup) *Context {
@@ -46,20 +46,20 @@ func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IM
 	return context
 }
 
-func (c *Context) Copy(digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
+func (c *Context) Copy(converter web.Converter, digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
 	context := &Context{
 		config:            c.config,
 		httpServer:        httpServer,
 		modelMap:          c.modelMap,
 		rLock:             c.rLock,
 		serviceMap:        c.serviceMap,
-		digestAuth:        digestAuth,
 		componentMap:      c.componentMap,
 		schedule:          c.schedule,
 		routeTree:         make(RouteTree),
 		runnerMap:         c.runnerMap,
 		modelGroup:        c.modelGroup,
 		defaultModelGroup: c.defaultModelGroup,
+		handlerConfig:     web.NewHandlerConfig(digestAuth, converter),
 	}
 	return context
 }
@@ -173,7 +173,7 @@ func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	for _, middlewareFunc := range middlewareFunc {
 		c.httpServer.Use(func(ctx *gin.Context) {
 			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
-				middlewareFunc(web.NewHttpContext(ctx, c.digestAuth), c)
+				middlewareFunc(web.NewHttpContext(ctx, c.handlerConfig), c)
 			}
 		})
 	}
@@ -186,22 +186,22 @@ func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ..
 
 func (c *Context) authHandle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("authHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.digestAuth, web.AuthChecks(handlers...)...)...)
+	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, web.AuthChecks(handlers...)...)...)
 }
 
 func (c *Context) handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
 	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.digestAuth, handlers...)...)
+	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
 }
 
 func (c *Context) handleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("rawHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.digestAuth, handlers...)...)
+	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.handlerConfig, handlers...)...)
 }
 
 func (c *Context) authHandleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
 	log.Debug("authRawHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.digestAuth, web.AuthRawChecks(handlers...)...)...)
+	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.handlerConfig, web.AuthRawChecks(handlers...)...)...)
 }
 
 func (c *Context) HandleAuth(httpMethod, relativePath string, handlers ...web.HandlerFunc) {

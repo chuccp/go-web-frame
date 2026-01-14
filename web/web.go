@@ -15,6 +15,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type HandlerConfig struct {
+	digestAuth *DigestAuth
+	converter  Converter
+}
+
+func NewHandlerConfig(digestAuth *DigestAuth, converter Converter) *HandlerConfig {
+	return &HandlerConfig{
+		digestAuth: digestAuth,
+		converter:  converter,
+	}
+}
+
 type HandlersChain []HandlerFunc
 
 func (c HandlersChain) GetFuncName() string {
@@ -52,17 +64,17 @@ type HandlerFunc func(*HttpContext) (any, error)
 
 type HandlerRawFunc func(*HttpContext, Response) error
 
-func ToGinHandlerFunc(digestAuth *DigestAuth, handlers ...HandlerFunc) []gin.HandlerFunc {
+func ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
 	for i, handler := range handlers {
-		handlerFunc[i] = toGinHandlerFunc(digestAuth, handler)
+		handlerFunc[i] = toGinHandlerFunc(handlerConfig, handler)
 	}
 	return handlerFunc
 }
-func ToGinHandlerRawFunc(digestAuth *DigestAuth, handlers ...HandlerRawFunc) []gin.HandlerFunc {
+func ToGinHandlerRawFunc(handlerConfig *HandlerConfig, handlers ...HandlerRawFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
 	for i, handler := range handlers {
-		handlerFunc[i] = toGinHandlerRawFunc(digestAuth, handler)
+		handlerFunc[i] = toGinHandlerRawFunc(handlerConfig, handler)
 	}
 	return handlerFunc
 }
@@ -99,9 +111,9 @@ func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 	return hs
 }
 
-func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFunc {
+func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		value, err := handler(NewHttpContext(context, digestAuth))
+		value, err := handler(NewHttpContext(context, handlerConfig))
 		if err != nil {
 			err0 := Errors(value, err)
 			context.JSON(err0.Code, err0)
@@ -146,9 +158,9 @@ func toGinHandlerFunc(digestAuth *DigestAuth, handler HandlerFunc) gin.HandlerFu
 	}
 	return handlerFunc
 }
-func toGinHandlerRawFunc(digestAuth *DigestAuth, handler HandlerRawFunc) gin.HandlerFunc {
+func toGinHandlerRawFunc(handlerConfig *HandlerConfig, handler HandlerRawFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		err := handler(NewHttpContext(context, digestAuth), newResponse(context.Writer))
+		err := handler(NewHttpContext(context, handlerConfig), newResponse(context.Writer))
 		if err != nil {
 			err0 := Error(err)
 			context.JSON(err0.Code, err0)

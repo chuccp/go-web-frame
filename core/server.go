@@ -36,7 +36,7 @@ func (server *Server) Init(context *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		restContext := context.Copy(restGroup.digestAuth, httpServer)
+		restContext := context.Copy(restGroup.converter, restGroup.digestAuth, httpServer)
 		restContext.Use(restGroup.middlewareFunc...)
 		for _, rest := range restGroup.rests {
 			err := rest.Init(restContext)

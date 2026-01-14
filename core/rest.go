@@ -9,6 +9,7 @@ type RestGroup struct {
 	port           int
 	name           string
 	digestAuth     *web.DigestAuth
+	converter      web.Converter
 	middlewareFunc []MiddlewareFunc
 	serverConfig   *web.ServerConfig
 }
@@ -26,6 +27,10 @@ func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 
 func (rg *RestGroup) AddMiddlewares(middlewareFunc ...MiddlewareFunc) *RestGroup {
 	rg.middlewareFunc = append(rg.middlewareFunc, middlewareFunc...)
+	return rg
+}
+func (rg *RestGroup) Converter(converter web.Converter) *RestGroup {
+	rg.converter = converter
 	return rg
 }
 
@@ -57,5 +62,7 @@ func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
+		digestAuth:   nil,
+		converter:    web.DefaultConverter,
 	}
 }

@@ -1,6 +1,0 @@
-server:
-  port: 20011
-  debug: true
-
-cache:
-  path: tmp/cache

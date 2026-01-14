@@ -1,14 +1,14 @@
 go 1.25.5
 use (
 	.
-	./example/start
-	./example/db
-	./example/captcha
-	./example/conc
-	./example/daemon
-	./example/ssl
-	./example/config
-	./example/caddy
+	//./example/start
+	//./example/db
+	//./example/captcha
+	//./example/conc
+	//./example/daemon
+	//./example/ssl
+	//./example/config
+	//./example/caddy
 	//./component/cache
 	//./component/localcache
 	//./component/ratelimit

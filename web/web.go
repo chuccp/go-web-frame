@@ -3,15 +3,11 @@ package web
 import (
 	"io"
 	"mime/multipart"
-	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 
-	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -113,54 +109,16 @@ func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 
 func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		value, err := handler(NewHttpContext(context, handlerConfig))
-		if err != nil {
-			err0 := Errors(value, err)
-			context.JSON(err0.Code, err0)
-			context.Abort()
-		} else {
-			if value != nil {
-				switch t := value.(type) {
-				case *Message:
-					if t.Code == http.StatusMovedPermanently {
-						context.Redirect(http.StatusMovedPermanently, t.Data.(string))
-						context.Abort()
-						return
-					}
-					context.JSON(t.Code, value)
-				case string:
-					_, err2 := context.Writer.Write([]byte(t))
-					if err2 != nil {
-						context.Abort()
-						return
-					}
-				case *File:
-					if len(t.FileName) == 0 {
-						_, filename := path.Split(t.Path)
-						t.FileName = filename
-					}
-					if util.IsNotBlank(t.Suffix) && !strings.HasSuffix(t.FileName, t.Suffix) {
-						if !strings.HasPrefix(t.Suffix, ".") {
-							t.Suffix = "." + t.Suffix
-						}
-						t.FileName = t.FileName + t.Suffix
-					}
-					context.FileAttachment(t.Path, t.FileName)
-				case *os.File:
-					context.FileAttachment(t.Name(), t.Name())
-
-				default:
-					context.JSON(200, Data(value))
-				}
-			}
-		}
-
+		req := NewHttpContext(context, handlerConfig)
+		value, err := handler(req)
+		handlerConfig.converter(value, err, req)
 	}
 	return handlerFunc
 }
 func toGinHandlerRawFunc(handlerConfig *HandlerConfig, handler HandlerRawFunc) gin.HandlerFunc {
 	handlerFunc := func(context *gin.Context) {
-		err := handler(NewHttpContext(context, handlerConfig), newResponse(context.Writer))
+		req := NewHttpContext(context, handlerConfig)
+		err := handler(req, newResponse(context.Writer))
 		if err != nil {
 			err0 := Error(err)
 			context.JSON(err0.Code, err0)

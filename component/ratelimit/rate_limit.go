@@ -59,7 +59,7 @@ func (r *RateLimit) _limiterLoader(burst int) otter.Loader[string, *rate.Limiter
 func (r *RateLimit) Init(config config2.IConfig) error {
 	lConfig := &Config{
 		Limit:   600,
-		Burst:   3,
+		Burst:   5,
 		MaxSize: 1000_000,
 		Expiry:  3600,
 	}

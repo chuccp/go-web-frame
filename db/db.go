@@ -145,14 +145,14 @@ const ConfigKey = "web.db"
 
 func CreateDB(c config.IConfig) (*DB, error) {
 	var config2 Config
-	err := c.Unmarshal(ConfigKey, &config2)
+	err := c.UnmarshalKey(ConfigKey, &config2)
 	if err != nil {
 		return nil, err
 	}
 	if util.IsNotBlank(config2.Type) {
 		if util.EqualsAnyIgnoreCase(config2.Type, MYSQL) {
 			var mysqlConfig MysqlConfig
-			err := c.Unmarshal(ConfigKey, &mysqlConfig)
+			err := c.UnmarshalKey(ConfigKey, &mysqlConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -160,7 +160,7 @@ func CreateDB(c config.IConfig) (*DB, error) {
 		}
 		if util.EqualsAnyIgnoreCase(config2.Type, SQLITE) {
 			var sqliteConfig SQLiteConfig
-			err := c.Unmarshal(ConfigKey, &sqliteConfig)
+			err := c.UnmarshalKey(ConfigKey, &sqliteConfig)
 			if err != nil {
 				return nil, err
 			}

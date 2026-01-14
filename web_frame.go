@@ -33,8 +33,8 @@ func GetRunner[T core.IRunner](c *core.Context) T {
 	return core.GetRunner[T](c)
 }
 
-func UnmarshalConfig[T any](key string, c *core.Context) T {
-	return core.UnmarshalConfig[T](key, c)
+func UnmarshalKeyConfig[T any](key string, c *core.Context) T {
+	return core.UnmarshalKeyConfig[T](key, c)
 }
 
 type WebFrame struct {
@@ -136,7 +136,7 @@ func (w *WebFrame) init() error {
 	defer w.lock.Unlock()
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
-	err := w.config.Unmarshal(logConfig.Key(), &logConfig)
+	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (w *WebFrame) init() error {
 
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
 		var serverConfig = web.DefaultServerConfig()
-		err = w.config.Unmarshal(web.ServerConfigKey, &serverConfig)
+		err = w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
 		if err != nil {
 			return err
 		}

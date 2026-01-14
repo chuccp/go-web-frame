@@ -19,7 +19,8 @@ type IConfig interface {
 	GetInt(key string) int
 	GetIntOrDefault(key string, defaultValue int) int
 	GetBoolOrDefault(key string, defaultValue bool) bool
-	Unmarshal(key string, v any) error
+	Unmarshal(v any) error
+	UnmarshalKey(key string, v any) error
 	ReplaceKey(key string, newKey string)
 }
 

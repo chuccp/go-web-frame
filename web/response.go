@@ -1,6 +1,8 @@
 package web
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,11 +13,21 @@ type Response interface {
 	Abort()
 	Redirect(code int, location string)
 	FileAttachment(path string, name string)
+	Message(t *Message)
 }
 
 type response struct {
 	gin.ResponseWriter
 	ctx *gin.Context
+}
+
+func (r *response) Message(t *Message) {
+	if t.Code == http.StatusMovedPermanently {
+		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
+		r.ctx.Abort()
+		return
+	}
+	r.ctx.JSON(t.Code, t)
 }
 
 func (r *response) SetAttachmentFileName(fileName string) {

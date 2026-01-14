@@ -13,8 +13,8 @@ func (e *NoLoginError) Error() string {
 }
 
 type Authentication interface {
-	SignIn(user any, request *Request) (any, error)
-	SignOut(request *Request) (any, error)
+	SignIn(user any, request *Request) error
+	SignOut(request *Request) error
 	User(request *Request) (any, error)
 	NewUser() any
 }
@@ -27,11 +27,11 @@ func (digestAuth *DigestAuth) Authentication() Authentication {
 	return digestAuth.authentication
 }
 
-func (digestAuth *DigestAuth) SignIn(user any, request *Request) (any, error) {
+func (digestAuth *DigestAuth) SignIn(user any, request *Request) error {
 	if digestAuth.authentication != nil {
 		return digestAuth.authentication.SignIn(user, request)
 	}
-	return nil, errors.New("secretProvider is nil")
+	return errors.New("secretProvider is nil")
 }
 func (digestAuth *DigestAuth) User(request *Request) (any, error) {
 	if digestAuth.authentication != nil {
@@ -40,7 +40,7 @@ func (digestAuth *DigestAuth) User(request *Request) (any, error) {
 	return nil, errors.New("secretProvider is nil")
 }
 
-func (digestAuth *DigestAuth) SignOut(r *Request) (any, error) {
+func (digestAuth *DigestAuth) SignOut(r *Request) error {
 	return digestAuth.authentication.SignOut(r)
 
 }

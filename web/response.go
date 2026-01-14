@@ -13,14 +13,25 @@ type Response interface {
 	Abort()
 	Redirect(code int, location string)
 	FileAttachment(path string, name string)
+	WriteStatus(code int)
 	Message(t *Message)
+	AbortWithMessage(t *Message)
+	AbortWithStatusJSON(i int, value any)
 }
+
+//Status
 
 type response struct {
 	gin.ResponseWriter
 	ctx *gin.Context
 }
 
+func (r *response) WriteStatus(code int) {
+	r.ctx.Status(code)
+}
+func (r *response) AbortWithStatusJSON(i int, value any) {
+	r.ctx.AbortWithStatusJSON(i, value)
+}
 func (r *response) Message(t *Message) {
 	if t.Code == http.StatusMovedPermanently {
 		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
@@ -28,6 +39,15 @@ func (r *response) Message(t *Message) {
 		return
 	}
 	r.ctx.JSON(t.Code, t)
+}
+func (r *response) AbortWithMessage(t *Message) {
+	if t.Code == http.StatusMovedPermanently {
+		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
+		r.ctx.Abort()
+		return
+	}
+	r.ctx.JSON(t.Code, t)
+	r.ctx.Abort()
 }
 
 func (r *response) SetAttachmentFileName(fileName string) {

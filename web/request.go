@@ -9,6 +9,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -213,8 +214,11 @@ func (r *Request) BindJSON(value any) error {
 	if r.IsGet() {
 		return errors.New(GetNotSupportJson)
 	}
-	err := r.c.BindJSON(value)
-	return err
+	json, err := r.Json()
+	if err != nil {
+		return err
+	}
+	return mapstructure.Decode(json, value)
 }
 func (r *Request) ContentType() string {
 	return r.GinContext().ContentType()

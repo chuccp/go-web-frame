@@ -21,11 +21,11 @@ type Api struct {
 	context *core.Context
 }
 
-func (api *Api) test(request *web.Request) (any, error) {
+func (api *Api) test(request *web.HttpContext) (any, error) {
 	system := wf.UnmarshalConfig[*System]("db", api.context)
 	return system.Password, nil
 }
-func (api *Api) test2(request *web.Request, response web.Response) error {
+func (api *Api) test2(request *web.HttpContext, response web.Response) error {
 	localCache := wf.GetComponent[*cache.Component](api.context).GetLocalCache()
 	err := localCache.GetFileResponseWrite(response, func(fileResponseWriteCloser *cache.FileResponseWriteCloser, value ...any) error {
 		err := util.GenerateQrcode(

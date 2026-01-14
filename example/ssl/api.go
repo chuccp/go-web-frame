@@ -11,7 +11,7 @@ type Api struct {
 	context *core.Context
 }
 
-func (api *Api) test(request *web.Request) (any, error) {
+func (api *Api) test(request *web.HttpContext) (any, error) {
 
 	getCaptcha := wf.GetComponent[*captcha.captcha](api.context).GetCaptcha()
 	generate, err := getCaptcha.Generate()

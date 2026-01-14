@@ -12,13 +12,13 @@ import (
 type Authentication struct {
 }
 
-func (a *Authentication) SignIn(user any, request *web.Request) (any, error) {
+func (a *Authentication) SignIn(user any, request *web.HttpContext) (any, error) {
 	return nil, errors.New("This method is not implemented.")
 }
-func (a *Authentication) SignOut(request *web.Request) (any, error) {
+func (a *Authentication) SignOut(request *web.HttpContext) (any, error) {
 	return nil, errors.New("This method is not implemented.")
 }
-func (a *Authentication) User(request *web.Request) (any, error) {
+func (a *Authentication) User(request *web.HttpContext) (any, error) {
 	return nil, errors.New("This method is not implemented.")
 }
 func (a *Authentication) NewUser() any {

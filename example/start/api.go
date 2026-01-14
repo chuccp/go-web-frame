@@ -13,7 +13,7 @@ type Api struct {
 	context *core.Context
 }
 
-func (api *Api) test(request *web.Request, response web.Response) error {
+func (api *Api) test(request *web.HttpContext, response web.Response) error {
 	localCache := wf.GetComponent[*cache.Component](api.context).GetLocalCache()
 	err := localCache.GetFileResponseWrite(response, func(fileResponseWriteCloser *cache.FileResponseWriteCloser, value ...any) error {
 		err := util.GenerateQrcode(

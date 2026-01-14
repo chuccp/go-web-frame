@@ -30,7 +30,7 @@ func (o JsonObject) GetIntForDefault(key string, defaultValue int) int {
 	return defaultValue
 }
 
-type Request struct {
+type HttpContext struct {
 	c          *gin.Context
 	cookie     *Cookie
 	jsonBody   *JsonObject
@@ -40,33 +40,33 @@ type Request struct {
 // Next should be used only inside middleware.
 // It executes the pending handlers in the chain inside the calling handler.
 // See example in GitHub.
-func (r *Request) Next() {
+func (r *HttpContext) Next() {
 	r.c.Next()
 }
-func (r *Request) FullPath() string {
+func (r *HttpContext) FullPath() string {
 	return r.c.FullPath()
 }
-func (r *Request) GinContext() *gin.Context {
+func (r *HttpContext) GinContext() *gin.Context {
 	return r.c
 }
-func (r *Request) GetDigestAuth() *DigestAuth {
+func (r *HttpContext) GetDigestAuth() *DigestAuth {
 	return r.digestAuth
 }
 
-func (r *Request) SignIn(user any) (any, error) {
+func (r *HttpContext) SignIn(user any) (any, error) {
 	return r.digestAuth.SignIn(user, r)
 }
-func (r *Request) SignOut() (any, error) {
+func (r *HttpContext) SignOut() (any, error) {
 	return r.digestAuth.SignOut(r)
 }
 
-func (r *Request) User() (any, error) {
+func (r *HttpContext) User() (any, error) {
 	return r.digestAuth.User(r)
 }
-func (r *Request) URL() *url.URL {
+func (r *HttpContext) URL() *url.URL {
 	return r.c.Request.URL
 }
-func User[T any](r *Request) (T, error) {
+func User[T any](r *HttpContext) (T, error) {
 	u, err := r.User()
 	if err != nil {
 		return u.(T), err
@@ -79,11 +79,11 @@ func User[T any](r *Request) (T, error) {
 
 }
 
-func (r *Request) RemoteAddr() string {
+func (r *HttpContext) RemoteAddr() string {
 	return r.c.Request.RemoteAddr
 }
 
-func (r *Request) Domain() string {
+func (r *HttpContext) Domain() string {
 	host := r.c.Request.Host
 	if idx := strings.Index(host, ":"); idx != -1 {
 		host = host[:idx]
@@ -92,39 +92,39 @@ func (r *Request) Domain() string {
 
 }
 
-func (r *Request) IsGet() bool {
+func (r *HttpContext) IsGet() bool {
 	return r.c.Request.Method == "GET"
 }
-func (r *Request) IsPost() bool {
+func (r *HttpContext) IsPost() bool {
 	return r.c.Request.Method == "POST"
 }
 
 // Query  returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
-// It is shortcut for `c.Request.URL.Query().Get(key)`
+// It is shortcut for `c.HttpContext.URL.Query().Get(key)`
 //
 //	    GET /path?id=1234&name=Manu&value=
 //		   c.Query("id") == "1234"
 //		   c.Query("name") == "Manu"
 //		   c.Query("value") == ""
 //		   c.Query("wtf") == ""
-func (r *Request) Query(key string) string {
+func (r *HttpContext) Query(key string) string {
 	return r.c.Query(key)
 }
-func (r *Request) Param(key string) string {
+func (r *HttpContext) Param(key string) string {
 	return r.c.Param(key)
 }
-func (r *Request) ParamInt(key string) int {
+func (r *HttpContext) ParamInt(key string) int {
 	return cast.ToInt(r.Param(key))
 }
-func (r *Request) ParamUint(key string) uint {
+func (r *HttpContext) ParamUint(key string) uint {
 	return cast.ToUint(r.Param(key))
 }
-func (r *Request) Cookie() *Cookie {
+func (r *HttpContext) Cookie() *Cookie {
 	return r.cookie
 }
 
-func (r *Request) Json() (*JsonObject, error) {
+func (r *HttpContext) Json() (*JsonObject, error) {
 	if r.IsGet() {
 		return nil, errors.New(GetNotSupportJson)
 	}
@@ -139,7 +139,7 @@ func (r *Request) Json() (*JsonObject, error) {
 	r.jsonBody = &jsonObject
 	return &jsonObject, nil
 }
-func (r *Request) JsonPage() (*Page, error) {
+func (r *HttpContext) JsonPage() (*Page, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return nil, err
@@ -150,13 +150,13 @@ func (r *Request) JsonPage() (*Page, error) {
 		LastId:   jsonObject.GetIntForDefault("lastId", 0),
 	}, nil
 }
-func (r *Request) Page() (*Page, error) {
+func (r *HttpContext) Page() (*Page, error) {
 	if r.IsGet() {
 		return r.FormParamsPage()
 	}
 	return r.JsonPage()
 }
-func (r *Request) GetFormParam(key string) string {
+func (r *HttpContext) GetFormParam(key string) string {
 	if value := r.c.Request.Form.Get(key); len(value) > 0 {
 		return value
 	}
@@ -165,16 +165,16 @@ func (r *Request) GetFormParam(key string) string {
 	}
 	return ""
 }
-func (r *Request) GetIntFormParam(key string) int {
+func (r *HttpContext) GetIntFormParam(key string) int {
 	return cast.ToInt(r.GetFormParam(key))
 }
-func (r *Request) GetIntFormParamOrDefault(key string, defaultValue int) int {
+func (r *HttpContext) GetIntFormParamOrDefault(key string, defaultValue int) int {
 	if value := r.GetIntFormParam(key); value != 0 {
 		return value
 	}
 	return defaultValue
 }
-func (r *Request) FormParamsPage() (*Page, error) {
+func (r *HttpContext) FormParamsPage() (*Page, error) {
 	return &Page{
 		PageNo:   r.GetIntFormParamOrDefault("pageNo", 1),
 		PageSize: r.GetIntFormParamOrDefault("pageSize", 10),
@@ -182,27 +182,27 @@ func (r *Request) FormParamsPage() (*Page, error) {
 	}, nil
 }
 
-func (r *Request) GetJsonStringValue(key string) (string, error) {
+func (r *HttpContext) GetJsonStringValue(key string) (string, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return "", err
 	}
 	return jsonObject.GetString(key), nil
 }
-func (r *Request) GetJsonStringValueOrDefault(key string, defaultValue string) string {
+func (r *HttpContext) GetJsonStringValueOrDefault(key string, defaultValue string) string {
 	if value, _ := r.GetJsonStringValue(key); len(value) > 0 {
 		return value
 	}
 	return defaultValue
 }
-func (r *Request) GetJsonIntValue(key string) (int, error) {
+func (r *HttpContext) GetJsonIntValue(key string) (int, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return 0, err
 	}
 	return jsonObject.GetInt(key), nil
 }
-func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
+func (r *HttpContext) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 
 	if value, _ := r.GetJsonIntValue(key); value != 0 {
 		return value
@@ -210,7 +210,7 @@ func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func (r *Request) BindJSON(value any) error {
+func (r *HttpContext) BindJSON(value any) error {
 	if r.IsGet() {
 		return errors.New(GetNotSupportJson)
 	}
@@ -220,14 +220,14 @@ func (r *Request) BindJSON(value any) error {
 	}
 	return mapstructure.Decode(json, value)
 }
-func (r *Request) ContentType() string {
+func (r *HttpContext) ContentType() string {
 	return r.GinContext().ContentType()
 }
 
-func (r *Request) JSON(code int, value any) {
+func (r *HttpContext) JSON(code int, value any) {
 	r.c.JSON(code, value)
 }
-func (r *Request) Message(t *Message) {
+func (r *HttpContext) Message(t *Message) {
 	if t.Code == http.StatusMovedPermanently {
 		r.c.Redirect(http.StatusMovedPermanently, t.Data.(string))
 		r.c.Abort()
@@ -235,27 +235,39 @@ func (r *Request) Message(t *Message) {
 	}
 	r.c.JSON(t.Code, t)
 }
-func (r *Request) Abort() {
+func (r *HttpContext) Abort() {
 	r.c.Abort()
 }
 
-func (r *Request) IsMultipartForm() bool {
+func (r *HttpContext) IsMultipartForm() bool {
 	return util.ContainsAnyIgnoreCase(r.ContentType(), "multipart/form-data")
 
 }
 
-func (r *Request) GetHeader(s string) string {
+func (r *HttpContext) GetHeader(s string) string {
 	return r.c.GetHeader(s)
 }
 
-func (r *Request) MultipartForm() (*multipart.Form, error) {
+func (r *HttpContext) MultipartForm() (*multipart.Form, error) {
 	return r.c.MultipartForm()
 
 }
 
-func (r *Request) Request() *http.Request {
+func (r *HttpContext) Request() *http.Request {
 	return r.c.Request
 }
-func NewRequest(c *gin.Context, digestAuth *DigestAuth) *Request {
-	return &Request{c: c, cookie: NewCookie(c), digestAuth: digestAuth}
+
+func (r *HttpContext) Redirect(code int, location string) {
+	r.c.Redirect(code, location)
+}
+
+func (r *HttpContext) Write(bytes []byte) (int, error) {
+	return r.c.Writer.Write(bytes)
+}
+
+func (r *HttpContext) FileAttachment(path string, name string) {
+	r.c.FileAttachment(path, name)
+}
+func NewHttpContext(c *gin.Context, digestAuth *DigestAuth) *HttpContext {
+	return &HttpContext{c: c, cookie: NewCookie(c), digestAuth: digestAuth}
 }

@@ -173,7 +173,7 @@ func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	for _, middlewareFunc := range middlewareFunc {
 		c.httpServer.Use(func(ctx *gin.Context) {
 			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
-				middlewareFunc(web.NewRequest(ctx, c.digestAuth), c)
+				middlewareFunc(web.NewHttpContext(ctx, c.digestAuth), c)
 			}
 		})
 	}

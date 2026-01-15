@@ -16,7 +16,6 @@ type Authentication interface {
 	SignIn(user any, request *Request) (any, error)
 	SignOut(request *Request) (any, error)
 	User(request *Request) (any, error)
-	NewUser() any
 }
 
 type DigestAuth struct {

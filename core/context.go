@@ -179,6 +179,30 @@ func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	}
 }
 
+func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(httpMethod, relativePath, handlers...)
+}
+
+func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(http.MethodGet, relativePath, handlers...)
+}
+
+func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(http.MethodPost, relativePath, handlers...)
+}
+func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(http.MethodDelete, relativePath, handlers...)
+}
+func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) {
+	c.handle(http.MethodPut, relativePath, handlers...)
+}
+
+func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) {
+	for _, method := range anyMethods {
+		c.handle(method, relativePath, handlers...)
+	}
+}
+
 func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
 	c.routeTree.Set(httpMethod, relativePath)
 	c.httpServer.Handle(httpMethod, relativePath, handlers...)
@@ -207,9 +231,6 @@ func (c *Context) authHandleRaw(httpMethod, relativePath string, handlers ...web
 func (c *Context) HandleAuth(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
 	c.authHandle(httpMethod, relativePath, handlers...)
 }
-func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(httpMethod, relativePath, handlers...)
-}
 
 func (c *Context) HandleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
 	c.handleRaw(httpMethod, relativePath, handlers...)
@@ -217,9 +238,6 @@ func (c *Context) HandleRaw(httpMethod, relativePath string, handlers ...web.Han
 
 func (c *Context) HandleRawAuth(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
 	c.authHandleRaw(httpMethod, relativePath, handlers...)
-}
-func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodGet, relativePath, handlers...)
 }
 
 func (c *Context) GetAuth(relativePath string, handlers ...web.HandlerFunc) {
@@ -236,9 +254,6 @@ func (c *Context) GetConfig() config2.IConfig {
 	return c.config
 }
 
-func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodPost, relativePath, handlers...)
-}
 func (c *Context) PostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.handleRaw(http.MethodPost, relativePath, handlers...)
 }
@@ -252,12 +267,6 @@ func (c *Context) PostAuth(relativePath string, handlers ...web.HandlerFunc) {
 func (c *Context) AnyAuth(relativePath string, handlers ...web.HandlerFunc) {
 	for _, method := range anyMethods {
 		c.authHandle(method, relativePath, handlers...)
-	}
-}
-
-func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) {
-	for _, method := range anyMethods {
-		c.handle(method, relativePath, handlers...)
 	}
 }
 
@@ -282,9 +291,6 @@ var (
 	}
 )
 
-func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodDelete, relativePath, handlers...)
-}
 func (c *Context) DeleteRaw(relativePath string, handlers ...web.HandlerRawFunc) {
 	c.handleRaw(http.MethodDelete, relativePath, handlers...)
 }
@@ -294,9 +300,7 @@ func (c *Context) DeleteRawAuth(relativePath string, handlers ...web.HandlerRawF
 func (c *Context) DeleteAuth(relativePath string, handlers ...web.HandlerFunc) {
 	c.authHandle(http.MethodDelete, relativePath, handlers...)
 }
-func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodPut, relativePath, handlers...)
-}
+
 func (c *Context) PutAuth(relativePath string, handlers ...web.HandlerFunc) {
 	c.authHandle(http.MethodPut, relativePath, handlers...)
 }

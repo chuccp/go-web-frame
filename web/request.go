@@ -55,10 +55,10 @@ func (r *Request) GetDigestAuth() *DigestAuth {
 	return r.handlerConfig.digestAuth
 }
 
-func (r *Request) SignIn(user any) error {
+func (r *Request) SignIn(user any) (any, error) {
 	return r.GetDigestAuth().SignIn(user, r)
 }
-func (r *Request) SignOut() error {
+func (r *Request) SignOut() (any, error) {
 	return r.GetDigestAuth().SignOut(r)
 }
 

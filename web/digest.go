@@ -22,10 +22,6 @@ type DigestAuth struct {
 	authentication Authentication
 }
 
-func (digestAuth *DigestAuth) Authentication() Authentication {
-	return digestAuth.authentication
-}
-
 func (digestAuth *DigestAuth) SignIn(user any, request *Request) (any, error) {
 	if digestAuth.authentication != nil {
 		return digestAuth.authentication.SignIn(user, request)

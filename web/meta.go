@@ -11,6 +11,13 @@ func (hm *HandlerMeta) Has(key string) bool {
 	_, ok := hm.data[key]
 	return ok
 }
+func (hm *HandlerMeta) Get(key string) any {
+	v, ok := hm.data[key]
+	if ok {
+		return v
+	}
+	return nil
+}
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
 		data: make(JsonObject),

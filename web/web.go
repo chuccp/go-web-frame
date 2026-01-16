@@ -45,6 +45,7 @@ func NewHandlerConfig(digestAuth *DigestAuth, converter Converter) *HandlerConfi
 		digestAuth:   digestAuth,
 		converter:    converter,
 		handlerInfos: make([]*HandlerInfo, 0),
+		routeTree:    make(RouteTree),
 	}
 }
 

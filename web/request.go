@@ -46,6 +46,10 @@ type Request struct {
 func (r *Request) Next() {
 	r.c.Next()
 }
+
+func (r *Request) HandlerMeta() *HandlerMeta {
+	return r.handlerMeta
+}
 func (r *Request) FullPath() string {
 	return r.c.FullPath()
 }

@@ -4,9 +4,11 @@ import (
 	"sync"
 
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -55,6 +57,7 @@ func (server *Server) Init(context *Context) error {
 		handlerInfos := handlerConfig.HandlerInfos()
 		for _, handlerInfo := range handlerInfos {
 			for _, httpMethod := range handlerInfo.HttpMethod {
+				log.Debug("handle", zap.String("method", httpMethod), zap.String("path", handlerInfo.RelativePath), zap.Any("handlers", web.Of(handlerInfo.Handlers...).GetFuncName()))
 				httpServer.Handle(httpMethod, handlerInfo.RelativePath, web.ToGinHandlerFunc(handlerConfig, handlerInfo.Handlers...)...)
 			}
 		}

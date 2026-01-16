@@ -5,6 +5,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/web"
+	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
 )
 
@@ -36,12 +37,25 @@ func (server *Server) Init(context *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		restContext := context.Copy(restGroup.converter, restGroup.digestAuth, httpServer)
-		restContext.Use(restGroup.middlewareFunc...)
+		handlerConfig := web.NewHandlerConfig(restGroup.digestAuth, restGroup.converter)
+		restContext := context.Copy(handlerConfig)
 		for _, rest := range restGroup.rests {
 			err := rest.Init(restContext)
 			if err != nil {
 				return errors.WithStackIf(err)
+			}
+		}
+		for _, middlewareFunc := range restGroup.middlewareFunc {
+			httpServer.Use(func(ctx *gin.Context) {
+				if handlerConfig.HasHandler(ctx.Request.Method, ctx.FullPath()) {
+					middlewareFunc(web.NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig), restContext)
+				}
+			})
+		}
+		handlerInfos := handlerConfig.HandlerInfos()
+		for _, handlerInfo := range handlerInfos {
+			for _, httpMethod := range handlerInfo.HttpMethod {
+				httpServer.Handle(httpMethod, handlerInfo.RelativePath, web.ToGinHandlerFunc(handlerConfig, handlerInfo.Handlers...)...)
 			}
 		}
 	}

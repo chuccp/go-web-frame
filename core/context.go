@@ -10,19 +10,16 @@ import (
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type Context struct {
 	config            config2.IConfig
-	httpServer        *web.HttpServer
 	modelMap          map[string]IModel
 	rLock             *sync.RWMutex
 	serviceMap        map[string]IService
 	componentMap      map[string]IComponent
 	schedule          *Schedule
-	routeTree         RouteTree
 	runnerMap         map[string]IRunner
 	defaultModelGroup IModelGroup
 	modelGroup        map[string]IModelGroup
@@ -39,27 +36,24 @@ func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IM
 		//transaction:  model.NewTransaction(db),
 		runnerMap:         make(map[string]IRunner),
 		schedule:          schedule,
-		routeTree:         make(RouteTree),
 		modelGroup:        make(map[string]IModelGroup),
 		defaultModelGroup: defaultModelGroup,
 	}
 	return context
 }
 
-func (c *Context) Copy(converter web.Converter, digestAuth *web.DigestAuth, httpServer *web.HttpServer) *Context {
+func (c *Context) Copy(handlerConfig *web.HandlerConfig) *Context {
 	context := &Context{
 		config:            c.config,
-		httpServer:        httpServer,
 		modelMap:          c.modelMap,
 		rLock:             c.rLock,
 		serviceMap:        c.serviceMap,
 		componentMap:      c.componentMap,
 		schedule:          c.schedule,
-		routeTree:         make(RouteTree),
 		runnerMap:         c.runnerMap,
 		modelGroup:        c.modelGroup,
 		defaultModelGroup: c.defaultModelGroup,
-		handlerConfig:     web.NewHandlerConfig(digestAuth, converter),
+		handlerConfig:     handlerConfig,
 	}
 	return context
 }
@@ -169,120 +163,60 @@ func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	return nil
 }
 
-func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
-	for _, middlewareFunc := range middlewareFunc {
-		c.httpServer.Use(func(ctx *gin.Context) {
-			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
-				middlewareFunc(web.NewRequest(ctx, c.handlerConfig), c)
-			}
-		})
-	}
-}
+//func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
+//	for _, middlewareFunc := range middlewareFunc {
+//		c.httpServer.Use(func(ctx *gin.Context) {
+//			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
+//				middlewareFunc(web.NewRequest(ctx, c.handlerConfig), c)
+//			}
+//		})
+//	}
+//}
 
 //func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
 //	c.handle(httpMethod, relativePath, handlers...)
 //}
 
-func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodGet, relativePath, handlers...)
+func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handle(http.MethodGet, relativePath, handlers...)
 }
 
-func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodPost, relativePath, handlers...)
+func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handle(http.MethodPost, relativePath, handlers...)
 }
-func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodDelete, relativePath, handlers...)
+func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handle(http.MethodDelete, relativePath, handlers...)
 }
-func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(http.MethodPut, relativePath, handlers...)
-}
-
-func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) {
-	for _, method := range anyMethods {
-		c.handle(method, relativePath, handlers...)
-	}
+func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handle(http.MethodPut, relativePath, handlers...)
 }
 
-func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
-	c.routeTree.Set(httpMethod, relativePath)
-	c.httpServer.Handle(httpMethod, relativePath, handlers...)
+func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handles(anyMethods, relativePath, handlers...)
 }
 
-func (c *Context) authHandle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("authHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, web.AuthChecks(handlers...)...)...)
-}
+//func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
+//	//c.routeTree.Set(httpMethod, relativePath)
+//	//c.httpServer.Handle(httpMethod, relativePath, handlers...)
+//}
 
-func (c *Context) handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
+//	func (c *Context) authHandle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
+//		log.Debug("authHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+//		c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, web.AuthChecks(handlers...)...)...)
+//	}
+func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	//log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	//c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
+	return c.handles([]string{httpMethod}, relativePath, handlers...)
 }
-
-func (c *Context) handleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("rawHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.handlerConfig, handlers...)...)
-}
-
-func (c *Context) authHandleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
-	log.Debug("authRawHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.OfRaw(handlers...).GetFuncName()))
-	c.ginHandler(httpMethod, relativePath, web.ToGinHandlerRawFunc(c.handlerConfig, web.AuthRawChecks(handlers...)...)...)
-}
-
-func (c *Context) HandleAuth(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-	c.authHandle(httpMethod, relativePath, handlers...)
-}
-
-func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+func (c *Context) handles(httpMethod []string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	//log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
+	//c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
 	return c.handlerConfig.Handle(httpMethod, relativePath, handlers...)
 }
-func (c *Context) HandleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
-	c.handleRaw(httpMethod, relativePath, handlers...)
-}
 
-func (c *Context) HandleRawAuth(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
-	c.authHandleRaw(httpMethod, relativePath, handlers...)
-}
-
-func (c *Context) GetAuth(relativePath string, handlers ...web.HandlerFunc) {
-	c.authHandle(http.MethodGet, relativePath, handlers...)
-}
-func (c *Context) GetRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.handleRaw(http.MethodGet, relativePath, handlers...)
-}
-
-func (c *Context) GetRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.authHandleRaw(http.MethodGet, relativePath, handlers...)
-}
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config
-}
-
-func (c *Context) PostRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.handleRaw(http.MethodPost, relativePath, handlers...)
-}
-
-func (c *Context) PostRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.authHandleRaw(http.MethodPost, relativePath, handlers...)
-}
-func (c *Context) PostAuth(relativePath string, handlers ...web.HandlerFunc) {
-	c.authHandle(http.MethodPost, relativePath, handlers...)
-}
-func (c *Context) AnyAuth(relativePath string, handlers ...web.HandlerFunc) {
-	for _, method := range anyMethods {
-		c.authHandle(method, relativePath, handlers...)
-	}
-}
-
-func (c *Context) AnyRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	for _, method := range anyMethods {
-		c.handleRaw(method, relativePath, handlers...)
-	}
-}
-
-func (c *Context) AnyRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
-	for _, method := range anyMethods {
-		c.authHandleRaw(method, relativePath, handlers...)
-	}
 }
 
 var (
@@ -293,26 +227,6 @@ var (
 		http.MethodTrace,
 	}
 )
-
-func (c *Context) DeleteRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.handleRaw(http.MethodDelete, relativePath, handlers...)
-}
-func (c *Context) DeleteRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.authHandleRaw(http.MethodDelete, relativePath, handlers...)
-}
-func (c *Context) DeleteAuth(relativePath string, handlers ...web.HandlerFunc) {
-	c.authHandle(http.MethodDelete, relativePath, handlers...)
-}
-
-func (c *Context) PutAuth(relativePath string, handlers ...web.HandlerFunc) {
-	c.authHandle(http.MethodPut, relativePath, handlers...)
-}
-func (c *Context) PutRaw(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.handleRaw(http.MethodPut, relativePath, handlers...)
-}
-func (c *Context) PutRawAuth(relativePath string, handlers ...web.HandlerRawFunc) {
-	c.authHandleRaw(http.MethodPut, relativePath, handlers...)
-}
 
 func GetService[T IService](c *Context) T {
 	t, _ := c.GetService(func(m IService) bool {

@@ -15,18 +15,31 @@ type HandlerConfig struct {
 	digestAuth   *DigestAuth
 	converter    Converter
 	handlerInfos []*HandlerInfo
+	routeTree    RouteTree
 }
 
 //func (h *HandlerConfig) AddHandler(handlerInfo *HandlerInfo) {
 //	h.handlerInfo = append(h.handlerInfo, handlerInfo)
 //}
 
-func (h *HandlerConfig) Handle(httpMethod, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(httpMethod, relativePath, handlers...)
+func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+	handlerInfo := NewHandlerInfo(httpMethods, relativePath, handlers...)
 	h.handlerInfos = append(h.handlerInfos, handlerInfo)
+	for _, httpMethod := range httpMethods {
+		h.routeTree.Set(httpMethod, relativePath, handlerInfo.HandlerMeta)
+	}
 	return handlerInfo
 }
+func (h *HandlerConfig) HasHandler(httpMethod string, fullPath string) bool {
+	return h.routeTree.Has(httpMethod, fullPath)
+}
+func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
+	return h.routeTree.GetHandlerMeta(httpMethod, fullPath)
+}
 
+func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
+	return h.handlerInfos
+}
 func NewHandlerConfig(digestAuth *DigestAuth, converter Converter) *HandlerConfig {
 	return &HandlerConfig{
 		digestAuth:   digestAuth,
@@ -120,21 +133,21 @@ func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
 }
 
 func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
-	handlerFunc := func(context *gin.Context) {
-		req := NewRequest(context, handlerConfig)
+	handlerFunc := func(ctx *gin.Context) {
+		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)
 		value, err := handler(req)
-		handlerConfig.converter(value, err, req, newResponse(context))
+		handlerConfig.converter(value, err, req, newResponse(ctx))
 	}
 	return handlerFunc
 }
 func toGinHandlerRawFunc(handlerConfig *HandlerConfig, handler HandlerRawFunc) gin.HandlerFunc {
-	handlerFunc := func(context *gin.Context) {
-		req := NewRequest(context, handlerConfig)
-		err := handler(req, newResponse(context))
+	handlerFunc := func(ctx *gin.Context) {
+		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)
+		err := handler(req, newResponse(ctx))
 		if err != nil {
 			err0 := Error(err)
-			context.JSON(err0.Code, err0)
-			context.Abort()
+			ctx.JSON(err0.Code, err0)
+			ctx.Abort()
 		}
 	}
 	return handlerFunc

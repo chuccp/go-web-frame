@@ -35,17 +35,14 @@ func (o JsonObject) Add(key string, value any) {
 }
 
 type Request struct {
-	c        *gin.Context
-	cookie   *Cookie
-	jsonBody *JsonObject
-	//digestAuth *DigestAuth
+	c             *gin.Context
+	cookie        *Cookie
+	jsonBody      *JsonObject
+	handlerMeta   *HandlerMeta
 	handlerConfig *HandlerConfig
 	response      Response
 }
 
-// Next should be used only inside middleware.
-// It executes the pending handlers in the chain inside the calling handler.
-// See example in GitHub.
 func (r *Request) Next() {
 	r.c.Next()
 }
@@ -105,15 +102,6 @@ func (r *Request) IsPost() bool {
 	return r.c.Request.Method == "POST"
 }
 
-// Query  returns the keyed url query value if it exists,
-// otherwise it returns an empty string `("")`.
-// It is shortcut for `c.Request.URL.Query().Get(key)`
-//
-//	    GET /path?id=1234&name=Manu&value=
-//		   c.Query("id") == "1234"
-//		   c.Query("name") == "Manu"
-//		   c.Query("value") == ""
-//		   c.Query("wtf") == ""
 func (r *Request) Query(key string) string {
 	return r.c.Query(key)
 }
@@ -230,22 +218,6 @@ func (r *Request) ContentType() string {
 	return r.GinContext().ContentType()
 }
 
-//	func (r *Request) JSON(code int, value any) {
-//		r.c.JSON(code, value)
-//	}
-//func (r *Request) Message(t *Message) {
-//	if t.Code == http.StatusMovedPermanently {
-//		r.c.Redirect(http.StatusMovedPermanently, t.Data.(string))
-//		r.c.Abort()
-//		return
-//	}
-//	r.c.JSON(t.Code, t)
-//}
-
-//func (r *Request) Abort() {
-//	r.c.Abort()
-//}
-
 func (r *Request) IsMultipartForm() bool {
 	return util.ContainsAnyIgnoreCase(r.ContentType(), "multipart/form-data")
 
@@ -267,17 +239,6 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
-//func (r *Request) Redirect(code int, location string) {
-//	r.c.Redirect(code, location)
-//}
-
-//	func (r *Request) Write(bytes []byte) (int, error) {
-//		return r.c.Writer.Write(bytes)
-//	}
-//
-//	func (r *Request) FileAttachment(path string, name string) {
-//		r.c.FileAttachment(path, name)
-//	}
-func NewRequest(c *gin.Context, handlerConfig *HandlerConfig) *Request {
-	return &Request{c: c, cookie: NewCookie(c), handlerConfig: handlerConfig, response: newResponse(c)}
+func NewRequest(c *gin.Context, handlerMeta *HandlerMeta, handlerConfig *HandlerConfig) *Request {
+	return &Request{c: c, cookie: NewCookie(c), handlerConfig: handlerConfig, response: newResponse(c), handlerMeta: handlerMeta}
 }

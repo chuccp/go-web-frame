@@ -1,10 +1,14 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/chuccp/go-web-frame/web"
+)
 
 func TestRoute(t *testing.T) {
 
-	rt := make(RouteTree)
+	rt := make(web.RouteTree)
 
 	//rt.Set("GET", "/api/user/:id")
 

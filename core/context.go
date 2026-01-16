@@ -179,9 +179,9 @@ func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
 	}
 }
 
-func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-	c.handle(httpMethod, relativePath, handlers...)
-}
+//func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
+//	c.handle(httpMethod, relativePath, handlers...)
+//}
 
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) {
 	c.handle(http.MethodGet, relativePath, handlers...)
@@ -232,6 +232,9 @@ func (c *Context) HandleAuth(httpMethod, relativePath string, handlers ...web.Ha
 	c.authHandle(httpMethod, relativePath, handlers...)
 }
 
+func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return c.handlerConfig.Handle(httpMethod, relativePath, handlers...)
+}
 func (c *Context) HandleRaw(httpMethod, relativePath string, handlers ...web.HandlerRawFunc) {
 	c.handleRaw(httpMethod, relativePath, handlers...)
 }

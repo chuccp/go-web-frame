@@ -30,6 +30,10 @@ func (o JsonObject) GetIntForDefault(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func (o JsonObject) Add(key string, value any) {
+	(o)[key] = value
+}
+
 type Request struct {
 	c        *gin.Context
 	cookie   *Cookie

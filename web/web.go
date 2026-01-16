@@ -12,14 +12,26 @@ import (
 )
 
 type HandlerConfig struct {
-	digestAuth *DigestAuth
-	converter  Converter
+	digestAuth   *DigestAuth
+	converter    Converter
+	handlerInfos []*HandlerInfo
+}
+
+//func (h *HandlerConfig) AddHandler(handlerInfo *HandlerInfo) {
+//	h.handlerInfo = append(h.handlerInfo, handlerInfo)
+//}
+
+func (h *HandlerConfig) Handle(httpMethod, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+	handlerInfo := NewHandlerInfo(httpMethod, relativePath, handlers...)
+	h.handlerInfos = append(h.handlerInfos, handlerInfo)
+	return handlerInfo
 }
 
 func NewHandlerConfig(digestAuth *DigestAuth, converter Converter) *HandlerConfig {
 	return &HandlerConfig{
-		digestAuth: digestAuth,
-		converter:  converter,
+		digestAuth:   digestAuth,
+		converter:    converter,
+		handlerInfos: make([]*HandlerInfo, 0),
 	}
 }
 
@@ -37,7 +49,7 @@ func (c HandlersChain) Last() HandlerFunc {
 }
 
 func Of(handlerFunc ...HandlerFunc) HandlersChain {
-	return HandlersChain(handlerFunc)
+	return handlerFunc
 }
 
 type HandlersRawChain []HandlerRawFunc

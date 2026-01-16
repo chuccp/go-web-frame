@@ -17,6 +17,9 @@ var DefaultConverter Converter = func(value any, err error, ctx_ *Request, respo
 		response.JSON(err0.Code, err0)
 		response.Abort()
 	} else {
+		if ctx_.HandlerMeta().Has(RawKey) {
+			return
+		}
 		if value != nil {
 			switch t := value.(type) {
 			case *Message:

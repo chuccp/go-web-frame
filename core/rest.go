@@ -57,12 +57,14 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	return rg
 }
 func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
-
+	middlewareFunc := make([]MiddlewareFunc, 0)
+	middlewareFunc = append(middlewareFunc, LoginMiddlewareFunc)
 	return &RestGroup{
-		rests:        make([]IRest, 0),
-		port:         serverConfig.Port,
-		serverConfig: serverConfig,
-		digestAuth:   nil,
-		converter:    web.DefaultConverter,
+		rests:          make([]IRest, 0),
+		port:           serverConfig.Port,
+		serverConfig:   serverConfig,
+		digestAuth:     nil,
+		converter:      web.DefaultConverter,
+		middlewareFunc: middlewareFunc,
 	}
 }

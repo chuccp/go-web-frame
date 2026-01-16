@@ -7,7 +7,10 @@ type HandlerMeta struct {
 func (hm *HandlerMeta) Add(key string, value any) {
 	hm.data.Add(key, value)
 }
-
+func (hm *HandlerMeta) Has(key string) bool {
+	_, ok := hm.data[key]
+	return ok
+}
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
 		data: make(JsonObject),

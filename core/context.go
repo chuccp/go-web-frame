@@ -162,21 +162,6 @@ func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	}
 	return nil
 }
-
-//func (c *Context) Use(middlewareFunc ...MiddlewareFunc) {
-//	for _, middlewareFunc := range middlewareFunc {
-//		c.httpServer.Use(func(ctx *gin.Context) {
-//			if c.routeTree.Has(ctx.Request.Method, ctx.FullPath()) {
-//				middlewareFunc(web.NewRequest(ctx, c.handlerConfig), c)
-//			}
-//		})
-//	}
-//}
-
-//func (c *Context) Handle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-//	c.handle(httpMethod, relativePath, handlers...)
-//}
-
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handle(http.MethodGet, relativePath, handlers...)
 }
@@ -195,23 +180,10 @@ func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.Han
 	return c.handles(anyMethods, relativePath, handlers...)
 }
 
-//func (c *Context) ginHandler(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
-//	//c.routeTree.Set(httpMethod, relativePath)
-//	//c.httpServer.Handle(httpMethod, relativePath, handlers...)
-//}
-
-//	func (c *Context) authHandle(httpMethod, relativePath string, handlers ...web.HandlerFunc) {
-//		log.Debug("authHandle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-//		c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, web.AuthChecks(handlers...)...)...)
-//	}
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	//log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	//c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
 	return c.handles([]string{httpMethod}, relativePath, handlers...)
 }
 func (c *Context) handles(httpMethod []string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	//log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", web.Of(handlers...).GetFuncName()))
-	//c.ginHandler(httpMethod, relativePath, web.ToGinHandlerFunc(c.handlerConfig, handlers...)...)
 	return c.handlerConfig.Handle(httpMethod, relativePath, handlers...)
 }
 

@@ -77,6 +77,11 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	}
 	return nil, 0, errors.WithStackIf(err)
 }
+func (q *Query[T]) Count() (int, error) {
+	var num int64
+	err := q.tx.Count(&num)
+	return int(num), errors.WithStackIf(err)
+}
 
 type where struct {
 	query interface{}

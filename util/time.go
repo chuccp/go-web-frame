@@ -43,10 +43,13 @@ func NowDateFormatTime(timestampFormat string) string {
 	return time.Now().Format(timestampFormat)
 }
 func GetNowTime() time.Time {
-
 	return time.Now()
-
 }
+
+func DaysBetween(t1 time.Time, t2 time.Time) int {
+	return int(t1.Sub(t2) / (24 * time.Hour))
+}
+
 func IsAfterTime(pre string, now time.Time) (bool, error) {
 	return IsAfter(pre, now, TimestampFormat)
 }

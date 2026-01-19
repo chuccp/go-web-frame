@@ -69,6 +69,14 @@ func WithPem(pem ...string) MetaOption {
 	})
 }
 
+func WithKey(keys ...string) MetaOption {
+	return newFunMetaOption(func(oo *HandlerMeta) {
+		for _, key := range keys {
+			oo.Add(key, true)
+		}
+	})
+}
+
 func WithLogin() MetaOption {
 	return newFunMetaOption(func(oo *HandlerMeta) {
 		oo.Add(LoginKey, true)

@@ -47,10 +47,16 @@ func (server *Server) Init(context *Context) error {
 				return errors.WithStackIf(err)
 			}
 		}
-		for _, middlewareFunc := range restGroup.middlewareFunc {
+		for _, filter := range restGroup.filters {
+			err := filter.Init(restContext)
+			if err != nil {
+				return err
+			}
+		}
+		for _, filter := range restGroup.filters {
 			httpServer.Use(func(ctx *gin.Context) {
 				if handlerConfig.HasHandler(ctx.Request.Method, ctx.FullPath()) {
-					middlewareFunc(web.NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig), restContext)
+					filter.Handle(web.NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig))
 				}
 			})
 		}

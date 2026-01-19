@@ -2,9 +2,15 @@ package core
 
 import "github.com/chuccp/go-web-frame/web"
 
-type MiddlewareFunc func(request *web.Request, ctx *Context)
+type LoginFilter struct {
+	ctx *Context
+}
 
-func LoginMiddlewareFunc(request *web.Request, ctx *Context) {
+func (l *LoginFilter) Init(ctx *Context) error {
+	l.ctx = ctx
+	return nil
+}
+func (l *LoginFilter) Handle(request *web.Request) {
 	if request.HandlerMeta().Has(web.LoginKey) {
 		user, err := request.User()
 		if err == nil && user != nil {

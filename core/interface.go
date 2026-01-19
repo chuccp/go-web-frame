@@ -4,6 +4,7 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/model"
+	"github.com/chuccp/go-web-frame/web"
 )
 
 type IService interface {
@@ -35,10 +36,15 @@ type IRunner interface {
 }
 
 type IModelGroup interface {
+	IService
 	AddModel(model ...IModel)
 	GetModel() []IModel
-	Init(context *Context) error
 	SwitchDB(db *db.DB, context *Context) error
 	Name() string
 	GetTransaction() *model.Transaction
+}
+
+type IFilter interface {
+	IService
+	Handle(request *web.Request)
 }

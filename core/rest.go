@@ -5,13 +5,13 @@ import (
 )
 
 type RestGroup struct {
-	rests          []IRest
-	port           int
-	name           string
-	digestAuth     *web.DigestAuth
-	converter      web.Converter
-	middlewareFunc []MiddlewareFunc
-	serverConfig   *web.ServerConfig
+	rests        []IRest
+	port         int
+	name         string
+	digestAuth   *web.DigestAuth
+	converter    web.Converter
+	filters      []IFilter
+	serverConfig *web.ServerConfig
 }
 
 func (rg *RestGroup) DigestAuth() *web.DigestAuth {
@@ -25,8 +25,8 @@ func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	return rg
 }
 
-func (rg *RestGroup) AddMiddlewares(middlewareFunc ...MiddlewareFunc) *RestGroup {
-	rg.middlewareFunc = append(rg.middlewareFunc, middlewareFunc...)
+func (rg *RestGroup) AddFilter(filter ...IFilter) *RestGroup {
+	rg.filters = append(rg.filters, filter...)
 	return rg
 }
 func (rg *RestGroup) Converter(converter web.Converter) *RestGroup {
@@ -47,7 +47,7 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 			rg.serverConfig = restGroup.serverConfig
 		}
 	}
-	rg.middlewareFunc = append(rg.middlewareFunc, restGroup.middlewareFunc...)
+	rg.filters = append(rg.filters, restGroup.filters...)
 	return rg
 }
 func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGroup {
@@ -57,14 +57,14 @@ func (rg *RestGroup) Authentication(authentication web.Authentication) *RestGrou
 	return rg
 }
 func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
-	middlewareFunc := make([]MiddlewareFunc, 0)
-	middlewareFunc = append(middlewareFunc, LoginMiddlewareFunc)
+	filters := make([]IFilter, 0)
+	filters = append(filters, &LoginFilter{})
 	return &RestGroup{
-		rests:          make([]IRest, 0),
-		port:           serverConfig.Port,
-		serverConfig:   serverConfig,
-		digestAuth:     nil,
-		converter:      web.DefaultConverter,
-		middlewareFunc: middlewareFunc,
+		rests:        make([]IRest, 0),
+		port:         serverConfig.Port,
+		serverConfig: serverConfig,
+		digestAuth:   nil,
+		converter:    web.DefaultConverter,
+		filters:      filters,
 	}
 }

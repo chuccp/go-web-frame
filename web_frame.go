@@ -46,7 +46,7 @@ type WebFrame struct {
 	services          []core.IService
 	rests             []core.IRest
 	runners           []core.IRunner
-	middlewareFunc    []core.MiddlewareFunc
+	filters           []core.IFilter
 	authentication    web.Authentication
 	db                *gorm.DB
 	schedule          *core.Schedule
@@ -97,8 +97,8 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
-func (w *WebFrame) AddMiddleware(middlewareFunc ...core.MiddlewareFunc) {
-	w.middlewareFunc = append(w.middlewareFunc, middlewareFunc...)
+func (w *WebFrame) AddFilter(filters ...core.IFilter) {
+	w.filters = append(w.filters, filters...)
 }
 
 func (w *WebFrame) Close() error {
@@ -199,7 +199,7 @@ func (w *WebFrame) init() error {
 		rootGroup := core.NewRestGroup(serverConfig)
 		rootGroup.AddRest(w.rests...)
 		rootGroup.Authentication(w.authentication)
-		rootGroup.AddMiddlewares(w.middlewareFunc...)
+		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	w.server = core.NewServer(w.restGroups, w.runners)

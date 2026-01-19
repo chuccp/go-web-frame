@@ -50,7 +50,7 @@ func (server *Server) Init(context *Context) error {
 		for _, filter := range restGroup.filters {
 			err := filter.Init(restContext)
 			if err != nil {
-				return err
+				return errors.WithStackIf(err)
 			}
 		}
 		for _, filter := range restGroup.filters {

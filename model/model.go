@@ -4,6 +4,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
@@ -11,6 +12,7 @@ type Model[T any] struct {
 	db        *db.DB
 	tableName string
 	entry     T
+	validate  *validator.Validate
 }
 
 func (a *Model[T]) IsExist() bool {
@@ -32,6 +34,10 @@ func (a *Model[T]) GetTableName() string {
 	return a.tableName
 }
 func (a *Model[T]) Save(entry T) error {
+	err := a.validate.Struct(entry)
+	if err != nil {
+		return err
+	}
 	return a.db.Table(a.tableName).Save(entry)
 }
 
@@ -55,5 +61,5 @@ func (a *Model[T]) Delete() *Delete[T] {
 
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 	var entryPtr T
-	return &Model[T]{db: db, tableName: tableName, entry: util.NewPtr(entryPtr)}
+	return &Model[T]{db: db, tableName: tableName, entry: util.NewPtr(entryPtr), validate: validator.New()}
 }

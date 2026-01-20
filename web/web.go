@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type HandlerConfig struct {
@@ -16,13 +18,16 @@ type HandlerConfig struct {
 	converter    Converter
 	handlerInfos []*HandlerInfo
 	routeTree    RouteTree
+	httpServer   *HttpServer
 }
 
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(httpMethods, relativePath, handlers...)
+	handlerInfo := NewHandlerInfo(relativePath)
 	h.handlerInfos = append(h.handlerInfos, handlerInfo)
 	for _, httpMethod := range httpMethods {
-		h.routeTree.Set(httpMethod, relativePath, handlerInfo.HandlerMeta)
+		h.routeTree.Set(httpMethod, handlerInfo)
+		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
+		h.httpServer.Handle(httpMethod, relativePath, ToGinHandlerFunc(h, handlers...)...)
 	}
 	return handlerInfo
 }
@@ -36,12 +41,13 @@ func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *Handler
 func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
 	return h.handlerInfos
 }
-func NewHandlerConfig(converter Converter) *HandlerConfig {
+
+func NewHandlerConfig(httpServer *HttpServer, converter Converter) *HandlerConfig {
 	return &HandlerConfig{
-		//digestAuth:   digestAuth,
 		converter:    converter,
 		handlerInfos: make([]*HandlerInfo, 0),
 		routeTree:    make(RouteTree),
+		httpServer:   httpServer,
 	}
 }
 

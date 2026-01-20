@@ -27,24 +27,6 @@ func NewHandlerMeta() *HandlerMeta {
 type MetaOption interface {
 	apply(o *HandlerMeta)
 }
-type HandlerInfo struct {
-	HttpMethod   []string
-	RelativePath string
-	HandlerMeta  *HandlerMeta
-	Handlers     []HandlerFunc
-	routeTree    RouteTree
-}
-
-func NewHandlerInfo(httpMethod []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	return &HandlerInfo{
-		HttpMethod:   httpMethod,
-		RelativePath: relativePath,
-		HandlerMeta:  NewHandlerMeta(),
-		Handlers:     handlers,
-		routeTree:    make(RouteTree),
-	}
-}
-
 type funcOption struct {
 	f func(oo *HandlerMeta)
 }
@@ -72,7 +54,7 @@ func WithValue(key string, value any) MetaOption {
 
 func (h *HandlerInfo) WithMeta(mo ...MetaOption) *HandlerInfo {
 	for _, o := range mo {
-		o.apply(h.HandlerMeta)
+		o.apply(h.handlerMeta)
 	}
 	return h
 }

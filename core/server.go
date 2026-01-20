@@ -4,11 +4,9 @@ import (
 	"sync"
 
 	"emperror.dev/errors"
-	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
-	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -39,14 +37,9 @@ func (server *Server) Init(context *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		handlerConfig := web.NewHandlerConfig(restGroup.converter)
+		handlerConfig := web.NewHandlerConfig(httpServer, restGroup.converter)
 		restContext := context.Copy(handlerConfig, restGroup.filters)
-		for _, rest := range restGroup.rests {
-			err := rest.Init(restContext)
-			if err != nil {
-				return errors.WithStackIf(err)
-			}
-		}
+
 		for _, filter := range restGroup.filters {
 			err := filter.Init(restContext)
 			if err != nil {
@@ -60,11 +53,11 @@ func (server *Server) Init(context *Context) error {
 				}
 			})
 		}
-		handlerInfos := handlerConfig.HandlerInfos()
-		for _, handlerInfo := range handlerInfos {
-			for _, httpMethod := range handlerInfo.HttpMethod {
-				log.Debug("handle", zap.String("method", httpMethod), zap.String("path", handlerInfo.RelativePath), zap.Any("handlers", web.Of(handlerInfo.Handlers...).GetFuncName()))
-				httpServer.Handle(httpMethod, handlerInfo.RelativePath, web.ToGinHandlerFunc(handlerConfig, handlerInfo.Handlers...)...)
+
+		for _, rest := range restGroup.rests {
+			err := rest.Init(restContext)
+			if err != nil {
+				return errors.WithStackIf(err)
 			}
 		}
 	}

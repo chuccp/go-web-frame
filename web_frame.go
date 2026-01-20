@@ -49,7 +49,6 @@ type WebFrame struct {
 	rests             []core.IRest
 	runners           []core.IRunner
 	filters           []core.IFilter
-	authentication    web.Authentication
 	db                *gorm.DB
 	schedule          *core.Schedule
 	server            *core.Server
@@ -219,8 +218,4 @@ func (w *WebFrame) init() error {
 
 func (w *WebFrame) Daemon(svcConfig *service.Config) {
 	RunDaemon(w, svcConfig)
-}
-
-func (w *WebFrame) Authentication(authentication web.Authentication) {
-	w.authentication = authentication
 }

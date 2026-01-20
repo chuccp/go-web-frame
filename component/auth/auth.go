@@ -28,7 +28,7 @@ func (e *NoLoginError) Error() string {
 	return "no login"
 }
 func WithLogin() web.MetaOption {
-	return web.WithKey(web.LoginKey)
+	return web.WithKey(LoginKey)
 }
 
 type AuthenticationFilter struct {

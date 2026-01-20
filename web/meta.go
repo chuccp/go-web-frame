@@ -57,18 +57,6 @@ func newFunMetaOption(f func(o *HandlerMeta)) *funcOption {
 	return &funcOption{f: f}
 }
 
-const (
-	PemKey   = "pem"
-	LoginKey = "login"
-	RawKey   = "raw"
-)
-
-func WithPem(pem ...string) MetaOption {
-	return newFunMetaOption(func(oo *HandlerMeta) {
-		oo.Add(PemKey, pem)
-	})
-}
-
 func WithKey(keys ...string) MetaOption {
 	return newFunMetaOption(func(oo *HandlerMeta) {
 		for _, key := range keys {
@@ -76,12 +64,12 @@ func WithKey(keys ...string) MetaOption {
 		}
 	})
 }
-
-func WithRaw() MetaOption {
+func WithValue(key string, value any) MetaOption {
 	return newFunMetaOption(func(oo *HandlerMeta) {
-		oo.Add(RawKey, true)
+		oo.Add(key, value)
 	})
 }
+
 func (h *HandlerInfo) WithMeta(mo ...MetaOption) *HandlerInfo {
 	for _, o := range mo {
 		o.apply(h.HandlerMeta)

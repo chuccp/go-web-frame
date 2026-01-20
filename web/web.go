@@ -12,15 +12,11 @@ import (
 )
 
 type HandlerConfig struct {
-	digestAuth   *DigestAuth
+	//digestAuth   *DigestAuth
 	converter    Converter
 	handlerInfos []*HandlerInfo
 	routeTree    RouteTree
 }
-
-//func (h *HandlerConfig) AddHandler(handlerInfo *HandlerInfo) {
-//	h.handlerInfo = append(h.handlerInfo, handlerInfo)
-//}
 
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	handlerInfo := NewHandlerInfo(httpMethods, relativePath, handlers...)
@@ -40,9 +36,9 @@ func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *Handler
 func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
 	return h.handlerInfos
 }
-func NewHandlerConfig(digestAuth *DigestAuth, converter Converter) *HandlerConfig {
+func NewHandlerConfig(converter Converter) *HandlerConfig {
 	return &HandlerConfig{
-		digestAuth:   digestAuth,
+		//digestAuth:   digestAuth,
 		converter:    converter,
 		handlerInfos: make([]*HandlerInfo, 0),
 		routeTree:    make(RouteTree),
@@ -100,39 +96,6 @@ func ToGinHandlerRawFunc(handlerConfig *HandlerConfig, handlers ...HandlerRawFun
 	}
 	return handlerFunc
 }
-
-func AuthChecks(handlers ...HandlerFunc) []HandlerFunc {
-	var hs = make([]HandlerFunc, len(handlers))
-	for i, handler := range handlers {
-		hs[i] = func(req *Request) (any, error) {
-			check, err := req.GetDigestAuth().User(req)
-			if err != nil || check == nil {
-				return Unauthorized("", err), nil
-			}
-			return handler(req)
-		}
-	}
-	return hs
-}
-
-func AuthRawChecks(handlers ...HandlerRawFunc) []HandlerRawFunc {
-	var hs = make([]HandlerRawFunc, len(handlers))
-	for i, handler := range handlers {
-		hs[i] = func(req *Request, response Response) error {
-			check, err := req.GetDigestAuth().User(req)
-			if err != nil || check == nil {
-				err0 := Unauthorized("", err)
-				req.c.JSON(err0.Code, err0)
-				req.c.Abort()
-				return nil
-			}
-
-			return handler(req, response)
-		}
-	}
-	return hs
-}
-
 func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
 		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)

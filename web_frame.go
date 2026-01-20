@@ -32,7 +32,9 @@ func GetComponent[T core.IComponent](c *core.Context) T {
 func GetRunner[T core.IRunner](c *core.Context) T {
 	return core.GetRunner[T](c)
 }
-
+func GetFilter[T core.IFilter](c *core.Context) T {
+	return core.GetFilter[T](c)
+}
 func UnmarshalKeyConfig[T any](key string, c *core.Context) T {
 	return core.UnmarshalKeyConfig[T](key, c)
 }
@@ -198,7 +200,7 @@ func (w *WebFrame) init() error {
 		}
 		rootGroup := core.NewRestGroup(serverConfig)
 		rootGroup.AddRest(w.rests...)
-		rootGroup.Authentication(w.authentication)
+		//rootGroup.Authentication(w.authentication)
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}

@@ -39,8 +39,8 @@ func (server *Server) Init(context *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		handlerConfig := web.NewHandlerConfig(restGroup.digestAuth, restGroup.converter)
-		restContext := context.Copy(handlerConfig)
+		handlerConfig := web.NewHandlerConfig(restGroup.converter)
+		restContext := context.Copy(handlerConfig, restGroup.filters)
 		for _, rest := range restGroup.rests {
 			err := rest.Init(restContext)
 			if err != nil {

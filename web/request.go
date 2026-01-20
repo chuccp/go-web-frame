@@ -4,7 +4,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 
 	"emperror.dev/errors"
@@ -56,34 +55,9 @@ func (r *Request) FullPath() string {
 func (r *Request) GinContext() *gin.Context {
 	return r.c
 }
-func (r *Request) GetDigestAuth() *DigestAuth {
-	return r.handlerConfig.digestAuth
-}
 
-func (r *Request) SignIn(user any) (any, error) {
-	return r.GetDigestAuth().SignIn(user, r)
-}
-func (r *Request) SignOut() (any, error) {
-	return r.GetDigestAuth().SignOut(r)
-}
-
-func (r *Request) User() (any, error) {
-	return r.GetDigestAuth().User(r)
-}
 func (r *Request) URL() *url.URL {
 	return r.c.Request.URL
-}
-func User[T any](r *Request) (T, error) {
-	u, err := r.User()
-	if err != nil {
-		return u.(T), err
-	}
-	v, ok := u.(T)
-	if !ok {
-		return v, errors.New("Type conversion error. Please check if it is a pointer type." + reflect.TypeOf(u).Name())
-	}
-	return u.(T), err
-
 }
 
 func (r *Request) RemoteAddr() string {

@@ -24,6 +24,7 @@ type Context struct {
 	defaultModelGroup IModelGroup
 	modelGroup        map[string]IModelGroup
 	handlerConfig     *web.HandlerConfig
+	filters           []IFilter
 }
 
 func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IModelGroup) *Context {
@@ -38,11 +39,12 @@ func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IM
 		schedule:          schedule,
 		modelGroup:        make(map[string]IModelGroup),
 		defaultModelGroup: defaultModelGroup,
+		filters:           make([]IFilter, 0),
 	}
 	return context
 }
 
-func (c *Context) Copy(handlerConfig *web.HandlerConfig) *Context {
+func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Context {
 	context := &Context{
 		config:            c.config,
 		modelMap:          c.modelMap,
@@ -54,6 +56,7 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig) *Context {
 		modelGroup:        c.modelGroup,
 		defaultModelGroup: c.defaultModelGroup,
 		handlerConfig:     handlerConfig,
+		filters:           filters,
 	}
 	return context
 }
@@ -162,6 +165,16 @@ func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	}
 	return nil
 }
+func (c *Context) GetFilter(f func(m IFilter) bool) IFilter {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	for _, filter := range c.filters {
+		if f(filter) {
+			return filter
+		}
+	}
+	return nil
+}
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handle(http.MethodGet, relativePath, handlers...)
 }
@@ -210,6 +223,14 @@ func GetService[T IService](c *Context) T {
 
 func GetModel[T IModel](c *Context) T {
 	t, _ := c.GetModel(func(m IModel) bool {
+		_, ok := m.(T)
+		return ok
+	}).(T)
+	return t
+}
+
+func GetFilter[T IFilter](c *Context) T {
+	t, _ := c.GetFilter(func(m IFilter) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)

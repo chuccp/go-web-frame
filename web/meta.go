@@ -77,11 +77,6 @@ func WithKey(keys ...string) MetaOption {
 	})
 }
 
-func WithLogin() MetaOption {
-	return newFunMetaOption(func(oo *HandlerMeta) {
-		oo.Add(LoginKey, true)
-	})
-}
 func WithRaw() MetaOption {
 	return newFunMetaOption(func(oo *HandlerMeta) {
 		oo.Add(RawKey, true)

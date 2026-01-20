@@ -84,7 +84,7 @@ func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error
 }
 
 func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
-	return &EntryModel[T]{&Model[T]{db, a.model.tableName, a.model.entry}}
+	return &EntryModel[T]{NewModel[T](db, a.model.tableName)}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
 	return a.model.Query().Order("`id` desc").Page(page)

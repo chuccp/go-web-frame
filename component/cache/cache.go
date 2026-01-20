@@ -47,7 +47,7 @@ func (c *Cache) ComputeIfAbsent(key string, f func()) bool {
 		defer c.cache.Invalidate(key) // 執行完自動刪除標記，讓下次可以重新進入
 		var catcher panics.Catcher
 		catcher.Try(f)
-		return struct{}{}, true // 佔位值，無實際意義
+		return struct{}{}, true
 	})
 	return fa
 }

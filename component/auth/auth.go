@@ -54,9 +54,7 @@ func (s *AuthenticationFilter) Handle(request *web.Request) {
 		response := request.Response()
 		user, err := s.authentication.User(request)
 		if err != nil || user == nil {
-			err0 := web.Unauthorized("", err)
-			response.JSON(err0.Code, err0)
-			response.Abort()
+			response.AbortWithMessage(web.Unauthorized("", err))
 			return
 		}
 	}

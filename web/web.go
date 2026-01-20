@@ -14,7 +14,6 @@ import (
 )
 
 type HandlerConfig struct {
-	//digestAuth   *DigestAuth
 	converter    Converter
 	handlerInfos []*HandlerInfo
 	routeTree    RouteTree
@@ -79,9 +78,6 @@ func (c HandlersRawChain) Last() HandlerRawFunc {
 		return c[length-1]
 	}
 	return nil
-}
-func OfRaw(handlerRawFunc ...HandlerRawFunc) HandlersRawChain {
-	return HandlersRawChain(handlerRawFunc)
 }
 
 type HandlerFunc func(*Request) (any, error)

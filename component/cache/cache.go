@@ -42,13 +42,14 @@ func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
 	return value, true
 }
 
-func (c *Cache) ComputeIfAbsent(key string, f func()) (any, bool) {
-	return c.cache.ComputeIfAbsent(key, func() (any, bool) {
+func (c *Cache) ComputeIfAbsent(key string, f func()) bool {
+	_, fa := c.cache.ComputeIfAbsent(key, func() (any, bool) {
 		defer c.cache.Invalidate(key) // 執行完自動刪除標記，讓下次可以重新進入
 		var catcher panics.Catcher
 		catcher.Try(f)
 		return struct{}{}, false // 佔位值，無實際意義
 	})
+	return fa
 }
 
 func (c *Cache) Invalidate(key string) (any, bool) {

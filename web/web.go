@@ -89,13 +89,7 @@ func ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []g
 	}
 	return handlerFunc
 }
-func ToGinHandlerRawFunc(handlerConfig *HandlerConfig, handlers ...HandlerRawFunc) []gin.HandlerFunc {
-	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
-	for i, handler := range handlers {
-		handlerFunc[i] = toGinHandlerRawFunc(handlerConfig, handler)
-	}
-	return handlerFunc
-}
+
 func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
 		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)
@@ -104,19 +98,6 @@ func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.Han
 	}
 	return handlerFunc
 }
-func toGinHandlerRawFunc(handlerConfig *HandlerConfig, handler HandlerRawFunc) gin.HandlerFunc {
-	handlerFunc := func(ctx *gin.Context) {
-		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)
-		err := handler(req, newResponse(ctx))
-		if err != nil {
-			err0 := Error(err)
-			ctx.JSON(err0.Code, err0)
-			ctx.Abort()
-		}
-	}
-	return handlerFunc
-}
-
 func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	// 打开上传的临时文件
 	src, err := file.Open()

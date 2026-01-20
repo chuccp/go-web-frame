@@ -388,3 +388,20 @@ func SubStringAndPadSpace(value string, length int) string {
 	padding := strings.Repeat(" ", length-strLen)
 	return value + padding
 }
+
+func SubStringMaxLength(value string, maxLength int) string {
+	value = Trim(value)
+	strLen := len(value)
+	if strLen <= maxLength {
+		return value
+	}
+	return value[:maxLength]
+}
+func SubStringLastMaxLength(value string, maxLength int) string {
+	value = Trim(value)
+	strLen := len(value)
+	if strLen <= maxLength {
+		return value
+	}
+	return value[strLen-maxLength:]
+}

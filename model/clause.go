@@ -91,7 +91,18 @@ type UpdateWheres[T any] struct {
 	wheres []*where
 	tx     *db.Table
 }
+type UpdateSet struct {
+	tx  *db.Table
+	set map[string]any
+}
 
+func (w *UpdateSet) Set(s string, value any) *UpdateSet {
+	w.set[s] = value
+	return w
+}
+func (w *UpdateSet) Exec() error {
+	return w.tx.Updates(w.set)
+}
 func NewUpdateWheres[T any](tx *db.Table) *UpdateWheres[T] {
 	return &UpdateWheres[T]{wheres: make([]*where, 0), tx: tx}
 }
@@ -116,6 +127,11 @@ func (w *UpdateWheres[T]) UpdateColumn(column string, value any) error {
 
 func (w *UpdateWheres[T]) Update(t T) error {
 	return w.buildWhere().Updates(t)
+}
+
+func (w *UpdateWheres[T]) Set(s string, value any) *UpdateSet {
+	set_map := map[string]any{s: value}
+	return &UpdateSet{tx: w.buildWhere(), set: set_map}
 }
 
 type DeleteWheres[T any] struct {

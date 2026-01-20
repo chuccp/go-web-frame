@@ -56,6 +56,10 @@ func (t *Table) Where(query any, args ...any) *Table {
 	return t
 }
 
+//	func (t *Table) Set(column string, value any) *Table {
+//		tx := t.db.Set(column, value)
+//		return &Table{db: tx}
+//	}
 func (t *Table) Offset(i int) *Table {
 	tx := t.db.Offset(i)
 	return &Table{db: tx}

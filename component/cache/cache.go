@@ -7,6 +7,7 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/maypok86/otter/v2"
 	"github.com/maypok86/otter/v2/stats"
+	"github.com/sourcegraph/conc/panics"
 )
 
 type Config struct {
@@ -27,6 +28,27 @@ func (c *Cache) Get(key string) (any, bool) {
 // Set 设置缓存值（无过期时间，除非全局配置了 ExpiryCalculator）
 func (c *Cache) Set(key string, value any) {
 	c.cache.Set(key, value)
+}
+
+// SetNX 设置缓存值（有过期时间）, 如果已存在则返回 false, 否则返回 true
+func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
+	v, ok := c.cache.SetIfAbsent(key, value)
+	if !ok {
+		return v, false
+	}
+	if expire > 0 {
+		c.cache.SetExpiresAfter(key, expire)
+	}
+	return value, true
+}
+
+func (c *Cache) ComputeIfAbsent(key string, f func()) (any, bool) {
+	return c.cache.ComputeIfAbsent(key, func() (any, bool) {
+		defer c.cache.Invalidate(key) // 執行完自動刪除標記，讓下次可以重新進入
+		var catcher panics.Catcher
+		catcher.Try(f)
+		return struct{}{}, false // 佔位值，無實際意義
+	})
 }
 
 func (c *Cache) Invalidate(key string) (any, bool) {

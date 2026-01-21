@@ -40,6 +40,10 @@ func (r *response) Message(t *Message) {
 	}
 	r.ctx.JSON(t.Code, t)
 }
+
+func (r *response) IsAborted() bool {
+	return r.ctx.IsAborted()
+}
 func (r *response) AbortWithMessage(t *Message) {
 	if t.Code == http.StatusMovedPermanently {
 		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))

@@ -34,12 +34,11 @@ func (o JsonObject) Add(key string, value any) {
 }
 
 type Request struct {
-	c             *gin.Context
-	cookie        *Cookie
-	jsonBody      *JsonObject
-	handlerMeta   *HandlerMeta
-	handlerConfig *HandlerConfig
-	response      Response
+	c           *gin.Context
+	cookie      *Cookie
+	jsonBody    *JsonObject
+	handlerMeta *HandlerMeta
+	response    Response
 }
 
 func (r *Request) Next() {
@@ -209,6 +208,9 @@ func (r *Request) MultipartForm() (*multipart.Form, error) {
 	return r.c.MultipartForm()
 
 }
+func (r *Request) IsAborted() bool {
+	return r.c.IsAborted()
+}
 
 func (r *Request) Request() *http.Request {
 	return r.c.Request
@@ -217,6 +219,6 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
-func NewRequest(c *gin.Context, handlerMeta *HandlerMeta, handlerConfig *HandlerConfig) *Request {
-	return &Request{c: c, cookie: NewCookie(c), handlerConfig: handlerConfig, response: newResponse(c), handlerMeta: handlerMeta}
+func NewRequest(c *gin.Context, handlerMeta *HandlerMeta) *Request {
+	return &Request{c: c, cookie: NewCookie(c), response: newResponse(c), handlerMeta: handlerMeta}
 }

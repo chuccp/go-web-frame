@@ -13,11 +13,16 @@ import (
 	"go.uber.org/zap"
 )
 
+type Middleware interface {
+	Handle(request *Request)
+}
+
 type HandlerConfig struct {
 	converter    Converter
 	handlerInfos []*HandlerInfo
 	routeTree    RouteTree
 	httpServer   *HttpServer
+	middleware   []Middleware
 }
 
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
@@ -26,10 +31,34 @@ func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handle
 	for _, httpMethod := range httpMethods {
 		h.routeTree.Set(httpMethod, handlerInfo)
 		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
-		h.httpServer.Handle(httpMethod, relativePath, ToGinHandlerFunc(h, handlers...)...)
+		h.httpServer.Handle(httpMethod, relativePath, h.ToGinHandlerFunc(handlers...)...)
 	}
 	return handlerInfo
 }
+
+func (h *HandlerConfig) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerFunc {
+	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
+	for i, handler := range handlers {
+		handlerFunc[i] = h.toGinHandlerFunc(handler)
+	}
+	return handlerFunc
+}
+
+func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
+	handlerFunc := func(ctx *gin.Context) {
+		req := NewRequest(ctx, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
+		for _, middleware := range h.middleware {
+			middleware.Handle(req)
+			if req.IsAborted() {
+				return
+			}
+		}
+		value, err := handler(req)
+		h.converter(value, err, req, newResponse(ctx))
+	}
+	return handlerFunc
+}
+
 func (h *HandlerConfig) HasHandler(httpMethod string, fullPath string) bool {
 	return h.routeTree.Has(httpMethod, fullPath)
 }
@@ -39,6 +68,10 @@ func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *Handler
 
 func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
 	return h.handlerInfos
+}
+
+func (h *HandlerConfig) Use(handlers ...Middleware) {
+	h.middleware = append(h.middleware, handlers...)
 }
 
 func NewHandlerConfig(httpServer *HttpServer, converter Converter) *HandlerConfig {
@@ -84,22 +117,6 @@ type HandlerFunc func(*Request) (any, error)
 
 type HandlerRawFunc func(*Request, Response) error
 
-func ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
-	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
-	for i, handler := range handlers {
-		handlerFunc[i] = toGinHandlerFunc(handlerConfig, handler)
-	}
-	return handlerFunc
-}
-
-func toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
-	handlerFunc := func(ctx *gin.Context) {
-		req := NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig)
-		value, err := handler(req)
-		handlerConfig.converter(value, err, req, newResponse(ctx))
-	}
-	return handlerFunc
-}
 func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	// 打开上传的临时文件
 	src, err := file.Open()

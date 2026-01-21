@@ -5,7 +5,6 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
 )
 
@@ -47,13 +46,8 @@ func (server *Server) Init(context *Context) error {
 			}
 		}
 		for _, filter := range restGroup.filters {
-			httpServer.Use(func(ctx *gin.Context) {
-				if handlerConfig.HasHandler(ctx.Request.Method, ctx.FullPath()) {
-					filter.Handle(web.NewRequest(ctx, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()), handlerConfig))
-				}
-			})
+			handlerConfig.Use(filter)
 		}
-
 		for _, rest := range restGroup.rests {
 			err := rest.Init(restContext)
 			if err != nil {

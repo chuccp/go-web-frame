@@ -9,9 +9,9 @@ import (
 )
 
 type Authentication interface {
-	SignIn(user any, request *web.Request) (any, error)
-	SignOut(request *web.Request) (any, error)
-	User(request *web.Request) (any, error)
+	SignIn(user any, request *web.HttpContext) (any, error)
+	SignOut(request *web.HttpContext) (any, error)
+	User(request *web.HttpContext) (any, error)
 }
 
 const (
@@ -40,16 +40,16 @@ func (s *AuthenticationFilter) Init(ctx *core.Context) error {
 	s.ctx = ctx
 	return nil
 }
-func (s *AuthenticationFilter) SignIn(user any, request *web.Request) (any, error) {
+func (s *AuthenticationFilter) SignIn(user any, request *web.HttpContext) (any, error) {
 	return s.authentication.SignIn(user, request)
 }
-func (s *AuthenticationFilter) SignOut(request *web.Request) (any, error) {
+func (s *AuthenticationFilter) SignOut(request *web.HttpContext) (any, error) {
 	return s.authentication.SignOut(request)
 }
-func (s *AuthenticationFilter) User(request *web.Request) (any, error) {
+func (s *AuthenticationFilter) User(request *web.HttpContext) (any, error) {
 	return s.authentication.User(request)
 }
-func (s *AuthenticationFilter) Handle(request *web.Request) {
+func (s *AuthenticationFilter) Handle(request *web.HttpContext) {
 	if request.HandlerMeta().Has(LoginKey) {
 		response := request.Response()
 		user, err := s.authentication.User(request)
@@ -61,7 +61,7 @@ func (s *AuthenticationFilter) Handle(request *web.Request) {
 	request.Next()
 }
 
-func User[T any](r *AuthenticationFilter, request *web.Request) (T, error) {
+func User[T any](r *AuthenticationFilter, request *web.HttpContext) (T, error) {
 	u, err := r.User(request)
 	if err != nil {
 		return u.(T), err

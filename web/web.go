@@ -13,16 +13,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type Middleware interface {
-	Handle(request *Request)
-}
-
 type HandlerConfig struct {
-	converter    Converter
-	handlerInfos []*HandlerInfo
-	routeTree    RouteTree
-	httpServer   *HttpServer
-	middleware   []Middleware
+	handlerInfos     []*HandlerInfo
+	routeTree        RouteTree
+	httpServer       *HttpServer
+	handlerFuncArray []HandlerFunc
 }
 
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
@@ -46,15 +41,9 @@ func (h *HandlerConfig) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerF
 
 func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
-		req := NewRequest(ctx, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
-		for _, middleware := range h.middleware {
-			middleware.Handle(req)
-			if req.IsAborted() {
-				return
-			}
-		}
-		value, err := handler(req)
-		h.converter(value, err, req, newResponse(ctx))
+		h.handlerFuncArray = append(h.handlerFuncArray, handler)
+		req := NewHttpContext(ctx, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()), h.handlerFuncArray...)
+		req.Next()
 	}
 	return handlerFunc
 }
@@ -70,8 +59,8 @@ func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
 	return h.handlerInfos
 }
 
-func (h *HandlerConfig) Use(handlers ...Middleware) {
-	h.middleware = append(h.middleware, handlers...)
+func (h *HandlerConfig) Use(handlers ...HandlerFunc) {
+	h.handlerFuncArray = append(h.handlerFuncArray, handlers...)
 }
 
 func NewHandlerConfig(httpServer *HttpServer, converter Converter) *HandlerConfig {
@@ -100,22 +89,9 @@ func Of(handlerFunc ...HandlerFunc) HandlersChain {
 	return handlerFunc
 }
 
-type HandlersRawChain []HandlerRawFunc
+type HandlerFunc func(*HttpContext)
 
-func (c HandlersRawChain) GetFuncName() string {
-	return runtime.FuncForPC(reflect.ValueOf(c.Last()).Pointer()).Name()
-}
-
-func (c HandlersRawChain) Last() HandlerRawFunc {
-	if length := len(c); length > 0 {
-		return c[length-1]
-	}
-	return nil
-}
-
-type HandlerFunc func(*Request) (any, error)
-
-type HandlerRawFunc func(*Request, Response) error
+type HandlerValueFunc func(*HttpContext) (any, error)
 
 func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	// 打开上传的临时文件

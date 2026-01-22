@@ -257,7 +257,6 @@ func (w *WebFrame) init() error {
 		}
 		rootGroup := core.NewRestGroup(serverConfig, &DefaultConverter{})
 		rootGroup.AddRest(w.rests...)
-		//rootGroup.Authentication(w.authentication)
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}

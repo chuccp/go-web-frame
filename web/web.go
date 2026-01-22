@@ -39,7 +39,11 @@ type mockFilterChain struct {
 }
 
 func (c *mockFilterChain) Converter() {
-	c.converter.Request(c, c.request)
+	if c.converter != nil {
+		c.converter.Request(c, c.request)
+	} else {
+		c.Next()
+	}
 }
 
 func (c *mockFilterChain) Next() (any, error) {

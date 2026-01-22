@@ -40,10 +40,6 @@ func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
 		c.cache.SetExpiresAfter(key, expire)
 	}
 	return value, true
-
-}
-func (c *Cache) SetIfAbsent(key string, value any) (any, bool) {
-	return c.cache.SetIfAbsent(key, value)
 }
 
 func (c *Cache) ComputeIfAbsent(key string, f func()) bool {

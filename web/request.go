@@ -1,7 +1,6 @@
 package web
 
 import (
-	"math"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -34,60 +33,37 @@ func (o JsonObject) Add(key string, value any) {
 	(o)[key] = value
 }
 
-type HttpContext struct {
-	gin.ResponseWriter
+type Request struct {
 	c           *gin.Context
 	cookie      *Cookie
 	jsonBody    *JsonObject
 	handlerMeta *HandlerMeta
-	handlers    []HandlerFunc
-	index       int8
+	response    Response
 }
 
-const abortIndex int8 = math.MaxInt8 >> 1
-
-func (r *HttpContext) Next() {
-	r.index++
-	for r.index < int8(len(r.handlers)) {
-		if r.handlers[r.index] != nil {
-			r.handlers[r.index](r)
-		}
-		r.index++
-	}
+func (r *Request) Next() {
+	r.c.Next()
 }
 
-func (r *HttpContext) IsAborted() bool {
-	return r.index >= abortIndex || r.c.IsAborted()
-}
-
-// Abort prevents pending handlers from being called. Note that this will not stop the current handler.
-// Let's say you have an authorization middleware that validates that the current request is authorized.
-// If the authorization fails (ex: the password does not match), call Abort to ensure the remaining handlers
-// for this request are not called.
-func (r *HttpContext) Abort() {
-	r.index = abortIndex
-	r.c.Abort()
-}
-
-func (r *HttpContext) HandlerMeta() *HandlerMeta {
+func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
 }
-func (r *HttpContext) FullPath() string {
+func (r *Request) FullPath() string {
 	return r.c.FullPath()
 }
-func (r *HttpContext) GinContext() *gin.Context {
+func (r *Request) GinContext() *gin.Context {
 	return r.c
 }
 
-func (r *HttpContext) URL() *url.URL {
+func (r *Request) URL() *url.URL {
 	return r.c.Request.URL
 }
 
-func (r *HttpContext) RemoteAddr() string {
+func (r *Request) RemoteAddr() string {
 	return r.c.Request.RemoteAddr
 }
 
-func (r *HttpContext) Domain() string {
+func (r *Request) Domain() string {
 	host := r.c.Request.Host
 	if idx := strings.Index(host, ":"); idx != -1 {
 		host = host[:idx]
@@ -96,30 +72,30 @@ func (r *HttpContext) Domain() string {
 
 }
 
-func (r *HttpContext) IsGet() bool {
+func (r *Request) IsGet() bool {
 	return r.c.Request.Method == "GET"
 }
-func (r *HttpContext) IsPost() bool {
+func (r *Request) IsPost() bool {
 	return r.c.Request.Method == "POST"
 }
 
-func (r *HttpContext) Query(key string) string {
+func (r *Request) Query(key string) string {
 	return r.c.Query(key)
 }
-func (r *HttpContext) Param(key string) string {
+func (r *Request) Param(key string) string {
 	return r.c.Param(key)
 }
-func (r *HttpContext) ParamInt(key string) int {
+func (r *Request) ParamInt(key string) int {
 	return cast.ToInt(r.Param(key))
 }
-func (r *HttpContext) ParamUint(key string) uint {
+func (r *Request) ParamUint(key string) uint {
 	return cast.ToUint(r.Param(key))
 }
-func (r *HttpContext) Cookie() *Cookie {
+func (r *Request) Cookie() *Cookie {
 	return r.cookie
 }
 
-func (r *HttpContext) Json() (*JsonObject, error) {
+func (r *Request) Json() (*JsonObject, error) {
 	if r.IsGet() {
 		return nil, errors.New(GetNotSupportJson)
 	}
@@ -134,7 +110,7 @@ func (r *HttpContext) Json() (*JsonObject, error) {
 	r.jsonBody = &jsonObject
 	return &jsonObject, nil
 }
-func (r *HttpContext) JsonPage() (*Page, error) {
+func (r *Request) JsonPage() (*Page, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return nil, err
@@ -145,13 +121,13 @@ func (r *HttpContext) JsonPage() (*Page, error) {
 		LastId:   jsonObject.GetIntForDefault("lastId", 0),
 	}, nil
 }
-func (r *HttpContext) Page() (*Page, error) {
+func (r *Request) Page() (*Page, error) {
 	if r.IsGet() {
 		return r.FormParamsPage()
 	}
 	return r.JsonPage()
 }
-func (r *HttpContext) GetFormParam(key string) string {
+func (r *Request) GetFormParam(key string) string {
 	if value := r.c.Request.Form.Get(key); len(value) > 0 {
 		return value
 	}
@@ -160,16 +136,16 @@ func (r *HttpContext) GetFormParam(key string) string {
 	}
 	return ""
 }
-func (r *HttpContext) GetIntFormParam(key string) int {
+func (r *Request) GetIntFormParam(key string) int {
 	return cast.ToInt(r.GetFormParam(key))
 }
-func (r *HttpContext) GetIntFormParamOrDefault(key string, defaultValue int) int {
+func (r *Request) GetIntFormParamOrDefault(key string, defaultValue int) int {
 	if value := r.GetIntFormParam(key); value != 0 {
 		return value
 	}
 	return defaultValue
 }
-func (r *HttpContext) FormParamsPage() (*Page, error) {
+func (r *Request) FormParamsPage() (*Page, error) {
 	return &Page{
 		PageNo:   r.GetIntFormParamOrDefault("pageNo", 1),
 		PageSize: r.GetIntFormParamOrDefault("pageSize", 10),
@@ -177,27 +153,27 @@ func (r *HttpContext) FormParamsPage() (*Page, error) {
 	}, nil
 }
 
-func (r *HttpContext) GetJsonStringValue(key string) (string, error) {
+func (r *Request) GetJsonStringValue(key string) (string, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return "", err
 	}
 	return jsonObject.GetString(key), nil
 }
-func (r *HttpContext) GetJsonStringValueOrDefault(key string, defaultValue string) string {
+func (r *Request) GetJsonStringValueOrDefault(key string, defaultValue string) string {
 	if value, _ := r.GetJsonStringValue(key); len(value) > 0 {
 		return value
 	}
 	return defaultValue
 }
-func (r *HttpContext) GetJsonIntValue(key string) (int, error) {
+func (r *Request) GetJsonIntValue(key string) (int, error) {
 	jsonObject, err := r.Json()
 	if err != nil {
 		return 0, err
 	}
 	return jsonObject.GetInt(key), nil
 }
-func (r *HttpContext) GetJsonIntValueOrDefault(key string, defaultValue int) int {
+func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 
 	if value, _ := r.GetJsonIntValue(key); value != 0 {
 		return value
@@ -205,7 +181,7 @@ func (r *HttpContext) GetJsonIntValueOrDefault(key string, defaultValue int) int
 	return defaultValue
 }
 
-func (r *HttpContext) BindJSON(value any) error {
+func (r *Request) BindJSON(value any) error {
 	if r.IsGet() {
 		return errors.New(GetNotSupportJson)
 	}
@@ -215,69 +191,34 @@ func (r *HttpContext) BindJSON(value any) error {
 	}
 	return mapstructure.Decode(json, value)
 }
-func (r *HttpContext) ContentType() string {
+func (r *Request) ContentType() string {
 	return r.GinContext().ContentType()
 }
 
-func (r *HttpContext) IsMultipartForm() bool {
+func (r *Request) IsMultipartForm() bool {
 	return util.ContainsAnyIgnoreCase(r.ContentType(), "multipart/form-data")
 
 }
 
-func (r *HttpContext) GetHeader(s string) string {
+func (r *Request) GetHeader(s string) string {
 	return r.c.GetHeader(s)
 }
 
-func (r *HttpContext) MultipartForm() (*multipart.Form, error) {
+func (r *Request) MultipartForm() (*multipart.Form, error) {
 	return r.c.MultipartForm()
 
 }
+func (r *Request) IsAborted() bool {
+	return r.c.IsAborted()
+}
 
-func (r *HttpContext) Request() *http.Request {
+func (r *Request) Request() *http.Request {
 	return r.c.Request
 }
-
-func (r *HttpContext) WriteStatus(code int) {
-	r.c.Status(code)
-}
-func (r *HttpContext) AbortWithStatusJSON(i int, value any) {
-	r.c.AbortWithStatusJSON(i, value)
+func (r *Request) Response() Response {
+	return r.response
 }
 
-func (r *HttpContext) Message(t *Message) {
-	if t.Code == http.StatusMovedPermanently {
-		r.c.Redirect(http.StatusMovedPermanently, t.Data.(string))
-		r.Abort()
-		return
-	}
-	r.c.JSON(t.Code, t)
-	r.Abort()
-}
-
-func (r *HttpContext) AbortWithMessage(t *Message) {
-	if t.Code == http.StatusMovedPermanently {
-		r.c.Redirect(http.StatusMovedPermanently, t.Data.(string))
-		r.Abort()
-		return
-	}
-	r.c.JSON(t.Code, t)
-	r.Abort()
-}
-
-func (r *HttpContext) SetAttachmentFileName(fileName string) {
-	r.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
-}
-
-func (r *HttpContext) JSON(code int, value any) {
-	r.c.JSON(code, value)
-}
-
-func (r *HttpContext) Redirect(code int, location string) {
-	r.c.Redirect(code, location)
-}
-func (r *HttpContext) FileAttachment(path string, name string) {
-	r.c.FileAttachment(path, name)
-}
-func NewHttpContext(c *gin.Context, handlerMeta *HandlerMeta, handlers ...HandlerFunc) *HttpContext {
-	return &HttpContext{c: c, cookie: NewCookie(c), handlerMeta: handlerMeta, handlers: handlers, index: -1}
+func NewRequest(c *gin.Context, handlerMeta *HandlerMeta) *Request {
+	return &Request{c: c, cookie: NewCookie(c), response: newResponse(c), handlerMeta: handlerMeta}
 }

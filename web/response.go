@@ -10,6 +10,7 @@ type Response interface {
 	gin.ResponseWriter
 	SetAttachmentFileName(fileName string)
 	JSON(code int, value any)
+	Abort()
 	Redirect(code int, location string)
 	FileAttachment(path string, name string)
 	WriteStatus(code int)
@@ -31,7 +32,6 @@ func (r *response) WriteStatus(code int) {
 func (r *response) AbortWithStatusJSON(i int, value any) {
 	r.ctx.AbortWithStatusJSON(i, value)
 }
-
 func (r *response) Message(t *Message) {
 	if t.Code == http.StatusMovedPermanently {
 		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
@@ -61,7 +61,9 @@ func (r *response) SetAttachmentFileName(fileName string) {
 func (r *response) JSON(code int, value any) {
 	r.ctx.JSON(code, value)
 }
-
+func (r *response) Abort() {
+	r.ctx.Abort()
+}
 func (r *response) Redirect(code int, location string) {
 	r.ctx.Redirect(code, location)
 }

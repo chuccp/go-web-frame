@@ -46,5 +46,5 @@ type IModelGroup interface {
 
 type IFilter interface {
 	IService
-	Handle(request *web.Request)
+	web.Filter
 }

@@ -13,8 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
-type Middleware interface {
-	Handle(request *Request)
+type FilterChain interface {
+	Next() (any, error)
+}
+
+type Filter interface {
+	Handle(filterChain FilterChain, request *Request) (any, error)
 }
 
 type HandlerConfig struct {
@@ -22,9 +26,33 @@ type HandlerConfig struct {
 	handlerInfos []*HandlerInfo
 	routeTree    RouteTree
 	httpServer   *HttpServer
-	middleware   []Middleware
+	filters      []Filter
 }
 
+type mockFilterChain struct {
+	index      int
+	request    *Request
+	filters    []Filter
+	lastFilter Filter
+}
+
+func (c *mockFilterChain) Next() (any, error) {
+	if c.index < len(c.filters)-1 {
+		c.index++
+		return c.filters[c.index].Handle(c, c.request)
+	}
+	return c.lastFilter.Handle(c, c.request)
+}
+func newMockFilterChain(request *Request, filters []Filter, lastFilter Filter) *mockFilterChain {
+
+	return &mockFilterChain{
+		filters:    filters,
+		index:      -1,
+		request:    request,
+		lastFilter: lastFilter,
+	}
+
+}
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	handlerInfo := NewHandlerInfo(relativePath)
 	h.handlerInfos = append(h.handlerInfos, handlerInfo)
@@ -44,16 +72,18 @@ func (h *HandlerConfig) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerF
 	return handlerFunc
 }
 
+type lastFilter struct {
+	handler HandlerFunc
+}
+
+func (last *lastFilter) Handle(filterChain FilterChain, request *Request) (any, error) {
+	return last.handler(request)
+}
 func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
 		req := NewRequest(ctx, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
-		for _, middleware := range h.middleware {
-			middleware.Handle(req)
-			if req.IsAborted() {
-				return
-			}
-		}
-		value, err := handler(req)
+		mock := newMockFilterChain(req, h.filters, &lastFilter{handler})
+		value, err := mock.Next()
 		h.converter(value, err, req, newResponse(ctx))
 	}
 	return handlerFunc
@@ -70,8 +100,8 @@ func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
 	return h.handlerInfos
 }
 
-func (h *HandlerConfig) Use(handlers ...Middleware) {
-	h.middleware = append(h.middleware, handlers...)
+func (h *HandlerConfig) Use(handlers ...Filter) {
+	h.filters = append(h.filters, handlers...)
 }
 
 func NewHandlerConfig(httpServer *HttpServer, converter Converter) *HandlerConfig {

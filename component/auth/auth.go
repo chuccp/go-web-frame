@@ -49,16 +49,14 @@ func (s *AuthenticationFilter) SignOut(request *web.Request) (any, error) {
 func (s *AuthenticationFilter) User(request *web.Request) (any, error) {
 	return s.authentication.User(request)
 }
-func (s *AuthenticationFilter) Handle(request *web.Request) {
+func (s *AuthenticationFilter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
 	if request.HandlerMeta().Has(LoginKey) {
-		response := request.Response()
 		user, err := s.authentication.User(request)
 		if err != nil || user == nil {
-			response.AbortWithMessage(web.Unauthorized("", err))
-			return
+			return web.Unauthorized("", err), nil
 		}
 	}
-	request.Next()
+	return filterChain.Next()
 }
 
 func User[T any](r *AuthenticationFilter, request *web.Request) (T, error) {

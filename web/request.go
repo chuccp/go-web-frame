@@ -41,10 +41,6 @@ type Request struct {
 	response    Response
 }
 
-func (r *Request) Next() {
-	r.c.Next()
-}
-
 func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
 }
@@ -206,12 +202,7 @@ func (r *Request) GetHeader(s string) string {
 
 func (r *Request) MultipartForm() (*multipart.Form, error) {
 	return r.c.MultipartForm()
-
 }
-func (r *Request) IsAborted() bool {
-	return r.c.IsAborted()
-}
-
 func (r *Request) Request() *http.Request {
 	return r.c.Request
 }

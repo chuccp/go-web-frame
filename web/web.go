@@ -81,10 +81,11 @@ func (last *lastFilter) Handle(filterChain FilterChain, request *Request) (any, 
 }
 func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
-		req := NewRequest(ctx, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
+		response := newResponse(ctx)
+		req := NewRequest(ctx, response, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
 		mock := newMockFilterChain(req, h.filters, &lastFilter{handler})
 		value, err := mock.Next()
-		h.converter(value, err, req, newResponse(ctx))
+		h.converter(value, err, req, response)
 	}
 	return handlerFunc
 }

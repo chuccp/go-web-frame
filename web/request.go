@@ -210,6 +210,6 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
-func NewRequest(c *gin.Context, handlerMeta *HandlerMeta) *Request {
-	return &Request{c: c, cookie: NewCookie(c), response: newResponse(c), handlerMeta: handlerMeta}
+func NewRequest(c *gin.Context, response Response, handlerMeta *HandlerMeta) *Request {
+	return &Request{c: c, cookie: NewCookie(c), response: response, handlerMeta: handlerMeta}
 }

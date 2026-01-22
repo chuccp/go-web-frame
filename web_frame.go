@@ -1,6 +1,10 @@
 package wf
 
 import (
+	"net/http"
+	"os"
+	"path"
+	"strings"
 	"sync"
 
 	"emperror.dev/errors"
@@ -8,6 +12,7 @@ import (
 	"github.com/chuccp/go-web-frame/core"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
@@ -37,6 +42,59 @@ func GetFilter[T core.IFilter](c *core.Context) T {
 }
 func UnmarshalKeyConfig[T any](key string, c *core.Context) T {
 	return core.UnmarshalKeyConfig[T](key, c)
+}
+
+type DefaultConverter struct {
+	ctx *core.Context
+}
+
+func (receiver *DefaultConverter) Init(ctx *core.Context) error {
+	receiver.ctx = ctx
+	return nil
+}
+
+func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *web.Request) {
+	value, err := filterChain.Next()
+	resp := request.Response()
+	if err != nil {
+		err0 := web.Errors(value, err)
+		resp.JSON(err0.Code, err0)
+		resp.Abort()
+	} else {
+		if value != nil {
+			switch t := value.(type) {
+			case *web.Message:
+				if t.Code == http.StatusMovedPermanently {
+					resp.Redirect(http.StatusMovedPermanently, t.Data.(string))
+					resp.Abort()
+					return
+				}
+				resp.JSON(t.Code, value)
+			case string:
+				_, err2 := resp.Write([]byte(t))
+				if err2 != nil {
+					resp.Abort()
+					return
+				}
+			case *web.File:
+				if len(t.FileName) == 0 {
+					_, filename := path.Split(t.Path)
+					t.FileName = filename
+				}
+				if util.IsNotBlank(t.Suffix) && !strings.HasSuffix(t.FileName, t.Suffix) {
+					if !strings.HasPrefix(t.Suffix, ".") {
+						t.Suffix = "." + t.Suffix
+					}
+					t.FileName = t.FileName + t.Suffix
+				}
+				resp.FileAttachment(t.Path, t.FileName)
+			case *os.File:
+				resp.FileAttachment(t.Name(), t.Name())
+			default:
+				resp.JSON(200, web.Data(value))
+			}
+		}
+	}
 }
 
 type WebFrame struct {
@@ -94,7 +152,7 @@ func (w *WebFrame) AddService(service ...core.IService) {
 	w.services = append(w.services, service...)
 }
 func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
-	groupGroup := core.NewRestGroup(serverConfig)
+	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{})
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
@@ -197,7 +255,7 @@ func (w *WebFrame) init() error {
 		if err != nil {
 			return err
 		}
-		rootGroup := core.NewRestGroup(serverConfig)
+		rootGroup := core.NewRestGroup(serverConfig, &DefaultConverter{})
 		rootGroup.AddRest(w.rests...)
 		//rootGroup.Authentication(w.authentication)
 		rootGroup.AddFilter(w.filters...)

@@ -48,3 +48,7 @@ type IFilter interface {
 	IService
 	web.Filter
 }
+type IConverter interface {
+	IService
+	web.Converter
+}

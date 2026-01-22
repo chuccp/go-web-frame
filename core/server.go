@@ -38,7 +38,10 @@ func (server *Server) Init(context *Context) error {
 		httpServer := server.getHttpServer(serverConfig)
 		handlerConfig := web.NewHandlerConfig(httpServer, restGroup.converter)
 		restContext := context.Copy(handlerConfig, restGroup.filters)
-
+		err := restGroup.converter.Init(restContext)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
 		for _, filter := range restGroup.filters {
 			err := filter.Init(restContext)
 			if err != nil {

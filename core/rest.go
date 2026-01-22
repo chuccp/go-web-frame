@@ -7,7 +7,7 @@ import (
 type RestGroup struct {
 	rests        []IRest
 	port         int
-	converter    web.Converter
+	converter    IConverter
 	filters      []IFilter
 	serverConfig *web.ServerConfig
 }
@@ -24,7 +24,7 @@ func (rg *RestGroup) AddFilter(filter ...IFilter) *RestGroup {
 	rg.filters = append(rg.filters, filter...)
 	return rg
 }
-func (rg *RestGroup) Converter(converter web.Converter) *RestGroup {
+func (rg *RestGroup) Converter(converter IConverter) *RestGroup {
 	rg.converter = converter
 	return rg
 }
@@ -43,12 +43,12 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 
-func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
+func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup {
 	return &RestGroup{
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
-		converter:    &web.DefaultConverter{},
+		converter:    converter,
 		filters:      make([]IFilter, 0),
 	}
 }

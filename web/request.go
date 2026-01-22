@@ -58,6 +58,9 @@ func (r *Request) URL() *url.URL {
 func (r *Request) RemoteAddr() string {
 	return r.c.Request.RemoteAddr
 }
+func (r *Request) RemoteIp() string {
+	return r.c.RemoteIP()
+}
 
 func (r *Request) Domain() string {
 	host := r.c.Request.Host

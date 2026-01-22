@@ -84,3 +84,7 @@ func (c *Cache) Destroy() error {
 	c.cache.CleanUp()
 	return nil
 }
+
+func (c *Cache) SetIfAbsent(key string, value any) (any, bool) {
+	return c.cache.SetIfAbsent(key, value)
+}

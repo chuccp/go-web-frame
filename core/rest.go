@@ -48,7 +48,7 @@ func NewRestGroup(serverConfig *web.ServerConfig) *RestGroup {
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
-		converter:    web.DefaultConverter,
+		converter:    &web.DefaultConverter{},
 		filters:      make([]IFilter, 0),
 	}
 }

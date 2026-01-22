@@ -9,27 +9,34 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 )
 
-type Converter func(value any, err error, ctx *Request, response Response)
+type Converter interface {
+	Request(filterChain FilterChain, request *Request)
+}
 
-var DefaultConverter Converter = func(value any, err error, ctx_ *Request, response Response) {
+type DefaultConverter struct {
+}
+
+func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
+	value, err := filterChain.Next()
+	resp := request.Response()
 	if err != nil {
 		err0 := Errors(value, err)
-		response.JSON(err0.Code, err0)
-		response.Abort()
+		resp.JSON(err0.Code, err0)
+		resp.Abort()
 	} else {
 		if value != nil {
 			switch t := value.(type) {
 			case *Message:
 				if t.Code == http.StatusMovedPermanently {
-					response.Redirect(http.StatusMovedPermanently, t.Data.(string))
-					response.Abort()
+					resp.Redirect(http.StatusMovedPermanently, t.Data.(string))
+					resp.Abort()
 					return
 				}
-				response.JSON(t.Code, value)
+				resp.JSON(t.Code, value)
 			case string:
-				_, err2 := response.Write([]byte(t))
+				_, err2 := resp.Write([]byte(t))
 				if err2 != nil {
-					response.Abort()
+					resp.Abort()
 					return
 				}
 			case *File:
@@ -43,11 +50,11 @@ var DefaultConverter Converter = func(value any, err error, ctx_ *Request, respo
 					}
 					t.FileName = t.FileName + t.Suffix
 				}
-				response.FileAttachment(t.Path, t.FileName)
+				resp.FileAttachment(t.Path, t.FileName)
 			case *os.File:
-				response.FileAttachment(t.Name(), t.Name())
+				resp.FileAttachment(t.Name(), t.Name())
 			default:
-				response.JSON(200, Data(value))
+				resp.JSON(200, Data(value))
 			}
 		}
 	}

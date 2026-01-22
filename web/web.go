@@ -30,10 +30,16 @@ type HandlerConfig struct {
 }
 
 type mockFilterChain struct {
-	index      int
-	request    *Request
-	filters    []Filter
-	lastFilter Filter
+	index       int
+	request     *Request
+	filters     []Filter
+	lastFilter  Filter
+	firstFilter Filter
+	converter   Converter
+}
+
+func (c *mockFilterChain) Converter() {
+	c.converter.Request(c, c.request)
 }
 
 func (c *mockFilterChain) Next() (any, error) {
@@ -43,15 +49,15 @@ func (c *mockFilterChain) Next() (any, error) {
 	}
 	return c.lastFilter.Handle(c, c.request)
 }
-func newMockFilterChain(request *Request, filters []Filter, lastFilter Filter) *mockFilterChain {
+func newMockFilterChain(request *Request, converter Converter, filters []Filter, lastFilter Filter) *mockFilterChain {
 
 	return &mockFilterChain{
 		filters:    filters,
 		index:      -1,
 		request:    request,
 		lastFilter: lastFilter,
+		converter:  converter,
 	}
-
 }
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	handlerInfo := NewHandlerInfo(relativePath)
@@ -82,10 +88,9 @@ func (last *lastFilter) Handle(filterChain FilterChain, request *Request) (any, 
 func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
 		resp := newResponse(ctx)
-		req := NewRequest(ctx, resp, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
-		mock := newMockFilterChain(req, h.filters, &lastFilter{handler})
-		value, err := mock.Next()
-		h.converter(value, err, req, resp)
+		request := NewRequest(ctx, resp, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
+		mock := newMockFilterChain(request, h.converter, h.filters, &lastFilter{handler})
+		mock.Converter()
 	}
 	return handlerFunc
 }

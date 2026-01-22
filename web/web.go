@@ -131,22 +131,7 @@ func Of(handlerFunc ...HandlerFunc) HandlersChain {
 	return handlerFunc
 }
 
-type HandlersRawChain []HandlerRawFunc
-
-func (c HandlersRawChain) GetFuncName() string {
-	return runtime.FuncForPC(reflect.ValueOf(c.Last()).Pointer()).Name()
-}
-
-func (c HandlersRawChain) Last() HandlerRawFunc {
-	if length := len(c); length > 0 {
-		return c[length-1]
-	}
-	return nil
-}
-
 type HandlerFunc func(*Request) (any, error)
-
-type HandlerRawFunc func(*Request, Response) error
 
 func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	// 打开上传的临时文件

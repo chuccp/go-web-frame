@@ -64,7 +64,7 @@ func newMockFilterChain(request *Request, converter Converter, filters []Filter,
 	}
 }
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(relativePath)
+	handlerInfo := NewHandlerInfo(relativePath, handlers)
 	h.handlerInfos = append(h.handlerInfos, handlerInfo)
 	for _, httpMethod := range httpMethods {
 		h.routeTree.Set(httpMethod, handlerInfo)

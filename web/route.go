@@ -3,11 +3,12 @@ package web
 type HandlerInfo struct {
 	path        string
 	handlerMeta *HandlerMeta
+	handlers    []HandlerFunc
 }
 type RouteInfo []*HandlerInfo
 
-func NewHandlerInfo(path string) *HandlerInfo {
-	return &HandlerInfo{handlerMeta: NewHandlerMeta(), path: path}
+func NewHandlerInfo(path string, handlers []HandlerFunc) *HandlerInfo {
+	return &HandlerInfo{handlerMeta: NewHandlerMeta(), path: path, handlers: handlers}
 }
 
 type RouteTree map[string]RouteInfo

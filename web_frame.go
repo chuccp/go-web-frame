@@ -97,6 +97,15 @@ func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *
 	}
 }
 
+type DefaultRest struct {
+	ctx *core.Context
+}
+
+func (receiver *DefaultRest) Init(ctx *core.Context) error {
+	receiver.ctx = ctx
+	return nil
+}
+
 type WebFrame struct {
 	component         []core.IComponent
 	restGroups        []*core.RestGroup
@@ -133,6 +142,25 @@ func New(config config2.IConfig) *WebFrame {
 	}
 	return w
 }
+
+//func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//	return w.handle(http.MethodGet, relativePath, handlers...)
+//}
+//
+//func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//	return w.handle(http.MethodPost, relativePath, handlers...)
+//}
+//func (w *WebFrame) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//	return w.handle(http.MethodDelete, relativePath, handlers...)
+//}
+//func (w *WebFrame) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//	return w.handle(http.MethodPut, relativePath, handlers...)
+//}
+//
+//func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//	return w.handles(anyMethods, relativePath, handlers...)
+//}
+
 func (w *WebFrame) AddRest(rest ...core.IRest) {
 	w.rests = append(w.rests, rest...)
 }

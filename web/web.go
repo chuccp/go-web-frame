@@ -3,6 +3,7 @@ package web
 import (
 	"io"
 	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,12 +39,25 @@ type mockFilterChain struct {
 	converter   Converter
 }
 
-func (c *mockFilterChain) Converter() {
-	if c.converter != nil {
-		c.converter.Request(c, c.request)
-	} else {
-		c.Next()
+type emptyConverter struct {
+}
+
+func (c *emptyConverter) Request(filterChain FilterChain, request *Request) {
+	next, err := filterChain.Next()
+	if err != nil {
+		err := request.Response().AbortWithError(err)
+		if err != nil {
+			log.Error("handle", zap.Error(err))
+		}
+		return
 	}
+	if next != nil {
+		request.Response().JSON(http.StatusOK, next)
+	}
+}
+
+func (c *mockFilterChain) Converter() {
+	c.converter.Request(c, c.request)
 }
 
 func (c *mockFilterChain) Next() (any, error) {
@@ -55,6 +69,9 @@ func (c *mockFilterChain) Next() (any, error) {
 }
 func newMockFilterChain(request *Request, converter Converter, filters []Filter, lastFilter Filter) *mockFilterChain {
 
+	if converter == nil {
+		converter = &emptyConverter{}
+	}
 	return &mockFilterChain{
 		filters:    filters,
 		index:      -1,

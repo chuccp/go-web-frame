@@ -10,7 +10,6 @@ type RestGroup struct {
 	converter    IConverter
 	filters      []IFilter
 	serverConfig *web.ServerConfig
-	host         []string
 }
 
 func (rg *RestGroup) Port() int {
@@ -21,10 +20,6 @@ func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	return rg
 }
 
-func (rg *RestGroup) Host(host ...string) *RestGroup {
-	rg.host = host
-	return rg
-}
 func (rg *RestGroup) AddFilter(filter ...IFilter) *RestGroup {
 	rg.filters = append(rg.filters, filter...)
 	return rg
@@ -54,7 +49,6 @@ func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGro
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
 		converter:    converter,
-		host:         make([]string, 0),
 		filters:      make([]IFilter, 0),
 	}
 }

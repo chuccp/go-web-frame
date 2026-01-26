@@ -17,6 +17,7 @@ type Response interface {
 	Message(t *Message)
 	AbortWithMessage(t *Message)
 	AbortWithStatusJSON(i int, value any)
+	AbortWithError(err error) error
 }
 
 //Status
@@ -28,6 +29,10 @@ type response struct {
 
 func (r *response) WriteStatus(code int) {
 	r.ctx.Status(code)
+}
+func (r *response) AbortWithError(err error) error {
+	er := r.ctx.AbortWithError(http.StatusInternalServerError, err)
+	return er
 }
 func (r *response) AbortWithStatusJSON(i int, value any) {
 	r.ctx.AbortWithStatusJSON(i, value)

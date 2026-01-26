@@ -92,8 +92,8 @@ func (httpServer *HttpServer) Port() int {
 	return httpServer.serverConfig.Port
 }
 
-func (httpServer *HttpServer) RouteTree(routeTree RouteTree) {
-	for httpMethod, routeInfo := range routeTree {
+func (httpServer *HttpServer) HandleConfig(handlerConfig *HandlerConfig) {
+	for httpMethod, routeInfo := range handlerConfig.RouteTree() {
 		for _, handlerInfo := range routeInfo {
 			httpServer.Handle(httpMethod, handlerInfo.RelativePath(), handlerInfo.HandlerFunc()...)
 		}

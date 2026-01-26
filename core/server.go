@@ -57,7 +57,7 @@ func (server *Server) Init(context *Context) error {
 				return errors.WithStackIf(err)
 			}
 		}
-		httpServer.RouteTree(handlerConfig.RouteTree())
+		httpServer.HandleConfig(handlerConfig)
 	}
 	return nil
 }

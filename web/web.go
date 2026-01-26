@@ -49,7 +49,7 @@ func (c *emptyConverter) Request(filterChain FilterChain, request *Request) {
 	if err != nil {
 		err := request.Response().AbortWithError(err)
 		if err != nil {
-			log.Error("handle", zap.Error(err))
+			log.Error("emptyConverter AbortWithError", zap.Error(err))
 		}
 		return
 	}

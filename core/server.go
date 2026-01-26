@@ -57,7 +57,7 @@ func (server *Server) Init(context *Context) error {
 				return errors.WithStackIf(err)
 			}
 		}
-		httpServer.HandleConfig(handlerConfig)
+		httpServer.Handle(handlerConfig)
 	}
 	return nil
 }

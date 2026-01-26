@@ -95,31 +95,9 @@ func (httpServer *HttpServer) Port() int {
 func (httpServer *HttpServer) HandleConfig(handlerConfig *HandlerConfig) {
 	for httpMethod, routeInfo := range handlerConfig.RouteTree() {
 		for _, handlerInfo := range routeInfo {
-			httpServer.Handle(httpMethod, handlerInfo.RelativePath(), handlerInfo.HandlerFunc()...)
+			httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), handlerInfo.HandlerFunc()...)
 		}
 	}
-}
-
-func (httpServer *HttpServer) GET(relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.GET(relativePath, handlers...)
-}
-func (httpServer *HttpServer) Handle(httpMethod string, relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.Handle(httpMethod, relativePath, handlers...)
-}
-func (httpServer *HttpServer) POST(relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.POST(relativePath, handlers...)
-}
-func (httpServer *HttpServer) DELETE(relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.DELETE(relativePath, handlers...)
-}
-func (httpServer *HttpServer) PUT(relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.PUT(relativePath, handlers...)
-}
-func (httpServer *HttpServer) Any(relativePath string, handlers ...gin.HandlerFunc) {
-	httpServer.engine.Any(relativePath, handlers...)
-}
-func (httpServer *HttpServer) Use(handlers ...gin.HandlerFunc) {
-	httpServer.engine.Use(handlers...)
 }
 func (httpServer *HttpServer) Run() error {
 	serverConfig := httpServer.serverConfig

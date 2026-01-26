@@ -54,7 +54,7 @@ func (c *emptyConverter) Request(filterChain FilterChain, request *Request) {
 		return
 	}
 	if next != nil {
-		request.Response().JSON(http.StatusOK, next)
+		request.Response().AbortWithStatusJSON(http.StatusOK, next)
 	}
 }
 

@@ -1,13 +1,23 @@
 package web
 
+import "github.com/gin-gonic/gin"
+
 type HandlerInfo struct {
 	path        string
 	handlerMeta *HandlerMeta
-	handlers    []HandlerFunc
+	handlers    []gin.HandlerFunc
 }
+
+func (hi *HandlerInfo) RelativePath() string {
+	return hi.path
+}
+func (hi *HandlerInfo) HandlerFunc() []gin.HandlerFunc {
+	return hi.handlers
+}
+
 type RouteInfo []*HandlerInfo
 
-func NewHandlerInfo(path string, handlers []HandlerFunc) *HandlerInfo {
+func NewHandlerInfo(path string, handlers ...gin.HandlerFunc) *HandlerInfo {
 	return &HandlerInfo{handlerMeta: NewHandlerMeta(), path: path, handlers: handlers}
 }
 

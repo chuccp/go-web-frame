@@ -124,6 +124,9 @@ type WebFrame struct {
 	isClose           bool
 }
 
+func NewWithAutoConfig() *WebFrame {
+	return New(LoadAutoConfig())
+}
 func New(config config2.IConfig) *WebFrame {
 	//ctx2, cancel := context.WithCancel(context.Background())
 	w := &WebFrame{
@@ -288,6 +291,7 @@ func (w *WebFrame) init() error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
+
 	w.server = core.NewServer(w.restGroups, w.runners)
 	err = w.server.Init(coreContext)
 	if err != nil {

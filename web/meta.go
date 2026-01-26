@@ -52,9 +52,9 @@ func WithValue(key string, value any) MetaOption {
 	})
 }
 
-func (h *HandlerInfo) WithMeta(mo ...MetaOption) *HandlerInfo {
+func (hi *HandlerInfo) WithMeta(mo ...MetaOption) *HandlerInfo {
 	for _, o := range mo {
-		o.apply(h.handlerMeta)
+		o.apply(hi.handlerMeta)
 	}
-	return h
+	return hi
 }

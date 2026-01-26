@@ -91,6 +91,15 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 func (httpServer *HttpServer) Port() int {
 	return httpServer.serverConfig.Port
 }
+
+func (httpServer *HttpServer) RouteTree(routeTree RouteTree) {
+	for httpMethod, routeInfo := range routeTree {
+		for _, handlerInfo := range routeInfo {
+			httpServer.Handle(httpMethod, handlerInfo.RelativePath(), handlerInfo.HandlerFunc()...)
+		}
+	}
+}
+
 func (httpServer *HttpServer) GET(relativePath string, handlers ...gin.HandlerFunc) {
 	httpServer.engine.GET(relativePath, handlers...)
 }

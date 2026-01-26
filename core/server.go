@@ -36,7 +36,7 @@ func (server *Server) Init(context *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		handlerConfig := web.NewHandlerConfig(httpServer, restGroup.converter)
+		handlerConfig := web.NewHandlerConfig(restGroup.converter)
 		restContext := context.Copy(handlerConfig, restGroup.filters)
 		err := restGroup.converter.Init(restContext)
 		if err != nil {
@@ -57,6 +57,7 @@ func (server *Server) Init(context *Context) error {
 				return errors.WithStackIf(err)
 			}
 		}
+		httpServer.RouteTree(handlerConfig.RouteTree())
 	}
 	return nil
 }

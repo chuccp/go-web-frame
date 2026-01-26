@@ -23,11 +23,11 @@ type Filter interface {
 }
 
 type HandlerConfig struct {
-	converter    Converter
-	handlerInfos []*HandlerInfo
-	routeTree    RouteTree
-	httpServer   *HttpServer
-	filters      []Filter
+	converter Converter
+	//handlerInfos []*HandlerInfo
+	routeTree RouteTree
+	//httpServer   *HttpServer
+	filters []Filter
 }
 
 type mockFilterChain struct {
@@ -84,12 +84,10 @@ func newMockFilterChain(request *Request, converter Converter, filters []Filter,
 	}
 }
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(relativePath, handlers)
-	h.handlerInfos = append(h.handlerInfos, handlerInfo)
+	handlerInfo := NewHandlerInfo(relativePath, h.ToGinHandlerFunc(handlers...)...)
 	for _, httpMethod := range httpMethods {
 		h.routeTree.Set(httpMethod, handlerInfo)
 		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
-		h.httpServer.Handle(httpMethod, relativePath, h.ToGinHandlerFunc(handlers...)...)
 	}
 	return handlerInfo
 }
@@ -126,20 +124,19 @@ func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *Handler
 	return h.routeTree.GetHandlerMeta(httpMethod, fullPath)
 }
 
-func (h *HandlerConfig) HandlerInfos() []*HandlerInfo {
-	return h.handlerInfos
+func (h *HandlerConfig) RouteTree() RouteTree {
+	return h.routeTree
 }
 
 func (h *HandlerConfig) Use(handlers ...Filter) {
 	h.filters = append(h.filters, handlers...)
 }
 
-func NewHandlerConfig(httpServer *HttpServer, converter Converter) *HandlerConfig {
+func NewHandlerConfig(converter Converter) *HandlerConfig {
 	return &HandlerConfig{
-		converter:    converter,
-		handlerInfos: make([]*HandlerInfo, 0),
-		routeTree:    make(RouteTree),
-		httpServer:   httpServer,
+		converter: converter,
+		//handlerInfos: make([]*HandlerInfo, 0),
+		routeTree: make(RouteTree),
 	}
 }
 

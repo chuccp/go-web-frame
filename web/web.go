@@ -42,6 +42,8 @@ type mockFilterChain struct {
 type emptyConverter struct {
 }
 
+var empty = &emptyConverter{}
+
 func (c *emptyConverter) Request(filterChain FilterChain, request *Request) {
 	next, err := filterChain.Next()
 	if err != nil {
@@ -57,7 +59,12 @@ func (c *emptyConverter) Request(filterChain FilterChain, request *Request) {
 }
 
 func (c *mockFilterChain) Converter() {
-	c.converter.Request(c, c.request)
+	if c.converter != nil {
+		c.converter.Request(c, c.request)
+	} else {
+		empty.Request(c, c.request)
+	}
+
 }
 
 func (c *mockFilterChain) Next() (any, error) {
@@ -68,10 +75,6 @@ func (c *mockFilterChain) Next() (any, error) {
 	return c.lastFilter.Handle(c, c.request)
 }
 func newMockFilterChain(request *Request, converter Converter, filters []Filter, lastFilter Filter) *mockFilterChain {
-
-	if converter == nil {
-		converter = &emptyConverter{}
-	}
 	return &mockFilterChain{
 		filters:    filters,
 		index:      -1,

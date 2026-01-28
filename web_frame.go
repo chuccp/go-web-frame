@@ -119,6 +119,7 @@ type WebFrame struct {
 	schedule          *core.Schedule
 	defaultModelGroup core.IModelGroup
 	context           context.Context
+	handles           *web.Handles
 }
 
 func NewWithAutoConfig() *WebFrame {
@@ -140,27 +141,30 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 		schedule:          core.NewSchedule(),
 		defaultModelGroup: core.DefaultModelGroup(),
 		context:           ctx,
+		handles:           web.NewHandles(),
 	}
 	return w
 }
 
-//func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//
-//}
-//
-//func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//	return w.handle(http.MethodPost, relativePath, handlers...)
-//}
-//func (w *WebFrame) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//	return w.handle(http.MethodDelete, relativePath, handlers...)
-//}
-//func (w *WebFrame) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//	return w.handle(http.MethodPut, relativePath, handlers...)
-//}
-//
-//func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//	return w.handles(anyMethods, relativePath, handlers...)
-//}
+func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return w.handles.Handle(http.MethodGet, relativePath, handlers...)
+}
+
+func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return w.handles.Handle(http.MethodPost, relativePath, handlers...)
+}
+func (w *WebFrame) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return w.handles.Handle(http.MethodDelete, relativePath, handlers...)
+
+}
+func (w *WebFrame) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return w.handles.Handle(http.MethodPut, relativePath, handlers...)
+}
+
+func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+	return w.handles.Handle(http.MethodGet, relativePath, handlers...)
+
+}
 
 func (w *WebFrame) AddRest(rest ...core.IRest) {
 	w.rests = append(w.rests, rest...)
@@ -180,8 +184,8 @@ func (w *WebFrame) addService(service core.IService) {
 func (w *WebFrame) AddService(service ...core.IService) {
 	w.services = append(w.services, service...)
 }
-func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
-	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{})
+func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
+	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
@@ -258,7 +262,7 @@ func (w *WebFrame) Start() error {
 		if err != nil {
 			return err
 		}
-		rootGroup := core.NewRestGroup(serverConfig, &DefaultConverter{})
+		rootGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, w.handles)
 		rootGroup.AddRest(w.rests...)
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)

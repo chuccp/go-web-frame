@@ -44,13 +44,13 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 
-func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup {
+func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter, handles *web.Handles) *RestGroup {
 	return &RestGroup{
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
 		converter:    converter,
 		filters:      make([]IFilter, 0),
-		handles:      web.NewHandles(),
+		handles:      handles,
 	}
 }

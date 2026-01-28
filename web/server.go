@@ -289,7 +289,7 @@ func (cm *CertManager) Run(context2 context.Context) error {
 
 	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {
 		var wg = pool.New()
-		errorsPool := wg.WithErrors()
+		errorsPool := wg.WithErrors().WithFirstError()
 		if !util.ArrayIntContains(cm.port, 80) {
 			errorsPool.Go(func() error {
 				manager, err := cm.GetCertManager()
@@ -344,7 +344,7 @@ func (cm *CertManager) Run(context2 context.Context) error {
 				return err
 			})
 		}
-		return errors.WithStack(errorsPool.Wait())
+		return errors.WithStackIf(errorsPool.Wait())
 	}
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -118,10 +117,9 @@ type WebFrame struct {
 	filters           []core.IFilter
 	db                *gorm.DB
 	schedule          *core.Schedule
-	server            *core.Server
 	defaultModelGroup core.IModelGroup
 	context           context.Context
-	once              *sync.Once
+	routeTree         web.RouteTree
 }
 
 func NewWithAutoConfig() *WebFrame {
@@ -143,7 +141,6 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 		schedule:          core.NewSchedule(),
 		defaultModelGroup: core.DefaultModelGroup(),
 		context:           ctx,
-		once:              new(sync.Once),
 	}
 	return w
 }
@@ -192,26 +189,20 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }
+
 func (w *WebFrame) Start() error {
-	defer func() {
-		err := log.Sync()
-		if err != nil {
-			log.Error("Failed to close the service", zap.Error(err))
-		}
-	}()
-	err := w.init()
-	if err != nil {
-		return err
-	}
-	return w.server.Run(w.context)
-}
-func (w *WebFrame) init() error {
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err := log.Sync()
+		if err != nil {
+			log.Error("Failed to close the service", zap.Error(err))
+		}
+	}()
 	log.InitLogger(&logConfig)
 
 	for _, component := range w.component {
@@ -273,8 +264,8 @@ func (w *WebFrame) init() error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	w.server = core.NewServer(w.restGroups, w.runners)
-	err = w.server.Init(coreContext)
+	server := core.NewServer(w.restGroups, w.runners)
+	err = server.Init(coreContext)
 	if err != nil {
 		return err
 	}
@@ -283,5 +274,5 @@ func (w *WebFrame) init() error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	return nil
+	return server.Run(w.context)
 }

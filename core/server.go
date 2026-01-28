@@ -68,22 +68,22 @@ func (server *Server) Init(ctx *Context) error {
 	}
 	return nil
 }
-func (server *Server) Run(context2 context.Context) error {
+func (server *Server) Run(ctx context.Context) error {
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
-	errorsPool := wg.WithErrors().WithFirstError()
+	errorsPool := wg.WithContext(ctx).WithFirstError()
 	for _, httpServer := range server.httpServers {
-		errorsPool.Go(func() error {
-			return errors.WithStackIf(httpServer.Run(context2))
+		errorsPool.Go(func(ctx context.Context) error {
+			return errors.WithStackIf(httpServer.Run(ctx))
 		})
 	}
 	for _, runner := range server.runners {
-		errorsPool.Go(func() error {
-			return errors.WithStackIf(runner.Run(context2))
+		errorsPool.Go(func(ctx context.Context) error {
+			return errors.WithStackIf(runner.Run(ctx))
 		})
 	}
-	errorsPool.Go(func() error {
-		return errors.WithStackIf(server.certManager.Run(context2))
+	errorsPool.Go(func(ctx context.Context) error {
+		return errors.WithStackIf(server.certManager.Run(ctx))
 	})
 	return errors.WithStackIf(errorsPool.Wait())
 }

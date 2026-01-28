@@ -285,13 +285,13 @@ func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 	cm.certManager = m
 	return m, nil
 }
-func (cm *CertManager) Run(context2 context.Context) error {
+func (cm *CertManager) Run(ctx context.Context) error {
 
 	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {
 		var wg = pool.New()
-		errorsPool := wg.WithErrors().WithFirstError()
+		errorsPool := wg.WithContext(ctx).WithFirstError()
 		if !util.ArrayIntContains(cm.port, 80) {
-			errorsPool.Go(func() error {
+			errorsPool.Go(func(ctx context.Context) error {
 				manager, err := cm.GetCertManager()
 				if err != nil {
 					log.Errors("Failed to obtain certificate management：", err)
@@ -303,8 +303,8 @@ func (cm *CertManager) Run(context2 context.Context) error {
 				}
 
 				go func() {
-					<-context2.Done()
-					err = server.Shutdown(context2)
+					<-ctx.Done()
+					err = server.Shutdown(ctx)
 					if err != nil {
 						log.Errors("Shutdown service on port 80", err)
 					}
@@ -319,7 +319,7 @@ func (cm *CertManager) Run(context2 context.Context) error {
 		}
 		if !util.ArrayIntContains(cm.port, 443) {
 
-			errorsPool.Go(func() error {
+			errorsPool.Go(func(ctx context.Context) error {
 
 				manager, err := cm.GetCertManager()
 				if err != nil {
@@ -331,8 +331,8 @@ func (cm *CertManager) Run(context2 context.Context) error {
 					Handler: manager.HTTPHandler(nil),
 				}
 				go func() {
-					<-context2.Done()
-					err = server.Shutdown(context2)
+					<-ctx.Done()
+					err = server.Shutdown(ctx)
 					if err != nil {
 						log.Errors("Shutdown service on port 80", err)
 					}

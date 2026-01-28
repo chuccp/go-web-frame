@@ -135,9 +135,19 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 	if httpServer.serverConfig.SSLEnabled() {
 		return httpServer.startTLS(ctx)
 	}
+
+	var engine2 http.Handler = engine
+	if httpServer.certManager.HasTLS() && (httpServer.serverConfig.Port == 80 || httpServer.serverConfig.Port == 443) {
+		certManager, err := httpServer.certManager.GetCertManager()
+		if err != nil {
+			return err
+		}
+		engine2 = certManager.HTTPHandler(engine2)
+	}
+
 	httpServer.httpServer = &http.Server{
 		Addr:              ":" + strconv.Itoa(httpServer.serverConfig.Port),
-		Handler:           httpServer.engine,
+		Handler:           engine2,
 		ReadHeaderTimeout: MaxReadHeaderTimeout,
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
@@ -210,6 +220,9 @@ func NewCertManager() *CertManager {
 		port:  []int{},
 		lock:  new(sync.RWMutex),
 	}
+}
+func (cm *CertManager) HasTLS() bool {
+	return len(cm.hosts) > 0
 }
 func (cm *CertManager) AddHost(host string) {
 	if strings.Contains(host, ":") {

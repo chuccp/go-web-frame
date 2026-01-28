@@ -85,7 +85,7 @@ func (server *Server) Run(context2 context.Context) error {
 	errorsPool.Go(func() error {
 		return errors.WithStackIf(server.certManager.Run(context2))
 	})
-	return errors.WithStackIf(errorsPool.Wait())
+	return errors.WithStack(errorsPool.Wait())
 }
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{

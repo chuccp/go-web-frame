@@ -343,9 +343,8 @@ func (cm *CertManager) Run(context2 context.Context) error {
 				}
 				return err
 			})
-
 		}
-		return errorsPool.Wait()
+		return errors.WithStack(errorsPool.Wait())
 	}
 	return nil
 }

@@ -267,7 +267,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	server := core.NewServer(w.restGroups, w.runners)
 	err = server.Init(coreContext)
 	if err != nil {
-		return err
+		return errors.WithStackIf(err)
 	}
 	return errors.WithStackIf(server.Run(ctx))
 }

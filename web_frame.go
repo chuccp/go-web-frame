@@ -120,7 +120,6 @@ type WebFrame struct {
 	schedule          *core.Schedule
 	server            *core.Server
 	defaultModelGroup core.IModelGroup
-	isClose           bool
 	context           context.Context
 	once              *sync.Once
 }
@@ -143,7 +142,6 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 		config:            config,
 		schedule:          core.NewSchedule(),
 		defaultModelGroup: core.DefaultModelGroup(),
-		isClose:           false,
 		context:           ctx,
 		once:              new(sync.Once),
 	}
@@ -205,10 +203,7 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	if w.isClose {
-		return errors.New("The service has been closed")
-	}
-	return w.server.Run()
+	return w.server.Run(w.context)
 }
 func (w *WebFrame) init() error {
 	gin.SetMode(gin.ReleaseMode)

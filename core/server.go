@@ -15,7 +15,6 @@ type Server struct {
 	httpServers map[int]*web.HttpServer
 	lock        *sync.RWMutex
 	runners     []IRunner
-	context     context.Context
 }
 
 func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
@@ -28,9 +27,9 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	server.httpServers[serverConfig.Port] = httpServer
 	return httpServer
 }
-func (server *Server) Init(context *Context) error {
+func (server *Server) Init(ctx *Context) error {
 	for _, runner := range server.runners {
-		err := runner.Init(context)
+		err := runner.Init(ctx)
 		if err != nil {
 			return errors.WithStackIf(err)
 		}
@@ -39,7 +38,7 @@ func (server *Server) Init(context *Context) error {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
 		handlerConfig := web.NewHandlerConfig(restGroup.converter)
-		restContext := context.Copy(handlerConfig, restGroup.filters)
+		restContext := ctx.Copy(handlerConfig, restGroup.filters)
 		err := restGroup.converter.Init(restContext)
 		if err != nil {
 			return errors.WithStackIf(err)
@@ -63,21 +62,23 @@ func (server *Server) Init(context *Context) error {
 	}
 	return nil
 }
-func (server *Server) Run() error {
+func (server *Server) Run(context2 context.Context) error {
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
 	errorsPool := wg.WithErrors()
 	for _, httpServer := range server.httpServers {
 		errorsPool.Go(func() error {
-			return errors.WithStackIf(httpServer.Run())
+			return errors.WithStackIf(httpServer.Run(context2))
 		})
 	}
 	for _, runner := range server.runners {
 		errorsPool.Go(func() error {
-			return errors.WithStackIf(runner.Run(server.context))
+			return errors.WithStackIf(runner.Run(context2))
 		})
 	}
-	server.certManager.Start()
+	errorsPool.Go(func() error {
+		return errors.WithStackIf(server.certManager.Run(context2))
+	})
 	return errorsPool.Wait()
 }
 func NewServer(context context.Context, restGroups []*RestGroup, runners []IRunner) *Server {

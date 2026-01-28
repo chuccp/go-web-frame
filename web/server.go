@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/sourcegraph/conc/panics"
+	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/http2"
@@ -99,7 +100,7 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 		}
 	}
 }
-func (httpServer *HttpServer) Run() error {
+func (httpServer *HttpServer) Run(ctx context.Context) error {
 	serverConfig := httpServer.serverConfig
 	engine := httpServer.engine
 	if serverConfig.Locations != nil {
@@ -146,6 +147,10 @@ func (httpServer *HttpServer) Run() error {
 		ReadHeaderTimeout: MaxReadHeaderTimeout,
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
+	}
+	err := httpServer.httpServer.Shutdown(ctx)
+	if err != nil {
+		return err
 	}
 	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServe())
@@ -244,34 +249,60 @@ func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 	cm.certManager = m
 	return m, nil
 }
-func (cm *CertManager) Start() {
-	if len(cm.hosts) > 0 {
-		var catcher panics.Catcher
+func (cm *CertManager) Run(context2 context.Context) error {
+
+	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {
+		var wg = pool.New()
+		errorsPool := wg.WithErrors()
 		if !util.ArrayIntContains(cm.port, 80) {
-			go catcher.Try(func() {
+			errorsPool.Go(func() error {
 				manager, err := cm.GetCertManager()
 				if err != nil {
 					log.Errors("Failed to obtain certificate management：", err)
-					return
+					return err
 				}
-				err = http.ListenAndServe(":80", manager.HTTPHandler(nil))
+				server := http.Server{
+					Addr:    ":80",
+					Handler: manager.HTTPHandler(nil),
+				}
+				err = server.Shutdown(context2)
+				if err != nil {
+					log.Errors("Shutdown service on port 80", err)
+				}
+				err = server.ListenAndServe()
 				if err != nil {
 					log.Errors("Failed to start the certificate service on port 80", err)
 				}
+				return err
+
 			})
 		}
 		if !util.ArrayIntContains(cm.port, 443) {
-			go catcher.Try(func() {
+
+			errorsPool.Go(func() error {
+
 				manager, err := cm.GetCertManager()
 				if err != nil {
 					log.Errors("证书获取管理失败：", err)
-					return
+					return err
 				}
-				err = http.ListenAndServe(":443", manager.HTTPHandler(nil))
+				server := http.Server{
+					Addr:    ":443",
+					Handler: manager.HTTPHandler(nil),
+				}
+				err = server.Shutdown(context2)
+				if err != nil {
+					log.Errors("Shutdown service on port 443", err)
+				}
+				err = server.ListenAndServe()
 				if err != nil {
 					log.Errors("Failed to start the certificate service on port 443", err)
 				}
+				return err
 			})
+
 		}
+		return errorsPool.Wait()
 	}
+	return nil
 }

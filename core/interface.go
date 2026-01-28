@@ -26,6 +26,9 @@ type IRest interface {
 type IComponent interface {
 	Init(ctx context.Context, config config2.IConfig) error
 }
+type IRun interface {
+	Run(ctx context.Context) error
+}
 type IRunner interface {
 	IService
 	Run(ctx context.Context) error

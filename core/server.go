@@ -27,8 +27,8 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 		for _, host := range serverConfig.SSL.Hosts {
 			server.certManager.AddHost(host)
 		}
-		server.certManager.AddPort(serverConfig.Port)
 	}
+	server.certManager.AddPort(serverConfig.Port)
 	httpServer := web.NewHttpServer(serverConfig, server.certManager)
 	server.httpServers[serverConfig.Port] = httpServer
 	return httpServer

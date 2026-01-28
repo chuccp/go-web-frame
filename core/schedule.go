@@ -161,14 +161,14 @@ func (c *Schedule) Init(context context.Context, config config2.IConfig) error {
 		return errors.WithStackIf(err)
 	}
 	if c.config.Enable {
-		er := c.Run()
-		if er != nil {
-			return errors.WithStackIf(er)
-		}
 		go func() {
 			<-c.context.Done()
 			c.cron.Stop()
 		}()
+		er := c.Run()
+		if er != nil {
+			return errors.WithStackIf(er)
+		}
 	}
 	return nil
 }

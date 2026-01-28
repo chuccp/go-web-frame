@@ -43,7 +43,7 @@ func (server *Server) Init(ctx *Context) error {
 	for _, restGroup := range server.restGroups {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
-		handlerConfig := web.NewHandlerConfig(restGroup.converter)
+		handlerConfig := web.NewHandlerConfig(restGroup.converter, restGroup.handles)
 		restContext := ctx.Copy(handlerConfig, restGroup.filters)
 		err := restGroup.converter.Init(restContext)
 		if err != nil {

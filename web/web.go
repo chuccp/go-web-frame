@@ -138,10 +138,11 @@ func (h *HandlerConfig) Use(handlers ...Filter) {
 	h.filters = append(h.filters, handlers...)
 }
 
-func NewHandlerConfig(converter Converter) *HandlerConfig {
+func NewHandlerConfig(converter Converter, handles *Handles) *HandlerConfig {
 	return &HandlerConfig{
 		converter: converter,
-		handles:   NewHandles(),
+		filters:   make([]Filter, 0),
+		handles:   handles,
 	}
 }
 

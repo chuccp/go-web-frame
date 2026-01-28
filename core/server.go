@@ -23,6 +23,12 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	if httpServer, ok := server.httpServers[serverConfig.Port]; ok {
 		return httpServer
 	}
+	if serverConfig.SSLEnabled() {
+		for _, host := range serverConfig.SSL.Hosts {
+			server.certManager.AddHost(host)
+		}
+		server.certManager.AddPort(serverConfig.Port)
+	}
 	httpServer := web.NewHttpServer(serverConfig, server.certManager)
 	server.httpServers[serverConfig.Port] = httpServer
 	return httpServer

@@ -75,12 +75,6 @@ func defaultEngine() *gin.Engine {
 }
 
 func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpServer {
-	if serverConfig.SSLEnabled() {
-		for _, host := range serverConfig.SSL.Hosts {
-			certManager.AddHost(host)
-		}
-		certManager.AddPort(serverConfig.Port)
-	}
 	engine := defaultEngine()
 	return &HttpServer{
 		engine:        engine,

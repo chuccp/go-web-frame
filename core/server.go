@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"sync"
 
 	"emperror.dev/errors"
@@ -14,6 +15,7 @@ type Server struct {
 	httpServers map[int]*web.HttpServer
 	lock        *sync.RWMutex
 	runners     []IRunner
+	context     context.Context
 }
 
 func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
@@ -72,25 +74,13 @@ func (server *Server) Run() error {
 	}
 	for _, runner := range server.runners {
 		errorsPool.Go(func() error {
-			return errors.WithStackIf(runner.Run())
+			return errors.WithStackIf(runner.Run(server.context))
 		})
 	}
 	server.certManager.Start()
 	return errorsPool.Wait()
 }
-func (server *Server) Destroy() error {
-	errs := make([]error, 0)
-	for _, httpServer := range server.httpServers {
-		err := httpServer.Close()
-		errs = append(errs, err)
-	}
-	for _, runner := range server.runners {
-		err := runner.Destroy()
-		errs = append(errs, err)
-	}
-	return errors.Combine(errs...)
-}
-func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
+func NewServer(context context.Context, restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
 		certManager: web.NewCertManager(),
 		restGroups:  restGroups,

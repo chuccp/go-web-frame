@@ -2,6 +2,7 @@ package localcache
 
 import (
 	"bufio"
+	"context"
 
 	"os"
 	"path"
@@ -25,7 +26,7 @@ type LocalCache struct {
 	config *Config
 }
 
-func (l *LocalCache) Init(cfg config2.IConfig) error {
+func (l *LocalCache) Init(context context.Context, cfg config2.IConfig) error {
 	var config Config
 	err := cfg.UnmarshalKey("local_cache", &config)
 	if err != nil {
@@ -43,9 +44,6 @@ func (l *LocalCache) Init(cfg config2.IConfig) error {
 	return nil
 }
 
-func (l *LocalCache) Destroy() error {
-	return nil
-}
 func (l *LocalCache) getKey(key ...any) string {
 	b := new(buffer.Buffer)
 	for _, k := range key {

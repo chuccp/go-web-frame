@@ -1,10 +1,12 @@
 package cache
 
 import (
+	"context"
 	"time"
 
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/maypok86/otter/v2"
 	"github.com/maypok86/otter/v2/stats"
 	"github.com/sourcegraph/conc/panics"
@@ -60,7 +62,7 @@ func (c *Cache) Stats() stats.Stats {
 	return c.cache.Stats()
 }
 
-func (c *Cache) Init(config config2.IConfig) error {
+func (c *Cache) Init(context context.Context, config config2.IConfig) error {
 	lConfig := &Config{
 		MaxSize: 1000_000,
 		Expiry:  3600,
@@ -75,10 +77,15 @@ func (c *Cache) Init(config config2.IConfig) error {
 		return errors.WithStackIf(err)
 	}
 	c.cache = cache
+	go func() {
+		<-context.Done()
+		err := c.destroy()
+		log.Errors("cache destroy", err)
+	}()
 	return nil
 }
 
-func (c *Cache) Destroy() error {
+func (c *Cache) destroy() error {
 	if stopped := c.cache.StopAllGoroutines(); stopped {
 	}
 	c.cache.CleanUp()

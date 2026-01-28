@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/model"
@@ -18,23 +20,16 @@ type IModel interface {
 	GetTableName() string
 	ReNew(db *db.DB, c *Context) IModel
 }
-type IDestroy interface {
-	Destroy() error
-}
 type IRest interface {
 	IService
 }
 type IComponent interface {
-	Init(config config2.IConfig) error
-	IDestroy
+	Init(ctx context.Context, config config2.IConfig) error
 }
-
 type IRunner interface {
 	IService
-	IDestroy
-	Run() error
+	Run(ctx context.Context) error
 }
-
 type IModelGroup interface {
 	IService
 	AddModel(model ...IModel)

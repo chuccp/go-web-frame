@@ -1,6 +1,7 @@
 package captcha
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 
@@ -48,7 +49,7 @@ func (c *Config) Key() string {
 type SlideCaptcha struct {
 }
 
-func (c *Captcha) Init(config config2.IConfig) error {
+func (c *Captcha) Init(context context.Context, config config2.IConfig) error {
 	var cfg Config
 	err := config.UnmarshalKey(cfg.Key(), &cfg)
 	if err != nil {
@@ -163,7 +164,4 @@ func (c *Captcha) ValidateCode(code string) (bool, error) {
 	}
 	return fa, nil
 
-}
-func (c *Captcha) Destroy() error {
-	return nil
 }

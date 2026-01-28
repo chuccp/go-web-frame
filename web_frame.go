@@ -1,6 +1,7 @@
 package wf
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path"
@@ -15,7 +16,6 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
-	"github.com/kardianos/service"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -122,13 +122,16 @@ type WebFrame struct {
 	lock              *sync.Mutex
 	defaultModelGroup core.IModelGroup
 	isClose           bool
+	context           context.Context
 }
 
 func NewWithAutoConfig() *WebFrame {
 	return New(LoadAutoConfig())
 }
 func New(config config2.IConfig) *WebFrame {
-	//ctx2, cancel := context.WithCancel(context.Background())
+	return NewWithContext(config, context.Background())
+}
+func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 	w := &WebFrame{
 		models:            make([]core.IModel, 0),
 		services:          make([]core.IService, 0),
@@ -142,6 +145,7 @@ func New(config config2.IConfig) *WebFrame {
 		lock:              new(sync.Mutex),
 		defaultModelGroup: core.DefaultModelGroup(),
 		isClose:           false,
+		context:           ctx,
 	}
 	return w
 }
@@ -191,25 +195,12 @@ func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }
 
-func (w *WebFrame) Close() error {
+func (w *WebFrame) close() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.isClose = true
-	errs := make([]error, 0)
-	err := w.server.Destroy()
-	errs = append(errs, err)
-	err = log.Sync()
-	errs = append(errs, err)
-	err = w.schedule.Destroy()
-	errs = append(errs, err)
-	for _, component := range w.component {
-		err = component.Destroy()
-		errs = append(errs, err)
-	}
-	if len(errs) == 0 {
-		return nil
-	}
-	return errors.Combine(errs...)
+	err := log.Sync()
+	return errors.WithStackIf(err)
 }
 func (w *WebFrame) Start() error {
 	err := w.init()
@@ -219,7 +210,21 @@ func (w *WebFrame) Start() error {
 	if w.isClose {
 		return errors.New("The service has been closed")
 	}
-	return w.server.Run()
+
+	err = w.server.Run()
+	if err != nil {
+		log.Error("Failed to start the service", zap.Error(err))
+		return err
+	}
+	go func() {
+		<-w.context.Done()
+		err := w.close()
+		if err != nil {
+			log.Error("Failed to close the service", zap.Error(err))
+		}
+	}()
+
+	return nil
 }
 func (w *WebFrame) init() error {
 	w.lock.Lock()
@@ -233,7 +238,7 @@ func (w *WebFrame) init() error {
 	log.InitLogger(&logConfig)
 
 	for _, component := range w.component {
-		err := errors.WithStackIf(component.Init(w.config))
+		err := errors.WithStackIf(component.Init(w.context, w.config))
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.Error(err))
 			return err
@@ -291,20 +296,15 @@ func (w *WebFrame) init() error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-
-	w.server = core.NewServer(w.restGroups, w.runners)
+	w.server = core.NewServer(w.context, w.restGroups, w.runners)
 	err = w.server.Init(coreContext)
 	if err != nil {
 		return err
 	}
-	err = w.schedule.Init(w.config)
+	err = w.schedule.Init(w.context, w.config)
 	if err != nil {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
 	return nil
-}
-
-func (w *WebFrame) Daemon(svcConfig *service.Config) {
-	RunDaemon(w, svcConfig)
 }

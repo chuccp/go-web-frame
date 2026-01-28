@@ -22,7 +22,6 @@ type RateLimit struct {
 	cache         *otter.Cache[string, *rate.Limiter]
 	limiterLoader otter.Loader[string, *rate.Limiter]
 	ctx           context.Context
-	cancelFunc    context.CancelFunc
 	config        *Config
 }
 
@@ -56,7 +55,7 @@ func (r *RateLimit) _limiterLoader(burst int) otter.Loader[string, *rate.Limiter
 		return rate.NewLimiter(rate.Every(time.Duration(r.config.Limit)*time.Second), burst), nil
 	})
 }
-func (r *RateLimit) Init(config config2.IConfig) error {
+func (r *RateLimit) Init(ctx context.Context, config config2.IConfig) error {
 	lConfig := &Config{
 		Limit:   600,
 		Burst:   5,
@@ -64,7 +63,7 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 		Expiry:  3600,
 	}
 
-	r.ctx, r.cancelFunc = context.WithCancel(context.Background())
+	r.ctx = ctx
 	err := config.UnmarshalKey("rate_limit", lConfig)
 	if err != nil {
 		return errors.WithStackIf(err)
@@ -84,12 +83,10 @@ func (r *RateLimit) Init(config config2.IConfig) error {
 		return errors.WithStackIf(err)
 	}
 	r.cache = cache
-	return nil
-}
-
-func (r *RateLimit) Destroy() error {
-	r.cancelFunc()
-	r.cache.CleanUp()
+	go func() {
+		<-ctx.Done()
+		cache.CleanUp()
+	}()
 	return nil
 }
 

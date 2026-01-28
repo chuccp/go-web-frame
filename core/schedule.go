@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -33,6 +34,7 @@ type Schedule struct {
 	lock      *sync.RWMutex
 	config    *ScheduleConfig
 	idInfoMap map[uint]*Info
+	context   context.Context
 }
 
 func NewSchedule() *Schedule {
@@ -152,15 +154,21 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 	return v, ok, err
 }
 
-func (c *Schedule) Init(config config2.IConfig) error {
-
+func (c *Schedule) Init(context context.Context, config config2.IConfig) error {
+	c.context = context
 	err := config.UnmarshalKey(c.config.Key(), c.config)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
 	if c.config.Enable {
-		return c.Run()
-
+		er := c.Run()
+		if er != nil {
+			return errors.WithStackIf(er)
+		}
+		go func() {
+			<-c.context.Done()
+			c.cron.Stop()
+		}()
 	}
 	return nil
 }
@@ -170,11 +178,5 @@ func (c *Schedule) Name() string {
 
 func (c *Schedule) Run() error {
 	c.cron.Start()
-	return nil
-}
-func (c *Schedule) Destroy() error {
-	if c.config.Enable {
-		c.cron.Stop()
-	}
 	return nil
 }

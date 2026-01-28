@@ -119,10 +119,10 @@ type WebFrame struct {
 	db                *gorm.DB
 	schedule          *core.Schedule
 	server            *core.Server
-	lock              *sync.Mutex
 	defaultModelGroup core.IModelGroup
 	isClose           bool
 	context           context.Context
+	once              *sync.Once
 }
 
 func NewWithAutoConfig() *WebFrame {
@@ -142,10 +142,10 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 		runners:           make([]core.IRunner, 0),
 		config:            config,
 		schedule:          core.NewSchedule(),
-		lock:              new(sync.Mutex),
 		defaultModelGroup: core.DefaultModelGroup(),
 		isClose:           false,
 		context:           ctx,
+		once:              new(sync.Once),
 	}
 	return w
 }
@@ -194,15 +194,13 @@ func (w *WebFrame) GetRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }
-
-func (w *WebFrame) close() error {
-	w.lock.Lock()
-	defer w.lock.Unlock()
-	w.isClose = true
-	err := log.Sync()
-	return errors.WithStackIf(err)
-}
 func (w *WebFrame) Start() error {
+	defer func() {
+		err := log.Sync()
+		if err != nil {
+			log.Error("Failed to close the service", zap.Error(err))
+		}
+	}()
 	err := w.init()
 	if err != nil {
 		return err
@@ -210,25 +208,9 @@ func (w *WebFrame) Start() error {
 	if w.isClose {
 		return errors.New("The service has been closed")
 	}
-
-	err = w.server.Run()
-	if err != nil {
-		log.Error("Failed to start the service", zap.Error(err))
-		return err
-	}
-	go func() {
-		<-w.context.Done()
-		err := w.close()
-		if err != nil {
-			log.Error("Failed to close the service", zap.Error(err))
-		}
-	}()
-
-	return nil
+	return w.server.Run()
 }
 func (w *WebFrame) init() error {
-	w.lock.Lock()
-	defer w.lock.Unlock()
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)

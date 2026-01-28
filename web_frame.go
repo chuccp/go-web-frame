@@ -119,7 +119,6 @@ type WebFrame struct {
 	schedule          *core.Schedule
 	defaultModelGroup core.IModelGroup
 	context           context.Context
-	routeTree         web.RouteTree
 }
 
 func NewWithAutoConfig() *WebFrame {
@@ -146,7 +145,7 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 }
 
 //func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-//	return w.handle(http.MethodGet, relativePath, handlers...)
+//
 //}
 //
 //func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

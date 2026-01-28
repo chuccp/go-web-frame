@@ -88,12 +88,29 @@ func (httpServer *HttpServer) Port() int {
 }
 
 func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
-	for httpMethod, routeInfo := range handlerConfig.RouteTree() {
+	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
-			httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), handlerInfo.HandlerFunc()...)
+			httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
 		}
 	}
 }
+func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
+	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
+	for i, handler := range handlers {
+		handlerFunc[i] = httpServer.toGinHandlerFunc(handlerConfig, handler)
+	}
+	return handlerFunc
+}
+func (httpServer *HttpServer) toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
+	handlerFunc := func(ctx *gin.Context) {
+		resp := newResponse(ctx)
+		request := NewRequest(ctx, resp, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
+		mock := newMockFilterChain(request, handlerConfig.converter, handlerConfig.filters, &lastFilter{handler})
+		mock.Converter()
+	}
+	return handlerFunc
+}
+
 func (httpServer *HttpServer) Run(ctx context.Context) error {
 	serverConfig := httpServer.serverConfig
 	engine := httpServer.engine

@@ -10,7 +10,6 @@ import (
 	"runtime"
 
 	"github.com/chuccp/go-web-frame/log"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -22,12 +21,31 @@ type Filter interface {
 	Handle(filterChain FilterChain, request *Request) (any, error)
 }
 
+type Handles struct {
+	routeTree RouteTree
+}
+
+func (h *Handles) Handles(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+	handlerInfo := NewHandlerInfo(relativePath, handlers...)
+	for _, httpMethod := range httpMethods {
+		h.routeTree.Set(httpMethod, handlerInfo)
+		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
+	}
+	return handlerInfo
+}
+func (h *Handles) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+	return h.Handles([]string{httpMethod}, relativePath, handlers...)
+}
+func NewHandles() *Handles {
+	return &Handles{
+		routeTree: make(RouteTree),
+	}
+}
+
 type HandlerConfig struct {
 	converter Converter
-	//handlerInfos []*HandlerInfo
-	routeTree RouteTree
-	//httpServer   *HttpServer
-	filters []Filter
+	handles   *Handles
+	filters   []Filter
 }
 
 type mockFilterChain struct {
@@ -84,20 +102,7 @@ func newMockFilterChain(request *Request, converter Converter, filters []Filter,
 	}
 }
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(relativePath, h.ToGinHandlerFunc(handlers...)...)
-	for _, httpMethod := range httpMethods {
-		h.routeTree.Set(httpMethod, handlerInfo)
-		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
-	}
-	return handlerInfo
-}
-
-func (h *HandlerConfig) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerFunc {
-	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
-	for i, handler := range handlers {
-		handlerFunc[i] = h.toGinHandlerFunc(handler)
-	}
-	return handlerFunc
+	return h.handles.Handles(httpMethods, relativePath, handlers...)
 }
 
 type lastFilter struct {
@@ -107,25 +112,26 @@ type lastFilter struct {
 func (last *lastFilter) Handle(filterChain FilterChain, request *Request) (any, error) {
 	return last.handler(request)
 }
-func (h *HandlerConfig) toGinHandlerFunc(handler HandlerFunc) gin.HandlerFunc {
-	handlerFunc := func(ctx *gin.Context) {
-		resp := newResponse(ctx)
-		request := NewRequest(ctx, resp, h.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
-		mock := newMockFilterChain(request, h.converter, h.filters, &lastFilter{handler})
-		mock.Converter()
-	}
-	return handlerFunc
-}
 
-func (h *HandlerConfig) HasHandler(httpMethod string, fullPath string) bool {
+func (h *Handles) HasHandler(httpMethod string, fullPath string) bool {
 	return h.routeTree.Has(httpMethod, fullPath)
 }
-func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
+func (h *Handles) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
 	return h.routeTree.GetHandlerMeta(httpMethod, fullPath)
 }
 
-func (h *HandlerConfig) RouteTree() RouteTree {
+func (h *Handles) RouteTree() RouteTree {
 	return h.routeTree
+}
+func (h *HandlerConfig) HasHandler(httpMethod string, fullPath string) bool {
+	return h.handles.HasHandler(httpMethod, fullPath)
+}
+func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
+	return h.handles.HandlerMeta(httpMethod, fullPath)
+}
+
+func (h *HandlerConfig) Handles() *Handles {
+	return h.handles
 }
 
 func (h *HandlerConfig) Use(handlers ...Filter) {
@@ -135,8 +141,7 @@ func (h *HandlerConfig) Use(handlers ...Filter) {
 func NewHandlerConfig(converter Converter) *HandlerConfig {
 	return &HandlerConfig{
 		converter: converter,
-		//handlerInfos: make([]*HandlerInfo, 0),
-		routeTree: make(RouteTree),
+		handles:   NewHandles(),
 	}
 }
 

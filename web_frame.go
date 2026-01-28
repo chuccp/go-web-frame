@@ -276,5 +276,5 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	return server.Run(ctx)
+	return errors.WithStackIf(server.Run(ctx))
 }

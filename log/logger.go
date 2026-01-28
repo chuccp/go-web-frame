@@ -158,6 +158,11 @@ func PanicErrors(msg string, errs ...error) {
 	defaultLogger.panic(msg, fields...)
 
 }
+func PrintPanic(errs ...error) {
+	for _, err := range errs {
+		log.Printf("%+v\n", err)
+	}
+}
 
 func Sync() error {
 	lock.RLock()

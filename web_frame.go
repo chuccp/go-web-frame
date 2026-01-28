@@ -118,17 +118,14 @@ type WebFrame struct {
 	db                *gorm.DB
 	schedule          *core.Schedule
 	defaultModelGroup core.IModelGroup
-	context           context.Context
 	handles           *web.Handles
 }
 
 func NewWithAutoConfig() *WebFrame {
 	return New(LoadAutoConfig())
 }
+
 func New(config config2.IConfig) *WebFrame {
-	return NewWithContext(config, context.Background())
-}
-func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 	w := &WebFrame{
 		models:            make([]core.IModel, 0),
 		services:          make([]core.IService, 0),
@@ -140,7 +137,6 @@ func NewWithContext(config config2.IConfig, ctx context.Context) *WebFrame {
 		config:            config,
 		schedule:          core.NewSchedule(),
 		defaultModelGroup: core.DefaultModelGroup(),
-		context:           ctx,
 		handles:           web.NewHandles(),
 	}
 	return w
@@ -192,8 +188,11 @@ func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }
-
 func (w *WebFrame) Start() error {
+	return w.Run(context.Background())
+}
+
+func (w *WebFrame) Run(ctx context.Context) error {
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
@@ -209,7 +208,7 @@ func (w *WebFrame) Start() error {
 	log.InitLogger(&logConfig)
 
 	for _, component := range w.component {
-		err := errors.WithStackIf(component.Init(w.context, w.config))
+		err := errors.WithStackIf(component.Init(ctx, w.config))
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.Error(err))
 			return err
@@ -272,10 +271,10 @@ func (w *WebFrame) Start() error {
 	if err != nil {
 		return err
 	}
-	err = w.schedule.Init(w.context, w.config)
+	err = w.schedule.Init(ctx, w.config)
 	if err != nil {
 		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
-	return server.Run(w.context)
+	return server.Run(ctx)
 }

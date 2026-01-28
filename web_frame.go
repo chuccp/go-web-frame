@@ -266,14 +266,10 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
+	w.runners = append(w.runners, w.schedule)
 	server := core.NewServer(w.restGroups, w.runners)
 	err = server.Init(coreContext)
 	if err != nil {
-		return err
-	}
-	err = w.schedule.Init(ctx, w.config)
-	if err != nil {
-		log.Error("Failed to initialize the scheduled task", zap.Error(err))
 		return err
 	}
 	return errors.WithStackIf(server.Run(ctx))

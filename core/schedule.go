@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"emperror.dev/errors"
-
-	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/robfig/cron/v3"
 	"github.com/sourcegraph/conc/panics"
@@ -34,7 +32,6 @@ type Schedule struct {
 	lock      *sync.RWMutex
 	config    *ScheduleConfig
 	idInfoMap map[uint]*Info
-	context   context.Context
 }
 
 func NewSchedule() *Schedule {
@@ -154,29 +151,17 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 	return v, ok, err
 }
 
-func (c *Schedule) Init(context context.Context, config config2.IConfig) error {
-	c.context = context
-	err := config.UnmarshalKey(c.config.Key(), c.config)
-	if err != nil {
-		return errors.WithStackIf(err)
-	}
+func (c *Schedule) Init(ctx *Context) error {
+	err := ctx.GetConfig().UnmarshalKey(c.config.Key(), c.config)
+	return errors.WithStackIf(err)
+}
+func (c *Schedule) Run(context context.Context) error {
 	if c.config.Enable {
 		go func() {
-			<-c.context.Done()
+			<-context.Done()
 			c.cron.Stop()
 		}()
-		er := c.Run()
-		if er != nil {
-			return errors.WithStackIf(er)
-		}
+		c.cron.Start()
 	}
-	return nil
-}
-func (c *Schedule) Name() string {
-	return "schedule"
-}
-
-func (c *Schedule) Run() error {
-	c.cron.Start()
 	return nil
 }

@@ -273,7 +273,7 @@ func (w *WebFrame) init() error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	w.server = core.NewServer(w.context, w.restGroups, w.runners)
+	w.server = core.NewServer(w.restGroups, w.runners)
 	err = w.server.Init(coreContext)
 	if err != nil {
 		return err

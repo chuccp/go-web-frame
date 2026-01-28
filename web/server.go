@@ -139,7 +139,7 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 
 	}
 	if httpServer.serverConfig.SSLEnabled() {
-		return httpServer.startTLS()
+		return httpServer.startTLS(ctx)
 	}
 	httpServer.httpServer = &http.Server{
 		Addr:              ":" + strconv.Itoa(httpServer.serverConfig.Port),
@@ -148,15 +148,20 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
-	err := httpServer.httpServer.Shutdown(ctx)
-	if err != nil {
-		return err
-	}
+
+	go func() {
+		<-ctx.Done()
+		err := httpServer.httpServer.Shutdown(ctx)
+		if err != nil {
+			log.Error("stop the service", zap.Error(err))
+		}
+	}()
+
 	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServe())
 }
 
-func (httpServer *HttpServer) startTLS() error {
+func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 
 	certManager, err := httpServer.certManager.GetCertManager()
 	if err != nil {
@@ -178,6 +183,13 @@ func (httpServer *HttpServer) startTLS() error {
 			MinVersion:     tls.VersionTLS12,
 		},
 	}
+	go func() {
+		<-ctx.Done()
+		err := httpServer.httpServer.Shutdown(ctx)
+		if err != nil {
+			log.Error("stop the service", zap.Error(err))
+		}
+	}()
 	for _, host := range httpServer.serverConfig.SSL.Hosts {
 		log.Info("Start the service：", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
@@ -265,10 +277,14 @@ func (cm *CertManager) Run(context2 context.Context) error {
 					Addr:    ":80",
 					Handler: manager.HTTPHandler(nil),
 				}
-				err = server.Shutdown(context2)
-				if err != nil {
-					log.Errors("Shutdown service on port 80", err)
-				}
+
+				go func() {
+					<-context2.Done()
+					err = server.Shutdown(context2)
+					if err != nil {
+						log.Errors("Shutdown service on port 80", err)
+					}
+				}()
 				err = server.ListenAndServe()
 				if err != nil {
 					log.Errors("Failed to start the certificate service on port 80", err)
@@ -290,10 +306,13 @@ func (cm *CertManager) Run(context2 context.Context) error {
 					Addr:    ":443",
 					Handler: manager.HTTPHandler(nil),
 				}
-				err = server.Shutdown(context2)
-				if err != nil {
-					log.Errors("Shutdown service on port 443", err)
-				}
+				go func() {
+					<-context2.Done()
+					err = server.Shutdown(context2)
+					if err != nil {
+						log.Errors("Shutdown service on port 80", err)
+					}
+				}()
 				err = server.ListenAndServe()
 				if err != nil {
 					log.Errors("Failed to start the certificate service on port 443", err)

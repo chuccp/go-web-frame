@@ -81,7 +81,7 @@ func (server *Server) Run(context2 context.Context) error {
 	})
 	return errorsPool.Wait()
 }
-func NewServer(context context.Context, restGroups []*RestGroup, runners []IRunner) *Server {
+func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
 		certManager: web.NewCertManager(),
 		restGroups:  restGroups,

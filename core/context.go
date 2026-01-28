@@ -19,7 +19,6 @@ type Context struct {
 	rLock             *sync.RWMutex
 	serviceMap        map[string]IService
 	componentMap      map[string]IComponent
-	schedule          *Schedule
 	runnerMap         map[string]IRunner
 	defaultModelGroup IModelGroup
 	modelGroup        map[string]IModelGroup
@@ -27,7 +26,7 @@ type Context struct {
 	filters           []IFilter
 }
 
-func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IModelGroup) *Context {
+func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context {
 	context := &Context{
 		config:       config,
 		modelMap:     make(map[string]IModel),
@@ -36,7 +35,6 @@ func NewContext(config config2.IConfig, schedule *Schedule, defaultModelGroup IM
 		componentMap: make(map[string]IComponent),
 		//transaction:  model.NewTransaction(db),
 		runnerMap:         make(map[string]IRunner),
-		schedule:          schedule,
 		modelGroup:        make(map[string]IModelGroup),
 		defaultModelGroup: defaultModelGroup,
 		filters:           make([]IFilter, 0),
@@ -51,7 +49,6 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Con
 		rLock:             c.rLock,
 		serviceMap:        c.serviceMap,
 		componentMap:      c.componentMap,
-		schedule:          c.schedule,
 		runnerMap:         c.runnerMap,
 		modelGroup:        c.modelGroup,
 		defaultModelGroup: c.defaultModelGroup,
@@ -63,9 +60,6 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Con
 
 func (c *Context) GetTransaction() *model.Transaction {
 	return c.defaultModelGroup.GetTransaction()
-}
-func (c *Context) GetSchedule() *Schedule {
-	return c.schedule
 }
 func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()

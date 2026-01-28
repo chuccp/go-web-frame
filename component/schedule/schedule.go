@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/robfig/cron/v3"
 	"github.com/sourcegraph/conc/panics"
@@ -151,7 +152,7 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 	return v, ok, err
 }
 
-func (c *Schedule) Init(ctx *Context) error {
+func (c *Schedule) Init(ctx *core.Context) error {
 	err := ctx.GetConfig().UnmarshalKey(c.config.Key(), c.config)
 	return errors.WithStackIf(err)
 }

@@ -116,7 +116,6 @@ type WebFrame struct {
 	runners           []core.IRunner
 	filters           []core.IFilter
 	db                *gorm.DB
-	schedule          *core.Schedule
 	defaultModelGroup core.IModelGroup
 	handles           *web.Handles
 }
@@ -135,7 +134,6 @@ func New(config config2.IConfig) *WebFrame {
 		component:         make([]core.IComponent, 0),
 		runners:           make([]core.IRunner, 0),
 		config:            config,
-		schedule:          core.NewSchedule(),
 		defaultModelGroup: core.DefaultModelGroup(),
 		handles:           web.NewHandles(),
 	}
@@ -215,7 +213,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		}
 	}
 
-	coreContext := core.NewContext(w.config, w.schedule, w.defaultModelGroup)
+	coreContext := core.NewContext(w.config, w.defaultModelGroup)
 	coreContext.AddComponent(w.component...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
@@ -266,7 +264,6 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		rootGroup.AddFilter(w.filters...)
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
-	w.runners = append(w.runners, w.schedule)
 	server := core.NewServer(w.restGroups, w.runners)
 	err = server.Init(coreContext)
 	if err != nil {

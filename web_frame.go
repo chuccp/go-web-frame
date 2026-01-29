@@ -16,7 +16,6 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 func GetService[T core.IService](c *core.Context) T {
@@ -115,7 +114,6 @@ type WebFrame struct {
 	rests             []core.IRest
 	runners           []core.IRunner
 	filters           []core.IFilter
-	db                *gorm.DB
 	defaultModelGroup core.IModelGroup
 	handles           *web.Handles
 }
@@ -133,6 +131,7 @@ func New(config config2.IConfig) *WebFrame {
 		rests:             make([]core.IRest, 0),
 		component:         make([]core.IComponent, 0),
 		runners:           make([]core.IRunner, 0),
+		filters:           make([]core.IFilter, 0),
 		config:            config,
 		defaultModelGroup: core.DefaultModelGroup(),
 		handles:           web.NewHandles(),

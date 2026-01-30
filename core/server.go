@@ -34,6 +34,7 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	return httpServer
 }
 func (server *Server) Init(ctx *Context) error {
+	server.certManager = ctx.CertManager()
 	for _, runner := range server.runners {
 		err := runner.Init(ctx)
 		if err != nil {
@@ -89,7 +90,6 @@ func (server *Server) Run(ctx context.Context) error {
 }
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
-		certManager: web.NewCertManager(),
 		restGroups:  restGroups,
 		httpServers: make(map[int]*web.HttpServer),
 		lock:        new(sync.RWMutex),

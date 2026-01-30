@@ -24,6 +24,7 @@ type Context struct {
 	modelGroup        map[string]IModelGroup
 	handlerConfig     *web.HandlerConfig
 	filters           []IFilter
+	certManager       *web.CertManager
 }
 
 func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context {
@@ -38,8 +39,12 @@ func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context 
 		modelGroup:        make(map[string]IModelGroup),
 		defaultModelGroup: defaultModelGroup,
 		filters:           make([]IFilter, 0),
+		certManager:       web.NewCertManager(),
 	}
 	return context
+}
+func (c *Context) CertManager() *web.CertManager {
+	return c.certManager
 }
 
 func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Context {
@@ -54,6 +59,7 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Con
 		defaultModelGroup: c.defaultModelGroup,
 		handlerConfig:     handlerConfig,
 		filters:           filters,
+		certManager:       c.certManager,
 	}
 	return context
 }

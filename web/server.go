@@ -192,12 +192,14 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 	if httpServer.serverConfig.Port == 80 || httpServer.serverConfig.Port == 443 {
 		engine = certManager.HTTPHandler(engine)
 	}
+
 	httpServer.httpServer = &http.Server{
 		Addr:              ":" + strconv.Itoa(httpServer.serverConfig.Port),
 		Handler:           engine,
 		ReadHeaderTimeout: MaxReadHeaderTimeout,
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
+		//TLSConfig:         certManager.TLSConfig(),
 		TLSConfig: &tls.Config{
 			GetCertificate: certManager.GetCertificate,
 			NextProtos:     []string{http2.NextProtoTLS, "http/1.1"},

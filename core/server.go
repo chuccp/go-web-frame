@@ -5,8 +5,11 @@ import (
 	"sync"
 
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 	"github.com/sourcegraph/conc/pool"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -80,7 +83,13 @@ func (server *Server) Run(ctx context.Context) error {
 	}
 	for _, runner := range server.runners {
 		errorsPool.Go(func(ctx context.Context) error {
-			return errors.WithStackIf(runner.Run(ctx))
+			log.Info("runner", zap.String("runner", util.GetStructFullName(runner)))
+			err := errors.WithStackIf(runner.Run(ctx))
+			if err != nil {
+				log.Error("runner", zap.String("runner", util.GetStructFullName(runner)), zap.Error(err))
+				log.PrintPanic(err)
+			}
+			return err
 		})
 	}
 	errorsPool.Go(func(ctx context.Context) error {

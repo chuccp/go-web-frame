@@ -24,9 +24,17 @@ type Schedule struct {
 	ctx       *core.Context
 }
 
-func NewSchedule() *Schedule {
+func NewSchedule(opts ...cron.Option) *Schedule {
 	return &Schedule{
-		cron:      cron.New(),
+		cron:      cron.New(opts...),
+		infoMap:   make(map[string]*Info),
+		idInfoMap: make(map[uint]*Info),
+		lock:      new(sync.RWMutex),
+	}
+}
+func NewScheduleWithSeconds() *Schedule {
+	return &Schedule{
+		cron:      cron.New(cron.WithSeconds()),
 		infoMap:   make(map[string]*Info),
 		idInfoMap: make(map[uint]*Info),
 		lock:      new(sync.RWMutex),

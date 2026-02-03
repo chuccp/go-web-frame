@@ -10,6 +10,7 @@ import (
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
+	"github.com/sourcegraph/conc/panics"
 	"go.uber.org/zap"
 )
 
@@ -191,6 +192,9 @@ func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.Han
 
 func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handles(anyMethods, relativePath, handlers...)
+}
+func (c *Context) Go(f func()) {
+	panics.Try(f)
 }
 
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

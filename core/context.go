@@ -198,8 +198,11 @@ func (c *Context) Go(f func(c *Context)) {
 		f(c)
 	})
 	err := catcher.AsError()
-	log.Error("Context Go", zap.Error(err))
-	log.PrintPanic(err)
+	if err != nil {
+		log.Error("Context Go", zap.Error(err))
+		log.PrintPanic(err)
+	}
+
 }
 
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

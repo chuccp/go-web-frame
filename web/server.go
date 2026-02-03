@@ -216,6 +216,15 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 	for _, host := range httpServer.serverConfig.SSL.Hosts {
 		log.Info("Start the service：", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
+	if httpServer.serverConfig.Port == 443 {
+		httpServer.httpServer.TLSConfig = certManager.TLSConfig()
+		listener := certManager.Listener()
+		err := httpServer.httpServer.Serve(listener)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
+		return nil
+	}
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
 }
 

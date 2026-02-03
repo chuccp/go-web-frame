@@ -5,11 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/core"
-	"github.com/chuccp/go-web-frame/log"
 	"github.com/robfig/cron/v3"
-	"github.com/sourcegraph/conc/panics"
 )
 
 type Info struct {
@@ -19,20 +16,12 @@ type Info struct {
 	id         uint
 }
 
-type ScheduleConfig struct {
-	Enable bool
-}
-
-func (c *ScheduleConfig) Key() string {
-	return "web.schedule"
-}
-
 type Schedule struct {
 	cron      *cron.Cron
 	infoMap   map[string]*Info
 	lock      *sync.RWMutex
-	config    *ScheduleConfig
 	idInfoMap map[uint]*Info
+	ctx       *core.Context
 }
 
 func NewSchedule() *Schedule {
@@ -41,17 +30,11 @@ func NewSchedule() *Schedule {
 		infoMap:   make(map[string]*Info),
 		idInfoMap: make(map[uint]*Info),
 		lock:      new(sync.RWMutex),
-		config:    &ScheduleConfig{Enable: false},
 	}
 }
-func (c *Schedule) AddFunc(spec string, cmd func()) (cron.EntryID, error) {
-	if !c.config.Enable {
-		return 0, errors.New("schedule is not enable")
-	}
+func (c *Schedule) AddFunc(spec string, cmd func(context2 *core.Context)) (cron.EntryID, error) {
 	return c.cron.AddFunc(spec, func() {
-		var catcher panics.Catcher
-		catcher.Try(cmd)
-		log.Errors(spec, catcher.Recovered().AsError())
+		c.ctx.Go(cmd)
 	})
 }
 func (c *Schedule) StopKeyFunc(key string) {
@@ -62,16 +45,11 @@ func (c *Schedule) StopKeyFunc(key string) {
 		c.cron.Remove(info.entryID)
 	}
 }
-func (c *Schedule) ReplaceKeyFunc(key string, spec string, cmd func()) (cron.EntryID, error) {
-	if !c.config.Enable {
-		return 0, errors.New("schedule is not enable")
-	}
+func (c *Schedule) ReplaceKeyFunc(key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	v, err := c.cron.AddFunc(spec, func() {
-		var catcher panics.Catcher
-		catcher.Try(cmd)
-		log.Errors(spec, catcher.Recovered().AsError())
+		c.ctx.Go(cmd)
 	})
 	if err != nil {
 		return 0, err
@@ -88,10 +66,7 @@ func (c *Schedule) ReplaceKeyFunc(key string, spec string, cmd func()) (cron.Ent
 	c.infoMap[key] = info
 	return v, err
 }
-func (c *Schedule) AddKeyFunc(key string, spec string, cmd func()) (cron.EntryID, bool, error) {
-	if !c.config.Enable {
-		return 0, false, errors.New("schedule is not enable")
-	}
+func (c *Schedule) AddKeyFunc(key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	_, ok := c.infoMap[key]
@@ -99,9 +74,7 @@ func (c *Schedule) AddKeyFunc(key string, spec string, cmd func()) (cron.EntryID
 		return 0, ok, nil
 	}
 	v, err := c.cron.AddFunc(spec, func() {
-		var catcher panics.Catcher
-		catcher.Try(cmd)
-		log.Errors(spec, catcher.Recovered().AsError())
+		c.ctx.Go(cmd)
 	})
 	if err != nil {
 		return 0, ok, err
@@ -122,10 +95,7 @@ func (c *Schedule) StopIdFunc(id uint) {
 		c.cron.Remove(info.entryID)
 	}
 }
-func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd func()) (cron.EntryID, bool, error) {
-	if !c.config.Enable {
-		return 0, false, errors.New("schedule is not enable")
-	}
+func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	info, ok := c.idInfoMap[id]
@@ -135,9 +105,7 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 		}
 	}
 	v, err := c.cron.AddFunc(spec, func() {
-		var catcher panics.Catcher
-		catcher.Try(cmd)
-		log.Errors(spec, catcher.Recovered().AsError())
+		c.ctx.Go(cmd)
 	})
 	if err != nil {
 		return 0, ok, err
@@ -153,16 +121,14 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 }
 
 func (c *Schedule) Init(ctx *core.Context) error {
-	err := ctx.GetConfig().UnmarshalKey(c.config.Key(), c.config)
-	return errors.WithStackIf(err)
+	c.ctx = ctx
+	return nil
 }
 func (c *Schedule) Run(context context.Context) error {
-	if c.config.Enable {
-		go func() {
-			<-context.Done()
-			c.cron.Stop()
-		}()
-		c.cron.Start()
-	}
+	go func() {
+		<-context.Done()
+		c.cron.Stop()
+	}()
+	c.cron.Start()
 	return nil
 }

@@ -193,8 +193,10 @@ func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.Han
 func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handles(anyMethods, relativePath, handlers...)
 }
-func (c *Context) Go(f func()) {
-	panics.Try(f)
+func (c *Context) Go(f func(c *Context)) {
+	panics.Try(func() {
+		f(c)
+	})
 }
 
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

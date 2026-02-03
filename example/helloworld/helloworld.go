@@ -18,7 +18,7 @@ func main() {
 
 	ctx, ctxFun := context.WithCancel(context.Background())
 	go func() {
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 10)
 		ctxFun()
 	}()
 

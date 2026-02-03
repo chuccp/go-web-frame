@@ -268,13 +268,13 @@ func GetRunner[T IRunner](c *Context) T {
 	return t
 }
 
-func UnmarshalKeyConfig[T any](key string, c *Context) T {
+func UnmarshalKeyConfig[T any](key string, c *Context) (T, error) {
 	var t T
 	newValue := util.NewPtr(t)
 	err := c.GetConfig().UnmarshalKey(key, newValue)
 	if err != nil {
 		log.Error("GetValueConfig", zap.Error(err))
-		return t
+		return t, err
 	}
-	return newValue
+	return newValue, nil
 }

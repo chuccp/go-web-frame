@@ -38,7 +38,7 @@ func GetRunner[T core.IRunner](c *core.Context) T {
 func GetFilter[T core.IFilter](c *core.Context) T {
 	return core.GetFilter[T](c)
 }
-func UnmarshalKeyConfig[T any](key string, c *core.Context) T {
+func UnmarshalKeyConfig[T any](key string, c *core.Context) (T, error) {
 	return core.UnmarshalKeyConfig[T](key, c)
 }
 

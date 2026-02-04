@@ -1,8 +1,15 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -112,6 +119,7 @@ func (httpServer *HttpServer) toGinHandlerFunc(handlerConfig *HandlerConfig, han
 }
 
 func (httpServer *HttpServer) Run(ctx context.Context) error {
+	log.Info("Start the service：", zap.Any("serverConfig", httpServer.serverConfig))
 	serverConfig := httpServer.serverConfig
 	engine := httpServer.engine
 	if serverConfig.Locations != nil {
@@ -296,6 +304,97 @@ func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 	cm.certManager = m
 	return m, nil
 }
+
+func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err error) {
+	manager, err := cm.GetCertManager()
+	if err != nil {
+		return nil, nil, errors.WithStackIf(err)
+	}
+	hello := &tls.ClientHelloInfo{ServerName: host}
+	tlsCert, err := manager.GetCertificate(hello)
+	if err != nil {
+		return nil, nil, errors.WithStackIf(err)
+	}
+	if tlsCert == nil {
+		return nil, nil, errors.New("no certificate found")
+	}
+
+	// 1. 證書鏈（leaf + intermediates，通常不包含 root）
+	var certBuf bytes.Buffer
+	for i, der := range tlsCert.Certificate {
+		err = pem.Encode(&certBuf, &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: der,
+		})
+		if err != nil {
+			return nil, nil, errors.Errorf("failed to encode certificate #%d: %w", i, err)
+		}
+	}
+	certPEM = certBuf.Bytes()
+	if tlsCert.PrivateKey == nil {
+		return certPEM, nil, nil
+	}
+
+	var derBytes []byte
+
+	switch pk := tlsCert.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		derBytes = x509.MarshalPKCS1PrivateKey(pk)
+		pemType := "RSA PRIVATE KEY"
+
+		keyBuf := new(bytes.Buffer)
+		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
+			return certPEM, nil, errors.Errorf("failed to encode RSA private key: %w", err)
+		}
+		return certPEM, keyBuf.Bytes(), nil
+
+	case *ecdsa.PrivateKey:
+		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
+		if err != nil {
+			return certPEM, nil, errors.Errorf("failed to marshal ECDSA private key to PKCS#8: %w", err)
+		}
+		pemType := "PRIVATE KEY"
+
+		keyBuf := new(bytes.Buffer)
+		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
+			return certPEM, nil, errors.Errorf("failed to encode ECDSA private key: %w", err)
+		}
+		return certPEM, keyBuf.Bytes(), nil
+
+	case ed25519.PrivateKey:
+		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
+		if err != nil {
+			return certPEM, nil, errors.Errorf("failed to marshal Ed25519 private key to PKCS#8: %w", err)
+		}
+		pemType := "PRIVATE KEY"
+
+		keyBuf := new(bytes.Buffer)
+		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
+			return certPEM, nil, errors.Errorf("failed to encode Ed25519 private key: %w", err)
+		}
+		return certPEM, keyBuf.Bytes(), nil
+
+	case crypto.Signer, interface{ MarshalPKCS8PrivateKey() ([]byte, error) }:
+		if marshaler, ok := pk.(interface{ MarshalPKCS8PrivateKey() ([]byte, error) }); ok {
+			derBytes, err = marshaler.MarshalPKCS8PrivateKey()
+			if err != nil {
+				return certPEM, nil, errors.Errorf("MarshalPKCS8PrivateKey failed: %w", err)
+			}
+		} else {
+			return certPEM, nil, errors.New("private key implements crypto.Signer but no marshal method")
+		}
+
+		keyBuf := new(bytes.Buffer)
+		if err := pem.Encode(keyBuf, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes}); err != nil {
+			return certPEM, nil, errors.Errorf("failed to encode private key: %w", err)
+		}
+		return certPEM, keyBuf.Bytes(), nil
+
+	default:
+		return certPEM, nil, errors.Errorf("unsupported private key type: %T", pk)
+	}
+}
+
 func (cm *CertManager) Run(ctx context.Context) error {
 
 	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {

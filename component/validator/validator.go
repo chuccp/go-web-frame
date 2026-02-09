@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/go-playground/validator/v10"
@@ -40,9 +41,14 @@ func (v *Validator) Init(ctx context.Context, config config2.IConfig) error {
 func (v *Validator) Validate(i any) error {
 	err := v.validate.Struct(i)
 	if err != nil {
-		log.Error("validate", zap.Any("i", i), zap.Error(err))
-	} else {
-		log.Info("validate", zap.Any("i", i))
+
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			for _, e := range validationErrs {
+				return errors.Errorf("验证错误 - %s 格式错误", e.Value())
+			}
+		}
+
 	}
 	return err
 }

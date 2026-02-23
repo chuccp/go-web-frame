@@ -9,10 +9,10 @@ import (
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/go-playground/validator/v10"
-	"go.uber.org/zap"
 )
 
 var mobileRegex = regexp.MustCompile(`^1\d{10}$`)
+var passwordRegex = regexp.MustCompile(`^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$`)
 
 func validateMobile(fl validator.FieldLevel) bool {
 	phone := fl.Field().String()
@@ -20,7 +20,11 @@ func validateMobile(fl validator.FieldLevel) bool {
 	phone = strings.ReplaceAll(phone, " ", "")
 	phone = strings.ReplaceAll(phone, "-", "")
 	fa := mobileRegex.MatchString(phone)
-	log.Info("validateMobile", zap.String("phone", phone), zap.Bool("match", fa))
+	return fa
+}
+func validatePassword(fl validator.FieldLevel) bool {
+	password := fl.Field().String()
+	fa := passwordRegex.MatchString(password)
 	return fa
 }
 
@@ -31,6 +35,10 @@ type Validator struct {
 func (v *Validator) Init(ctx context.Context, config config2.IConfig) error {
 	v.validate = validator.New()
 	err := v.validate.RegisterValidation("mobile", validateMobile)
+	if err != nil {
+		return err
+	}
+	err = v.validate.RegisterValidation("password", validatePassword)
 	if err != nil {
 		return err
 	}
@@ -45,6 +53,9 @@ func (v *Validator) Validate(i any) error {
 		var validationErrs validator.ValidationErrors
 		if errors.As(err, &validationErrs) {
 			for _, e := range validationErrs {
+				if e.Tag() == "password" {
+					return errors.Errorf("密码必须包含大小写字母和数字，且长度不能小于8")
+				}
 				return errors.Errorf("验证错误 - %s 格式错误", e.Value())
 			}
 		}

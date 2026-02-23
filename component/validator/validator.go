@@ -12,7 +12,6 @@ import (
 )
 
 var mobileRegex = regexp.MustCompile(`^1\d{10}$`)
-var passwordRegex = regexp.MustCompile(`^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$`)
 
 func validateMobile(fl validator.FieldLevel) bool {
 	phone := fl.Field().String()
@@ -24,8 +23,23 @@ func validateMobile(fl validator.FieldLevel) bool {
 }
 func validatePassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
-	fa := passwordRegex.MatchString(password)
-	return fa
+	password = strings.TrimSpace(password)
+	if len(password) < 8 {
+		return false
+	}
+	hasLower := strings.ContainsAny(password, "abcdefghijklmnopqrstuvwxyz")
+	if !hasLower {
+		return false
+	}
+	hasUpper := strings.ContainsAny(password, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	if !hasUpper {
+		return false
+	}
+	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
+	if !hasDigit {
+		return false
+	}
+	return true
 }
 
 type Validator struct {

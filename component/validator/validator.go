@@ -70,6 +70,9 @@ func (v *Validator) Validate(i any) error {
 				if e.Tag() == "password" {
 					return errors.Errorf("密码必须包含大小写字母和数字，且长度不能小于8")
 				}
+				if e.Tag() == "mobile" {
+					return errors.Errorf("手机号码格式错误")
+				}
 				return errors.Errorf("验证错误 - %s 格式错误", e.Value())
 			}
 		}

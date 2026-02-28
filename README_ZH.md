@@ -221,7 +221,5 @@ go run your_app.go -stop
 
 MIT License - 查看[LICENSE](./LICENSE)了解详情
 
----
 
-**🌐 Language / 语言**
-[English](README.md) • [中文](README_ZH.md)
+

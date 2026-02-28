@@ -187,6 +187,7 @@ golint ./...
 - [API Documentation](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [Example Applications](./example/)
 - [CLAUDE.md](./CLAUDE.md) - Detailed developer guide
+- [中文文档](./README_ZH.md) - Chinese documentation
 
 ## License
 

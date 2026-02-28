@@ -1,18 +1,13 @@
-<div align="center">
-  <h1>Go Web Frame</h1>
-  <p>A modern, feature-rich web framework for Go built on top of Gin, providing a structured approach to building enterprise-grade web applications.</p>
-  <div style="border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; display: inline-block;">
-    <a href="#" onclick="switchLang('en'); return false;" style="margin: 0 10px; text-decoration: none; font-weight: bold; color: #333;">English</a>
-    <span style="color: #ccc;">|</span>
-    <a href="#" onclick="switchLang('zh'); return false;" style="margin: 0 10px; text-decoration: none; color: #337ab7;">中文</a>
-  </div>
-</div>
-
-<div id="en-content">
-
 # Go Web Frame
 
 A modern, feature-rich web framework for Go built on top of Gin, providing a structured approach to building enterprise-grade web applications.
+
+---
+
+**🌐 Language / 语言**
+[English](README.md) • [中文](README_ZH.md)
+
+---
 
 ## Features
 
@@ -35,36 +30,7 @@ A modern, feature-rich web framework for Go built on top of Gin, providing a str
 go get github.com/chuccp/go-web-frame
 ```
 
-### Hello World Example</div>
-
-<div id="zh-content" style="display: none;">
-
-# Go Web Frame
-
-一个基于Gin构建的现代化Go Web框架，提供结构化的方式来构建企业级Web应用。
-
-## 🌟 特性
-
-- 🎯 **类MVC架构**：清晰的关注点分离，包含服务、控制器和模型
-- 🧩 **依赖注入**：内置DI容器，管理组件生命周期
-- 📦 **数据库集成**：SQLite、Redis支持，可扩展的数据库抽象层
-- 🛠️ **组件系统**：可重用组件，包括缓存、限流和本地缓存
-- 🌐 **RESTful支持**：简化的REST控制器实现
-- 🚀 **守护进程模式**：在Windows、Linux和macOS上作为系统服务运行
-- ⚙️ **自动配置**：从JSON、YAML或TOML文件自动加载配置
-- 📝 **高级日志**：基于Zap的结构化日志
-- 🔄 **后台任务**：内置的后台任务运行器系统
-- 🛡️ **请求过滤**：HTTP中间件/过滤器系统，处理横切关注点
-
-## 🚀 快速开始
-
-### 安装
-
-```bash
-go get github.com/chuccp/go-web-frame
-```
-
-### 🏠 Hello World 示例
+### Hello World Example
 
 ```go
 package main
@@ -286,9 +252,6 @@ window.switchLang = function(lang) {
     localStorage.setItem('preferredLang', 'zh');
   }
 };
-</script>
-
-## Features
 
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
 - **Dependency Injection**: Built-in DI container for managing component lifecycle

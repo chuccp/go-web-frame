@@ -22,6 +22,7 @@ type IConfig interface {
 	Unmarshal(v any) error
 	UnmarshalKey(key string, v any) error
 	ReplaceKey(key string, newKey string)
+	WriteConfig() error
 }
 
 type Config struct {
@@ -73,6 +74,11 @@ func (c *Config) ReplaceKey(key string, newKey string) {
 	if c.v.IsSet(key) {
 		c.v.Set(newKey, c.v.Get(key))
 	}
+}
+
+func (c *Config) WriteConfig() error {
+	// Config doesn't have a file to write to, this is a no-op
+	return errors.Errorf("Config doesn't have a file to write to")
 }
 
 type SingleFileConfig struct {

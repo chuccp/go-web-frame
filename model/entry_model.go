@@ -1,6 +1,7 @@
 package model
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/chuccp/go-web-frame/db"
@@ -80,7 +81,28 @@ func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) 
 }
 func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error {
 	return a.model.Update().Where("`id` = ? ", id).UpdateForMap(data)
+}
 
+func (a *EntryModel[T]) SaveForMap(mapValue map[string]interface{}) error {
+	return a.model.SaveForMap(mapValue)
+}
+
+func (a *EntryModel[T]) SavesForMap(mapValues []map[string]interface{}) error {
+	return a.model.SavesForMap(mapValues)
+}
+
+// SaveForMapWithPk saves a record from a map and returns the generated primary key
+func (a *EntryModel[T]) SaveForMapWithPk(mapValue map[string]interface{}, keyName string) (any, error) {
+	return a.model.SaveForMapWithPk(mapValue, keyName)
+}
+
+func (a *EntryModel[T]) SaveForMapWithUintPk(mapValue map[string]interface{}, keyName string) (uint, error) {
+	return a.model.SaveForMapWithUintPk(mapValue, keyName)
+}
+
+// CreateWithPk creates a record and returns the generated primary key
+func (a *EntryModel[T]) CreateWithPk(entry T, keyName string, kind reflect.Kind) (any, error) {
+	return a.model.CreateWithPk(entry, keyName, kind)
 }
 
 func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {

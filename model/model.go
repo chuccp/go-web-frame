@@ -5,6 +5,7 @@ import (
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
 	"gorm.io/gorm"
+	"reflect"
 )
 
 type Model[T any] struct {
@@ -37,6 +38,28 @@ func (a *Model[T]) Save(entry T) error {
 
 func (a *Model[T]) Saves(entry []T) error {
 	return a.db.Table(a.tableName).Create(&entry)
+}
+
+func (a *Model[T]) SaveForMap(mapValue map[string]any) error {
+	return a.db.Table(a.tableName).Create(mapValue)
+}
+
+func (a *Model[T]) SavesForMap(mapValues []map[string]any) error {
+	return a.db.Table(a.tableName).Create(mapValues)
+}
+
+// SaveForMapWithPk saves a record from a map and returns the generated primary key
+func (a *Model[T]) SaveForMapWithPk(mapValue map[string]any, keyName string) (any, error) {
+	return a.db.Table(a.tableName).CreateMapWithPk(mapValue, keyName)
+}
+
+func (a *Model[T]) SaveForMapWithUintPk(mapValue map[string]any, keyName string) (uint, error) {
+	return a.db.Table(a.tableName).CreateMapWithUintPk(mapValue, keyName)
+}
+
+// CreateWithPk creates a record and returns the generated primary key
+func (a *Model[T]) CreateWithPk(entry T, keyName string, kind reflect.Kind) (any, error) {
+	return a.db.Table(a.tableName).CreateWithPk(entry, keyName, kind)
 }
 
 func (a *Model[T]) Query() *Query[T] {

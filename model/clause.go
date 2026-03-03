@@ -48,7 +48,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	err := q.tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if err == nil {
 		var num int64
-		err = q.tx.Count(&num)
+		err = q.tx.NewTable().Count(&num)
 		if err == nil {
 			return ts, int(num), nil
 		}
@@ -70,7 +70,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	err := q.tx.Limit(size).Find(&ts)
 	if err == nil {
 		var num int64
-		err = q.tx.Count(&num)
+		err = q.tx.NewTable().Count(&num)
 		if err == nil {
 			return ts, int(num), nil
 		}

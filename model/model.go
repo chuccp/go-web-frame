@@ -1,11 +1,12 @@
 package model
 
 import (
+	"reflect"
+
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
 	"gorm.io/gorm"
-	"reflect"
 )
 
 type Model[T any] struct {

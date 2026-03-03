@@ -27,9 +27,14 @@ func (s *Session) Delete(value any, conds ...any) error {
 }
 
 type Table struct {
-	db *gorm.DB
+	db        *gorm.DB
+	tableName string
+	raw       *gorm.DB
 }
 
+func (t *Table) NewTable() *Table {
+	return &Table{db: t.raw.Table(t.tableName), tableName: t.tableName}
+}
 func (t *Table) Session(g *gorm.Session) *Session {
 	return &Session{db: t.db.Session(g)}
 }
@@ -186,17 +191,17 @@ func (t *Table) Where(query any, args ...any) *Table {
 //	}
 func (t *Table) Offset(i int) *Table {
 	tx := t.db.Offset(i)
-	return &Table{db: tx}
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
 func (t *Table) Order(query any) *Table {
 	tx := t.db.Order(query)
-	return &Table{db: tx}
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
 func (t *Table) Limit(size int) *Table {
 	tx := t.db.Limit(size)
-	return &Table{db: tx}
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
 func (t *Table) Find(dest any, conds ...any) error {
@@ -229,6 +234,9 @@ type DB struct {
 	db *gorm.DB
 }
 
+func (d *DB) New() *DB {
+	return &DB{db: d.db}
+}
 func (d *DB) Transaction(fc func(tx *DB) error) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		return fc(&DB{db: tx})
@@ -241,7 +249,7 @@ func (d *DB) Migrator() gorm.Migrator {
 
 func (d *DB) Table(name string) *Table {
 	tx := d.db.Table(name)
-	return &Table{db: tx}
+	return &Table{db: tx, tableName: name, raw: d.db}
 }
 
 type noConfigDBError struct {

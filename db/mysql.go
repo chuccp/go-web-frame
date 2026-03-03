@@ -23,6 +23,12 @@ type MysqlConfig struct {
 	Port     int
 }
 
+func ConnectionMysql(host string, port int, username string, password string, dbname string, charset string) (db *DB, err error) {
+	var mysqlConfig = &MysqlConfig{Host: host, Port: port, Username: username, Password: password, Dbname: dbname, Charset: charset}
+	return mysqlConfig.Connection()
+
+}
+
 func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if util.IsBlank(mysqlConfig.Username) {
 		mysqlConfig.Username = mysqlConfig.User

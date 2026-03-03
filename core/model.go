@@ -71,6 +71,8 @@ func (m *ModelGroup) Init(context *Context) error {
 				}
 			}
 		}
+	} else {
+		log.Warn("db is nil", zap.String("name", m.name))
 	}
 	return nil
 }

@@ -199,6 +199,9 @@ func (w *WebFrame) GetDefaultModelGroup() core.IModelGroup {
 func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }
+func (w *WebFrame) SetDefaultDB(db *db2.DB) {
+	w.defaultModelGroup.SetDefaultDB(db)
+}
 func (w *WebFrame) Start() error {
 	return w.Run(context.Background())
 }

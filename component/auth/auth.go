@@ -11,7 +11,7 @@ import (
 type Authentication interface {
 	SignIn(user any, request *web.Request) (any, error)
 	SignOut(request *web.Request) (any, error)
-	User(request *web.Request) (any, error)
+	User(request *web.Request, ctx *core.Context) (any, error)
 }
 
 const (
@@ -47,11 +47,11 @@ func (s *AuthenticationFilter) SignOut(request *web.Request) (any, error) {
 	return s.authentication.SignOut(request)
 }
 func (s *AuthenticationFilter) User(request *web.Request) (any, error) {
-	return s.authentication.User(request)
+	return s.authentication.User(request, s.ctx)
 }
 func (s *AuthenticationFilter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
 	if request.HandlerMeta().Has(LoginKey) {
-		user, err := s.authentication.User(request)
+		user, err := s.authentication.User(request, s.ctx)
 		if err != nil || user == nil {
 			return web.Unauthorized("", err), nil
 		}

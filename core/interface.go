@@ -37,8 +37,9 @@ type IModelGroup interface {
 	IService
 	AddModel(model ...IModel)
 	GetModel() []IModel
+	AutoCreateTable(autoCreateTable bool)
 	SwitchDB(db *db.DB, context *Context) error
-	SetDB(db *db.DB)
+	SetDefaultDB(db *db.DB)
 	Name() string
 	GetTransaction() *model.Transaction
 }

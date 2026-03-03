@@ -183,7 +183,12 @@ func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 	return groupGroup
 }
 
-func (w *WebFrame) NewModelGroup(name string) *core.ModelGroup {
+func (w *WebFrame) NewModelGroup(db *db2.DB, name string) *core.ModelGroup {
+	modelGroup := core.NewModelGroup(db, name)
+	w.modelGroup = append(w.modelGroup, modelGroup)
+	return modelGroup
+}
+func (w *WebFrame) NewEmptyModelGroup(name string) *core.ModelGroup {
 	modelGroup := core.EmptyModelGroup(name)
 	w.modelGroup = append(w.modelGroup, modelGroup)
 	return modelGroup
@@ -226,20 +231,20 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
 
-	if len(w.models) > 0 {
-		coreContext.AddModel(w.models...)
-		w.defaultModelGroup.AddModel(w.models...)
-	}
 	if w.config.HasKey(db2.ConfigKey) {
 		db, err := db2.CreateDB(w.config)
 		if err != nil {
 			log.Error("Failed to initialize the database", zap.Error(err))
 			return err
 		}
-		err = w.defaultModelGroup.SwitchDB(db, coreContext)
+		w.defaultModelGroup.SetDefaultDB(db)
+	}
+	if len(w.models) > 0 {
+		coreContext.AddModel(w.models...)
+		w.defaultModelGroup.AddModel(w.models...)
+		err := w.defaultModelGroup.Init(coreContext)
 		if err != nil {
-			log.Error("Failed to switch the database", zap.Error(err))
-			return err
+			return errors.WithStackIf(err)
 		}
 	}
 

@@ -9,9 +9,10 @@ import (
 )
 
 type ModelGroup struct {
-	models []IModel
-	db     *db.DB
-	name   string
+	models          []IModel
+	db              *db.DB
+	name            string
+	autoCreateTable bool
 }
 
 func (m *ModelGroup) AddModel(model ...IModel) {
@@ -20,6 +21,10 @@ func (m *ModelGroup) AddModel(model ...IModel) {
 func (m *ModelGroup) GetModel() []IModel {
 	return m.models
 }
+
+func (m *ModelGroup) AutoCreateTable(autoCreateTable bool) {
+	m.autoCreateTable = autoCreateTable
+}
 func (m *ModelGroup) GetTransaction() *model.Transaction {
 	if m.db == nil {
 		log.Panic("db is nil", zap.String("name", m.name))
@@ -27,16 +32,23 @@ func (m *ModelGroup) GetTransaction() *model.Transaction {
 	return model.NewTransaction(m.db)
 }
 
-func (m *ModelGroup) SetDB(db *db.DB) {
+func (m *ModelGroup) SetDefaultDB(db *db.DB) {
+	log.Info("set db", zap.String("name", m.name))
 	m.db = db
 }
 
 func (m *ModelGroup) SwitchDB(db *db.DB, context *Context) error {
 	m.db = db
-	for _, model := range m.models {
-		err := model.Init(m.db, context)
+	for _, iModel := range m.models {
+		err := iModel.Init(m.db, context)
 		if err != nil {
 			return errors.WithStackIf(err)
+		}
+		if m.autoCreateTable {
+			err = iModel.CreateTable()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -51,6 +63,12 @@ func (m *ModelGroup) Init(context *Context) error {
 			err := iModel.Init(m.db, context)
 			if err != nil {
 				return err
+			}
+			if m.autoCreateTable {
+				err = iModel.CreateTable()
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -13,6 +13,10 @@ type SQLiteConfig struct {
 	FilePath string
 }
 
+func ConnectionSQLite(FilePath string) (db *DB, err error) {
+	return (&SQLiteConfig{FilePath: FilePath}).Connection()
+}
+
 func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 	log2.Debug("sqlite", zap.String("dsn", sqliteConfig.FilePath))
 	sb, err := gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})

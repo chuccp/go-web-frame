@@ -35,7 +35,7 @@ func (t *Table) Session(g *gorm.Session) *Session {
 }
 
 func (t *Table) AutoMigrate(v ...any) error {
-	return t.db.AutoMigrate(v)
+	return t.db.AutoMigrate(v...)
 }
 
 func (t *Table) Delete(value any, conds ...any) error {

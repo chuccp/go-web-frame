@@ -26,6 +26,11 @@ func (m *ModelGroup) GetTransaction() *model.Transaction {
 	}
 	return model.NewTransaction(m.db)
 }
+
+func (m *ModelGroup) SetDB(db *db.DB) {
+	m.db = db
+}
+
 func (m *ModelGroup) SwitchDB(db *db.DB, context *Context) error {
 	m.db = db
 	for _, model := range m.models {

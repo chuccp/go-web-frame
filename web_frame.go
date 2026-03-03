@@ -182,6 +182,15 @@ func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup 
 	w.restGroups = append(w.restGroups, groupGroup)
 	return groupGroup
 }
+
+func (w *WebFrame) NewModelGroup(name string) *core.ModelGroup {
+	modelGroup := core.EmptyModelGroup(name)
+	w.modelGroup = append(w.modelGroup, modelGroup)
+	return modelGroup
+}
+func (w *WebFrame) GetDefaultModelGroup() core.IModelGroup {
+	return w.defaultModelGroup
+}
 func (w *WebFrame) AddFilter(filters ...core.IFilter) {
 	w.filters = append(w.filters, filters...)
 }

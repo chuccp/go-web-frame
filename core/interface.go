@@ -38,6 +38,7 @@ type IModelGroup interface {
 	AddModel(model ...IModel)
 	GetModel() []IModel
 	SwitchDB(db *db.DB, context *Context) error
+	SetDB(db *db.DB)
 	Name() string
 	GetTransaction() *model.Transaction
 }

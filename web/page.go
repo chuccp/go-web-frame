@@ -7,10 +7,10 @@ type Page struct {
 }
 type PageAble[T any] struct {
 	Total int64 `json:"total"`
-	List  any   `json:"list"`
+	List  []T   `json:"list"`
 }
 
-func ToPage[T any](total int64, list any) *PageAble[T] {
+func ToPage[T any](total int64, list []T) *PageAble[T] {
 	return &PageAble[T]{
 		Total: total,
 		List:  list,

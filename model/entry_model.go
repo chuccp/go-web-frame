@@ -61,17 +61,11 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
-	q, err := a.model.Query()
-	if err != nil {
-		return nil, err
-	}
+	q := a.model.Query()
 	return q.Where("`id` in (?) ", id).All()
 }
 func (a *EntryModel[T]) FindAll() ([]T, error) {
-	q, err := a.model.Query()
-	if err != nil {
-		return nil, err
-	}
+	q := a.model.Query()
 	return q.All()
 }
 func (a *EntryModel[T]) DeleteById(id uint) error {
@@ -82,24 +76,15 @@ func (a *EntryModel[T]) DeleteById(id uint) error {
 
 func (a *EntryModel[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
-	u, err := a.model.Update()
-	if err != nil {
-		return err
-	}
+	u := a.model.Update()
 	return u.Where("`id` = ? ", t.GetId()).Update(t)
 }
 func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) error {
-	u, err := a.model.Update()
-	if err != nil {
-		return err
-	}
+	u := a.model.Update()
 	return u.Where("`id` = ? ", id).UpdateColumn(column, value)
 }
 func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error {
-	u, err := a.model.Update()
-	if err != nil {
-		return err
-	}
+	u := a.model.Update()
 	return u.Where("`id` = ? ", id).UpdateForMap(data)
 }
 
@@ -129,35 +114,26 @@ func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
 	return &EntryModel[T]{NewModel[T](db, a.model.tableName)}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
-	q, err := a.model.Query()
-	if err != nil {
-		return nil, 0, err
-	}
+	q := a.model.Query()
 	return q.Order("`id` desc").Page(page)
 }
 func (a *EntryModel[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
-	q, err := a.model.Query()
-	if err != nil {
-		return nil, err
-	}
+	q := a.model.Query()
 	return q.Order("`id` desc").PageForWeb(page)
 }
 func (a *EntryModel[T]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
-	q, err := a.model.Query()
-	if err != nil {
-		return nil, 0, err
-	}
+	q := a.model.Query()
 	return q.Where(query, args...).Order("`id` desc").Page(page)
 }
 
-func (a *EntryModel[T]) Query() (*Query[T], error) {
+func (a *EntryModel[T]) Query() *Query[T] {
 	return a.model.Query()
 }
 
-func (a *EntryModel[T]) Update() (*Update[T], error) {
+func (a *EntryModel[T]) Update() *Update[T] {
 	return a.model.Update()
 }
-func (a *EntryModel[T]) Delete() (*Delete[T], error) {
+func (a *EntryModel[T]) Delete() *Delete[T] {
 	return a.model.Delete()
 }
 

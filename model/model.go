@@ -113,31 +113,26 @@ func (a *Model[T]) CreateWithPk(entry T, keyName string, kind reflect.Kind) (any
 	return dbConn.Table(a.tableName).CreateWithPk(entry, keyName, kind)
 }
 
-func (a *Model[T]) Query() (*Query[T], error) {
-	dbConn, err := a.getBb()
-	if err != nil {
-		return nil, errors.WithStackIf(err)
-	}
-	tx := dbConn.Table(a.tableName)
-	return &Query[T]{tx: tx, entry: a.entry}, nil
+func (a *Model[T]) Query() *Query[T] {
+
+	return &Query[T]{db: a.db, tableName: a.tableName, entry: a.entry}
 }
 
-func (a *Model[T]) Update() (*Update[T], error) {
-	dbConn, err := a.getBb()
-	if err != nil {
-		return nil, errors.WithStackIf(err)
+func (a *Model[T]) Update() *Update[T] {
+	return &Update[T]{
+		db:        a.db,
+		tableName: a.tableName,
+		model:     a.entry,
+		wheres:    make([]*where, 0),
 	}
-	tx := dbConn.Table(a.tableName)
-	return &Update[T]{tx: tx, model: a.entry, wheres: NewUpdateWheres[T](tx)}, nil
 }
-func (a *Model[T]) Delete() (*Delete[T], error) {
-	dbConn, err := a.getBb()
-	if err != nil {
-		return nil, errors.WithStackIf(err)
-
+func (a *Model[T]) Delete() *Delete[T] {
+	return &Delete[T]{
+		db:        a.db,
+		tableName: a.tableName,
+		model:     a.entry,
+		wheres:    make([]*where, 0),
 	}
-	tx := dbConn.Table(a.tableName)
-	return &Delete[T]{tx: tx, model: a.entry, wheres: NewDeleteWheres[T](tx, a.entry)}, nil
 }
 
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {

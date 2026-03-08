@@ -18,6 +18,11 @@ type DefaultConverter struct {
 
 func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 	value, err := filterChain.Next()
+	if err == nil {
+		if e, ok := value.(error); ok {
+			err = e
+		}
+	}
 	resp := request.Response()
 	if err != nil {
 		err0 := Errors(value, err)

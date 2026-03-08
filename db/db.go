@@ -2,6 +2,7 @@ package db
 
 import (
 	"reflect"
+	"strings"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/config"
@@ -119,6 +120,11 @@ func (t *Table) CreateWithPk(value any, keyName string, kind reflect.Kind) (any,
 // If keyName is empty, it will try common ID field names (ID, Id, id)
 func (t *Table) CreateMapWithPk(mapValue map[string]any, keyName string) (any, error) {
 	// Create the record
+
+	if util.IsNotBlank(keyName) && !strings.HasPrefix(keyName, "@") {
+		keyName = "@" + keyName
+	}
+
 	if err := t.db.Create(mapValue).Error; err != nil {
 		return nil, err
 	}

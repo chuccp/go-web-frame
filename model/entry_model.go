@@ -24,7 +24,7 @@ func NewEntryModel[T IEntry](db *db.DB, tableName string) *EntryModel[T] {
 	return &EntryModel[T]{NewModel[T](db, tableName)}
 }
 
-func (a *EntryModel[T]) IsExist() bool {
+func (a *EntryModel[T]) IsExist() (bool, error) {
 	return a.model.IsExist()
 }
 func (a *EntryModel[T]) CreateTable() error {
@@ -61,10 +61,18 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
-	return a.model.Query().Where("`id` in (?) ", id).All()
+	q, err := a.model.Query()
+	if err != nil {
+		return nil, err
+	}
+	return q.Where("`id` in (?) ", id).All()
 }
 func (a *EntryModel[T]) FindAll() ([]T, error) {
-	return a.model.Query().All()
+	q, err := a.model.Query()
+	if err != nil {
+		return nil, err
+	}
+	return q.All()
 }
 func (a *EntryModel[T]) DeleteById(id uint) error {
 	t := util.NewPtr(a.model.entry)
@@ -74,13 +82,25 @@ func (a *EntryModel[T]) DeleteById(id uint) error {
 
 func (a *EntryModel[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
-	return a.model.Update().Where("`id` = ? ", t.GetId()).Update(t)
+	u, err := a.model.Update()
+	if err != nil {
+		return err
+	}
+	return u.Where("`id` = ? ", t.GetId()).Update(t)
 }
 func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) error {
-	return a.model.Update().Where("`id` = ? ", id).UpdateColumn(column, value)
+	u, err := a.model.Update()
+	if err != nil {
+		return err
+	}
+	return u.Where("`id` = ? ", id).UpdateColumn(column, value)
 }
 func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error {
-	return a.model.Update().Where("`id` = ? ", id).UpdateForMap(data)
+	u, err := a.model.Update()
+	if err != nil {
+		return err
+	}
+	return u.Where("`id` = ? ", id).UpdateForMap(data)
 }
 
 func (a *EntryModel[T]) SaveForMap(mapValue map[string]interface{}) error {
@@ -109,24 +129,35 @@ func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
 	return &EntryModel[T]{NewModel[T](db, a.model.tableName)}
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
-	return a.model.Query().Order("`id` desc").Page(page)
+	q, err := a.model.Query()
+	if err != nil {
+		return nil, 0, err
+	}
+	return q.Order("`id` desc").Page(page)
 }
 func (a *EntryModel[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
-	return a.model.Query().Order("`id` desc").PageForWeb(page)
+	q, err := a.model.Query()
+	if err != nil {
+		return nil, err
+	}
+	return q.Order("`id` desc").PageForWeb(page)
 }
 func (a *EntryModel[T]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
-	return a.model.Query().Where(query, args...).Order("`id` desc").Page(page)
+	q, err := a.model.Query()
+	if err != nil {
+		return nil, 0, err
+	}
+	return q.Where(query, args...).Order("`id` desc").Page(page)
 }
 
-func (a *EntryModel[T]) Query() *Query[T] {
-
+func (a *EntryModel[T]) Query() (*Query[T], error) {
 	return a.model.Query()
 }
 
-func (a *EntryModel[T]) Update() *Update[T] {
+func (a *EntryModel[T]) Update() (*Update[T], error) {
 	return a.model.Update()
 }
-func (a *EntryModel[T]) Delete() *Delete[T] {
+func (a *EntryModel[T]) Delete() (*Delete[T], error) {
 	return a.model.Delete()
 }
 

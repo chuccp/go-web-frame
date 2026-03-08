@@ -208,6 +208,14 @@ func StartsWithAnyIgnoreCase(s string, prefix ...string) bool {
 	}
 	return false
 }
+func StartsWithAny(s string, prefix ...string) bool {
+	for _, prefix := range prefix {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 func BoolToString(b bool) string {
 	if b {

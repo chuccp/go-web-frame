@@ -14,7 +14,7 @@ type IService interface {
 }
 type IModel interface {
 	Init(db *db.DB, c *Context) error
-	IsExist() bool
+	IsExist() (bool, error)
 	CreateTable() error
 	DeleteTable() error
 	GetTableName() string

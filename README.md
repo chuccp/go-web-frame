@@ -12,8 +12,9 @@ A modern, feature-rich web framework for Go built on top of Gin, providing a str
 ## Features
 
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
+- **⚡ Type-safe Generic ORM**: Zero-boilerplate CRUD operations with generics, no reflection overhead
 - **Dependency Injection**: Built-in DI container for managing component lifecycle
-- **Database Integration**: SQLite, Redis, and extensible database abstraction layer
+- **Database Integration**: SQLite, Redis, MySQL and extensible database abstraction layer
 - **Component System**: Reusable components including caching, rate limiting, and local cache
 - **RESTful Support**: Simplified REST controller implementation
 - **Daemon/Service Mode**: Run applications as system services on Windows, Linux, and macOS
@@ -21,6 +22,7 @@ A modern, feature-rich web framework for Go built on top of Gin, providing a str
 - **Advanced Logging**: Structured logging powered by Zap
 - **Background Tasks**: Built-in runner system for background processing
 - **Request Filtering**: HTTP middleware/filter system for cross-cutting concerns
+- **Unified Error Handling**: Automatic conversion of service errors to standardized HTTP responses
 
 ## Quick Start
 
@@ -69,7 +71,7 @@ func main() {
 }
 ```
 
-### 🔌 REST控制器示例
+### 🔌 REST Controller Example
 
 ```go
 package main
@@ -148,7 +150,88 @@ func main() {
 }
 ```
 
-## 🏗️ 架构
+### ⚡ Generic ORM Example
+
+```go
+package main
+
+import (
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/model"
+)
+
+// Define your entity struct
+type User struct {
+    Id   uint   `gorm:"primaryKey"`
+    Name string
+    Age  int
+}
+
+// UserModel extends generic Model
+type UserModel struct {
+    *model.Model[*User]
+}
+
+func (u *UserModel) Init(db *core.DB, ctx *core.Context) error {
+    u.Model = model.NewModel[*User](db, "t_user")
+    // Auto create table if not exists
+    return u.CreateTable()
+}
+
+func main() {
+    app := wf.NewWithAutoConfig()
+    // Register model to DI container
+    app.AddModel(&UserModel{})
+
+    // Example ORM operations
+    app.Get("/users", func(c *web.Request) (any, error) {
+        userModel := wf.GetModel[*UserModel](c.Context())
+
+        // Query with chain API
+        users, err := userModel.Query().
+            Where("age > ?", 18).
+            Order("id desc").
+            All()
+
+        return users, err
+    })
+
+    app.Post("/users", func(c *web.Request) (any, error) {
+        userModel := wf.GetModel[*UserModel](c.Context())
+
+        // Create user
+        user := &User{Name: "John", Age: 25}
+        err := userModel.Save(user)
+        return user.Id, err
+    })
+
+    app.Put("/users/:id", func(c *web.Request) (any, error) {
+        userModel := wf.GetModel[*UserModel](c.Context())
+        id := c.ParamInt("id")
+
+        // Update user
+        return nil, userModel.Update().
+            Where("id = ?", id).
+            UpdateColumn("name", "John Updated")
+    })
+
+    app.Delete("/users/:id", func(c *web.Request) (any, error) {
+        userModel := wf.GetModel[*UserModel](c.Context())
+        id := c.ParamInt("id")
+
+        // Delete user
+        return nil, userModel.Delete().
+            Where("id = ?", id).
+            Delete()
+    })
+
+    ctx := context.Background()
+    app.Run(ctx)
+}
+```
+
+## 🏗️ Architecture
 
 ### 核心组件
 

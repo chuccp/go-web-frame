@@ -13,7 +13,7 @@ type Component struct {
 
 func (l *Component) Init(config *config2.Config) error {
 	var options = redis.Options{}
-	err := config.Unmarshal("web.redis", &options)
+	err := config.UnmarshalKey("web.redis", options)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/model"
+	"github.com/chuccp/go-web-frame/util"
 	"go.uber.org/zap"
 )
 
@@ -40,6 +41,7 @@ func (m *ModelGroup) SetDefaultDB(db *db.DB) {
 func (m *ModelGroup) SwitchDB(db *db.DB, context *Context) error {
 	m.db = db
 	for _, iModel := range m.models {
+		log.Debug("Init", zap.String("model", util.GetStructFullQualifiedName(iModel)))
 		err := iModel.Init(m.db, context)
 		if err != nil {
 			return errors.WithStackIf(err)
@@ -60,6 +62,7 @@ func (m *ModelGroup) Name() string {
 func (m *ModelGroup) Init(context *Context) error {
 	if m.db != nil {
 		for _, iModel := range m.models {
+			log.Debug("Init", zap.String("model", util.GetStructFullQualifiedName(iModel)))
 			err := iModel.Init(m.db, context)
 			if err != nil {
 				return err

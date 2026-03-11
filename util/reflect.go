@@ -53,3 +53,32 @@ func GetStructName(v any) string {
 	}
 	return t.Name()
 }
+
+// GetStructPkgPath returns the full package path of the struct (e.g. "github.com/chuccp/antilost_qrcode_go/rest")
+func GetStructPkgPath(v any) string {
+	if v == nil {
+		return "<nil>"
+	}
+	t := reflect.TypeOf(v)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t.PkgPath()
+}
+
+// GetStructFullQualifiedName returns the fully qualified name of the struct including full package path
+// (e.g. "github.com/chuccp/antilost_qrcode_go/rest.User")
+func GetStructFullQualifiedName(v any) string {
+	if v == nil {
+		return "<nil>"
+	}
+	t := reflect.TypeOf(v)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	pkgPath := t.PkgPath()
+	if pkgPath == "" {
+		return t.Name()
+	}
+	return pkgPath + "." + t.Name()
+}

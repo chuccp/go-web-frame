@@ -222,6 +222,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	log.InitLogger(&logConfig)
 
 	for _, component := range w.component {
+		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
 		err := errors.WithStackIf(component.Init(ctx, w.config))
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.Error(err))
@@ -263,6 +264,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	}
 
 	for _, iService := range w.services {
+		log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(iService)))
 		err := iService.Init(coreContext)
 		if err != nil {
 			return errors.WithStackIf(err)

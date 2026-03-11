@@ -39,7 +39,7 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 func (server *Server) Init(ctx *Context) error {
 	server.certManager = ctx.CertManager()
 	for _, runner := range server.runners {
-		log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(runner)))
+		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
 		err := runner.Init(ctx)
 		if err != nil {
 			return errors.WithStackIf(err)
@@ -55,7 +55,7 @@ func (server *Server) Init(ctx *Context) error {
 			return errors.WithStackIf(err)
 		}
 		for _, filter := range restGroup.filters {
-			log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(filter)))
+			log.Debug("Init", zap.String("filter", util.GetStructFullQualifiedName(filter)))
 			err := filter.Init(restContext)
 			if err != nil {
 				return errors.WithStackIf(err)

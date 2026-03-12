@@ -71,6 +71,10 @@ type HttpServer struct {
 
 func defaultEngine() *gin.Engine {
 	engine := gin.Default()
+	// 信任所有代理，从 X-Forwarded-For 获取真实 IP
+	engine.SetTrustedProxies([]string{"0.0.0.0/0"})
+	// 启用从客户端 IP 头获取真实 IP
+	engine.ForwardedByClientIP = true
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = false
 	config.AllowCredentials = true

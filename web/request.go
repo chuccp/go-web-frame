@@ -58,8 +58,14 @@ func (r *Request) URL() *url.URL {
 func (r *Request) RemoteAddr() string {
 	return r.c.Request.RemoteAddr
 }
+
+// RemoteIp 返回真实客户端 IP，支持从 X-Forwarded-For 获取
 func (r *Request) RemoteIp() string {
 	return r.c.RemoteIP()
+}
+
+func (r *Request) ClientIP() string {
+	return r.c.ClientIP()
 }
 
 func (r *Request) Domain() string {

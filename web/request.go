@@ -93,6 +93,12 @@ func (r *Request) Param(key string) string {
 func (r *Request) ParamInt(key string) int {
 	return cast.ToInt(r.Param(key))
 }
+func (r *Request) ParamIntForDefault(key string, defaultValue int) int {
+	if cast.ToInt(r.Param(key)) != 0 {
+		return cast.ToInt(r.Param(key))
+	}
+	return defaultValue
+}
 func (r *Request) ParamUint(key string) uint {
 	return cast.ToUint(r.Param(key))
 }

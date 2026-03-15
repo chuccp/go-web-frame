@@ -28,7 +28,7 @@ func WriteBase64File(base64Str string, dst string) error {
 }
 func WriteFile(bytes []byte, dst string) error {
 	// 创建目标文件所在的目录
-	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 		return err
 	}
 

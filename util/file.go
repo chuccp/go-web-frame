@@ -28,7 +28,7 @@ func WriteBase64File(base64Str string, dst string) error {
 }
 func WriteFile(bytes []byte, dst string) error {
 	// 创建目标文件所在的目录
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
 		return err
 	}
 
@@ -171,7 +171,7 @@ func (f *File) ModTime() (*time.Time, error) {
 }
 
 func (f *File) MkDirs() error {
-	err2 := os.MkdirAll(f.Abs(), 0666)
+	err2 := os.MkdirAll(f.Abs(), 0775)
 	return err2
 }
 func (f *File) OpenWrite() (*bufio.Writer, error) {
@@ -418,7 +418,7 @@ func CreateDirIfNoExists(path string) error {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, 0755)
+			return os.MkdirAll(path, 0775)
 		}
 		return errors.WithStackIf(err)
 	}

@@ -180,7 +180,7 @@ func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	}()
 
 	// 创建目标目录
-	if err = os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
+	if err = os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
 		return err
 	}
 

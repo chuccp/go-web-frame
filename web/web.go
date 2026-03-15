@@ -183,6 +183,10 @@ func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 	if err = os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
 		return err
 	}
+	err = os.Chmod(filepath.Dir(dst), 0775)
+	if err != nil {
+		return err
+	}
 
 	// 创建目标文件
 	out, err := os.Create(dst)

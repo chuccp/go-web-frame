@@ -27,8 +27,13 @@ func WriteBase64File(base64Str string, dst string) error {
 	return WriteFile(base64, dst)
 }
 func WriteFile(bytes []byte, dst string) error {
+	dir := filepath.Dir(dst)
 	// 创建目标文件所在的目录
-	if err := os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
+	if err := os.MkdirAll(dir, 0775); err != nil {
+		return err
+	}
+	// 显式设置目录权限，不受umask影响
+	if err := os.Chmod(dir, 0775); err != nil {
 		return err
 	}
 
@@ -44,6 +49,11 @@ func WriteFile(bytes []byte, dst string) error {
 			err = closeErr
 		}
 	}()
+
+	// 设置文件权限为664
+	if err := os.Chmod(dst, 0664); err != nil {
+		return err
+	}
 
 	// 将字节数据写入文件
 	_, err = out.Write(bytes)
@@ -172,6 +182,13 @@ func (f *File) ModTime() (*time.Time, error) {
 
 func (f *File) MkDirs() error {
 	err2 := os.MkdirAll(f.Abs(), 0775)
+	if err2 != nil {
+		return err2
+	}
+	err := os.Chmod(f.Abs(), 0775)
+	if err != nil {
+		return err
+	}
 	return err2
 }
 func (f *File) OpenWrite() (*bufio.Writer, error) {
@@ -418,14 +435,21 @@ func CreateDirIfNoExists(path string) error {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, 0775)
+			err := os.MkdirAll(path, 0775)
+			if err != nil {
+				return errors.WithStackIf(err)
+			}
+			// 显式设置权限，不受umask影响
+			return os.Chmod(path, 0775)
 		}
 		return errors.WithStackIf(err)
 	}
 	if !fileInfo.IsDir() {
 		return errors.New("path is not a directory")
 	}
-	return nil
+	// 已存在的目录也更新权限
+	err = os.Chmod(path, 0775)
+	return errors.WithStackIf(err)
 }
 
 func CreateFileIfNoExists(path string) error {

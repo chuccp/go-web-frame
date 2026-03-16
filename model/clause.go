@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strings"
 
 	"emperror.dev/errors"
@@ -88,20 +89,24 @@ func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	err := tx.Raw(sql, args...).Scan(&ts)
 	return ts, errors.WithStackIf(err)
 }
-func (q *Query[T]) ExecPage(sql string, args ...interface{}) ([]T, int, error) {
+func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
+	// 构建 count SQL
+	countSql := toCountSql(sql)
+	var num int64
 	tx := q.db.Table(q.tableName)
-	err := tx.Raw(sql, args...).Scan(&ts)
+	err := tx.Raw(countSql, args...).Scan(&num)
 	if err != nil {
 		return nil, 0, errors.WithStackIf(err)
 	}
-	var num int64
-	countSql := toCountSql(sql)
+
+	// 构建分页 SQL
+	pageSql := sql + fmt.Sprintf(" LIMIT %d OFFSET %d", page.PageSize, (page.PageNo-1)*page.PageSize)
 	tx2 := q.db.Table(q.tableName)
-	err = tx2.Raw(countSql, args...).Scan(&num)
+	err = tx2.Raw(pageSql, args...).Scan(&ts)
 	if err != nil {
 		return nil, 0, errors.WithStackIf(err)
 	}
@@ -119,8 +124,8 @@ func toCountSql(sql string) string {
 		return sql
 	}
 
-	// 构建基础 count SQL
-	countSql := "SELECT COUNT(*) " + sql[fromIdx:]
+	// 构建基础 count SQL，确保 FROM 前有空格
+	countSql := "SELECT COUNT(*) FROM" + sql[fromIdx+4:]
 
 	// 移除 LIMIT, OFFSET, ORDER BY 子句
 	upper = strings.ToUpper(countSql)

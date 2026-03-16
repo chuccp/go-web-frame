@@ -1,6 +1,8 @@
 package model
 
 import (
+	"strings"
+
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
@@ -85,6 +87,51 @@ func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	tx := q.db.Table(q.tableName)
 	err := tx.Raw(sql, args...).Scan(&ts)
 	return ts, errors.WithStackIf(err)
+}
+func (q *Query[T]) ExecPage(sql string, args ...interface{}) ([]T, int, error) {
+	ts := util.NewSlice(q.entry)
+	if q.db == nil {
+		return nil, 0, errors.New("db is nil")
+	}
+	tx := q.db.Table(q.tableName)
+	err := tx.Raw(sql, args...).Scan(&ts)
+	if err != nil {
+		return nil, 0, errors.WithStackIf(err)
+	}
+	var num int64
+	countSql := toCountSql(sql)
+	tx2 := q.db.Table(q.tableName)
+	err = tx2.Raw(countSql, args...).Scan(&num)
+	if err != nil {
+		return nil, 0, errors.WithStackIf(err)
+	}
+	return ts, int(num), nil
+}
+
+// toCountSql 将查询 SQL 转换为 COUNT SQL
+// 例如: SELECT * FROM users WHERE status = ? LIMIT 10 -> SELECT COUNT(*) FROM users WHERE status = ?
+func toCountSql(sql string) string {
+	upper := strings.ToUpper(sql)
+	// 找到 SELECT 和 FROM 的位置
+	selectIdx := strings.Index(upper, "SELECT")
+	fromIdx := strings.Index(upper, "FROM")
+	if selectIdx == -1 || fromIdx == -1 || fromIdx <= selectIdx {
+		return sql
+	}
+
+	// 构建基础 count SQL
+	countSql := "SELECT COUNT(*) " + sql[fromIdx:]
+
+	// 移除 LIMIT, OFFSET, ORDER BY 子句
+	upper = strings.ToUpper(countSql)
+	keywords := []string{" LIMIT", " OFFSET", " ORDER BY"}
+	for _, kw := range keywords {
+		if idx := strings.Index(upper, kw); idx != -1 {
+			countSql = countSql[:idx]
+			upper = strings.ToUpper(countSql)
+		}
+	}
+	return countSql
 }
 
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {

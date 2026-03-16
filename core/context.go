@@ -26,15 +26,17 @@ type Context struct {
 	handlerConfig     *web.HandlerConfig
 	filters           []IFilter
 	certManager       *web.CertManager
+	allServiceMap     map[string]IService
 }
 
 func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context {
 	context := &Context{
-		config:       config,
-		modelMap:     make(map[string]IModel),
-		rLock:        new(sync.RWMutex),
-		serviceMap:   make(map[string]IService),
-		componentMap: make(map[string]IComponent),
+		config:        config,
+		modelMap:      make(map[string]IModel),
+		rLock:         new(sync.RWMutex),
+		serviceMap:    make(map[string]IService),
+		allServiceMap: make(map[string]IService),
+		componentMap:  make(map[string]IComponent),
 		//transaction:  model.NewTransaction(db),
 		runnerMap:         make(map[string]IRunner),
 		modelGroup:        make(map[string]IModelGroup),
@@ -54,6 +56,7 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Con
 		modelMap:          c.modelMap,
 		rLock:             c.rLock,
 		serviceMap:        c.serviceMap,
+		allServiceMap:     c.allServiceMap,
 		componentMap:      c.componentMap,
 		runnerMap:         c.runnerMap,
 		modelGroup:        c.modelGroup,
@@ -83,6 +86,7 @@ func (c *Context) AddRunner(runner ...IRunner) {
 	for _, r := range runner {
 		name := util.GetStructFullName(r)
 		c.runnerMap[name] = r
+		c.allServiceMap[name] = r
 	}
 }
 
@@ -91,6 +95,7 @@ func (c *Context) AddModelGroup(modelGroup ...IModelGroup) {
 	defer c.rLock.Unlock()
 	for _, m := range modelGroup {
 		c.modelGroup[m.Name()] = m
+		c.allServiceMap[m.Name()] = m
 	}
 }
 func (c *Context) DefaultModelGroup() IModelGroup {
@@ -123,6 +128,7 @@ func (c *Context) AddService(services ...IService) {
 	for _, s := range services {
 		name := util.GetStructFullName(s)
 		c.serviceMap[name] = s
+		c.allServiceMap[name] = s
 	}
 }
 func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
@@ -139,7 +145,7 @@ func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
 func (c *Context) GetService(f func(m IService) bool) IService {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
-	for _, s := range c.serviceMap {
+	for _, s := range c.allServiceMap {
 		if f(s) {
 			return s
 		}
@@ -226,20 +232,12 @@ var (
 )
 
 func GetService[T IService](c *Context) T {
-	t, ok := c.GetService(func(m IService) bool {
+	t, _ := c.GetService(func(m IService) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
-
-	if !ok {
-		v, _ := c.GetRunner(func(m IRunner) bool {
-			_, ok := m.(T)
-			return ok
-		}).(T)
-		return v
-	}
-
 	return t
+
 }
 
 func GetModel[T IModel](c *Context) T {

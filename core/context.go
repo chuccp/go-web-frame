@@ -226,10 +226,19 @@ var (
 )
 
 func GetService[T IService](c *Context) T {
-	t, _ := c.GetService(func(m IService) bool {
+	t, ok := c.GetService(func(m IService) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+
+	if !ok {
+		v, _ := c.GetRunner(func(m IRunner) bool {
+			_, ok := m.(T)
+			return ok
+		}).(T)
+		return v
+	}
+
 	return t
 }
 

@@ -79,7 +79,11 @@ func (q *Query[T]) One() (T, error) {
 
 func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	ts := util.NewSlice(q.entry)
-	err := q.tx.Raw(sql, args...).Scan(&ts)
+	if q.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	tx := q.db.Table(q.tableName)
+	err := tx.Raw(sql, args...).Scan(&ts)
 	return ts, errors.WithStackIf(err)
 }
 

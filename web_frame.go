@@ -205,13 +205,20 @@ func (w *WebFrame) SetDefaultDB(db *db2.DB) {
 func (w *WebFrame) Start() error {
 	return w.Run(context.Background())
 }
+func (w *WebFrame) Test(f func(ctx *core.Context) error) error {
+	_, ctx, err := w.init(context.Background())
+	if err != nil {
+		return err
+	}
+	return f(ctx)
+}
+func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error) {
 
-func (w *WebFrame) Run(ctx context.Context) error {
 	gin.SetMode(gin.ReleaseMode)
 	var logConfig log.Config
 	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer func() {
 		err := log.Sync()
@@ -226,7 +233,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		err := errors.WithStackIf(component.Init(ctx, w.config))
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.Error(err))
-			return err
+			return nil, nil, err
 		}
 	}
 
@@ -239,7 +246,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		db, err := db2.CreateDB(w.config)
 		if err != nil {
 			log.Error("Failed to initialize the database", zap.Error(err))
-			return err
+			return nil, nil, err
 		}
 		w.defaultModelGroup.SetDefaultDB(db)
 	}
@@ -248,7 +255,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		w.defaultModelGroup.AddModel(w.models...)
 		err := w.defaultModelGroup.Init(coreContext)
 		if err != nil {
-			return errors.WithStackIf(err)
+			return nil, nil, errors.WithStackIf(err)
 		}
 	}
 
@@ -258,7 +265,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 			coreContext.AddModel(modelGroup.GetModel()...)
 			err := modelGroup.Init(coreContext)
 			if err != nil {
-				return errors.WithStackIf(err)
+				return nil, nil, errors.WithStackIf(err)
 			}
 		}
 	}
@@ -267,7 +274,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(iService)))
 		err := iService.Init(coreContext)
 		if err != nil {
-			return errors.WithStackIf(err)
+			return nil, nil, errors.WithStackIf(err)
 		}
 	}
 
@@ -275,7 +282,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		var serverConfig = web.DefaultServerConfig()
 		err = w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rootGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, w.handles)
 		rootGroup.AddRest(w.rests...)
@@ -284,6 +291,14 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	}
 	server := core.NewServer(w.restGroups, w.runners)
 	err = server.Init(coreContext)
+	if err != nil {
+		return nil, nil, errors.WithStackIf(err)
+	}
+	return server, coreContext, nil
+
+}
+func (w *WebFrame) Run(ctx context.Context) error {
+	server, _, err := w.init(ctx)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

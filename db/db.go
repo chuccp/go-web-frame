@@ -236,6 +236,17 @@ func (t *Table) UpdateColumn(column string, value any) error {
 	return tx.Error
 }
 
+// Raw executes a raw SQL query and returns a Table for further chaining (e.g., with Scan)
+func (t *Table) Raw(sql string, args ...any) *Table {
+	tx := t.db.Raw(sql, args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
+
+// Scan scans query results into dest
+func (t *Table) Scan(dest any) error {
+	return t.db.Scan(dest).Error
+}
+
 type DB struct {
 	db *gorm.DB
 }

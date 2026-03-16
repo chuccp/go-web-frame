@@ -77,6 +77,12 @@ func (q *Query[T]) One() (T, error) {
 	return t, errors.WithStackIf(err)
 }
 
+func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
+	ts := util.NewSlice(q.entry)
+	err := q.tx.Raw(sql, args...).Scan(&ts)
+	return ts, errors.WithStackIf(err)
+}
+
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()

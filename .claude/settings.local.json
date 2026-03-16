@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/cao/Documents/GitHub/**)",
+      "Bash(go build ./...)",
+      "Bash(go build:*)",
+      "Bash(go test:*)"
+    ]
+  }
+}

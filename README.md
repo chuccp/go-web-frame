@@ -9,17 +9,22 @@ A modern, feature-rich web framework for Go built on top of Gin, providing a str
 
 ---
 
+## Project Overview
+
+Go Web Frame is an opinionated web framework that enforces clean architecture through component-based design. It provides built-in dependency injection, type-safe ORM, database integration, and production-ready features like daemon/service mode out of the box.
+
 ## Features
 
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
 - **⚡ Type-safe Generic ORM**: Zero-boilerplate CRUD operations with generics, no reflection overhead
 - **Dependency Injection**: Built-in DI container for managing component lifecycle
-- **Database Integration**: SQLite, Redis, MySQL and extensible database abstraction layer
-- **Component System**: Reusable components including caching, rate limiting, and local cache
+- **Database Integration**: SQLite, MySQL, Redis support with extensible database abstraction layer (powered by GORM)
+- **Connection Pool Configuration**: Configurable connection pool settings (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime`)
+- **Component System**: Reusable components including caching, rate limiting, captcha, QR code generation, cron scheduled tasks, and input validation
 - **RESTful Support**: Simplified REST controller implementation
 - **Daemon/Service Mode**: Run applications as system services on Windows, Linux, and macOS
 - **Auto-Configuration**: Auto-loading config from JSON, YAML, or TOML files
-- **Advanced Logging**: Structured logging powered by Zap
+- **Advanced Logging**: Structured logging powered by Zap with rotation support
 - **Background Tasks**: Built-in runner system for background processing
 - **Request Filtering**: HTTP middleware/filter system for cross-cutting concerns
 - **Unified Error Handling**: Automatic conversion of service errors to standardized HTTP responses
@@ -47,19 +52,19 @@ import (
 )
 
 func main() {
-    // 创建web框架实例，自动加载配置
+    // Create web framework instance with auto config loading
     app := wf.NewWithAutoConfig()
 
-    // 注册简单路由
+    // Register a simple route
     app.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
 
-    // 使用上下文运行服务
+    // Run with context for graceful shutdown
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // 示例：10秒后自动关闭
+    // Auto shutdown after 10 seconds (example)
     go func() {
         time.Sleep(time.Second * 10)
         cancel()
@@ -86,13 +91,13 @@ import (
 )
 
 type UserController struct {
-    // 嵌入core.IService接口
+    // Embed core.IService interface
     core.IService
 }
 
-// 初始化控制器并注册路由
+// Init controller and register routes
 func (u *UserController) Init(ctx *core.Context) error {
-    // 通过上下文注册路由
+    // Register routes through context
     ctx.Get("/users", u.GetUsers)
     ctx.Get("/users/:id", u.GetUser)
     ctx.Post("/users", u.CreateUser)
@@ -100,9 +105,9 @@ func (u *UserController) Init(ctx *core.Context) error {
     return nil
 }
 
-// 处理器：获取所有用户
+// Handler: get all users
 func (u *UserController) GetUsers(c *web.Request) (any, error) {
-    // 示例：访问查询参数
+    // Access query parameters
     page := c.Query("page")
     limit := c.Query("limit")
 
@@ -113,7 +118,7 @@ func (u *UserController) GetUsers(c *web.Request) (any, error) {
     }, nil
 }
 
-// 处理器：根据ID获取单个用户
+// Handler: get a single user by ID
 func (u *UserController) GetUser(c *web.Request) (any, error) {
     id := c.Param("id")
     return map[string]any{
@@ -122,7 +127,7 @@ func (u *UserController) GetUser(c *web.Request) (any, error) {
     }, nil
 }
 
-// 处理器：创建新用户
+// Handler: create a new user
 func (u *UserController) CreateUser(c *web.Request) (any, error) {
     var user struct {
         Name string `json:"name"`
@@ -156,6 +161,7 @@ func main() {
 package main
 
 import (
+    "context"
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/model"
@@ -231,46 +237,116 @@ func main() {
 }
 ```
 
-## 🏗️ Architecture
+## Architecture Overview
 
-### Core Components
+### Core Layers
 
-#### [1. Core Abstractions](./core)
-Key interfaces that define the component model:
-- **IService**: Base interface for all services requiring initialization
-- **IModel**: Data access layer interface with CRUD and table management
-- **IRest**: REST controller interface (extends IService)
-- **IComponent**: Independent components initialized with config
-- **IRunner**: Background task runners (extends IService and IRun)
-- **IFilter**: HTTP request filters/middleware (extends IService and web.Filter)
+1. **Core Abstraction Layer (`./core`)**: Defines fundamental interfaces and DI container
+   - `IService`: Base interface for all services requiring initialization
+   - `IModel`: Data access layer interface with CRUD and table management
+   - `IRest`: REST controller interface (extends IService)
+   - `IComponent`: Independent components initialized with config
+   - `IRunner`: Background task runners (extends IService)
+   - `IFilter`: HTTP request filters/middleware (extends IService)
+   - `Context`: Dependency injection container that manages all components
 
-#### [2. Web Layer](./web)
-HTTP handling layer built on Gin:
-- Request/response abstraction
-- Routing with support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
-- Filter/middleware system
-- Conversion between service responses and standardized HTTP responses
+2. **Web Layer (`./web`)**: HTTP handling built on top of Gin
+   - Request/response abstraction with helper methods
+   - Routing with support for all HTTP methods
+   - Filter/middleware system
+   - Automatic conversion of service responses to standardized HTTP responses
 
-#### [3. Data Access](./db)
-- **./db**: Multi-database abstraction layer (MySQL, SQLite) powered by GORM
-- **./model**: Type-safe generic base model with zero-boilerplate CRUD operations
-- **./sqlite**: SQLite-specific configuration and initialization
-- **./redis**: Redis integration for caching and messaging
+3. **Data Access Layer (`./db`, `./model`)**: Database abstraction and ORM
+   - `./db`: Multi-database abstraction (MySQL, SQLite) powered by GORM
+   - `./model`: Type-safe generic base model with zero-boilerplate CRUD
+   - `./sqlite`: SQLite-specific configuration
+   - `./redis`: Redis integration for caching and messaging
+   - Configurable connection pool settings for production performance tuning
 
-#### 4. Other Key Packages
-- **./config**: Configuration management with Viper (supports JSON, YAML, TOML)
-- **./log**: Structured logging powered by Zap with rotation support
-- **./component**: Reusable components: cache, local cache, rate limiting, captcha, QR code generation, cron scheduled tasks, input validation
-- **./util**: Comprehensive utility functions for strings, time, crypto, networking, and more
+4. **Infrastructure Components**:
+   - `./config`: Configuration management with Viper (JSON/YAML/TOML)
+   - `./log`: Structured logging with Zap
+   - `./component`: Reusable components (cache, rate limiting, captcha, QR code, cron, validation)
+   - `./util`: Comprehensive utilities (strings, time, crypto, networking, etc.)
 
 ### Application Lifecycle
 
 1. **Create**: Initialize `WebFrame` with `NewWithAutoConfig()` or `New(config)`
 2. **Register**: Add routes, controllers, models, services, components, and runners
 3. **Configure**: Customize settings, add middleware, configure logging
-4. **Run**: Start the server with `Run()` or run in daemon/service mode
+4. **Run**: Start the server with `Run(ctx)` or run in daemon/service mode
 
-## 🛠️ Development Commands
+## Configuration Example
+
+Example YAML configuration with database connection pool:
+
+```yaml
+server:
+  port: 8080
+  mode: debug # or release
+
+web:
+  db:
+    type: mysql
+    host: localhost
+    port: 3306
+    username: root
+    password: your_password
+    database: your_db
+    charset: utf8mb4
+    # Connection pool settings (optional)
+    max_open_conns: 100
+    max_idle_conns: 10
+    conn_max_lifetime: 3600 # seconds
+
+log:
+  level: info
+  path: ./logs/app.log
+```
+
+## Project Structure
+
+```
+├── web_frame.go         # Main entry point - factory methods for WebFrame
+├── daemon.go            # Daemon/service mode support for Windows/Linux/macOS
+├── core/                # Core abstractions and DI container
+│   ├── interface.go     # Core interfaces (IService, IModel, IRest, etc.)
+│   ├── context.go       # Dependency injection context
+│   ├── server.go        # Server implementation managing REST groups and runners
+│   └── db.go            # DB wrapper
+├── web/                 # Web layer built on Gin
+│   ├── handles.go       # Route registration
+│   ├── request.go       # Request abstraction with helper methods
+│   ├── response.go      # Response conversion
+│   └── filter.go        # Filter/middleware interface
+├── db/                  # Database abstraction layer
+│   ├── db.go            # DB creation and config parsing
+│   ├── mysql.go         # MySQL configuration and connection
+│   └── sqlite.go        # SQLite configuration and connection
+├── model/               # Generic ORM implementation
+│   └── model.go         # Base Model with CRUD operations
+├── sqlite/              # SQLite driver
+├── redis/               # Redis integration
+├── config/              # Configuration management
+├── log/                 # Logging with Zap
+├── component/           # Reusable components
+│   ├── cache.go         # Cache component
+│   ├── localcache.go    # Local in-memory cache
+│   ├── rate_limit.go    # Rate limiting
+│   ├── captcha.go       # Captcha generation
+│   ├── qrcode.go        # QR code generation
+│   ├── cron.go          # Cron scheduled tasks
+│   └── validate.go      # Input validation
+├── util/                # Utility functions
+└── example/             # Example applications
+    ├── helloworld/      # Basic hello world example
+    ├── rest/            # REST controller example
+    └── model/           # ORM model example
+```
+
+## Common Development Commands
+
+### Build and Run Examples
 
 ```bash
 # Run the hello world example
@@ -284,51 +360,89 @@ go run example/model/model.go
 
 # Build the framework (library only)
 go build
+```
 
+### Testing
+
+```bash
 # Run all tests
 go test ./...
 
 # Run tests in a specific package
 go test ./core
+go test ./web
 
 # Run tests with verbose output
 go test -v ./core
 
 # Run a specific test case
 go test -v ./core -run TestSpecificFunction
+```
 
-# Format code
+### Formatting and Linting
+
+```bash
+# Format all code with gofmt
 gofmt -w ./...
 
 # Alternative formatting with gofumpt (if installed)
 gofumpt -w ./...
 
-# Lint code
-golint ./...
+# Install linter
+go install golang.org/x/lint/golint@latest
 
-# Run application as a daemon/service
+# Run linter
+golint ./...
+```
+
+### Dependency Management
+
+```bash
+# Add a new dependency
+go get github.com/example/package
+
+# Update dependencies
+go get -u ./...
+
+# Tidy up go.mod and go.sum
+go mod tidy
+```
+
+### Daemon Mode
+
+```bash
+# Run application as a system daemon/service
 # (Requires implementing AppService interface)
 go run your_app.go
-# Stop the daemon
+
+# Stop a running daemon
 go run your_app.go -stop
 ```
 
-## 📚 文档
 
-- [API文档](https://pkg.go.dev/github.com/chuccp/go-web-frame)
-- [示例应用](./example/)
-- [CLAUDE.md](./CLAUDE.md) - 详细的开发者指南
+## Development Notes
 
-## 🤝 贡献
+- The framework follows Go conventions and uses standard Go tooling
+- All components implement the `IService` interface with `Init(ctx)` method
+- Dependency injection is done through the context - use `wf.GetService[T](ctx)` to retrieve services
+- Connection pool has reasonable defaults that work for most applications
+- SQLite is recommended for development and small applications, MySQL for production
 
-欢迎提交Issue和Pull Request！请确保遵循以下准则：
+## Documentation
 
-1. 提交PR前请运行测试
-2. 保持代码风格一致
-3. 为新功能添加适当的测试
-4. 更新相关文档
+- [Go Reference Documentation](https://pkg.go.dev/github.com/chuccp/go-web-frame)
+- [Example Applications](./example/)
+- [CLAUDE.md](./CLAUDE.md) - Detailed developer guide for Claude Code
 
-## 📄 许可证
+## Contributing
 
-MIT License - 查看[LICENSE](./LICENSE)了解详情
+Contributions are welcome! Please feel free to submit Issues and Pull Requests. Before submitting a PR:
 
+1. Run tests to ensure everything passes
+2. Keep the code style consistent with the project
+3. Add appropriate tests for new features
+4. Update related documentation
+
+## License
+
+MIT License - see [LICENSE](./LICENSE) for details

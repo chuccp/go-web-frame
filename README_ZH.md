@@ -1,6 +1,6 @@
 # Go Web Frame
 
-一个基于Gin构建的现代化Go Web框架，提供结构化的方式来构建企业级Web应用。
+一个基于 Gin 构建的现代化 Go Web 框架，提供结构化的方式来构建企业级 Web 应用。
 
 ---
 
@@ -9,20 +9,25 @@
 
 ---
 
+## 项目概述
+
+Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计强制实现清晰的架构。它内置了依赖注入、类型安全 ORM、数据库集成，以及生产环境就绪的守护进程模式等特性。
+
 ## 🌟 特性
 
-- ⚡ **类型安全泛型ORM**：零样板代码CRUD操作，基于泛型实现，无反射性能损耗
-- 🎯 **类MVC架构**：清晰的关注点分离，包含服务、控制器和模型
-- 🧩 **依赖注入**：内置DI容器，管理组件生命周期
-- 📦 **数据库集成**：SQLite、Redis、MySQL支持，可扩展的数据库抽象层
-- 🛠️ **组件系统**：可重用组件，包括缓存、限流和本地缓存
-- 🌐 **RESTful支持**：简化的REST控制器实现
-- 🚀 **守护进程模式**：在Windows、Linux和macOS上作为系统服务运行
-- ⚙️ **自动配置**：从JSON、YAML或TOML文件自动加载配置
-- 📝 **高级日志**：基于Zap的结构化日志
+- 🎯 **类 MVC 架构**：清晰的关注点分离，包含服务、控制器和模型
+- ⚡ **类型安全泛型 ORM**：零样板代码 CRUD 操作，基于泛型实现，无反射性能损耗
+- 🧩 **依赖注入**：内置 DI 容器，管理组件生命周期
+- 📦 **数据库集成**：SQLite、MySQL、Redis 支持，可扩展的数据库抽象层（基于 GORM）
+- 🏊 **连接池配置**：可配置连接池参数（`max_open_conns`、`max_idle_conns`、`conn_max_lifetime`）
+- 🛠️ **组件系统**：可重用组件，包括缓存、限流、验证码、二维码生成、定时任务、输入验证
+- 🌐 **RESTful 支持**：简化的 REST 控制器实现
+- 🚀 **守护进程模式**：在 Windows、Linux 和 macOS 上作为系统服务运行
+- ⚙️ **自动配置**：从 JSON、YAML 或 TOML 文件自动加载配置
+- 📝 **高级日志**：基于 Zap 的结构化日志，支持日志轮转
 - 🔄 **后台任务**：内置的后台任务运行器系统
-- 🛡️ **请求过滤**：HTTP中间件/过滤器系统，处理横切关注点
-- 🎯 **统一错误处理**：服务错误自动转换为标准化HTTP响应
+- 🛡️ **请求过滤**：HTTP 中间件/过滤器系统，处理横切关注点
+- 🎯 **统一错误处理**：服务错误自动转换为标准化 HTTP 响应
 
 ## 🚀 快速开始
 
@@ -47,7 +52,7 @@ import (
 )
 
 func main() {
-    // 创建web框架实例，自动加载配置
+    // 创建 web 框架实例，自动加载配置
     app := wf.NewWithAutoConfig()
 
     // 注册简单路由
@@ -55,11 +60,11 @@ func main() {
         return "Hello, World!", nil
     })
 
-    // 使用上下文运行服务
+    // 使用上下文运行服务，支持优雅关闭
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // 示例：10秒后自动关闭
+    // 示例：10 秒后自动关闭
     go func() {
         time.Sleep(time.Second * 10)
         cancel()
@@ -71,7 +76,7 @@ func main() {
 }
 ```
 
-### 🔌 REST控制器示例
+### 🔌 REST 控制器示例
 
 ```go
 package main
@@ -86,7 +91,7 @@ import (
 )
 
 type UserController struct {
-    // 嵌入core.IService接口
+    // 嵌入 core.IService 接口
     core.IService
 }
 
@@ -113,7 +118,7 @@ func (u *UserController) GetUsers(c *web.Request) (any, error) {
     }, nil
 }
 
-// 处理器：根据ID获取单个用户
+// 处理器：根据 ID 获取单个用户
 func (u *UserController) GetUser(c *web.Request) (any, error) {
     id := c.Param("id")
     return map[string]any{
@@ -150,7 +155,7 @@ func main() {
 }
 ```
 
-### ⚡ 泛型ORM操作示例
+### ⚡ 泛型 ORM 操作示例
 
 ```go
 package main
@@ -160,7 +165,6 @@ import (
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/model"
-    "github.com/chuccp/go-web-frame/web"
 )
 
 // 定义实体结构体
@@ -170,7 +174,7 @@ type User struct {
     Age  int
 }
 
-// UserModel 继承泛型Model
+// UserModel 继承泛型 Model
 type UserModel struct {
     *model.Model[*User]
 }
@@ -183,18 +187,20 @@ func (u *UserModel) Init(db *core.DB, ctx *core.Context) error {
 
 func main() {
     app := wf.NewWithAutoConfig()
-    // 注册模型到DI容器
+    // 注册模型到 DI 容器
     app.AddModel(&UserModel{})
 
-    // ORM操作示例
+    // ORM 操作示例
     app.Get("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
-        // 链式API查询
-        return userModel.Query().
+        // 链式 API 查询
+        users, err := userModel.Query().
             Where("age > ?", 18).
             Order("id desc").
             All()
+
+        return users, err
     })
 
     app.Post("/users", func(c *web.Request) (any, error) {
@@ -238,57 +244,127 @@ func main() {
 | Go Web Frame | 42k | 12MB | 全功能、低开销 |
 | Gin | 45k | 8MB | 轻量、无内置功能 |
 | Beego | 32k | 25MB | 重量级、内置功能全 |
-| Iris | 38k | 18MB | 功能丰富、API复杂 |
+| Iris | 38k | 18MB | 功能丰富、API 复杂 |
 
 ## 🎯 适用场景
 
-- ✅ 企业级Web应用开发
-- ✅ RESTful API服务
+- ✅ 企业级 Web 应用开发
+- ✅ RESTful API 服务
 - ✅ 后台管理系统
 - ✅ 微服务开发
 - ✅ 快速原型开发
-- ❌ 极简性能敏感型底层服务（建议直接用Gin）
+- ❌ 极简性能敏感型底层服务（建议直接用 Gin）
 
-## 🏗️ 架构
+## 🏗️ 架构概述
 
-### 核心组件
+### 核心层级
 
-#### [1. 核心抽象层](./core)
-定义了组件模型的关键接口：
-- **IService**：所有需要初始化的服务基接口
-- **IModel**：数据访问层接口，包含CRUD和表管理
-- **IRest**：REST控制器接口（继承IService）
-- **IComponent**：独立组件，通过配置初始化
-- **IRunner**：后台任务运行器（继承IService和IRun）
-- **IFilter**：HTTP请求过滤器（继承IService和web.Filter）
+1. **核心抽象层 (`./core`)**：定义基础接口和 DI 容器
+   - `IService`：所有需要初始化的服务基接口
+   - `IModel`：数据访问层接口，包含 CRUD 和表管理
+   - `IRest`：REST 控制器接口（继承 IService）
+   - `IComponent`：通过配置初始化的独立组件
+   - `IRunner`：后台任务运行器（继承 IService）
+   - `IFilter`：HTTP 请求过滤器/中间件（继承 IService）
+   - `Context`：管理所有组件的依赖注入容器
 
-#### [2. Web层](./web)
-基于Gin的HTTP处理层：
-- 请求/响应处理
-- 支持HTTP方法的路由（GET、POST、PUT、DELETE等）
-- 过滤器/中间件支持
-- 服务响应与HTTP响应的转换
+2. **Web 层 (`./web`)**：基于 Gin 的 HTTP 处理
+   - 带辅助方法的请求/响应抽象
+   - 支持所有 HTTP 方法的路由
+   - 过滤器/中间件系统
+   - 服务响应自动转换为标准化 HTTP 响应
 
-#### [3. 数据访问](./db)
-- **./db**：支持多数据库的数据库抽象层（MySQL、SQLite），基于 GORM
-- **./model**：类型安全泛型基础模型，提供零样板代码 CRUD 操作
-- **./sqlite**：SQLite 特定配置和初始化
-- **./redis**：Redis 集成，用于缓存和消息传递
+3. **数据访问层 (`./db`, `./model`)**：数据库抽象和 ORM
+   - `./db`：基于 GORM 的多数据库抽象（MySQL、SQLite）
+   - `./model`：类型安全泛型基础模型，提供零样板 CRUD
+   - `./sqlite`：SQLite 特定配置
+   - `./redis`：Redis 缓存和消息集成
+   - 可配置连接池参数，适合生产环境性能调优
 
-#### 4. 其他关键包
-- **./config**：使用 Viper 进行配置管理，支持 JSON、YAML、TOML
-- **./log**：基于 Zap 的结构化日志，支持日志轮转
-- **./component**：可重用组件：缓存、本地缓存、限流、验证码、二维码生成、定时任务、输入验证
-- **./util**：全面的工具函数，包括字符串、时间、加密、网络等
+4. **基础设施组件**：
+   - `./config`：使用 Viper 进行配置管理（支持 JSON/YAML/TOML）
+   - `./log`：基于 Zap 的结构化日志
+   - `./component`：可复用组件（缓存、限流、验证码、二维码、定时任务、验证）
+   - `./util`：全面的工具函数（字符串、时间、加密、网络等）
 
 ### 应用生命周期
 
-1. **创建**：使用`NewWithAutoConfig()`或`New(config)`初始化WebFrame
+1. **创建**：使用 `NewWithAutoConfig()` 或 `New(config)` 初始化 `WebFrame`
 2. **注册**：添加路由、控制器、模型、服务、组件和运行器
 3. **配置**：自定义设置、添加中间件、配置日志
-4. **运行**：使用`Run()`启动服务器，或使用守护进程模式运行
+4. **运行**：使用 `Run(ctx)` 启动服务器，或以守护进程模式运行
+
+## 配置示例
+
+带数据库连接池的 YAML 配置示例：
+
+```yaml
+server:
+  port: 8080
+  mode: debug # 或者 release
+
+web:
+  db:
+    type: mysql
+    host: localhost
+    port: 3306
+    username: root
+    password: 你的密码
+    database: 你的数据库
+    charset: utf8mb4
+    # 连接池设置（可选）
+    max_open_conns: 100
+    max_idle_conns: 10
+    conn_max_lifetime: 3600 # 秒
+
+log:
+  level: info
+  path: ./logs/app.log
+```
+
+## 项目结构
+
+```
+├── web_frame.go         # 主入口 - WebFrame 工厂方法
+├── daemon.go            # Windows/Linux/macOS 守护进程/服务支持
+├── core/                # 核心抽象和 DI 容器
+│   ├── interface.go     # 核心接口（IService, IModel, IRest 等）
+│   ├── context.go       # 依赖注入上下文
+│   ├── server.go        # 管理 REST 分组和运行器的服务端实现
+│   └── db.go            # DB 封装
+├── web/                 # 基于 Gin 的 Web 层
+│   ├── handles.go       # 路由注册
+│   ├── request.go       # 带辅助方法的请求抽象
+│   ├── response.go      # 响应转换
+│   └── filter.go        # 过滤器/中间件接口
+├── db/                  # 数据库抽象层
+│   ├── db.go            # 数据库创建和配置解析
+│   ├── mysql.go         # MySQL 配置和连接
+│   └── sqlite.go        # SQLite 配置和连接
+├── model/               # 泛型 ORM 实现
+│   └── model.go         # 带 CRUD 操作的基础 Model
+├── sqlite/              # SQLite 驱动
+├── redis/               # Redis 集成
+├── config/              # 配置管理
+├── log/                 # Zap 日志
+├── component/           # 可复用组件
+│   ├── cache.go         # 缓存组件
+│   ├── localcache.go    # 本地内存缓存
+│   ├── rate_limit.go    # 限流
+│   ├── captcha.go       # 验证码生成
+│   ├── qrcode.go        # 二维码生成
+│   ├── cron.go          # Cron 定时任务
+│   └── validate.go      # 输入验证
+├── util/                # 工具函数
+└── example/             # 示例应用
+    ├── helloworld/      # 基础 hello world 示例
+    ├── rest/            # REST 控制器示例
+    └── model/           # ORM 模型示例
+```
 
 ## 🛠️ 开发命令
+
+### 构建和运行示例
 
 ```bash
 # 运行 hello world 示例
@@ -302,29 +378,44 @@ go run example/model/model.go
 
 # 构建框架（仅库文件）
 go build
+```
 
+### 测试
+
+```bash
 # 运行所有测试
 go test ./...
 
 # 运行特定包的测试
 go test ./core
+go test ./web
 
 # 运行测试并输出详细信息
 go test -v ./core
 
 # 运行特定测试用例
 go test -v ./core -run TestSpecificFunction
+```
 
-# 格式化代码
+### 格式化和代码检查
+
+```bash
+# 使用 gofmt 格式化所有代码
 gofmt -w ./...
 
 # 使用 gofumpt 格式化（如果已安装）
 gofumpt -w ./...
 
-# 代码检查
-golint ./...
+# 安装 linter
+go install golang.org/x/lint/golint@latest
 
-# 依赖管理
+# 运行代码检查
+golint ./...
+```
+
+### 依赖管理
+
+```bash
 # 添加新依赖
 go get github.com/example/package
 
@@ -333,23 +424,43 @@ go get -u ./...
 
 # 整理 go.mod 和 go.sum
 go mod tidy
+```
 
-# 以守护进程模式运行应用
+### 守护进程模式
+
+```bash
+# 以系统守护进程/服务方式运行应用
 # 需要实现 AppService 接口
 go run your_app.go
-# 停止守护进程
+
+# 停止正在运行的守护进程
 go run your_app.go -stop
 ```
 
-## 📚 文档
 
-- [API文档](https://pkg.go.dev/github.com/chuccp/go-web-frame)
+## 开发说明
+
+- 框架遵循 Go 约定，使用标准 Go 工具链
+- 所有组件都实现 `IService` 接口的 `Init(ctx)` 方法
+- 依赖注入通过上下文完成 - 使用 `wf.GetService[T](ctx)` 获取服务
+- 连接池有合理的默认值，适合大多数应用
+- 开发和小型应用推荐使用 SQLite，生产环境推荐使用 MySQL
+
+## 文档
+
+- [Go 参考文档](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [示例应用](./example/)
-- [CLAUDE.md](./CLAUDE.md) - 详细的开发者指南
+- [CLAUDE.md](./CLAUDE.md) - Claude Code 详细开发者指南
 
-## 📄 许可证
+## 贡献
 
-MIT License - 查看[LICENSE](./LICENSE)了解详情
+欢迎提交 Issue 和 Pull Request！提交 PR 前请：
 
+1. 运行测试确保一切通过
+2. 保持代码风格与项目一致
+3. 为新功能添加适当的测试
+4. 更新相关文档
 
+## 许可证
 
+MIT License - 详见 [LICENSE](./LICENSE)

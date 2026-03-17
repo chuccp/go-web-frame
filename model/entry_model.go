@@ -64,9 +64,50 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	return t, err
 }
 
+// FindByIdWithPreload finds a record by ID with preloaded associations
+// Usage: model.FindByIdWithPreload(id, "Profile", "Role")
+func (a *EntryModel[T]) FindByIdWithPreload(id uint, preloads ...string) (T, error) {
+	t := util.NewPtr(a.model.entry)
+	t.SetId(id)
+	tx := a.model.db.Table(a.model.tableName)
+	for _, p := range preloads {
+		tx = tx.Preload(p)
+	}
+	err := tx.First(&t)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var zero T
+			return zero, nil
+		}
+		var zero T
+		return zero, err
+	}
+	return t, err
+}
+
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
 	t := util.NewPtr(a.model.entry)
 	err := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var zero T
+			return zero, nil
+		}
+		var zero T
+		return zero, err
+	}
+	return t, nil
+}
+
+// FindOneWithPreload finds one record with preloaded associations
+// Usage: model.FindOneWithPreload("status = ?", 1, "Profile", "Role")
+func (a *EntryModel[T]) FindOneWithPreload(query interface{}, args []interface{}, preloads ...string) (T, error) {
+	t := util.NewPtr(a.model.entry)
+	tx := a.model.db.Table(a.model.tableName).Where(query, args...)
+	for _, p := range preloads {
+		tx = tx.Preload(p)
+	}
+	err := tx.First(&t)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var zero T
@@ -82,8 +123,29 @@ func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
 	q := a.model.Query()
 	return q.Where("`id` in (?) ", id).All()
 }
+
+// FindAllByIdsWithPreload finds all records by IDs with preloaded associations
+// Usage: model.FindAllByIdsWithPreload([]uint{1, 2, 3}, "Profile", "Role")
+func (a *EntryModel[T]) FindAllByIdsWithPreload(ids []uint, preloads ...string) ([]T, error) {
+	q := a.model.Query()
+	for _, p := range preloads {
+		q = q.Preload(p)
+	}
+	return q.Where("`id` in (?) ", ids).All()
+}
+
 func (a *EntryModel[T]) FindAll() ([]T, error) {
 	q := a.model.Query()
+	return q.All()
+}
+
+// FindAllWithPreload finds all records with preloaded associations
+// Usage: model.FindAllWithPreload("Profile", "Role")
+func (a *EntryModel[T]) FindAllWithPreload(preloads ...string) ([]T, error) {
+	q := a.model.Query()
+	for _, p := range preloads {
+		q = q.Preload(p)
+	}
 	return q.All()
 }
 func (a *EntryModel[T]) DeleteById(id uint) error {

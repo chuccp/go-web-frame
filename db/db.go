@@ -205,6 +205,20 @@ func (t *Table) Order(query any) *Table {
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
+// Preload preloads associations for the query (GORM foreign key support)
+// Usage: db.Table("users").Preload("Profile").Preload("Role").Find(&users)
+func (t *Table) Preload(query string, args ...any) *Table {
+	tx := t.db.Preload(query, args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
+
+// Joins performs a join operation (GORM join support)
+// Usage: db.Table("users").Joins("Profile").Find(&users)
+func (t *Table) Joins(query string, args ...any) *Table {
+	tx := t.db.Joins(query, args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
+
 func (t *Table) Limit(size int) *Table {
 	tx := t.db.Limit(size)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}

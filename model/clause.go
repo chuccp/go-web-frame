@@ -16,6 +16,8 @@ type Query[T any] struct {
 	entry     T
 	wheres    []*where
 	orders    []interface{}
+	preloads  []string
+	joins     []string
 }
 
 // 构建tx实例，惰性创建，仅在实际执行时调用
@@ -30,6 +32,12 @@ func (q *Query[T]) buildTx() (*db.Table, error) {
 	for _, o := range q.orders {
 		tx = tx.Order(o)
 	}
+	for _, p := range q.preloads {
+		tx = tx.Preload(p)
+	}
+	for _, j := range q.joins {
+		tx = tx.Joins(j)
+	}
 	return tx, nil
 }
 
@@ -39,6 +47,21 @@ func (q *Query[T]) Where(query interface{}, args ...interface{}) *Query[T] {
 }
 func (q *Query[T]) Order(query interface{}) *Query[T] {
 	q.orders = append(q.orders, query)
+	return q
+}
+
+// Preload adds a preload clause for eager loading associations (GORM foreign key support)
+// Usage: query.Preload("Profile").Preload("Role").All()
+// Supports nested preloading: query.Preload("Profile.Addresses")
+func (q *Query[T]) Preload(query string) *Query[T] {
+	q.preloads = append(q.preloads, query)
+	return q
+}
+
+// Joins adds a join clause for association loading (GORM join support)
+// Usage: query.Joins("Profile").All()
+func (q *Query[T]) Joins(query string) *Query[T] {
+	q.joins = append(q.joins, query)
 	return q
 }
 func (q *Query[T]) List(size int) ([]T, error) {

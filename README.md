@@ -1,6 +1,6 @@
 # Go Web Frame
 
-A modern, feature-rich web framework for Go built on top of Gin, providing a structured approach to building enterprise-grade web applications.
+A modern, feature-rich web framework for Go, providing a structured approach to building enterprise-grade web applications.
 
 ---
 
@@ -306,7 +306,7 @@ func main() {
    - `IFilter`: HTTP request filters/middleware (extends IService)
    - `Context`: Dependency injection container that manages all components
 
-2. **Web Layer (`./web`)**: HTTP handling built on top of Gin
+2. **Web Layer (`./web`)**: HTTP handling with request/response abstraction
    - Request/response abstraction with helper methods
    - Routing with support for all HTTP methods
    - Filter/middleware system
@@ -370,7 +370,7 @@ log:
 │   ├── context.go       # Dependency injection context
 │   ├── server.go        # Server implementation managing REST groups and runners
 │   └── db.go            # DB wrapper
-├── web/                 # Web layer built on Gin
+├── web/                 # Web layer with HTTP handling
 │   ├── handles.go       # Route registration
 │   ├── request.go       # Request abstraction with helper methods
 │   ├── response.go      # Response conversion

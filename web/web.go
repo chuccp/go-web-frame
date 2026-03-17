@@ -13,11 +13,46 @@ import (
 	"go.uber.org/zap"
 )
 
+// FilterChain 是过滤器链接口，用于在过滤器之间传递控制权
+//
+// 过滤器链支持责任链模式，每个过滤器可以决定是否继续执行后续过滤器。
+//
+// 使用示例：
+//
+//	func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+//	    if !isAuthenticated(req) {
+//	        return nil, errors.New("unauthorized")
+//	    }
+//	    return fc.Next()
+//	}
 type FilterChain interface {
+	// Next 执行下一个过滤器或最终处理器
+	// 返回 (any, error): 处理结果和可能的错误
 	Next() (any, error)
 }
 
+// Filter 是 HTTP 过滤器接口，用于处理请求和响应
+//
+// 过滤器可以实现认证、日志、限流、缓存等横切关注点。
+// 过滤器按添加顺序执行，每个过滤器可以决定是否继续执行后续过滤器。
+//
+// 使用示例：
+//
+//	type LoggingFilter struct {
+//	    core.IFilter
+//	}
+//
+//	func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+//	    start := time.Now()
+//	    result, err := fc.Next()
+//	    log.Info("request completed", zap.Duration("elapsed", time.Since(start)))
+//	    return result, err
+//	}
 type Filter interface {
+	// Handle 处理请求
+	// fc: 过滤器链，用于调用下一个过滤器
+	// req: HTTP 请求对象
+	// 返回 (any, error): 处理结果和可能的错误
 	Handle(filterChain FilterChain, request *Request) (any, error)
 }
 

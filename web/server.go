@@ -331,7 +331,7 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 			Bytes: der,
 		})
 		if err != nil {
-			return nil, nil, errors.Errorf("failed to encode certificate #%d: %w", i, err)
+			return nil, nil, errors.Wrapf(err, "failed to encode certificate #%d", i)
 		}
 	}
 	certPEM = certBuf.Bytes()
@@ -348,33 +348,33 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 
 		keyBuf := new(bytes.Buffer)
 		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Errorf("failed to encode RSA private key: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to encode RSA private key")
 		}
 		return certPEM, keyBuf.Bytes(), nil
 
 	case *ecdsa.PrivateKey:
 		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
 		if err != nil {
-			return certPEM, nil, errors.Errorf("failed to marshal ECDSA private key to PKCS#8: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to marshal ECDSA private key to PKCS#8")
 		}
 		pemType := "PRIVATE KEY"
 
 		keyBuf := new(bytes.Buffer)
 		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Errorf("failed to encode ECDSA private key: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to encode ECDSA private key")
 		}
 		return certPEM, keyBuf.Bytes(), nil
 
 	case ed25519.PrivateKey:
 		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
 		if err != nil {
-			return certPEM, nil, errors.Errorf("failed to marshal Ed25519 private key to PKCS#8: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to marshal Ed25519 private key to PKCS#8")
 		}
 		pemType := "PRIVATE KEY"
 
 		keyBuf := new(bytes.Buffer)
 		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Errorf("failed to encode Ed25519 private key: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to encode Ed25519 private key")
 		}
 		return certPEM, keyBuf.Bytes(), nil
 
@@ -382,7 +382,7 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 		if marshaler, ok := pk.(interface{ MarshalPKCS8PrivateKey() ([]byte, error) }); ok {
 			derBytes, err = marshaler.MarshalPKCS8PrivateKey()
 			if err != nil {
-				return certPEM, nil, errors.Errorf("MarshalPKCS8PrivateKey failed: %w", err)
+				return certPEM, nil, errors.Wrap(err, "MarshalPKCS8PrivateKey failed")
 			}
 		} else {
 			return certPEM, nil, errors.New("private key implements crypto.Signer but no marshal method")
@@ -390,7 +390,7 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 
 		keyBuf := new(bytes.Buffer)
 		if err := pem.Encode(keyBuf, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Errorf("failed to encode private key: %w", err)
+			return certPEM, nil, errors.Wrap(err, "failed to encode private key")
 		}
 		return certPEM, keyBuf.Bytes(), nil
 

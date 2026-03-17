@@ -4,9 +4,11 @@ import (
 	"reflect"
 	"time"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
+	"gorm.io/gorm"
 )
 
 type IEntry interface {
@@ -52,6 +54,10 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	t.SetId(id)
 	err := a.model.db.Table(a.model.tableName).First(&t)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var zero T
+			return zero, nil
+		}
 		var zero T
 		return zero, err
 	}
@@ -62,6 +68,10 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 	t := util.NewPtr(a.model.entry)
 	err := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var zero T
+			return zero, nil
+		}
 		var zero T
 		return zero, err
 	}

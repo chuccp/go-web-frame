@@ -51,13 +51,21 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	t := util.NewPtr(a.model.entry)
 	t.SetId(id)
 	err := a.model.db.Table(a.model.tableName).First(&t)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
 	return t, err
 }
 
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
 	t := util.NewPtr(a.model.entry)
 	err := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
-	return t, err
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return t, nil
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {

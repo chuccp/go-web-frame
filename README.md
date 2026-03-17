@@ -233,64 +233,83 @@ func main() {
 
 ## 🏗️ Architecture
 
-### 核心组件
+### Core Components
 
-#### [1. 核心抽象层](./core)
-定义了组件模型的关键接口：
-- **IService**：所有需要初始化的服务基接口
-- **IModel**：数据访问层接口，包含CRUD和表管理
-- **IRest**：REST控制器接口（继承IService）
-- **IComponent**：独立组件，通过配置初始化
-- **IRunner**：后台任务运行器（继承IService和IRun）
-- **IFilter**：HTTP请求过滤器（继承IService和web.Filter）
+#### [1. Core Abstractions](./core)
+Key interfaces that define the component model:
+- **IService**: Base interface for all services requiring initialization
+- **IModel**: Data access layer interface with CRUD and table management
+- **IRest**: REST controller interface (extends IService)
+- **IComponent**: Independent components initialized with config
+- **IRunner**: Background task runners (extends IService and IRun)
+- **IFilter**: HTTP request filters/middleware (extends IService and web.Filter)
 
-#### [2. Web层](./web)
-基于Gin的HTTP处理层：
-- 请求/响应处理
-- 支持HTTP方法的路由（GET、POST、PUT、DELETE等）
-- 过滤器/中间件支持
-- 服务响应与HTTP响应的转换
+#### [2. Web Layer](./web)
+HTTP handling layer built on Gin:
+- Request/response abstraction
+- Routing with support for all HTTP methods (GET, POST, PUT, DELETE, etc.)
+- Filter/middleware system
+- Conversion between service responses and standardized HTTP responses
 
-#### [3. 数据访问](./db)
-- **./db**：支持多数据库的数据库抽象层
-- **./model**：基础模型实现和工具
-- **./sqlite**：SQLite特定实现
-- **./redis**：Redis集成
+#### [3. Data Access](./db)
+- **./db**: Multi-database abstraction layer (MySQL, SQLite) powered by GORM
+- **./model**: Type-safe generic base model with zero-boilerplate CRUD operations
+- **./sqlite**: SQLite-specific configuration and initialization
+- **./redis**: Redis integration for caching and messaging
 
-#### [4. 其他关键包](.)
-- **./config**：配置管理
-- **./log**：基于Zap的日志系统
-- **./component**：可重用组件（缓存、限流、本地缓存）
-- **./util**：工具函数
+#### 4. Other Key Packages
+- **./config**: Configuration management with Viper (supports JSON, YAML, TOML)
+- **./log**: Structured logging powered by Zap with rotation support
+- **./component**: Reusable components: cache, local cache, rate limiting, captcha, QR code generation, cron scheduled tasks, input validation
+- **./util**: Comprehensive utility functions for strings, time, crypto, networking, and more
 
-### 应用生命周期
+### Application Lifecycle
 
-1. **创建**：使用`NewWithAutoConfig()`或`New(config)`初始化WebFrame
-2. **注册**：添加路由、控制器、模型、服务、组件和运行器
-3. **配置**：自定义设置、添加中间件、配置日志
-4. **运行**：使用`Run()`启动服务器，或使用守护进程模式运行
+1. **Create**: Initialize `WebFrame` with `NewWithAutoConfig()` or `New(config)`
+2. **Register**: Add routes, controllers, models, services, components, and runners
+3. **Configure**: Customize settings, add middleware, configure logging
+4. **Run**: Start the server with `Run()` or run in daemon/service mode
 
-## 🛠️ 开发命令
+## 🛠️ Development Commands
 
 ```bash
-# 运行hello world示例
+# Run the hello world example
 go run example/helloworld/helloworld.go
 
-# 运行所有测试
+# Run the REST example
+go run example/rest/rest.go
+
+# Run the ORM model example
+go run example/model/model.go
+
+# Build the framework (library only)
+go build
+
+# Run all tests
 go test ./...
 
-# 运行特定包的测试
+# Run tests in a specific package
 go test ./core
 
-# 格式化代码
+# Run tests with verbose output
+go test -v ./core
+
+# Run a specific test case
+go test -v ./core -run TestSpecificFunction
+
+# Format code
 gofmt -w ./...
 
-# 代码检查
+# Alternative formatting with gofumpt (if installed)
+gofumpt -w ./...
+
+# Lint code
 golint ./...
 
-# 运行应用作为守护进程
+# Run application as a daemon/service
+# (Requires implementing AppService interface)
 go run your_app.go
-# 停止守护进程
+# Stop the daemon
 go run your_app.go -stop
 ```
 

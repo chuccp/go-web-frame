@@ -12,6 +12,9 @@ go run example/helloworld/helloworld.go
 # Run the rest example
 go run example/rest/rest.go
 
+# Run the ORM model example
+go run example/model/model.go
+
 # Build the framework (library only)
 go build
 
@@ -74,7 +77,8 @@ go mod tidy
 This is a Go web framework built on top of Gin, providing a structured approach to building web applications with:
 - Dependency injection
 - MVC-like architecture
-- Database integration (SQLite, Redis)
+- Type-safe generic ORM with zero boilerplate
+- Database integration (SQLite, MySQL, Redis)
 - Component-based system
 - Daemon/service mode for production deployment
 
@@ -97,16 +101,16 @@ Built on Gin, provides:
 - Conversion between service responses and HTTP responses
 
 #### 3. Data Access
-- `./db`: Database abstraction layer supporting multiple databases
-- `./model`: Base model implementations and utilities
-- `./sqlite`: SQLite-specific implementation
-- `./redis`: Redis integration
+- `./db`: Database abstraction layer supporting multiple databases (MySQL, SQLite) using GORM
+- `./model`: Type-safe generic base model implementation with zero-boilerplate CRUD operations
+- `./sqlite`: SQLite-specific configuration and initialization
+- `./redis`: Redis integration for caching and messaging
 
 #### 4. Other Key Packages
-- `./config`: Configuration management
-- `./log`: Logging based on Zap
-- `./component`: Reusable components (cache, rate limiting, local cache)
-- `./util`: Utility functions
+- `./config`: Configuration management with Viper, supports JSON, YAML, TOML
+- `./log`: Structured logging based on Zap with rotation support
+- `./component`: Reusable components: cache, local cache, rate limiting, captcha, QR code, cron scheduled tasks, input validation
+- `./util`: Comprehensive utility functions for strings, time, crypto, networking, and more
 
 ### Application Structure
 A typical application using this framework will:
@@ -116,11 +120,18 @@ A typical application using this framework will:
 4. Start the application with `Run(ctx)` or `Start()`
 
 ### Key Entry Points
-- `web_frame.go`: Main package entry point with factory methods
-- `core/context.go`: Core context for dependency injection
-- `core/server.go`: Server implementation that manages REST groups and runners
+- `web_frame.go`: Main package entry point with factory methods (`NewWithAutoConfig()`, `New()`) and registration methods
+- `core/context.go`: Core context for dependency injection - all components initialize through this context
+- `core/server.go`: Server implementation that manages REST groups and background runners
 - `web/handles.go`: Request routing and handler registration
+- `web/request.go`: Request abstraction with helper methods for binding, params, query
 - `daemon.go`: Daemon/service wrapper for running applications as system services
+
+### Dependency Injection
+The framework uses a context-based DI container:
+- All components implement the `IService` interface with `Init(ctx *Context) error`
+- Services can be retrieved from context using generic getters: `wf.GetService[T](ctx)`, `wf.GetModel[T](ctx)`
+- Context provides access to configuration through `ctx.Config()`
 
 ### Configuration
 - Uses auto-loading config by default (supports JSON, YAML, TOML)

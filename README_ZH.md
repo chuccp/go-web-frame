@@ -270,17 +270,16 @@ func main() {
 - 服务响应与HTTP响应的转换
 
 #### [3. 数据访问](./db)
-- **./db**：支持多数据库的数据库抽象层
-- **./model**：基础模型实现和工具
-- **./sqlite**：SQLite特定实现
-- **./redis**：Redis集成
-- **./mysql**：MySQL支持
+- **./db**：支持多数据库的数据库抽象层（MySQL、SQLite），基于 GORM
+- **./model**：类型安全泛型基础模型，提供零样板代码 CRUD 操作
+- **./sqlite**：SQLite 特定配置和初始化
+- **./redis**：Redis 集成，用于缓存和消息传递
 
-#### [4. 其他关键包](.)
-- **./config**：配置管理
-- **./log**：基于Zap的日志系统
-- **./component**：可重用组件（缓存、限流、本地缓存）
-- **./util**：工具函数
+#### 4. 其他关键包
+- **./config**：使用 Viper 进行配置管理，支持 JSON、YAML、TOML
+- **./log**：基于 Zap 的结构化日志，支持日志轮转
+- **./component**：可重用组件：缓存、本地缓存、限流、验证码、二维码生成、定时任务、输入验证
+- **./util**：全面的工具函数，包括字符串、时间、加密、网络等
 
 ### 应用生命周期
 
@@ -292,8 +291,17 @@ func main() {
 ## 🛠️ 开发命令
 
 ```bash
-# 运行hello world示例
+# 运行 hello world 示例
 go run example/helloworld/helloworld.go
+
+# 运行 REST 示例
+go run example/rest/rest.go
+
+# 运行 ORM 模型示例
+go run example/model/model.go
+
+# 构建框架（仅库文件）
+go build
 
 # 运行所有测试
 go test ./...
@@ -301,13 +309,33 @@ go test ./...
 # 运行特定包的测试
 go test ./core
 
+# 运行测试并输出详细信息
+go test -v ./core
+
+# 运行特定测试用例
+go test -v ./core -run TestSpecificFunction
+
 # 格式化代码
 gofmt -w ./...
+
+# 使用 gofumpt 格式化（如果已安装）
+gofumpt -w ./...
 
 # 代码检查
 golint ./...
 
-# 运行应用作为守护进程
+# 依赖管理
+# 添加新依赖
+go get github.com/example/package
+
+# 更新依赖
+go get -u ./...
+
+# 整理 go.mod 和 go.sum
+go mod tidy
+
+# 以守护进程模式运行应用
+# 需要实现 AppService 接口
 go run your_app.go
 # 停止守护进程
 go run your_app.go -stop

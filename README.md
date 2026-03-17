@@ -18,7 +18,7 @@ Go Web Frame is an opinionated web framework that enforces clean architecture th
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
 - **⚡ Type-safe Generic ORM**: Zero-boilerplate CRUD operations with generics, no reflection overhead
 - **Dependency Injection**: Built-in DI container for managing component lifecycle
-- **Database Integration**: SQLite, MySQL, Redis support with extensible database abstraction layer (powered by GORM)
+- **Database Integration**: SQLite, MySQL, PostgreSQL, Redis support with extensible database abstraction layer (powered by GORM)
 - **Connection Pool Configuration**: Configurable connection pool settings (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime`)
 - **Component System**: Reusable components including caching, rate limiting, captcha, QR code generation, cron scheduled tasks, and input validation
 - **RESTful Support**: Simplified REST controller implementation
@@ -27,6 +27,7 @@ Go Web Frame is an opinionated web framework that enforces clean architecture th
 - **Advanced Logging**: Structured logging powered by Zap with rotation support
 - **Background Tasks**: Built-in runner system for background processing
 - **Request Filtering**: HTTP middleware/filter system for cross-cutting concerns
+- **Route Metadata**: `.WithMeta()` support for attaching custom metadata to routes (enables flexible per-route authentication, permissions, etc.)
 - **Unified Error Handling**: Automatic conversion of service errors to standardized HTTP responses
 
 ## Quick Start
@@ -155,6 +156,61 @@ func main() {
 }
 ```
 
+### 🏷️ Route Metadata with `.WithMeta()`
+
+The `.WithMeta()` feature allows you to attach arbitrary metadata to individual routes, which can then be accessed by filters for flexible cross-cutting concerns like authentication, permission checks, feature flags, caching configuration, and more.
+
+**Basic Usage:**
+```go
+// Create meta options
+func RequireAuth() web.MetaOption {
+    return web.WithValue("require_auth", true)
+}
+
+func RequirePermission(perm string) web.MetaOption {
+    return web.WithValue("require_permission", perm)
+}
+
+// In route registration
+func (c *ApiController) Init(ctx *core.Context) error {
+    // Public route - no auth needed
+    ctx.Get("/api/login", loginHandler).WithMeta(SkipAuth())
+
+    // Protected route - requires authentication
+    ctx.Get("/api/profile", profileHandler, RequireAuth())
+
+    // Protected route with multiple metadata options
+    ctx.Post("/api/admin/users", createUserHandler, RequireAuth(), RequirePermission("admin:create_user"))
+
+    return nil
+}
+```
+
+**Access metadata in a filter:**
+```go
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    meta := req.HandlerMeta()
+
+    // Check if this route requires authentication
+    requireAuth, ok := meta.Get("require_auth").(bool)
+    if ok && requireAuth {
+        // Skip auth if marked as public
+        if meta.Has("skip_auth") {
+            return fc.Next()
+        }
+        // Get token and verify...
+        token := req.Request().Header.Get("Authorization")
+        if token == "" {
+            return nil, errors.New("missing authorization token")
+        }
+    }
+
+    return fc.Next()
+}
+```
+
+See the complete example at [example/withmeta/withmeta.go](./example/withmeta/withmeta.go)
+
 ### ⚡ Generic ORM Example
 
 ```go
@@ -257,7 +313,7 @@ func main() {
    - Automatic conversion of service responses to standardized HTTP responses
 
 3. **Data Access Layer (`./db`, `./model`)**: Database abstraction and ORM
-   - `./db`: Multi-database abstraction (MySQL, SQLite) powered by GORM
+   - `./db`: Multi-database abstraction (MySQL, SQLite, PostgreSQL) powered by GORM
    - `./model`: Type-safe generic base model with zero-boilerplate CRUD
    - `./sqlite`: SQLite-specific configuration
    - `./redis`: Redis integration for caching and messaging
@@ -341,7 +397,10 @@ log:
 └── example/             # Example applications
     ├── helloworld/      # Basic hello world example
     ├── rest/            # REST controller example
-    └── model/           # ORM model example
+    ├── model/           # ORM model example
+    ├── filter/          # Custom HTTP filters example
+    ├── background/      # Background tasks/runners example
+    └── withmeta/        # Route metadata .WithMeta() example
 ```
 
 ## Common Development Commands
@@ -357,6 +416,15 @@ go run example/rest/rest.go
 
 # Run the ORM model example
 go run example/model/model.go
+
+# Run the filters example
+go run example/filter/filter.go
+
+# Run the background tasks example
+go run example/background/background.go
+
+# Run the route metadata .WithMeta() example
+go run example/withmeta/withmeta.go
 
 # Build the framework (library only)
 go build

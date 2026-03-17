@@ -237,7 +237,6 @@ func GetService[T IService](c *Context) T {
 		return ok
 	}).(T)
 	return t
-
 }
 
 func GetModel[T IModel](c *Context) T {
@@ -267,6 +266,7 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	}
 	return t
 }
+
 func GetComponent[T IComponent](c *Context) T {
 	t, _ := c.GetComponent(func(m IComponent) bool {
 		_, ok := m.(T)

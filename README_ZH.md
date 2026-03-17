@@ -18,7 +18,7 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 - 🎯 **类 MVC 架构**：清晰的关注点分离，包含服务、控制器和模型
 - ⚡ **类型安全泛型 ORM**：零样板代码 CRUD 操作，基于泛型实现，无反射性能损耗
 - 🧩 **依赖注入**：内置 DI 容器，管理组件生命周期
-- 📦 **数据库集成**：SQLite、MySQL、Redis 支持，可扩展的数据库抽象层（基于 GORM）
+- 📦 **数据库集成**：SQLite、MySQL、PostgreSQL、Redis 支持，可扩展的数据库抽象层（基于 GORM）
 - 🏊 **连接池配置**：可配置连接池参数（`max_open_conns`、`max_idle_conns`、`conn_max_lifetime`）
 - 🛠️ **组件系统**：可重用组件，包括缓存、限流、验证码、二维码生成、定时任务、输入验证
 - 🌐 **RESTful 支持**：简化的 REST 控制器实现
@@ -27,7 +27,8 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 - 📝 **高级日志**：基于 Zap 的结构化日志，支持日志轮转
 - 🔄 **后台任务**：内置的后台任务运行器系统
 - 🛡️ **请求过滤**：HTTP 中间件/过滤器系统，处理横切关注点
-- 🎯 **统一错误处理**：服务错误自动转换为标准化 HTTP 响应
+- 🏷️ **路由元数据**：支持 `.WithMeta()` 为路由附加自定义元数据，实现灵活的路由级别认证、权限检查等
+- 🎯 **统一错误处理**：服务错误自动转换为标准化 HTTP 服务错误
 
 ## 🚀 快速开始
 
@@ -155,6 +156,61 @@ func main() {
 }
 ```
 
+### 🏷️ 路由元数据 `.WithMeta()` 用法
+
+`.WithMeta()` 功能允许你为单个路由附加自定义元数据，过滤器可以读取这些元数据实现灵活的横切关注点，例如认证、权限检查、功能开关、缓存配置等等。
+
+**基本用法：**
+```go
+// 创建元数据选项
+func RequireAuth() web.MetaOption {
+    return web.WithValue("require_auth", true)
+}
+
+func RequirePermission(perm string) web.MetaOption {
+    return web.WithValue("require_permission", perm)
+}
+
+// 在路由注册时使用
+func (c *ApiController) Init(ctx *core.Context) error {
+    // 公开路由 - 不需要认证
+    ctx.Get("/api/login", loginHandler).WithMeta(SkipAuth())
+
+    // 受保护路由 - 需要认证
+    ctx.Get("/api/profile", profileHandler, RequireAuth())
+
+    // 受保护路由，多个元数据，同时需要认证和权限
+    ctx.Post("/api/admin/users", createUserHandler, RequireAuth(), RequirePermission("admin:create_user"))
+
+    return nil
+}
+```
+
+**在过滤器中访问元数据：**
+```go
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    meta := req.HandlerMeta()
+
+    // 检查此路由是否要求认证
+    requireAuth, ok := meta.Get("require_auth").(bool)
+    if ok && requireAuth {
+        // 如果标记了跳过认证，则跳过检查
+        if meta.Has("skip_auth") {
+            return fc.Next()
+        }
+        // 获取令牌并验证...
+        token := req.Request().Header.Get("Authorization")
+        if token == "" {
+            return nil, errors.New("缺少授权令牌")
+        }
+    }
+
+    return fc.Next()
+}
+```
+
+完整示例请查看：[example/withmeta/withmeta.go](./example/withmeta/withmeta.go)
+
 ### ⚡ 泛型 ORM 操作示例
 
 ```go
@@ -275,7 +331,7 @@ func main() {
    - 服务响应自动转换为标准化 HTTP 响应
 
 3. **数据访问层 (`./db`, `./model`)**：数据库抽象和 ORM
-   - `./db`：基于 GORM 的多数据库抽象（MySQL、SQLite）
+   - `./db`：基于 GORM 的多数据库抽象（MySQL、SQLite、PostgreSQL）
    - `./model`：类型安全泛型基础模型，提供零样板 CRUD
    - `./sqlite`：SQLite 特定配置
    - `./redis`：Redis 缓存和消息集成
@@ -359,7 +415,10 @@ log:
 └── example/             # 示例应用
     ├── helloworld/      # 基础 hello world 示例
     ├── rest/            # REST 控制器示例
-    └── model/           # ORM 模型示例
+    ├── model/           # ORM 模型示例
+    ├── filter/          # 自定义 HTTP 过滤器示例
+    ├── background/      # 后台任务运行器示例
+    └── withmeta/        # 路由元数据 .WithMeta() 示例
 ```
 
 ## 🛠️ 开发命令
@@ -375,6 +434,15 @@ go run example/rest/rest.go
 
 # 运行 ORM 模型示例
 go run example/model/model.go
+
+# 运行过滤器示例
+go run example/filter/filter.go
+
+# 运行后台任务示例
+go run example/background/background.go
+
+# 运行路由元数据 .WithMeta() 示例
+go run example/withmeta/withmeta.go
 
 # 构建框架（仅库文件）
 go build

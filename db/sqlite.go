@@ -1,8 +1,6 @@
 package db
 
 import (
-	"time"
-
 	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/sqlite"
@@ -23,35 +21,35 @@ func ConnectionSQLite(FilePath string) (db *DB, err error) {
 	return (&SQLiteConfig{FilePath: FilePath}).Connection()
 }
 
-func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
-	// Set default connection pool values if not specified
+func (sqliteConfig *SQLiteConfig) GetMaxOpenConns() int {
 	if sqliteConfig.MaxOpenConns == 0 {
-		sqliteConfig.MaxOpenConns = 10
+		return 10
 	}
+	return sqliteConfig.MaxOpenConns
+}
+
+func (sqliteConfig *SQLiteConfig) GetMaxIdleConns() int {
 	if sqliteConfig.MaxIdleConns == 0 {
-		sqliteConfig.MaxIdleConns = 5
+		return 5
 	}
+	return sqliteConfig.MaxIdleConns
+}
+
+func (sqliteConfig *SQLiteConfig) GetConnMaxLifetime() int {
 	if sqliteConfig.ConnMaxLifetime == 0 {
-		sqliteConfig.ConnMaxLifetime = 3600 // 1 hour
+		return 3600 // 1 hour
 	}
+	return sqliteConfig.ConnMaxLifetime
+}
+
+func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 	log2.Debug("sqlite", zap.String("dsn", sqliteConfig.FilePath))
 	sb, err := gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
-	// Configure connection pool
-	sqlDB, err := sb.DB()
-	if err != nil {
-		return nil, errors.WithStackIf(err)
-	}
-	if sqliteConfig.MaxOpenConns > 0 {
-		sqlDB.SetMaxOpenConns(sqliteConfig.MaxOpenConns)
-	}
-	if sqliteConfig.MaxIdleConns > 0 {
-		sqlDB.SetMaxIdleConns(sqliteConfig.MaxIdleConns)
-	}
-	if sqliteConfig.ConnMaxLifetime > 0 {
-		sqlDB.SetConnMaxLifetime(time.Duration(sqliteConfig.ConnMaxLifetime) * time.Second)
+	if err := ApplyConnectionPool(sb, sqliteConfig); err != nil {
+		return nil, err
 	}
 	return &DB{db: sb}, err
 }

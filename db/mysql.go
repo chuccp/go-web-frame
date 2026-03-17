@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
@@ -34,6 +33,27 @@ func ConnectionMysql(host string, port int, username string, password string, db
 
 }
 
+func (mysqlConfig *MysqlConfig) GetMaxOpenConns() int {
+	if mysqlConfig.MaxOpenConns == 0 {
+		return 100
+	}
+	return mysqlConfig.MaxOpenConns
+}
+
+func (mysqlConfig *MysqlConfig) GetMaxIdleConns() int {
+	if mysqlConfig.MaxIdleConns == 0 {
+		return 10
+	}
+	return mysqlConfig.MaxIdleConns
+}
+
+func (mysqlConfig *MysqlConfig) GetConnMaxLifetime() int {
+	if mysqlConfig.ConnMaxLifetime == 0 {
+		return 3600 // 1 hour
+	}
+	return mysqlConfig.ConnMaxLifetime
+}
+
 func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if util.IsBlank(mysqlConfig.Username) {
 		mysqlConfig.Username = mysqlConfig.User
@@ -47,35 +67,14 @@ func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if util.IsBlank(mysqlConfig.Charset) {
 		mysqlConfig.Charset = "utf8"
 	}
-	// Set default connection pool values if not specified
-	if mysqlConfig.MaxOpenConns == 0 {
-		mysqlConfig.MaxOpenConns = 100
-	}
-	if mysqlConfig.MaxIdleConns == 0 {
-		mysqlConfig.MaxIdleConns = 10
-	}
-	if mysqlConfig.ConnMaxLifetime == 0 {
-		mysqlConfig.ConnMaxLifetime = 3600 // 1 hour
-	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)
 	log2.Debug("mysql", zap.String("dsn", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, "******", mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)))
 	db_, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
-	// Configure connection pool
-	sqlDB, err := db_.DB()
-	if err != nil {
-		return nil, errors.WithStackIf(err)
-	}
-	if mysqlConfig.MaxOpenConns > 0 {
-		sqlDB.SetMaxOpenConns(mysqlConfig.MaxOpenConns)
-	}
-	if mysqlConfig.MaxIdleConns > 0 {
-		sqlDB.SetMaxIdleConns(mysqlConfig.MaxIdleConns)
-	}
-	if mysqlConfig.ConnMaxLifetime > 0 {
-		sqlDB.SetConnMaxLifetime(time.Duration(mysqlConfig.ConnMaxLifetime) * time.Second)
+	if err := ApplyConnectionPool(db_, mysqlConfig); err != nil {
+		return nil, err
 	}
 	return &DB{db: db_}, err
 }

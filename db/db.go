@@ -3,6 +3,7 @@ package db
 import (
 	"reflect"
 	"strings"
+	"time"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/config"
@@ -10,8 +11,35 @@ import (
 	"gorm.io/gorm"
 )
 
+// ConnectionPoolConfig defines the interface for database connection pool configuration
+type ConnectionPoolConfig interface {
+	GetMaxOpenConns() int
+	GetMaxIdleConns() int
+	GetConnMaxLifetime() int
+}
+
+// ApplyConnectionPool applies connection pool settings to the underlying sql.DB
+func ApplyConnectionPool(db *gorm.DB, cfg ConnectionPoolConfig) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	if cfg.GetMaxOpenConns() > 0 {
+		sqlDB.SetMaxOpenConns(cfg.GetMaxOpenConns())
+	}
+	if cfg.GetMaxIdleConns() > 0 {
+		sqlDB.SetMaxIdleConns(cfg.GetMaxIdleConns())
+	}
+	if cfg.GetConnMaxLifetime() > 0 {
+		sqlDB.SetConnMaxLifetime(time.Duration(cfg.GetConnMaxLifetime()) * time.Second)
+	}
+	return nil
+}
+
 const (
 	MYSQL  = "mysql"
+	POSTGRES = "postgres"
+	POSTGRESQL = "postgresql"
 	SQLITE = "sqlite"
 )
 
@@ -315,6 +343,14 @@ func CreateDB(c config.IConfig) (*DB, error) {
 				return nil, err
 			}
 			return mysqlConfig.Connection()
+		}
+		if util.EqualsAnyIgnoreCase(config2.Type, POSTGRES) || util.EqualsAnyIgnoreCase(config2.Type, POSTGRESQL) {
+			var pgConfig PostgresConfig
+			err := c.UnmarshalKey(ConfigKey, &pgConfig)
+			if err != nil {
+				return nil, err
+			}
+			return pgConfig.Connection()
 		}
 		if util.EqualsAnyIgnoreCase(config2.Type, SQLITE) {
 			var sqliteConfig SQLiteConfig

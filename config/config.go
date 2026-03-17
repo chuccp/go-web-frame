@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"path/filepath"
 
 	"emperror.dev/errors"
@@ -139,4 +140,23 @@ func LoadConfig(paths ...string) (*Config, error) {
 }
 func LoadAutoConfig() *Config {
 	return NewConfig()
+}
+
+// NewFromBytes creates a Config from raw bytes with the specified format (json, yaml, toml, etc.)
+func NewFromBytes(data []byte, format string) (*Config, error) {
+	registry := viper.NewCodecRegistry()
+	err := registry.RegisterCodec("ini", ini.Codec{})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	v := viper.NewWithOptions(viper.WithCodecRegistry(registry))
+	v.SetConfigType(format)
+
+	err = v.ReadConfig(bytes.NewBuffer(data))
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	return &Config{v: v}, nil
 }

@@ -1,0 +1,56 @@
+# Complete configuration example for Go Web Frame
+
+# Server configuration
+server:
+  port: 8080
+  mode: debug          # debug or release
+  page404:            # custom 404 page path (optional)
+  ssl:
+    enabled: false
+    hosts: []         # domain list for Let's Encrypt automatic certificate
+
+# Database configuration
+web:
+  db:
+    # MySQL example
+    type: mysql
+    host: localhost
+    port: 3306
+    username: root
+    password: your_password
+    database: your_database
+    dbname: your_database    # alias for database
+    user: root               # alias for username
+    charset: utf8mb4
+
+    # Connection pool configuration (new in this version)
+    max_open_conns: 100      # maximum number of open connections to the database
+    max_idle_conns: 10       # maximum number of connections in the idle connection pool
+    conn_max_lifetime: 3600  # maximum amount of time a connection may be reused (in seconds)
+
+    # SQLite example (uncomment to use)
+    # type: sqlite
+    # file_path: ./app.db
+    # max_open_conns: 10
+    # max_idle_conns: 5
+    # conn_max_lifetime: 3600
+
+# Logging configuration
+log:
+  level: info          # debug, info, warn, error
+  path: ./logs/app.log # log file path (optional, defaults to stdout)
+  max_size: 100        # maximum size in megabytes of the log file before rotation
+  max_backups: 5       # maximum number of old log files to retain
+  max_age: 28          # maximum number of days to retain old log files
+  compress: true       # compress determines whether the rotated log files should be compressed
+
+# Redis configuration (optional)
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+# Example feature flags
+# system:
+#   register: true     # enable user registration
+#   captcha: true     # enable captcha verification

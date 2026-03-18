@@ -5,7 +5,7 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 ---
 
 **🌐 Language / 语言**
-[English](README.md) • [中文](README_ZH.md)
+[English](README.md) • [中文](README_ZH.md) • [繁體中文](README_ZH_TW.md) • [日本語](README_JA.md)
 
 ---
 
@@ -259,16 +259,20 @@ func RequirePermission(perm string) web.MetaOption {
     return web.WithValue("require_permission", perm)
 }
 
+func SkipAuth() web.MetaOption {
+    return web.WithValue("skip_auth", true)
+}
+
 // In route registration
 func (c *ApiController) Init(ctx *core.Context) error {
     // Public route - no auth needed
     ctx.Get("/api/login", loginHandler).WithMeta(SkipAuth())
 
     // Protected route - requires authentication
-    ctx.Get("/api/profile", profileHandler, RequireAuth())
+    ctx.Get("/api/profile", profileHandler).WithMeta(RequireAuth())
 
     // Protected route with multiple metadata options
-    ctx.Post("/api/admin/users", createUserHandler, RequireAuth(), RequirePermission("admin:create_user"))
+    ctx.Post("/api/admin/users", createUserHandler).WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
 
     return nil
 }
@@ -308,7 +312,9 @@ import (
     "context"
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
+    "github.com/chuccp/go-web-frame/web"
 )
 
 // Define your entity struct
@@ -323,8 +329,8 @@ type UserModel struct {
     *model.Model[*User]
 }
 
-func (u *UserModel) Init(db *core.DB, ctx *core.Context) error {
-    u.Model = model.NewModel[*User](db, "t_user")
+func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
+    u.Model = model.NewModel[*User](database, "t_user")
     // Auto create table if not exists
     return u.CreateTable()
 }
@@ -422,36 +428,192 @@ func main() {
 
 ## Configuration Example
 
-Example YAML configuration with database connection pool:
+### Complete Configuration Example
 
 ```yaml
-server:
-  port: 8080
-  mode: debug # or release
+web:
+  # Server configuration
+  server:
+    port: 8080                    # Server port, default 19009
+    locations:                    # Static file directories (optional)
+      - view/dist
+      - www
+    page404: 404.html             # 404 page (optional)
+    # HTTPS/SSL configuration (optional)
+    ssl:
+      enabled: true               # Enable HTTPS
+      hosts:                      # Domain list (auto Let's Encrypt certificate)
+        - example.com
+        - api.example.com
 
+  # Database configuration
+  db:
+    type: mysql                   # Database type: mysql, postgres, sqlite
+    host: localhost
+    port: 3306
+    user: root                    # Username (also supports username)
+    password: your_password
+    database: your_database       # Database name (also supports dbname)
+    charset: utf8mb4
+    # Connection pool settings (optional, with defaults)
+    max_open_conns: 100           # Max open connections, default 100
+    max_idle_conns: 10            # Max idle connections, default 10
+    conn_max_lifetime: 3600       # Connection max lifetime (seconds), default 3600
+
+  # Log configuration
+  log:
+    level: info                   # Log level: debug, info, warn, error
+    path: ./logs/app.log          # Log file path
+    write: false                  # Background write mode
+    # Log rotation configuration (optional, with defaults)
+    max_size: 100                 # Max size of a single log file (MB), default 500
+    max_backups: 5                # Max number of old log files to retain, default 3
+    max_age: 7                    # Max number of days to retain old log files, default 30
+    compress: true                # Whether to compress old log files, default true
+    local_time: false             # Whether to use local time, default false
+
+  # Redis configuration (optional)
+  redis:
+    addr: localhost:6379          # Redis address
+    password: ""                  # Password
+    db: 0                         # Database number
+
+# Local cache configuration (optional)
+local_cache:
+  path: ./cache                   # Cache file storage path
+  open: true                      # Enable file cache
+
+# Rate limit configuration (optional)
+rate_limit:
+  limit: 600                      # Token fill interval (seconds)
+  burst: 5                        # Token bucket capacity
+  max_size: 1000000               # Max cache entries
+  expiry: 3600                    # Cache expiry time (seconds)
+```
+
+### Database Configuration
+
+#### MySQL Configuration
+
+```yaml
 web:
   db:
     type: mysql
     host: localhost
     port: 3306
-    username: root
+    user: root                    # Username (also supports username)
     password: your_password
-    database: your_db
-    charset: utf8mb4
-    # Connection pool settings (optional)
+    database: your_database       # Database name (also supports dbname)
+    charset: utf8mb4              # Optional, default utf8
+    max_open_conns: 100           # Optional, default 100
+    max_idle_conns: 10            # Optional, default 10
+    conn_max_lifetime: 3600       # Optional, default 3600 seconds
+```
+
+#### PostgreSQL Configuration
+
+```yaml
+web:
+  db:
+    type: postgres                # or postgresql
+    host: localhost
+    port: 5432
+    user: postgres
+    password: your_password
+    database: your_database
+    sslmode: disable              # Optional: disable, require, verify-ca, verify-full
+    timezone: Asia/Shanghai       # Optional
     max_open_conns: 100
     max_idle_conns: 10
-    conn_max_lifetime: 3600 # seconds
+    conn_max_lifetime: 3600
+```
 
-log:
-  level: info
-  path: ./logs/app.log
-  # Log rotation configuration (optional, with defaults)
-  max_size: 100      # Max size of a single log file (MB), default 500
-  max_backups: 5     # Max number of old log files to retain, default 3
-  max_age: 7         # Max number of days to retain old log files, default 30
-  compress: true     # Whether to compress old log files, default true
-  local_time: false  # Whether to use local time, default false (uses UTC)
+#### SQLite Configuration
+
+```yaml
+web:
+  db:
+    type: sqlite
+    file_path: ./data/app.db      # Database file path
+    max_open_conns: 10            # Optional, default 10
+    max_idle_conns: 5             # Optional, default 5
+    conn_max_lifetime: 3600       # Optional, default 3600 seconds
+```
+
+### HTTPS Configuration
+
+The framework supports automatic Let's Encrypt SSL certificate application and management, no manual certificate configuration required.
+
+```yaml
+web:
+  server:
+    port: 443                     # HTTPS default port
+    ssl:
+      enabled: true               # Enable HTTPS
+      hosts:                      # Domain list
+        - example.com
+        - api.example.com
+```
+
+**HTTPS Configuration Notes:**
+
+- `enabled: true` - Enable HTTPS mode
+- `hosts` - List of domains for certificate application
+- Certificates are automatically applied and cached in `./certs` directory
+- HTTP/2 protocol support
+- Port 80 automatically sets up HTTP to HTTPS redirect
+
+**Important Notes:**
+
+1. Domain must be correctly resolved to server IP
+2. Server needs external network access (Let's Encrypt validation)
+3. Recommended to use port 443, other ports also work
+
+### Static Files Configuration
+
+```yaml
+web:
+  server:
+    port: 8080
+    locations:                    # Static file directory list
+      - view/dist                 # Frontend build output
+      - www                       # Static resources directory
+    page404: 404.html             # SPA 404 fallback page
+```
+
+**Static Files Notes:**
+
+- `locations` - Static file lookup directories, searched in order
+- `page404` - 404 page returned when HTML page is requested but file doesn't exist
+- Supports SPA route fallback
+
+### Redis Configuration
+
+```yaml
+web:
+  redis:
+    addr: localhost:6379          # Redis address
+    password: ""                  # Password (optional)
+    db: 0                         # Database number
+    pool_size: 10                 # Connection pool size (optional)
+```
+
+### Local Cache Configuration
+
+```yaml
+local_cache:
+  path: ./cache                   # Cache file storage path
+  open: true                      # Enable file cache
+```
+
+### Rate Limit Configuration
+
+```yaml
+rate_limit:
+  limit: 600                      # Token fill interval (seconds), 1 token per limit seconds
+  burst: 5                        # Token bucket capacity
+  max_size: 1000000               # Max cache entries
+  expiry: 3600                    # Cache expiry time (seconds)
 ```
 
 ## Project Structure

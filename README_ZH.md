@@ -5,7 +5,7 @@
 ---
 
 **🌐 Language / 语言**
-[English](README.md) • [中文](README_ZH.md)
+[English](README.md) • [中文](README_ZH.md) • [繁體中文](README_ZH_TW.md) • [日本語](README_JA.md)
 
 ---
 
@@ -259,16 +259,20 @@ func RequirePermission(perm string) web.MetaOption {
     return web.WithValue("require_permission", perm)
 }
 
+func SkipAuth() web.MetaOption {
+    return web.WithValue("skip_auth", true)
+}
+
 // 在路由注册时使用
 func (c *ApiController) Init(ctx *core.Context) error {
     // 公开路由 - 不需要认证
     ctx.Get("/api/login", loginHandler).WithMeta(SkipAuth())
 
     // 受保护路由 - 需要认证
-    ctx.Get("/api/profile", profileHandler, RequireAuth())
+    ctx.Get("/api/profile", profileHandler).WithMeta(RequireAuth())
 
     // 受保护路由，多个元数据，同时需要认证和权限
-    ctx.Post("/api/admin/users", createUserHandler, RequireAuth(), RequirePermission("admin:create_user"))
+    ctx.Post("/api/admin/users", createUserHandler).WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
 
     return nil
 }
@@ -308,7 +312,9 @@ import (
     "context"
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
+    "github.com/chuccp/go-web-frame/web"
 )
 
 // 定义实体结构体
@@ -323,8 +329,8 @@ type UserModel struct {
     *model.Model[*User]
 }
 
-func (u *UserModel) Init(db *core.DB, ctx *core.Context) error {
-    u.Model = model.NewModel[*User](db, "t_user")
+func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
+    u.Model = model.NewModel[*User](database, "t_user")
     // 如果表不存在则自动创建
     return u.CreateTable()
 }
@@ -439,36 +445,192 @@ func main() {
 
 ## 配置示例
 
-带数据库连接池的 YAML 配置示例：
+### 完整配置示例
 
 ```yaml
-server:
-  port: 8080
-  mode: debug # 或者 release
+web:
+  # 服务器配置
+  server:
+    port: 8080                    # 服务端口，默认 19009
+    locations:                    # 静态文件目录（可选）
+      - view/dist
+      - www
+    page404: 404.html             # 404 页面（可选）
+    # HTTPS/SSL 配置（可选）
+    ssl:
+      enabled: true               # 是否启用 HTTPS
+      hosts:                      # 域名列表（自动申请 Let's Encrypt 证书）
+        - example.com
+        - api.example.com
 
+  # 数据库配置
+  db:
+    type: mysql                   # 数据库类型: mysql, postgres, sqlite
+    host: localhost
+    port: 3306
+    user: root                    # 用户名（也支持 username）
+    password: your_password
+    database: your_database       # 数据库名（也支持 dbname）
+    charset: utf8mb4
+    # 连接池设置（可选，有默认值）
+    max_open_conns: 100           # 最大打开连接数，默认 100
+    max_idle_conns: 10            # 最大空闲连接数，默认 10
+    conn_max_lifetime: 3600       # 连接最大生命周期（秒），默认 3600
+
+  # 日志配置
+  log:
+    level: info                   # 日志级别: debug, info, warn, error
+    path: ./logs/app.log          # 日志文件路径
+    write: false                  # 是否后台写入模式
+    # 日志轮转配置（可选，有默认值）
+    max_size: 100                 # 单个日志文件最大大小 (MB)，默认 500
+    max_backups: 5                # 保留的旧日志文件最大数量，默认 3
+    max_age: 7                    # 保留旧日志文件的最大天数，默认 30
+    compress: true                # 是否压缩旧日志文件，默认 true
+    local_time: false             # 是否使用本地时间，默认 false
+
+  # Redis 配置（可选）
+  redis:
+    addr: localhost:6379          # Redis 地址
+    password: ""                  # 密码
+    db: 0                         # 数据库编号
+
+# 本地缓存配置（可选）
+local_cache:
+  path: ./cache                   # 缓存文件存储路径
+  open: true                      # 是否启用文件缓存
+
+# 限流配置（可选）
+rate_limit:
+  limit: 600                      # 令牌填充间隔（秒）
+  burst: 5                        # 令牌桶容量
+  max_size: 1000000               # 缓存最大条目数
+  expiry: 3600                    # 缓存过期时间（秒）
+```
+
+### 数据库配置
+
+#### MySQL 配置
+
+```yaml
 web:
   db:
     type: mysql
     host: localhost
     port: 3306
-    username: root
-    password: 你的密码
-    database: 你的数据库
-    charset: utf8mb4
-    # 连接池设置（可选）
+    user: root                    # 用户名（也支持 username）
+    password: your_password
+    database: your_database       # 数据库名（也支持 dbname）
+    charset: utf8mb4              # 可选，默认 utf8
+    max_open_conns: 100           # 可选，默认 100
+    max_idle_conns: 10            # 可选，默认 10
+    conn_max_lifetime: 3600       # 可选，默认 3600 秒
+```
+
+#### PostgreSQL 配置
+
+```yaml
+web:
+  db:
+    type: postgres                # 或 postgresql
+    host: localhost
+    port: 5432
+    user: postgres
+    password: your_password
+    database: your_database
+    sslmode: disable              # 可选: disable, require, verify-ca, verify-full
+    timezone: Asia/Shanghai       # 可选
     max_open_conns: 100
     max_idle_conns: 10
-    conn_max_lifetime: 3600 # 秒
+    conn_max_lifetime: 3600
+```
 
-log:
-  level: info
-  path: ./logs/app.log
-  # 日志轮转配置 (可选，有默认值)
-  max_size: 100      # 单个日志文件最大大小 (MB)，默认 500
-  max_backups: 5     # 保留的旧日志文件最大数量，默认 3
-  max_age: 7         # 保留旧日志文件的最大天数，默认 30
-  compress: true     # 是否压缩旧日志文件，默认 true
-  local_time: false  # 是否使用本地时间，默认 false (使用 UTC)
+#### SQLite 配置
+
+```yaml
+web:
+  db:
+    type: sqlite
+    file_path: ./data/app.db      # 数据库文件路径
+    max_open_conns: 10            # 可选，默认 10
+    max_idle_conns: 5             # 可选，默认 5
+    conn_max_lifetime: 3600       # 可选，默认 3600 秒
+```
+
+### HTTPS 配置
+
+框架支持自动申请和管理 Let's Encrypt SSL 证书，无需手动配置证书文件。
+
+```yaml
+web:
+  server:
+    port: 443                     # HTTPS 默认端口
+    ssl:
+      enabled: true               # 启用 HTTPS
+      hosts:                      # 域名列表
+        - example.com
+        - api.example.com
+```
+
+**HTTPS 配置说明：**
+
+- `enabled: true` - 启用 HTTPS 模式
+- `hosts` - 需要申请证书的域名列表
+- 证书会自动申请并缓存到 `./certs` 目录
+- 支持 HTTP/2 协议
+- 端口 80 会自动设置 HTTP 到 HTTPS 的重定向
+
+**注意事项：**
+
+1. 域名必须正确解析到服务器 IP
+2. 服务器需要能访问外网（Let's Encrypt 验证）
+3. 建议使用 443 端口，其他端口也可用
+
+### 静态文件配置
+
+```yaml
+web:
+  server:
+    port: 8080
+    locations:                    # 静态文件目录列表
+      - view/dist                 # 前端构建产物
+      - www                       # 静态资源目录
+    page404: 404.html             # SPA 应用 404 回退页面
+```
+
+**静态文件说明：**
+
+- `locations` - 静态文件查找目录，按顺序搜索
+- `page404` - 当请求 HTML 页面但文件不存在时返回的 404 页面
+- 支持 SPA 应用的路由回退
+
+### Redis 配置
+
+```yaml
+web:
+  redis:
+    addr: localhost:6379          # Redis 地址
+    password: ""                  # 密码（可选）
+    db: 0                         # 数据库编号
+    pool_size: 10                 # 连接池大小（可选）
+```
+
+### 本地缓存配置
+
+```yaml
+local_cache:
+  path: ./cache                   # 缓存文件存储路径
+  open: true                      # 是否启用文件缓存
+```
+
+### 限流配置
+
+```yaml
+rate_limit:
+  limit: 600                      # 令牌填充间隔（秒），每 limit 秒填充 1 个令牌
+  burst: 5                        # 令牌桶容量
+  max_size: 1000000               # 缓存最大条目数
+  expiry: 3600                    # 缓存过期时间（秒）
 ```
 
 ## 项目结构

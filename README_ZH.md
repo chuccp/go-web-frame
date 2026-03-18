@@ -11,7 +11,7 @@
 
 ## 项目概述
 
-Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计强制实现清晰的架构。它内置了依赖注入、类型安全 ORM、数据库集成，以及生产环境就绪的守护进程模式等特性。
+Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计强制实现清晰的架构。它内置了依赖注入、类型安全 ORM、数据库集成等特性。
 
 **核心优势**：本框架集成了 Go 生态中优秀的开源包和框架，采用最佳实践有机配合，是目前最佳的组合方案，可帮助开发者在短时间内快速成型项目，大幅提升开发效率。
 
@@ -50,7 +50,6 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 | [validator](https://github.com/go-playground/validator) | 结构体字段验证 |
 | [UUID](https://github.com/google/uuid) | UUID 生成 |
 | [Lumberjack](https://pkg.go.dev/gopkg.in/natefinch/lumberjack.v2) | 日志轮转 |
-| [Service](https://github.com/kardianos/service) | 跨平台守护进程管理 |
 | [Conc](https://github.com/sourcegraph/conc) | 更好的并发原语 |
 | [Emperror](https://emperror.dev/errors) | 生产级错误处理 |
 
@@ -70,7 +69,6 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 | 开箱即用 | ✅ 完整方案 | ❌ 需自行集成 | ✅ 完整方案 | ⚠️ 部分集成 |
 | 泛型 ORM | ✅ 零样板 | ❌ 需自行选择 | ❌ 无泛型 | ❌ 需自行选择 |
 | 依赖注入 | ✅ 内置 DI | ❌ 需自行实现 | ⚠️ 简单支持 | ❌ 需自行实现 |
-| 守护进程 | ✅ 跨平台支持 | ❌ 无 | ❌ 无 | ❌ 无 |
 | 学习曲线 | 🟢 中等 | 🟢 简单 | 🟡 较陡 | 🟢 简单 |
 | 功能完整度 | 🟢 高 | 🟡 中等 | 🟢 高 | 🟡 中等 |
 | 性能 | 🟢 优秀 (42k QPS) | 🟢 最优 (45k QPS) | 🟡 一般 | 🟢 优秀 |
@@ -83,7 +81,7 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 - 🏢 **企业级应用**：需要清晰架构、依赖注入、统一错误处理等企业级特性
 - 📊 **管理后台系统**：内置 CRUD 操作、分页、验证等常用功能
 - 🔌 **RESTful API 服务**：简化的控制器实现，自动路由注册
-- ⚙️ **微服务开发**：轻量级但功能完整，支持守护进程模式
+- ⚙️ **微服务开发**：轻量级但功能完整
 - 🛠️ **全栈 Go 项目**：从前端到后端到数据库，一站式解决方案
 
 **特别适合：**
@@ -113,7 +111,6 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 - 🏊 **连接池配置**：可配置连接池参数（`max_open_conns`、`max_idle_conns`、`conn_max_lifetime`）
 - 🛠️ **组件系统**：可重用组件，包括缓存、限流、验证码、二维码生成、定时任务、输入验证
 - 🌐 **RESTful 支持**：简化的 REST 控制器实现
-- 🚀 **守护进程模式**：在 Windows、Linux 和 macOS 上作为系统服务运行
 - ⚙️ **自动配置**：从 JSON、YAML 或 TOML 文件自动加载配置
 - 📝 **高级日志**：基于 Zap 的结构化日志，支持日志轮转
 - 🔄 **后台任务**：内置的后台任务运行器系统
@@ -438,7 +435,7 @@ func main() {
 1. **创建**：使用 `NewWithAutoConfig()` 或 `New(config)` 初始化 `WebFrame`
 2. **注册**：添加路由、控制器、模型、服务、组件和运行器
 3. **配置**：自定义设置、添加中间件、配置日志
-4. **运行**：使用 `Run(ctx)` 启动服务器，或以守护进程模式运行
+4. **运行**：使用 `Run(ctx)` 启动服务器
 
 ## 配置示例
 
@@ -478,7 +475,6 @@ log:
 
 ```
 ├── web_frame.go         # 主入口 - WebFrame 工厂方法
-├── daemon.go            # Windows/Linux/macOS 守护进程/服务支持
 ├── core/                # 核心抽象和 DI 容器
 │   ├── interface.go     # 核心接口（IService, IModel, IRest 等）
 │   ├── context.go       # 依赖注入上下文
@@ -588,17 +584,6 @@ go get -u ./...
 
 # 整理 go.mod 和 go.sum
 go mod tidy
-```
-
-### 守护进程模式
-
-```bash
-# 以系统守护进程/服务方式运行应用
-# 需要实现 AppService 接口
-go run your_app.go
-
-# 停止正在运行的守护进程
-go run your_app.go -stop
 ```
 
 

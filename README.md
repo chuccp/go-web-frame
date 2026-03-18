@@ -11,7 +11,7 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 
 ## Project Overview
 
-Go Web Frame is an opinionated web framework that enforces clean architecture through component-based design. It provides built-in dependency injection, type-safe ORM, database integration, and production-ready features like daemon/service mode out of the box.
+Go Web Frame is an opinionated web framework that enforces clean architecture through component-based design. It provides built-in dependency injection, type-safe ORM, and database integration out of the box.
 
 **Core Advantage**: This framework integrates the best open-source packages and frameworks from the Go ecosystem, applying best practices in an organic combination. It represents the optimal solution for rapidly building production-ready applications, significantly boosting development efficiency.
 
@@ -50,7 +50,6 @@ This framework carefully selects and integrates the following excellent open-sou
 | [validator](https://github.com/go-playground/validator) | Struct field validation |
 | [UUID](https://github.com/google/uuid) | UUID generation |
 | [Lumberjack](https://pkg.go.dev/gopkg.in/natefinch/lumberjack.v2) | Log rotation |
-| [Service](https://github.com/kardianos/service) | Cross-platform daemon management |
 | [Conc](https://github.com/sourcegraph/conc) | Better concurrency primitives |
 | [Emperror](https://emperror.dev/errors) | Production-grade error handling |
 
@@ -70,7 +69,6 @@ This framework carefully selects and integrates the following excellent open-sou
 | Ready to Use | ✅ Complete Solution | ❌ Need Integration | ✅ Complete Solution | ⚠️ Partial |
 | Generic ORM | ✅ Zero Boilerplate | ❌ Choose Yourself | ❌ No Generics | ❌ Choose Yourself |
 | Dependency Injection | ✅ Built-in DI | ❌ Implement Yourself | ⚠️ Basic Support | ❌ Implement Yourself |
-| Daemon Mode | ✅ Cross-platform | ❌ None | ❌ None | ❌ None |
 | Learning Curve | 🟢 Moderate | 🟢 Easy | 🟡 Steep | 🟢 Easy |
 | Feature Completeness | 🟢 High | 🟡 Medium | 🟢 High | 🟡 Medium |
 | Performance | 🟢 Excellent (42k QPS) | 🟢 Best (45k QPS) | 🟡 Average | 🟢 Excellent |
@@ -83,7 +81,7 @@ This framework carefully selects and integrates the following excellent open-sou
 - 🏢 **Enterprise Applications**: Require clean architecture, dependency injection, unified error handling
 - 📊 **Admin Dashboard Systems**: Built-in CRUD operations, pagination, validation
 - 🔌 **RESTful API Services**: Simplified controller implementation, automatic route registration
-- ⚙️ **Microservices**: Lightweight yet feature-complete, supports daemon mode
+- ⚙️ **Microservices**: Lightweight yet feature-complete
 - 🛠️ **Full-stack Go Projects**: One-stop solution from frontend to backend to database
 
 **Especially Suitable For:**
@@ -113,7 +111,6 @@ If you're looking for:
 - **Connection Pool Configuration**: Configurable connection pool settings (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime`)
 - **Component System**: Reusable components including caching, rate limiting, captcha, QR code generation, cron scheduled tasks, and input validation
 - **RESTful Support**: Simplified REST controller implementation
-- **Daemon/Service Mode**: Run applications as system services on Windows, Linux, and macOS
 - **Auto-Configuration**: Auto-loading config from JSON, YAML, or TOML files
 - **Advanced Logging**: Structured logging powered by Zap with rotation support
 - **Background Tasks**: Built-in runner system for background processing
@@ -421,7 +418,7 @@ func main() {
 1. **Create**: Initialize `WebFrame` with `NewWithAutoConfig()` or `New(config)`
 2. **Register**: Add routes, controllers, models, services, components, and runners
 3. **Configure**: Customize settings, add middleware, configure logging
-4. **Run**: Start the server with `Run(ctx)` or run in daemon/service mode
+4. **Run**: Start the server with `Run(ctx)`
 
 ## Configuration Example
 
@@ -461,7 +458,6 @@ log:
 
 ```
 ├── web_frame.go         # Main entry point - factory methods for WebFrame
-├── daemon.go            # Daemon/service mode support for Windows/Linux/macOS
 ├── core/                # Core abstractions and DI container
 │   ├── interface.go     # Core interfaces (IService, IModel, IRest, etc.)
 │   ├── context.go       # Dependency injection context
@@ -571,17 +567,6 @@ go get -u ./...
 
 # Tidy up go.mod and go.sum
 go mod tidy
-```
-
-### Daemon Mode
-
-```bash
-# Run application as a system daemon/service
-# (Requires implementing AppService interface)
-go run your_app.go
-
-# Stop a running daemon
-go run your_app.go -stop
 ```
 
 

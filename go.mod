@@ -10,7 +10,6 @@ require (
 	github.com/go-viper/encoding/ini v0.1.1
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
-	github.com/kardianos/service v1.2.4
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/redis/go-redis/v9 v9.17.3
 	github.com/robfig/cron/v3 v3.0.1
@@ -26,7 +25,6 @@ require (
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.47.0
 	golang.org/x/net v0.49.0
-	golang.org/x/term v0.39.0
 	golang.org/x/time v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/mysql v1.6.0

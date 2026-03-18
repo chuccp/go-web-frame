@@ -8,33 +8,35 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"golang.org/x/term"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type Config struct {
-	Level string
-	Path  string
-	Write bool
+	Level      string // 日志级别: debug, info, warn, error
+	Path       string // 日志文件路径
+	Write      bool   // 是否为后台写入模式
+	MaxSize    int    // 单个日志文件最大大小 (MB)，默认 500
+	MaxBackups int    // 保留的旧日志文件最大数量，默认 3
+	MaxAge     int    // 保留旧日志文件的最大天数，默认 30
+	Compress   bool   // 是否压缩旧日志文件，默认 true
+	LocalTime  bool   // 是否使用本地时间，默认 false (使用 UTC)
 }
 
 func (c *Config) Key() string {
 	return "web.log"
 }
+
 func defaultConfig() *Config {
 	return &Config{
-		Level: "info",
-		Path:  "",
-		Write: false,
+		Level:      "info",
+		Path:       "",
+		Write:      false,
+		MaxSize:    500, // 500 MB
+		MaxBackups: 3,
+		MaxAge:     30, // 30 days
+		Compress:   true,
+		LocalTime:  false,
 	}
-}
-
-func IsBackgroundMode() bool {
-	isStdoutTTY := term.IsTerminal(int(os.Stdout.Fd()))
-	isStderrTTY := term.IsTerminal(int(os.Stderr.Fd()))
-	_, hasNohup := os.LookupEnv("NOHUP")
-	Info("运行模式", zap.Bool("isStdoutTTY", isStdoutTTY), zap.Bool("isStderrTTY", isStderrTTY), zap.Bool("hasNohup", hasNohup))
-	return hasNohup && (isStdoutTTY || isStderrTTY)
 }
 
 var TimestampFormat = "2006-01-02 15:04:05"
@@ -45,13 +47,28 @@ func getEncoder() zapcore.Encoder {
 	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(TimestampFormat)
 	return zapcore.NewJSONEncoder(encoderConfig)
 }
-func getFileLogWriter(path string) zapcore.Core {
+func getFileLogWriter(cfg *Config) zapcore.Core {
+	// 应用默认值
+	maxSize := cfg.MaxSize
+	if maxSize <= 0 {
+		maxSize = 500
+	}
+	maxBackups := cfg.MaxBackups
+	if maxBackups <= 0 {
+		maxBackups = 3
+	}
+	maxAge := cfg.MaxAge
+	if maxAge <= 0 {
+		maxAge = 30
+	}
+
 	logger := &lumberjack.Logger{
-		Filename:   path,
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30,   //days
-		Compress:   true, // disabled by default
+		Filename:   cfg.Path,
+		MaxSize:    maxSize,    // megabytes
+		MaxBackups: maxBackups, // number of backups
+		MaxAge:     maxAge,     // days
+		Compress:   cfg.Compress,
+		LocalTime:  cfg.LocalTime,
 	}
 	encoder := getEncoder()
 	core := zapcore.NewCore(encoder, zapcore.AddSync(logger), zapcore.InfoLevel)
@@ -191,7 +208,7 @@ func InitLogger(logConfig *Config) {
 			if err == nil {
 				logConfig.Path = abs
 				Info(" log save path", zap.String("logPath", logConfig.Path))
-				cores := zapcore.NewTee(getFileLogWriter(logConfig.Path), getStdoutLogWriter())
+				cores := zapcore.NewTee(getFileLogWriter(logConfig), getStdoutLogWriter())
 				l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level))
 				lock.Lock()
 				defer lock.Unlock()

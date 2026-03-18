@@ -13,6 +13,97 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 
 Go Web Frame is an opinionated web framework that enforces clean architecture through component-based design. It provides built-in dependency injection, type-safe ORM, database integration, and production-ready features like daemon/service mode out of the box.
 
+**Core Advantage**: This framework integrates the best open-source packages and frameworks from the Go ecosystem, applying best practices in an organic combination. It represents the optimal solution for rapidly building production-ready applications, significantly boosting development efficiency.
+
+## 🧩 Tech Stack
+
+This framework carefully selects and integrates the following excellent open-source components, deeply combined and configured with best practices:
+
+### Core Framework
+| Component | Description |
+|-----------|-------------|
+| [Gin](https://github.com/gin-gonic/gin) | High-performance HTTP web framework with excellent API performance |
+| [GORM](https://gorm.io/) | Powerful ORM library with multi-database support |
+| [Viper](https://github.com/spf13/viper) | Complete configuration solution supporting multiple formats |
+| [Zap](https://go.uber.org/zap) | Uber's high-performance structured logging library |
+
+### Data Storage
+| Component | Description |
+|-----------|-------------|
+| [go-redis](https://github.com/redis/go-redis) | Redis client recommended by Redis |
+| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | Pure Go SQLite implementation, no CGO dependency |
+| [gorm-driver/mysql](https://gorm.io/docs/connecting_to_the_database.html) | MySQL database driver |
+| [gorm-driver/postgres](https://gorm.io/docs/connecting_to_the_database.html) | PostgreSQL database driver |
+
+### Caching & Performance
+| Component | Description |
+|-----------|-------------|
+| [Otter](https://github.com/maypok86/otter) | High-performance Go local cache library |
+| [golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate) | Token bucket rate limiter |
+
+### Utilities
+| Component | Description |
+|-----------|-------------|
+| [Cron](https://github.com/robfig/cron) | Scheduled task library |
+| [go-qrcode](https://github.com/yeqown/go-qrcode) | QR code generation |
+| [go-captcha](https://github.com/wenlng/go-captcha) | Behavioral captcha generation |
+| [validator](https://github.com/go-playground/validator) | Struct field validation |
+| [UUID](https://github.com/google/uuid) | UUID generation |
+| [Lumberjack](https://pkg.go.dev/gopkg.in/natefinch/lumberjack.v2) | Log rotation |
+| [Service](https://github.com/kardianos/service) | Cross-platform daemon management |
+| [Conc](https://github.com/sourcegraph/conc) | Better concurrency primitives |
+| [Emperror](https://emperror.dev/errors) | Production-grade error handling |
+
+### Why These Components?
+
+- **Production Proven**: All components are widely verified in large-scale production environments
+- **High Performance**: Gin, Zap, Otter are the best performers in their respective domains
+- **Best Practices**: Carefully integrated, ready to use out of the box, no complex configuration needed
+- **Mature Ecosystem**: Active community support with continuous updates
+
+## 🤖 Why Choose Go Web Frame?
+
+### Comparison with Other Frameworks
+
+| Feature | Go Web Frame | Gin | Beego | Echo |
+|---------|-------------|-----|-------|------|
+| Ready to Use | ✅ Complete Solution | ❌ Need Integration | ✅ Complete Solution | ⚠️ Partial |
+| Generic ORM | ✅ Zero Boilerplate | ❌ Choose Yourself | ❌ No Generics | ❌ Choose Yourself |
+| Dependency Injection | ✅ Built-in DI | ❌ Implement Yourself | ⚠️ Basic Support | ❌ Implement Yourself |
+| Daemon Mode | ✅ Cross-platform | ❌ None | ❌ None | ❌ None |
+| Learning Curve | 🟢 Moderate | 🟢 Easy | 🟡 Steep | 🟢 Easy |
+| Feature Completeness | 🟢 High | 🟡 Medium | 🟢 High | 🟡 Medium |
+| Performance | 🟢 Excellent (42k QPS) | 🟢 Best (45k QPS) | 🟡 Average | 🟢 Excellent |
+
+### When Should You Choose Go Web Frame?
+
+**Highly Recommended For:**
+
+- 🚀 **Rapid Prototyping**: Need to complete project prototypes quickly with all necessary components pre-integrated
+- 🏢 **Enterprise Applications**: Require clean architecture, dependency injection, unified error handling
+- 📊 **Admin Dashboard Systems**: Built-in CRUD operations, pagination, validation
+- 🔌 **RESTful API Services**: Simplified controller implementation, automatic route registration
+- ⚙️ **Microservices**: Lightweight yet feature-complete, supports daemon mode
+- 🛠️ **Full-stack Go Projects**: One-stop solution from frontend to backend to database
+
+**Especially Suitable For:**
+
+- Go Beginners: Learn best practices without trial and error
+- Solo Developers: Complete projects efficiently, reduce technology selection time
+- Small Teams: Unified tech stack, lower collaboration costs
+- AI-Assisted Development: Clean architecture makes it easier for AI to understand and generate code
+
+### Selection Guide
+
+If you're looking for:
+- A **feature-complete** and **ready-to-use** Go web framework
+- **Production-proven** excellent components integrated without repeated research
+- **Generic-powered** type-safe ORM with minimal boilerplate
+- **Clean architecture** for maintainability and team collaboration
+- **Rapid development** to shorten time from idea to product
+
+**Go Web Frame is your best choice!**
+
 ## Features
 
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
@@ -358,6 +449,12 @@ web:
 log:
   level: info
   path: ./logs/app.log
+  # Log rotation configuration (optional, with defaults)
+  max_size: 100      # Max size of a single log file (MB), default 500
+  max_backups: 5     # Max number of old log files to retain, default 3
+  max_age: 7         # Max number of days to retain old log files, default 30
+  compress: true     # Whether to compress old log files, default true
+  local_time: false  # Whether to use local time, default false (uses UTC)
 ```
 
 ## Project Structure

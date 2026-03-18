@@ -108,28 +108,71 @@ func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	if q.db == nil {
 		return nil, errors.New("db is nil")
 	}
+
+	// 合并 Where 条件
+	finalSql, finalArgs := q.mergeWheres(sql, args...)
+
 	tx := q.db.Table(q.tableName)
-	err := tx.Raw(sql, args...).Scan(&ts)
+	err := tx.Raw(finalSql, finalArgs...).Scan(&ts)
 	return ts, errors.WithStackIf(err)
 }
+
+// mergeWheres 合并 Where 条件到 SQL 和参数中
+func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []interface{}) {
+	finalSql := sql
+	finalArgs := args
+
+	if len(q.wheres) > 0 {
+		// 检查 SQL 是否已有 WHERE 子句
+		upperSql := strings.ToUpper(sql)
+		hasWhere := strings.Contains(upperSql, " WHERE ")
+
+		// 构建 WHERE 子句
+		var whereClause strings.Builder
+		whereArgs := make([]interface{}, 0)
+
+		for i, w := range q.wheres {
+			if i > 0 {
+				whereClause.WriteString(" AND ")
+			}
+			whereClause.WriteString(fmt.Sprintf("%v", w.query))
+			whereArgs = append(whereArgs, w.args...)
+		}
+
+		// 追加到 SQL
+		if hasWhere {
+			finalSql = sql + " AND " + whereClause.String()
+		} else {
+			finalSql = sql + " WHERE " + whereClause.String()
+		}
+		finalArgs = append(finalArgs, whereArgs...)
+	}
+
+	return finalSql, finalArgs
+}
+
 func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
+
+	// 合并 Where 条件
+	finalSql, finalArgs := q.mergeWheres(sql, args...)
+
 	// 构建 count SQL
-	countSql := toCountSql(sql)
+	countSql := toCountSql(finalSql)
 	var num int64
 	tx := q.db.Table(q.tableName)
-	err := tx.Raw(countSql, args...).Scan(&num)
+	err := tx.Raw(countSql, finalArgs...).Scan(&num)
 	if err != nil {
 		return nil, 0, errors.WithStackIf(err)
 	}
 
 	// 构建分页 SQL
-	pageSql := sql + fmt.Sprintf(" LIMIT %d OFFSET %d", page.PageSize, (page.PageNo-1)*page.PageSize)
+	pageSql := finalSql + fmt.Sprintf(" LIMIT %d OFFSET %d", page.PageSize, (page.PageNo-1)*page.PageSize)
 	tx2 := q.db.Table(q.tableName)
-	err = tx2.Raw(pageSql, args...).Scan(&ts)
+	err = tx2.Raw(pageSql, finalArgs...).Scan(&ts)
 	if err != nil {
 		return nil, 0, errors.WithStackIf(err)
 	}

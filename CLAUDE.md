@@ -146,3 +146,496 @@ The framework supports running applications as system services using:
 - `daemon.go`: Provides service wrappers for Windows (Service Control Manager), Linux (systemd), and macOS (launchd)
 - Implement the `AppService` interface with `Start()` and `Close()` methods to use daemon mode
 - Use `-stop` flag to stop a running service
+
+## Framework Usage Guide
+
+### 1. Quick Start - Hello World
+
+The simplest way to create a web application:
+
+```go
+package main
+
+import (
+    "context"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+func main() {
+    // Create application with auto-loading config
+    app := wf.NewWithAutoConfig()
+
+    // Register a simple route
+    app.Get("/", func(c *web.Request) (any, error) {
+        return "hello world", nil
+    })
+
+    // Run the application
+    app.Start()
+}
+```
+
+### 2. REST Controller
+
+Create structured REST APIs by implementing `IRest`:
+
+```go
+package main
+
+import (
+    "context"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type UserController struct {
+    core.IService  // Embed IService interface
+}
+
+// Init registers routes during initialization
+func (u *UserController) Init(ctx *core.Context) error {
+    ctx.Get("/users", u.GetUsers)
+    ctx.Get("/users/:id", u.GetUser)
+    ctx.Post("/users", u.CreateUser)
+    ctx.Put("/users/:id", u.UpdateUser)
+    ctx.Delete("/users/:id", u.DeleteUser)
+    return nil
+}
+
+func (u *UserController) GetUsers(c *web.Request) (any, error) {
+    return map[string]any{"users": []string{"alice", "bob"}}, nil
+}
+
+func (u *UserController) GetUser(c *web.Request) (any, error) {
+    id := c.Param("id")        // Get path parameter
+    return map[string]any{"id": id, "name": "alice"}, nil
+}
+
+func (u *UserController) CreateUser(c *web.Request) (any, error) {
+    var user struct {
+        Name string `json:"name"`
+    }
+    if err := c.BindJSON(&user); err != nil {
+        return nil, err
+    }
+    return map[string]any{"id": 1, "name": user.Name}, nil
+}
+
+func (u *UserController) UpdateUser(c *web.Request) (any, error) {
+    id := c.ParamInt("id")     // Get path parameter as int
+    // Update logic here
+    return map[string]any{"id": id, "updated": true}, nil
+}
+
+func (u *UserController) DeleteUser(c *web.Request) (any, error) {
+    id := c.ParamInt("id")
+    // Delete logic here
+    return map[string]any{"id": id, "deleted": true}, nil
+}
+
+func main() {
+    app := wf.NewWithAutoConfig()
+    app.AddRest(&UserController{})
+    app.Start()
+}
+```
+
+### 3. Model Layer - Type-Safe Generic ORM
+
+Define models with zero boilerplate CRUD operations:
+
+```go
+package main
+
+import (
+    "time"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/db"
+    "github.com/chuccp/go-web-frame/model"
+)
+
+// Define entity struct
+type User struct {
+    Id         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+    Name       string    `gorm:"size:255;not null" json:"name"`
+    Email      string    `gorm:"size:255;unique" json:"email"`
+    Status     int       `gorm:"default:1" json:"status"`
+    CreateTime time.Time `json:"createTime"`
+    UpdateTime time.Time `json:"updateTime"`
+}
+
+// Define model struct with embedded generic Model
+type UserModel struct {
+    *model.Model[*User]
+    db *db.DB
+    c  *core.Context
+}
+
+// Init initializes the model
+func (m *UserModel) Init(db *db.DB, c *core.Context) error {
+    m.db = db
+    m.c = c
+    m.Model = model.NewModel[*User](db, "t_user")
+    return m.CreateTable()  // Auto-create table
+}
+
+// Usage examples:
+// - m.Save(&User{Name: "alice"})           // Save record
+// - m.Query().Where("status = ?", 1).All() // Query all active users
+// - m.Query().Where("id = ?", 1).One()     // Query single record
+// - m.Update().Where("id = ?", 1).UpdateForMap(map[string]any{"name": "bob"})
+// - m.Delete().Where("id = ?", 1).Delete()
+```
+
+### 4. EntryModel - Enhanced Model with Built-in Methods
+
+For entities with `Id`, `CreateTime`, `UpdateTime` fields:
+
+```go
+package main
+
+import (
+    "time"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/db"
+    "github.com/chuccp/go-web-frame/model"
+)
+
+// Entity must implement IEntry interface
+type User struct {
+    Id         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+    Name       string    `gorm:"size:255" json:"name"`
+    CreateTime time.Time `json:"createTime"`
+    UpdateTime time.Time `json:"updateTime"`
+}
+
+func (u *User) SetCreateTime(t time.Time) { u.CreateTime = t }
+func (u *User) SetUpdateTime(t time.Time) { u.UpdateTime = t }
+func (u *User) GetId() uint                { return u.Id }
+func (u *User) SetId(id uint)              { u.Id = id }
+
+type UserModel struct {
+    *model.EntryModel[*User]
+}
+
+func (m *UserModel) Init(db *db.DB, c *core.Context) error {
+    m.EntryModel = model.NewEntryModel[*User](db, "t_user")
+    return m.CreateTable()
+}
+
+// EntryModel provides additional methods:
+// - FindById(id)                    // Find by primary key
+// - FindAll()                       // Find all records
+// - DeleteById(id)                  // Delete by ID
+// - UpdateById(entity)              // Update by ID
+// - Page(page)                      // Pagination query
+// - UpdateColumn(id, column, val)   // Update single column
+```
+
+### 5. Query Operations
+
+Fluent query builder:
+
+```go
+// Basic queries
+users, err := userModel.Query().All()                                    // All records
+user, err := userModel.Query().Where("id = ?", 1).One()                  // Single record
+count, err := userModel.Query().Where("status = ?", 1).Count()           // Count
+
+// Pagination
+page := &web.Page{PageNo: 1, PageSize: 10}
+users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
+
+// Order and limit
+users, err := userModel.Query().Order("id desc").List(100)
+
+// Web pagination (returns PageAble struct)
+pageAble, err := userModel.Query().Where("status = ?", 1).PageForWeb(page)
+
+// Update operations
+err := userModel.Update().Where("id = ?", 1).UpdateForMap(map[string]any{"name": "new_name"})
+err := userModel.Update().Where("id = ?", 1).UpdateColumn("status", 0)
+
+// Delete operations
+err := userModel.Delete().Where("id = ?", 1).Delete()
+
+// Preload associations (GORM eager loading)
+users, err := userModel.Query().Preload("Profile").Preload("Role").All()
+user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
+```
+
+### 6. Request Handling
+
+The `web.Request` provides rich request handling:
+
+```go
+func (u *UserController) HandleRequest(c *web.Request) (any, error) {
+    // Path parameters
+    id := c.Param("id")           // string
+    idInt := c.ParamInt("id")     // int
+    idUint := c.ParamUint("id")   // uint
+
+    // Query parameters
+    page := c.Query("page")       // /users?page=1
+
+    // JSON body binding
+    var data MyStruct
+    if err := c.BindJSON(&data); err != nil {
+        return nil, err
+    }
+
+    // Get JSON values directly
+    name, _ := c.GetJsonStringValue("name")
+    age, _ := c.GetJsonIntValue("age")
+
+    // Pagination
+    page, err := c.Page()         // Auto-detect from GET/POST
+
+    // Headers
+    auth := c.GetHeader("Authorization")
+
+    // Client info
+    ip := c.ClientIP()
+    method := c.Request().Method
+
+    // Cookie operations
+    cookie := c.Cookie()
+    value := cookie.Get("session_id")
+    cookie.Set("token", "xxx", 3600)  // name, value, maxAge
+
+    return map[string]any{"result": "ok"}, nil
+}
+```
+
+### 7. Service Layer - Business Logic
+
+Create reusable services with dependency injection:
+
+```go
+package main
+
+import (
+    "github.com/chuccp/go-web-frame/core"
+    wf "github.com/chuccp/go-web-frame"
+)
+
+type UserService struct {
+    core.IService
+    userModel *UserModel
+}
+
+func (s *UserService) Init(ctx *core.Context) error {
+    // Get model from context
+    s.userModel = wf.GetModel[*UserModel](ctx)
+    return nil
+}
+
+func (s *UserService) GetUserById(id uint) (*User, error) {
+    return s.userModel.FindById(id)
+}
+
+// Register service in main:
+// app.AddService(&UserService{})
+// Then get it: userService := wf.GetService[*UserService](ctx)
+```
+
+### 8. Filter/Middleware
+
+Create filters for cross-cutting concerns:
+
+```go
+package main
+
+import (
+    "errors"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type AuthFilter struct {
+    core.IFilter
+}
+
+func (f *AuthFilter) Init(ctx *core.Context) error {
+    return nil
+}
+
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    // Pre-processing
+    token := req.GetHeader("Authorization")
+    if token == "" {
+        return nil, errors.New("unauthorized")
+    }
+
+    // Call next handler
+    result, err := fc.Next()
+
+    // Post-processing (optional)
+    return result, err
+}
+
+// Register filter:
+// app.AddFilter(&AuthFilter{})
+```
+
+### 9. Background Runner
+
+Create background tasks:
+
+```go
+package main
+
+import (
+    "context"
+    "time"
+    "github.com/chuccp/go-web-frame/core"
+)
+
+type CleanupTask struct {
+    core.IRunner
+}
+
+func (t *CleanupTask) Init(ctx *core.Context) error {
+    return nil
+}
+
+func (t *CleanupTask) Run(ctx context.Context) error {
+    ticker := time.NewTicker(5 * time.Minute)
+    defer ticker.Stop()
+
+    for {
+        select {
+        case <-ctx.Done():
+            return nil
+        case <-ticker.C:
+            // Execute cleanup task
+        }
+    }
+}
+
+// Register runner:
+// app.AddRunner(&CleanupTask{})
+```
+
+### 10. Configuration
+
+Configuration is auto-loaded from multiple locations:
+- `./config/` (current directory)
+- `~/.<appname>/` (user home)
+- `/etc/<appname>/` (system config)
+
+Supported formats: JSON, YAML, TOML
+
+Example config.json:
+```json
+{
+    "server": {
+        "port": 8080,
+        "host": "0.0.0.0"
+    },
+    "db": {
+        "type": "sqlite",
+        "path": "./data.db"
+    },
+    "log": {
+        "level": "info",
+        "path": "./logs/app.log"
+    }
+}
+```
+
+MySQL configuration:
+```json
+{
+    "db": {
+        "type": "mysql",
+        "host": "localhost",
+        "port": 3306,
+        "user": "root",
+        "password": "password",
+        "database": "mydb"
+    }
+}
+```
+
+### 11. Component
+
+Create reusable components:
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/core"
+)
+
+type CacheComponent struct {
+    core.IComponent
+    // component fields
+}
+
+func (c *CacheComponent) Init(ctx context.Context, cfg config.IConfig) error {
+    // Initialize component with config
+    // cfg.UnmarshalKey("cache", &cacheConfig)
+    return nil
+}
+
+// Register component:
+// app.AddComponent(&CacheComponent{})
+```
+
+### 12. Model Groups
+
+Group models for shared database connection and transactions:
+
+```go
+func main() {
+    app := wf.NewWithAutoConfig()
+
+    // Create model group
+    group := app.NewModelGroup(db, "user_group")
+    group.AddModel(&UserModel{}, &ProfileModel{})
+    group.AutoCreateTable(true)
+
+    // Or use default model group
+    app.AddModel(&UserModel{}, &OrderModel{})
+    app.SetDefaultDB(db)
+
+    app.Start()
+}
+```
+
+### 13. Response Types
+
+Return different response types from handlers:
+
+```go
+// JSON response (default)
+func (c *Controller) GetJSON(req *web.Request) (any, error) {
+    return map[string]any{"key": "value"}, nil
+}
+
+// String response
+func (c *Controller) GetString(req *web.Request) (any, error) {
+    return "plain text response", nil
+}
+
+// File download
+func (c *Controller) Download(req *web.Request) (any, error) {
+    return &web.File{Path: "/path/to/file.pdf", FileName: "document.pdf"}, nil
+}
+
+// Redirect
+func (c *Controller) Redirect(req *web.Request) (any, error) {
+    return web.Redirect("/new-url"), nil
+}
+
+// Error response
+func (c *Controller) Error(req *web.Request) (any, error) {
+    return nil, errors.New("something went wrong")
+}
+```

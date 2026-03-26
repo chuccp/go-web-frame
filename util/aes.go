@@ -90,3 +90,97 @@ func DecryptByCBC(cipherText string, key string, iv string) (string, error) {
 	// 转换为字符串返回
 	return string(plaintext), nil
 }
+
+// DecryptCBCBytes AES-256-CBC 解密（字节数组版本）
+// key: 32字节密钥
+// iv: 16字节IV（如果为nil则使用key的前16字节）
+// ciphertext: 密文
+// 返回：解密后的明文
+func DecryptCBCBytes(key, iv, ciphertext []byte) ([]byte, error) {
+	// 校验密钥长度
+	if len(key) != 32 {
+		return nil, errors.New("The key length of AES-256 must be 32 bytes")
+	}
+
+	// 如果IV为空，使用key的前16字节
+	if iv == nil {
+		iv = key[:16]
+	}
+
+	// 校验IV长度
+	if len(iv) != 16 {
+		return nil, errors.New("The IV length in CBC mode must be 16 bytes")
+	}
+
+	// 检查密文长度是否为块大小的整数倍
+	if len(ciphertext)%aes.BlockSize != 0 {
+		return nil, errors.New("The ciphertext length must be an integer multiple of 16 bytes")
+	}
+
+	// 创建AES密码块
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	// 创建CBC模式的解密流
+	mode := cipher.NewCBCDecrypter(block, iv)
+
+	// 执行解密
+	plaintext := make([]byte, len(ciphertext))
+	mode.CryptBlocks(plaintext, ciphertext)
+
+	// 去除PKCS#7填充
+	plaintext, err = PKCS7Unpad(plaintext)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
+}
+
+// DecryptCBCBase64 AES-256-CBC 解密（Base64密文版本）
+// key: 32字节密钥
+// iv: 16字节IV（如果为nil则使用key的前16字节）
+// cipherTextBase64: Base64编码的密文
+// 返回：解密后的明文
+func DecryptCBCBase64(key, iv []byte, cipherTextBase64 string) ([]byte, error) {
+	// Base64解码密文
+	ciphertext, err := base64.StdEncoding.DecodeString(cipherTextBase64)
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	return DecryptCBCBytes(key, iv, ciphertext)
+}
+
+// PKCS7Unpad 去除 PKCS7 填充
+func PKCS7Unpad(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, errors.New("data is empty")
+	}
+
+	padding := int(data[len(data)-1])
+	if padding < 1 || padding > aes.BlockSize {
+		return nil, errors.New("invalid padding value")
+	}
+
+	// 验证填充
+	for i := len(data) - padding; i < len(data); i++ {
+		if int(data[i]) != padding {
+			return nil, errors.New("invalid padding")
+		}
+	}
+
+	return data[:len(data)-padding], nil
+}
+
+// PKCS7Pad 添加 PKCS7 填充
+func PKCS7Pad(data []byte, blockSize int) []byte {
+	padding := blockSize - len(data)%blockSize
+	padtext := make([]byte, padding)
+	for i := range padtext {
+		padtext[i] = byte(padding)
+	}
+	return append(data, padtext...)
+}

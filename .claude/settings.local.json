@@ -6,7 +6,9 @@
       "Bash(go build:*)",
       "Bash(go test:*)",
       "Bash(go get gorm.io/driver/postgres && go mod tidy)",
-      "Bash(sed '96d' /Users/cao/Documents/GitHub/go-web-frame/example/withmeta/withmeta.go | sponge /Users/cao/Documents/GitHub/go-web-frame/example/withmeta/withmeta.go)"
+      "Bash(sed '96d' /Users/cao/Documents/GitHub/go-web-frame/example/withmeta/withmeta.go | sponge /Users/cao/Documents/GitHub/go-web-frame/example/withmeta/withmeta.go)",
+      "Bash(gofmt -l ./... | head -20)",
+      "Bash(gofmt -l .)"
     ]
   }
 }

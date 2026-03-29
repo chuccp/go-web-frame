@@ -16,10 +16,10 @@ func (c *Cookie) Get(key string) string {
 	return cookie
 }
 func (c *Cookie) Set(key string, value string) {
-	c.c.SetCookie(key, value, 3600*24*365, "/", "", false, true)
+	c.c.SetCookie(key, value, 3600*24*365, "/", "", false, false)
 }
 func (c *Cookie) SetDomain(domain string, key string, value string) {
-	c.c.SetCookie(key, value, 3600*24*365, "/", domain, false, true)
+	c.c.SetCookie(key, value, 3600*24*365, "/", domain, false, false)
 }
 
 func (c *Cookie) Delete(key string) {
@@ -27,7 +27,7 @@ func (c *Cookie) Delete(key string) {
 }
 
 func (c *Cookie) Update(key string, value string) {
-	c.c.SetCookie(key, value, 3600*24*365, "/", "", false, true)
+	c.c.SetCookie(key, value, 3600*24*365, "/", "", false, false)
 }
 
 func (c *Cookie) Expire(key string) {
@@ -35,13 +35,13 @@ func (c *Cookie) Expire(key string) {
 }
 
 func (c *Cookie) SetWithExpire(key string, value string, expire int) {
-	c.c.SetCookie(key, value, expire, "/", "", false, true)
+	c.c.SetCookie(key, value, expire, "/", "", false, false)
 }
 func (c *Cookie) Forever(key string, value string) {
-	c.c.SetCookie(key, value, 0, "/", "", false, true)
+	c.c.SetCookie(key, value, 0, "/", "", false, false)
 }
 func (c *Cookie) ForeverDomain(domain string, key string, value string) {
-	c.c.SetCookie(key, value, 0, "/", domain, false, true)
+	c.c.SetCookie(key, value, 0, "/", domain, false, false)
 }
 func NewCookie(c *gin.Context) *Cookie {
 	return &Cookie{c: c}

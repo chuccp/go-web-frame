@@ -1,6 +1,29 @@
 package util
 
-import "fmt"
+import (
+	"encoding/base64"
+	"fmt"
+	"strings"
+)
+
+// decodeBase64WithPadding 补齐 base64 padding 并解码
+// base64 编码长度必须是 4 的倍数，不足需要补 "="
+func decodeBase64WithPadding(encoded string) ([]byte, error) {
+	// 计算需要补齐的 padding 数量
+	if l := len(encoded) % 4; l > 0 {
+		encoded += strings.Repeat("=", 4-l)
+	}
+	return base64.URLEncoding.DecodeString(encoded)
+}
+
+// DecodeBase64URL 解码 base64 URL 编码的字符串（自动处理 padding）
+func DecodeBase64URL(encoded string) (string, error) {
+	decoded, err := decodeBase64WithPadding(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
+}
 
 // AddQueryParam adds a query parameter to a URL string.
 // It automatically detects whether the URL already has query parameters

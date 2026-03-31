@@ -199,6 +199,37 @@ func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 	}
 	return false
 }
+
+// RemovePunctuation 移除字符串中的标点符号
+func RemovePunctuation(s string) string {
+	// 使用正则表达式移除所有标点符号
+	// 包含中文标点和英文标点
+	re := regexp.MustCompile(`[^\w\s]`)
+	return re.ReplaceAllString(s, "")
+}
+
+// EqualsAnyIgnorePunctuation 比较字符串是否相等（忽略标点符号）
+func EqualsAnyIgnorePunctuation(s string, strs ...string) bool {
+	sClean := RemovePunctuation(s)
+	for _, str := range strs {
+		if sClean == RemovePunctuation(str) {
+			return true
+		}
+	}
+	return false
+}
+
+// EqualsAnyIgnorePunctuationAndCase 比较字符串是否相等（忽略标点符号和大小写）
+func EqualsAnyIgnorePunctuationAndCase(s string, strs ...string) bool {
+	sClean := strings.ToLower(RemovePunctuation(s))
+	for _, str := range strs {
+		if sClean == strings.ToLower(RemovePunctuation(str)) {
+			return true
+		}
+	}
+	return false
+}
+
 func StartsWithAnyIgnoreCase(s string, prefix ...string) bool {
 	sLower := strings.ToLower(s)
 	for _, prefix := range prefix {

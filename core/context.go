@@ -200,15 +200,16 @@ func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.Han
 	return c.handles(anyMethods, relativePath, handlers...)
 }
 func (c *Context) Go(f func(c *Context)) {
-	catcher := panics.Try(func() {
-		f(c)
-	})
-	err := catcher.AsError()
-	if err != nil {
-		log.Error("Context Go", zap.Error(err))
-		log.PrintPanic(err)
-	}
-
+	go func() {
+		catcher := panics.Try(func() {
+			f(c)
+		})
+		err := catcher.AsError()
+		if err != nil {
+			log.Error("Context Go", zap.Error(err))
+			log.PrintPanic(err)
+		}
+	}()
 }
 
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

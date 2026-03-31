@@ -200,11 +200,12 @@ func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 	return false
 }
 
-// RemovePunctuation 移除字符串中的标点符号
+// RemovePunctuation 移除字符串中的标点符号和特殊符号（保留中文、英文、数字）
 func RemovePunctuation(s string) string {
-	// 使用正则表达式移除所有标点符号
-	// 包含中文标点和英文标点
-	re := regexp.MustCompile(`[^\w\s]`)
+	// \p{P} 匹配 Unicode 标点符号类别
+	// \s 匹配空白字符
+	// 添加常见的特殊符号：@#$%^&*等
+	re := regexp.MustCompile(`[\p{P}\s@#$%^&*]`)
 	return re.ReplaceAllString(s, "")
 }
 

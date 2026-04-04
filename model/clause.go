@@ -214,7 +214,12 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	err = tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if err == nil {
 		var num int64
-		err = tx.NewTable().Count(&num)
+		// 重新构建带有相同 WHERE 条件的查询来统计总数
+		countTx, err := q.buildTx()
+		if err != nil {
+			return nil, 0, errors.WithStackIf(err)
+		}
+		err = countTx.Count(&num)
 		if err == nil {
 			return ts, int(num), nil
 		}
@@ -240,7 +245,12 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	err = tx.Limit(size).Find(&ts)
 	if err == nil {
 		var num int64
-		err = tx.NewTable().Count(&num)
+		// 重新构建带有相同 WHERE 条件的查询来统计总数
+		countTx, err := q.buildTx()
+		if err != nil {
+			return nil, 0, errors.WithStackIf(err)
+		}
+		err = countTx.Count(&num)
 		if err == nil {
 			return ts, int(num), nil
 		}

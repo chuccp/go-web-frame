@@ -2,6 +2,7 @@ package model
 
 import (
 	"reflect"
+	"strings"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
@@ -10,9 +11,47 @@ import (
 )
 
 type Model[T any] struct {
-	db        *db.DB
-	tableName string
-	entry     T
+	db           *db.DB
+	tableName    string
+	entry        T
+	pkColumn     string
+}
+
+// getPrimaryKeyColumn extracts the primary key column name from struct's gorm tag
+func getPrimaryKeyColumn[T any]() string {
+	var entryPtr T
+	t := util.NewPtr(entryPtr)
+	rt := reflect.TypeOf(t).Elem()
+
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		gormTag := field.Tag.Get("gorm")
+		if gormTag == "" {
+			continue
+		}
+
+		// Check if this field has primaryKey
+		tagParts := strings.Split(gormTag, ";")
+		isPrimaryKey := false
+		columnName := ""
+
+		for _, part := range tagParts {
+			part = strings.TrimSpace(part)
+			if part == "primaryKey" {
+				isPrimaryKey = true
+			}
+			if strings.HasPrefix(part, "column:") {
+				columnName = strings.TrimPrefix(part, "column:")
+			}
+		}
+
+		if isPrimaryKey && columnName != "" {
+			return columnName
+		}
+	}
+
+	// Fallback to "id" if no primaryKey found with column tag
+	return "id"
 }
 
 func (a *Model[T]) IsExist() (bool, error) {
@@ -137,5 +176,10 @@ func (a *Model[T]) Delete() *Delete[T] {
 
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 	var entryPtr T
-	return &Model[T]{db: db, tableName: tableName, entry: util.NewPtr(entryPtr)}
+	entry := util.NewPtr(entryPtr)
+	return &Model[T]{db: db, tableName: tableName, entry: entry, pkColumn: getPrimaryKeyColumn[T]()}
+}
+
+func (a *Model[T]) GetPkColumn() string {
+	return a.pkColumn
 }

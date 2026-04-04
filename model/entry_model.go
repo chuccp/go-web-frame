@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
@@ -121,7 +122,8 @@ func (a *EntryModel[T]) FindOneWithPreload(query interface{}, args []interface{}
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
 	q := a.model.Query()
-	return q.Where("`id` in (?) ", id).All()
+	pkCol := a.model.GetPkColumn()
+	return q.Where(fmt.Sprintf("`%s` in (?)", pkCol), id).All()
 }
 
 // FindAllByIdsWithPreload finds all records by IDs with preloaded associations
@@ -131,7 +133,8 @@ func (a *EntryModel[T]) FindAllByIdsWithPreload(ids []uint, preloads ...string) 
 	for _, p := range preloads {
 		q = q.Preload(p)
 	}
-	return q.Where("`id` in (?) ", ids).All()
+	pkCol := a.model.GetPkColumn()
+	return q.Where(fmt.Sprintf("`%s` in (?)", pkCol), ids).All()
 }
 
 func (a *EntryModel[T]) FindAll() ([]T, error) {
@@ -150,22 +153,26 @@ func (a *EntryModel[T]) FindAllWithPreload(preloads ...string) ([]T, error) {
 }
 func (a *EntryModel[T]) DeleteById(id uint) error {
 	t := util.NewPtr(a.model.entry)
-	err := a.model.db.Table(a.model.tableName).Where("`id` = ? ", id).Delete(t)
+	pkCol := a.model.GetPkColumn()
+	err := a.model.db.Table(a.model.tableName).Where(fmt.Sprintf("`%s` = ?", pkCol), id).Delete(t)
 	return err
 }
 
 func (a *EntryModel[T]) UpdateById(t T) error {
 	t.SetUpdateTime(time.Now())
 	u := a.model.Update()
-	return u.Where("`id` = ? ", t.GetId()).Update(t)
+	pkCol := a.model.GetPkColumn()
+	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), t.GetId()).Update(t)
 }
 func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) error {
 	u := a.model.Update()
-	return u.Where("`id` = ? ", id).UpdateColumn(column, value)
+	pkCol := a.model.GetPkColumn()
+	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), id).UpdateColumn(column, value)
 }
 func (a *EntryModel[T]) UpdateForMap(id uint, data map[string]interface{}) error {
 	u := a.model.Update()
-	return u.Where("`id` = ? ", id).UpdateForMap(data)
+	pkCol := a.model.GetPkColumn()
+	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), id).UpdateForMap(data)
 }
 
 func (a *EntryModel[T]) SaveForMap(mapValue map[string]interface{}) error {
@@ -195,15 +202,18 @@ func (a *EntryModel[T]) NewEntryModel(db *db.DB) *EntryModel[T] {
 }
 func (a *EntryModel[T]) Page(page *web.Page) ([]T, int, error) {
 	q := a.model.Query()
-	return q.Order("`id` desc").Page(page)
+	pkCol := a.model.GetPkColumn()
+	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)
 }
 func (a *EntryModel[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
 	q := a.model.Query()
-	return q.Order("`id` desc").PageForWeb(page)
+	pkCol := a.model.GetPkColumn()
+	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).PageForWeb(page)
 }
 func (a *EntryModel[T]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
 	q := a.model.Query()
-	return q.Where(query, args...).Order("`id` desc").Page(page)
+	pkCol := a.model.GetPkColumn()
+	return q.Where(query, args...).Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)
 }
 
 func (a *EntryModel[T]) Query() *Query[T] {
@@ -219,6 +229,10 @@ func (a *EntryModel[T]) Delete() *Delete[T] {
 
 func (a *EntryModel[T]) GetTableName() string {
 	return a.model.tableName
+}
+
+func (a *EntryModel[T]) GetPkColumn() string {
+	return a.model.GetPkColumn()
 }
 
 type Transaction struct {

@@ -2,6 +2,10 @@ package core
 
 import (
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"path"
+	"strings"
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -186,6 +190,50 @@ func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.Han
 	return c.handle(http.MethodGet, relativePath, handlers...)
 }
 
+func (c *Context) Static(relativePath string, filepath string) *web.HandlerInfo {
+	return c.StaticFs(relativePath, http.Dir(filepath))
+}
+func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.HandlerInfo {
+	target, err := url.Parse(targetUrl)
+	if err != nil {
+		panic(err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	baseDirector := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		originalPath := r.URL.Path
+		baseDirector(r)
+		requestPath := originalPath
+		if relativePath != "/" && strings.HasPrefix(originalPath, relativePath) {
+			requestPath = strings.TrimPrefix(originalPath, relativePath)
+		}
+		r.URL.Path = joinURLPath(target.Path, requestPath)
+		r.URL.RawPath = r.URL.EscapedPath()
+		r.Host = target.Host
+	}
+	handler := func(req *web.Request) (any, error) {
+		proxy.ServeHTTP(req.Response(), req.Request())
+		return nil, nil
+	}
+	if relativePath == "/" {
+		return c.handles(anyMethods, "/*proxyPath", handler)
+	}
+	c.handles(anyMethods, relativePath, handler)
+	return c.handles(anyMethods, path.Join(relativePath, "/*proxyPath"), handler)
+}
+
+func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.HandlerInfo {
+	fileServer := http.StripPrefix(relativePath, http.FileServer(fs))
+	pattern := path.Join(relativePath, "/*filepath")
+	if relativePath == "/" {
+		pattern = "/*filepath"
+	}
+	return c.handles([]string{http.MethodGet, http.MethodHead}, pattern, func(req *web.Request) (any, error) {
+		fileServer.ServeHTTP(req.Response(), req.Request())
+		return nil, nil
+	})
+}
+
 func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handle(http.MethodPost, relativePath, handlers...)
 }
@@ -293,4 +341,21 @@ func UnmarshalKeyConfig[T any](key string, c *Context) (T, error) {
 		return t, err
 	}
 	return newValue, nil
+}
+
+func joinURLPath(basePath, extraPath string) string {
+	if basePath == "" {
+		basePath = "/"
+	}
+	if extraPath == "" {
+		extraPath = "/"
+	}
+	switch {
+	case strings.HasSuffix(basePath, "/") && strings.HasPrefix(extraPath, "/"):
+		return basePath + strings.TrimPrefix(extraPath, "/")
+	case !strings.HasSuffix(basePath, "/") && !strings.HasPrefix(extraPath, "/"):
+		return basePath + "/" + extraPath
+	default:
+		return basePath + extraPath
+	}
 }

@@ -8,7 +8,9 @@ import (
 )
 
 func TestName(t *testing.T) {
-	t.Log(IsBackgroundMode())
+	if defaultLogger == nil {
+		t.Fatal("defaultLogger should be initialized")
+	}
 }
 
 func lowLevel() error {

@@ -87,6 +87,12 @@ func TestJoinUrl(t *testing.T) {
 			args:     []string{},
 			expected: "http://example.com",
 		},
+		{
+			name:     "uppercase non-drive path gets leading slash",
+			root:     "Api",
+			args:     []string{"users"},
+			expected: "/Api/users",
+		},
 	}
 
 	for _, tt := range tests {

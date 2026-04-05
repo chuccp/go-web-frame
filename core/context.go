@@ -1,6 +1,7 @@
 package core
 
 import (
+	"emperror.dev/errors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -196,7 +197,15 @@ func (c *Context) Static(relativePath string, filepath string) *web.HandlerInfo 
 func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.HandlerInfo {
 	target, err := url.Parse(targetUrl)
 	if err != nil {
-		panic(err)
+		log.Error("ReverseProxy targetUrl", zap.Error(err), zap.String("targetUrl", targetUrl))
+		handler := func(req *web.Request) (any, error) {
+			return nil, errors.WithStackIf(err)
+		}
+		if relativePath == "/" {
+			return c.handles(anyMethods, "/*proxyPath", handler)
+		}
+		c.handles(anyMethods, relativePath, handler)
+		return c.handles(anyMethods, path.Join(relativePath, "/*proxyPath"), handler)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	baseDirector := proxy.Director

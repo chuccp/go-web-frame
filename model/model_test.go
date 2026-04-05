@@ -3,10 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/chuccp/go-web-frame/core"
-	"github.com/chuccp/go-web-frame/db"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 // TestEntity is a test entity for generic model testing
@@ -16,47 +13,25 @@ type TestEntity struct {
 	Age  int
 }
 
-// TestModel extends the generic Model
-type TestModel struct {
-	*Model[*TestEntity]
-}
-
-func (m *TestModel) Init(db *core.DB, ctx *core.Context) error {
-	m.Model = NewModel[*TestEntity](db, "t_test")
-	return m.CreateTable()
-}
-
 func TestNewModel(t *testing.T) {
-	// Given: create a new model with in-memory sqlite
-	// We can't actually open a real database in unit tests without dependencies,
-	// so this test just verifies the model can be created.
-
-	// This test documents the API usage
-	var entity *TestEntity
 	model := NewModel[*TestEntity](nil, "t_test")
 
 	assert.NotNil(t, model)
-	assert.Equal(t, "t_test", model.TableName())
+	assert.Equal(t, "t_test", model.GetTableName())
 }
 
 func TestModel_TableName(t *testing.T) {
 	// Given: a model with custom table name
 	model := NewModel[*TestEntity](nil, "custom_table")
 
-	// When: getting table name
-	tableName := model.TableName()
-
-	// Then: should return the custom table name
+	tableName := model.GetTableName()
 	assert.Equal(t, "custom_table", tableName)
 }
 
 func TestModel_DefaultTableName(t *testing.T) {
-	// Given: a model created with default table name
-	// When tableName is empty, gorm would infer it, but our API requires explicit table name
 	model := NewModel[*TestEntity](nil, "")
 
-	// Then: should return empty string
-	assert.Equal(t, "", model.TableName())
+	assert.Equal(t, "", model.GetTableName())
 }
 
 func TestModel_Query(t *testing.T) {

@@ -245,3 +245,16 @@ func TestContext_ReverseProxyForwardsRequest(t *testing.T) {
 	assert.Equal(t, "POST /backend/users?id=7 name=alice", recorder.Body.String())
 	assert.Contains(t, recorder.Header().Get("X-Upstream-Host"), "127.0.0.1:")
 }
+
+func TestContext_ReverseProxyInvalidTargetReturnsError(t *testing.T) {
+	ctx, handles := newContextWithHandlers(t)
+
+	info := ctx.ReverseProxy("/bad-proxy", "://bad target")
+	assert.Equal(t, "/bad-proxy/*proxyPath", info.RelativePath())
+	assert.True(t, handles.HasHandler(http.MethodGet, "/bad-proxy"))
+
+	req, recorder := newTestRequest(t, http.MethodGet, "/bad-proxy/health", nil, nil)
+	_, err := info.HandlerFunc()[0](req)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+}

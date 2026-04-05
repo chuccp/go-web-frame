@@ -65,7 +65,7 @@ func isWindowsDrivePath(path string) bool {
 		return false
 	}
 	// Check for pattern like "C:" or "C/"
-	return (path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z') && path[1] == ':'
+	return ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':'
 }
 // JoinUrl joins URL path segments into a single URL string.
 // It properly handles leading and trailing slashes between segments.

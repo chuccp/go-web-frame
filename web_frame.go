@@ -159,23 +159,27 @@ func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.Ha
 
 }
 
-func (w *WebFrame) AddRest(rest ...core.IRest) {
+func (w *WebFrame) AddRest(rest ...core.IRest) *WebFrame {
 	w.rests = append(w.rests, rest...)
+	return w
 }
-func (w *WebFrame) AddComponent(component ...core.IComponent) {
+func (w *WebFrame) AddComponent(component ...core.IComponent) *WebFrame {
 	w.component = append(w.component, component...)
+	return w
 }
 func (w *WebFrame) AddRunner(runner ...core.IRunner) {
 	w.runners = append(w.runners, runner...)
 }
-func (w *WebFrame) AddModel(model ...core.IModel) {
+func (w *WebFrame) AddModel(model ...core.IModel) *WebFrame {
 	w.models = append(w.models, model...)
+	return w
 }
 func (w *WebFrame) addService(service core.IService) {
 	w.services = append(w.services, service)
 }
-func (w *WebFrame) AddService(service ...core.IService) {
+func (w *WebFrame) AddService(service ...core.IService) *WebFrame {
 	w.services = append(w.services, service...)
+	return w
 }
 func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
 	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())

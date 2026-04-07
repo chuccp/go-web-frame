@@ -25,7 +25,6 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
@@ -138,15 +137,17 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	// 处理 API 路由
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
+			// 设置 contextPath 到 HandlerMeta
+			handlerInfo.HandlerMeta().SetContextPath(httpServer.serverConfig.ContextPath)
 			fullPath := httpServer.joinContextPath(handlerInfo.RelativePath())
 			if handlerInfo.IsWebSocket() {
-				httpServer.handleWebSocket(fullPath, handlerInfo.Upgrader(), handlerInfo.WebSocketHandler())
+				httpServer.handleWebSocket(fullPath, handlerConfig, handlerInfo)
 			} else if handlerInfo.IsSSE() {
-				httpServer.handleSSE(fullPath, handlerInfo.SSEHandler())
+				httpServer.handleSSE(fullPath, handlerConfig, handlerInfo)
 			} else if handlerInfo.IsReverseProxy() {
-				httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo.TargetUrl())
+				httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo)
 			} else if handlerInfo.IsStaticFs() {
-				httpServer.handleStaticFs(fullPath, handlerInfo.FileSystem())
+				httpServer.handleStaticFs(fullPath, handlerInfo)
 			} else if len(handlerInfo.handlers) > 0 {
 				httpServer.engine.Handle(httpMethod, fullPath, httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
 			}
@@ -154,13 +155,15 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	}
 }
 
-func (httpServer *HttpServer) handleStaticFs(relativePath string, fs http.FileSystem) {
+func (httpServer *HttpServer) handleStaticFs(relativePath string, handlerInfo *HandlerInfo) {
+	fs := handlerInfo.FileSystem()
 	fileServer := http.StripPrefix(relativePath, http.FileServer(fs))
 	pattern := path.Join(relativePath, "*filepath")
 	if relativePath == "/" {
 		pattern = "/*filepath"
 	}
 	httpServer.engine.GET(pattern, func(ctx *gin.Context) {
+		// HandlerMeta with contextPath is available via handlerInfo.HandlerMeta()
 		fileServer.ServeHTTP(ctx.Writer, ctx.Request)
 	})
 	httpServer.engine.HEAD(pattern, func(ctx *gin.Context) {
@@ -168,37 +171,44 @@ func (httpServer *HttpServer) handleStaticFs(relativePath string, fs http.FileSy
 	})
 }
 
-func (httpServer *HttpServer) handleWebSocket(relativePath string, upgrader *websocket.Upgrader, handler WebSocketHandler) {
-	httpServer.engine.GET(relativePath, func(ctx *gin.Context) {
-		conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+func (httpServer *HttpServer) handleWebSocket(relativePath string, handlerConfig *HandlerConfig, handlerInfo *HandlerInfo) {
+	upgrader := handlerInfo.Upgrader()
+	handler := handlerInfo.WebSocketHandler()
+	httpServer.engine.GET(relativePath, httpServer.toGinHandlerFunc(handlerConfig, func(request *Request) (any, error) {
+
+		conn, err := upgrader.Upgrade(request.c.Writer, request.c.Request, nil)
 		if err != nil {
 			log.Error("WebSocket upgrade failed", zap.Error(err), zap.String("path", relativePath))
-			return
 		}
 		defer conn.Close()
 		if err := handler(conn); err != nil {
 			log.Debug("WebSocket handler error", zap.Error(err), zap.String("path", relativePath))
 		}
-	})
+		return nil, err
+	}))
 }
 
-func (httpServer *HttpServer) handleSSE(relativePath string, handler SSEHandler) {
-	httpServer.engine.GET(relativePath, func(ctx *gin.Context) {
-		stream := NewSSEStream(ctx.Writer)
+func (httpServer *HttpServer) handleSSE(relativePath string, handlerConfig *HandlerConfig, handlerInfo *HandlerInfo) {
+	handler := handlerInfo.SSEHandler()
+	httpServer.engine.GET(relativePath, httpServer.toGinHandlerFunc(handlerConfig, func(request *Request) (any, error) {
+		// HandlerMeta with contextPath is available via handlerInfo.HandlerMeta()
+		stream := NewSSEStream(request.c.Writer)
 		if stream == nil {
 			log.Error("SSE stream creation failed", zap.String("path", relativePath))
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
+			return nil, errors.New("SSE stream creation failed")
 		}
 		defer stream.Close()
 		stream.SetHeaders()
 		if err := handler(stream); err != nil {
 			log.Debug("SSE handler error", zap.Error(err), zap.String("path", relativePath))
 		}
-	})
+		return nil, nil
+	}))
 }
 
-func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath string, targetUrl string) {
+func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath string, handlerInfo *HandlerInfo) {
+	targetUrl := handlerInfo.TargetUrl()
+	// HandlerMeta with contextPath is available via handlerInfo.HandlerMeta()
 	target, err := url.Parse(targetUrl)
 	if err != nil {
 		log.Error("handleReverseProxy targetUrl", zap.Error(err), zap.String("targetUrl", targetUrl))
@@ -242,7 +252,9 @@ func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, han
 func (httpServer *HttpServer) toGinHandlerFunc(handlerConfig *HandlerConfig, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
 		resp := newResponse(ctx)
-		request := NewRequest(ctx, resp, handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath()))
+		handlerMeta := handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath())
+		handlerMeta.SetContextPath(httpServer.serverConfig.ContextPath)
+		request := NewRequest(ctx, resp, handlerMeta)
 		mock := newMockFilterChain(request, handlerConfig.converter, handlerConfig.filters, &lastFilter{handler})
 		mock.Converter()
 	}

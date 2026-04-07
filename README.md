@@ -256,6 +256,89 @@ func (c *AssetsController) Init(ctx *core.Context) error {
 
 `Context.Static()` serves local files through the current server, while `Context.ReverseProxy()` forwards a route prefix to an upstream service.
 
+### Context Path (Route Prefix)
+
+Similar to Tomcat's context path, you can set a global prefix for all routes:
+
+```yaml
+# application.yml
+web:
+  server:
+    port: 8080
+    context_path: /api
+```
+
+With this configuration:
+- Registered route `/users` → Accessible at `/api/users`
+- Registered route `/orders` → Accessible at `/api/orders`
+- WebSocket `/ws` → Accessible at `/api/ws`
+- Static files `/assets` → Accessible at `/api/assets`
+
+### WebSocket Support
+
+```go
+// Simple echo server
+ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+    for {
+        messageType, message, err := conn.ReadMessage()
+        if err != nil {
+            return err
+        }
+        err = conn.WriteMessage(messageType, message)
+        if err != nil {
+            return err
+        }
+    }
+})
+
+// With custom upgrader
+upgrader := &websocket.Upgrader{
+    ReadBufferSize:  4096,
+    WriteBufferSize: 4096,
+    CheckOrigin: func(r *http.Request) bool {
+        return r.Header.Get("Origin") == "https://example.com"
+    },
+}
+ctx.WebSocket("/ws/chat", handler, upgrader)
+```
+
+### Server-Sent Events (SSE) Support
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    // Set headers
+    stream.SetHeaders()
+    
+    // Send retry interval (reconnect after 3 seconds)
+    stream.SendRetry(3000)
+    
+    // Send events
+    for i := 0; i < 10; i++ {
+        // Send with event name
+        stream.Send("update", fmt.Sprintf("Count: %d", i))
+        
+        // Or send plain message
+        // stream.SendMessage("plain message")
+        
+        // Or send with ID
+        // stream.SendWithID("123", "event", "data")
+        
+        time.Sleep(time.Second)
+    }
+    return nil
+})
+```
+
+**SSE Stream Methods:**
+| Method | Description |
+|--------|-------------|
+| `Send(event, data)` | Send message with event name |
+| `SendMessage(data)` | Send plain message |
+| `SendWithID(id, event, data)` | Send message with ID |
+| `SendRetry(ms)` | Set reconnection interval |
+| `Heartbeat()` | Send heartbeat comment |
+| `StartHeartbeat(interval)` | Start heartbeat goroutine |
+
 ### 🏷️ Route Metadata with `.WithMeta()`
 
 The `.WithMeta()` feature allows you to attach arbitrary metadata to individual routes, which can then be accessed by filters for flexible cross-cutting concerns like authentication, permission checks, feature flags, caching configuration, and more.
@@ -447,6 +530,7 @@ web:
   # Server configuration
   server:
     port: 8080                    # Server port, default 19009
+    context_path: /api            # Global route prefix (optional), like Tomcat's context path
     locations:                    # Static file directories (optional)
       - view/dist
       - www

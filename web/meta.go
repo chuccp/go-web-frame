@@ -1,7 +1,8 @@
 package web
 
 type HandlerMeta struct {
-	data JsonObject
+	data        JsonObject
+	contextPath string
 }
 
 func (hm *HandlerMeta) Add(key string, value any) {
@@ -17,6 +18,12 @@ func (hm *HandlerMeta) Get(key string) any {
 		return v
 	}
 	return nil
+}
+func (hm *HandlerMeta) ContextPath() string {
+	return hm.contextPath
+}
+func (hm *HandlerMeta) SetContextPath(contextPath string) {
+	hm.contextPath = contextPath
 }
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{

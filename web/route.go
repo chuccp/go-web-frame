@@ -33,6 +33,9 @@ type HandlerInfo struct {
 func (hi *HandlerInfo) RelativePath() string {
 	return hi.path
 }
+func (hi *HandlerInfo) HandlerMeta() *HandlerMeta {
+	return hi.handlerMeta
+}
 func (hi *HandlerInfo) HandlerFunc() []HandlerFunc {
 	return hi.handlers
 }

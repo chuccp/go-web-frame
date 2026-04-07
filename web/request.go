@@ -44,11 +44,12 @@ type Request struct {
 func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
 }
+
+func (r *Request) ContextPath() string {
+	return r.handlerMeta.ContextPath()
+}
 func (r *Request) FullPath() string {
 	return r.c.FullPath()
-}
-func (r *Request) GinContext() *gin.Context {
-	return r.c
 }
 
 func (r *Request) URL() *url.URL {
@@ -203,7 +204,7 @@ func (r *Request) BindJSON(value any) error {
 	return mapstructure.Decode(json, value)
 }
 func (r *Request) ContentType() string {
-	return r.GinContext().ContentType()
+	return r.c.ContentType()
 }
 
 func (r *Request) IsMultipartForm() bool {

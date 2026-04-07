@@ -256,6 +256,89 @@ func (c *AssetsController) Init(ctx *core.Context) error {
 
 `Context.Static()` 用于挂载当前服务上的本地静态目录，`Context.ReverseProxy()` 用于把指定前缀转发到上游服务。
 
+### Context Path（路由前缀）
+
+类似 Tomcat 的 context path，可以为所有路由设置全局前缀：
+
+```yaml
+# application.yml
+web:
+  server:
+    port: 8080
+    context_path: /api
+```
+
+配置后：
+- 注册路由 `/users` → 访问地址 `/api/users`
+- 注册路由 `/orders` → 访问地址 `/api/orders`
+- WebSocket `/ws` → 访问地址 `/api/ws`
+- 静态文件 `/assets` → 访问地址 `/api/assets`
+
+### WebSocket 支持
+
+```go
+// 简单的 Echo 服务器
+ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+    for {
+        messageType, message, err := conn.ReadMessage()
+        if err != nil {
+            return err
+        }
+        err = conn.WriteMessage(messageType, message)
+        if err != nil {
+            return err
+        }
+    }
+})
+
+// 自定义 Upgrader
+upgrader := &websocket.Upgrader{
+    ReadBufferSize:  4096,
+    WriteBufferSize: 4096,
+    CheckOrigin: func(r *http.Request) bool {
+        return r.Header.Get("Origin") == "https://example.com"
+    },
+}
+ctx.WebSocket("/ws/chat", handler, upgrader)
+```
+
+### Server-Sent Events (SSE) 支持
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    // 设置响应头
+    stream.SetHeaders()
+    
+    // 设置重连间隔（断开后 3 秒重连）
+    stream.SendRetry(3000)
+    
+    // 发送事件
+    for i := 0; i < 10; i++ {
+        // 发送带事件名的消息
+        stream.Send("update", fmt.Sprintf("Count: %d", i))
+        
+        // 或发送普通消息
+        // stream.SendMessage("plain message")
+        
+        // 或发送带 ID 的消息
+        // stream.SendWithID("123", "event", "data")
+        
+        time.Sleep(time.Second)
+    }
+    return nil
+})
+```
+
+**SSE Stream 方法：**
+| 方法 | 说明 |
+|------|------|
+| `Send(event, data)` | 发送带事件名的消息 |
+| `SendMessage(data)` | 发送普通消息 |
+| `SendWithID(id, event, data)` | 发送带 ID 的消息 |
+| `SendRetry(ms)` | 设置重连间隔 |
+| `Heartbeat()` | 发送心跳注释 |
+| `StartHeartbeat(interval)` | 启动心跳协程 |
+
 ### 🏷️ 路由元数据 `.WithMeta()` 用法
 
 `.WithMeta()` 功能允许你为单个路由附加自定义元数据，过滤器可以读取这些元数据实现灵活的横切关注点，例如认证、权限检查、功能开关、缓存配置等等。
@@ -464,6 +547,7 @@ web:
   # 服务器配置
   server:
     port: 8080                    # 服务端口，默认 19009
+    context_path: /api            # 全局路由前缀（可选），类似 Tomcat 的 context path
     locations:                    # 静态文件目录（可选）
       - view/dist
       - www

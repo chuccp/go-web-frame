@@ -1,0 +1,162 @@
+package config
+
+import (
+	"bytes"
+	"path/filepath"
+
+	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
+	"github.com/go-viper/encoding/ini"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+)
+
+type IConfig interface {
+	GetString(key string) string
+	Put(key string, value any)
+	HasKey(key string) bool
+	GetStringOrDefault(key string, defaultValue string) string
+	GetInt(key string) int
+	GetIntOrDefault(key string, defaultValue int) int
+	GetBoolOrDefault(key string, defaultValue bool) bool
+	Unmarshal(v any) error
+	UnmarshalKey(key string, v any) error
+	ReplaceKey(key string, newKey string)
+	WriteConfig() error
+}
+
+type Config struct {
+	v *viper.Viper
+}
+
+func (c *Config) GetString(key string) string {
+	return c.v.GetString(key)
+}
+func (c *Config) Put(key string, value any) {
+	c.v.Set(key, value)
+}
+func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
+	v := c.v.GetString(key)
+	if util.IsBlank(v) {
+		return defaultValue
+	}
+	return v
+}
+func (c *Config) HasKey(key string) bool {
+	return c.v.IsSet(key)
+}
+func (c *Config) UnmarshalKey(key string, v any) error {
+	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
+}
+
+func (c *Config) Unmarshal(v any) error {
+	return errors.WithStackIf(c.v.Unmarshal(v))
+}
+
+func (c *Config) GetInt(key string) int {
+	return c.v.GetInt(key)
+}
+
+func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
+	v := c.v.GetInt(key)
+	if v == 0 {
+		return defaultValue
+	}
+	return v
+}
+func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
+	if util.IsBlank(key) {
+		return defaultValue
+	}
+	return c.v.GetBool(key)
+}
+func (c *Config) ReplaceKey(key string, newKey string) {
+	if c.v.IsSet(key) {
+		c.v.Set(newKey, c.v.Get(key))
+	}
+}
+
+func (c *Config) WriteConfig() error {
+	// Config doesn't have a file to write to, this is a no-op
+	return errors.Errorf("Config doesn't have a file to write to")
+}
+
+type SingleFileConfig struct {
+	*Config
+	path string
+}
+
+func (c *SingleFileConfig) WriteConfig() error {
+	return c.v.WriteConfig()
+}
+func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
+	registry := viper.NewCodecRegistry()
+	er := registry.RegisterCodec("ini", ini.Codec{})
+	if er != nil {
+		return nil, errors.WithStackIf(er)
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, errors.WithStackIf(er)
+	}
+	log.Info("Load the configuration file", zap.String("path", absPath))
+	err = util.CreateFileIfNoExists(absPath)
+	if err != nil {
+		return nil, err
+	}
+	_viper_ := viper.NewWithOptions(viper.WithCodecRegistry(registry))
+	_viper_.SetConfigFile(absPath)
+	err = _viper_.ReadInConfig()
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+	return &SingleFileConfig{Config: &Config{v: _viper_}, path: absPath}, nil
+}
+
+func NewConfig() *Config {
+	return &Config{v: viper.New()}
+}
+func LoadConfig(paths ...string) (*Config, error) {
+	registry := viper.NewCodecRegistry()
+	err := registry.RegisterCodec("ini", ini.Codec{})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+	_viper_ := viper.New()
+	for _, path := range paths {
+		viper2 := viper.NewWithOptions(viper.WithCodecRegistry(registry))
+		viper2.SetConfigFile(path)
+		err := viper2.ReadInConfig()
+		if err != nil {
+			return nil, errors.WithStackIf(err)
+		}
+		err = _viper_.MergeConfigMap(viper2.AllSettings())
+		if err != nil {
+			return nil, errors.WithStackIf(err)
+		}
+	}
+	return &Config{v: _viper_}, nil
+}
+func LoadAutoConfig() *Config {
+	return NewConfig()
+}
+
+// NewFromBytes creates a Config from raw bytes with the specified format (json, yaml, toml, etc.)
+func NewFromBytes(data []byte, format string) (*Config, error) {
+	registry := viper.NewCodecRegistry()
+	err := registry.RegisterCodec("ini", ini.Codec{})
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	v := viper.NewWithOptions(viper.WithCodecRegistry(registry))
+	v.SetConfigType(format)
+
+	err = v.ReadConfig(bytes.NewBuffer(data))
+	if err != nil {
+		return nil, errors.WithStackIf(err)
+	}
+
+	return &Config{v: v}, nil
+}

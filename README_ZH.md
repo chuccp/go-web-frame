@@ -771,9 +771,12 @@ go mod tidy
 
 ## 文档
 
+- **[架构设计](./ARCHITECTURE.md)** - 内部架构和设计决策
+- **[最佳实践](./BEST_PRACTICES.md)** - 推荐的模式和实践
+- **[更新日志](./CHANGELOG.md)** - 版本历史和变更
+- **[CLAUDE.md](./CLAUDE.md)** - AI 辅助开发指南
 - [Go 参考文档](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [示例应用](./example/)
-- [CLAUDE.md](./CLAUDE.md) - Claude Code 详细开发者指南
 
 ## 贡献
 

@@ -754,9 +754,12 @@ go mod tidy
 
 ## Documentation
 
+- **[Architecture Design](./ARCHITECTURE.md)** - Internal architecture and design decisions
+- **[Best Practices](./BEST_PRACTICES.md)** - Recommended patterns and practices
+- **[Changelog](./CHANGELOG.md)** - Version history and changes
+- **[CLAUDE.md](./CLAUDE.md)** - Guide for AI-assisted development
 - [Go Reference Documentation](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [Example Applications](./example/)
-- [CLAUDE.md](./CLAUDE.md) - Detailed developer guide for Claude Code
 
 ## Contributing
 

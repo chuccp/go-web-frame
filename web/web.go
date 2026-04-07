@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -93,6 +94,21 @@ func (h *Handles) AddReverseProxy(relativePath string, targetUrl string) *Handle
 		h.routeTree.Set(method, handlerInfo)
 	}
 	log.Debug("reverseProxy", zap.String("path", relativePath), zap.String("target", targetUrl))
+	return handlerInfo
+}
+func (h *Handles) AddWebSocket(relativePath string, handler WebSocketHandler, upgrader *websocket.Upgrader) *HandlerInfo {
+	if upgrader == nil {
+		upgrader = DefaultWebSocketUpgrader()
+	}
+	handlerInfo := NewWebSocketHandlerInfo(relativePath, handler, upgrader)
+	h.routeTree.Set(http.MethodGet, handlerInfo)
+	log.Debug("webSocket", zap.String("path", relativePath))
+	return handlerInfo
+}
+func (h *Handles) AddSSE(relativePath string, handler SSEHandler) *HandlerInfo {
+	handlerInfo := NewSSEHandlerInfo(relativePath, handler)
+	h.routeTree.Set(http.MethodGet, handlerInfo)
+	log.Debug("sse", zap.String("path", relativePath))
 	return handlerInfo
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
+	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/conc/panics"
 	"go.uber.org/zap"
 )
@@ -195,6 +196,18 @@ func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.Handl
 
 func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.HandlerInfo {
 	return c.handlerConfig.Handles().AddStaticFs(relativePath, fs)
+}
+
+func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler, upgrader ...*websocket.Upgrader) *web.HandlerInfo {
+	var up *websocket.Upgrader
+	if len(upgrader) > 0 {
+		up = upgrader[0]
+	}
+	return c.handlerConfig.Handles().AddWebSocket(relativePath, handler, up)
+}
+
+func (c *Context) SSE(relativePath string, handler web.SSEHandler) *web.HandlerInfo {
+	return c.handlerConfig.Handles().AddSSE(relativePath, handler)
 }
 
 func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {

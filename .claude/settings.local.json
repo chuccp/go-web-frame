@@ -11,7 +11,8 @@
       "Bash(gofmt -l .)",
       "Bash(xxd core/testdata/hello.txt)",
       "Bash(go get:*)",
-      "Bash(go mod:*)"
+      "Bash(go mod:*)",
+      "Bash(ls -la *.md)"
     ]
   }
 }

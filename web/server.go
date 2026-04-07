@@ -25,6 +25,7 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
@@ -109,7 +110,11 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	// 处理 API 路由
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
-			if handlerInfo.IsReverseProxy() {
+			if handlerInfo.IsWebSocket() {
+				httpServer.handleWebSocket(handlerInfo.RelativePath(), handlerInfo.Upgrader(), handlerInfo.WebSocketHandler())
+			} else if handlerInfo.IsSSE() {
+				httpServer.handleSSE(handlerInfo.RelativePath(), handlerInfo.SSEHandler())
+			} else if handlerInfo.IsReverseProxy() {
 				httpServer.handleReverseProxy(httpMethod, handlerInfo.RelativePath(), handlerInfo.TargetUrl())
 			} else if handlerInfo.IsStaticFs() {
 				httpServer.handleStaticFs(handlerInfo.RelativePath(), handlerInfo.FileSystem())
@@ -131,6 +136,36 @@ func (httpServer *HttpServer) handleStaticFs(relativePath string, fs http.FileSy
 	})
 	httpServer.engine.HEAD(pattern, func(ctx *gin.Context) {
 		fileServer.ServeHTTP(ctx.Writer, ctx.Request)
+	})
+}
+
+func (httpServer *HttpServer) handleWebSocket(relativePath string, upgrader *websocket.Upgrader, handler WebSocketHandler) {
+	httpServer.engine.GET(relativePath, func(ctx *gin.Context) {
+		conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+		if err != nil {
+			log.Error("WebSocket upgrade failed", zap.Error(err), zap.String("path", relativePath))
+			return
+		}
+		defer conn.Close()
+		if err := handler(conn); err != nil {
+			log.Debug("WebSocket handler error", zap.Error(err), zap.String("path", relativePath))
+		}
+	})
+}
+
+func (httpServer *HttpServer) handleSSE(relativePath string, handler SSEHandler) {
+	httpServer.engine.GET(relativePath, func(ctx *gin.Context) {
+		stream := NewSSEStream(ctx.Writer)
+		if stream == nil {
+			log.Error("SSE stream creation failed", zap.String("path", relativePath))
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer stream.Close()
+		stream.SetHeaders()
+		if err := handler(stream); err != nil {
+			log.Debug("SSE handler error", zap.Error(err), zap.String("path", relativePath))
+		}
 	})
 }
 

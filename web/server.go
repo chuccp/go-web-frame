@@ -43,10 +43,12 @@ type SSLConfig struct {
 	Hosts   []string
 }
 type ServerConfig struct {
-	Port      int
-	Locations []string
-	Page404   string
-	SSL       *SSLConfig
+	Port int
+	//TODO  ContextPath 类似tomcat 的 ContextPath api都要带的前缀
+	ContextPath string
+	Locations   []string
+	Page404     string
+	SSL         *SSLConfig
 }
 
 const ServerConfigKey = "web.server"
@@ -106,20 +108,47 @@ func (httpServer *HttpServer) Engine() *gin.Engine {
 	return httpServer.engine
 }
 
+// joinContextPath joins the context path prefix with the relative path
+func (httpServer *HttpServer) joinContextPath(relativePath string) string {
+	contextPath := httpServer.serverConfig.ContextPath
+	if contextPath == "" {
+		return relativePath
+	}
+	// Ensure contextPath starts with /
+	if !strings.HasPrefix(contextPath, "/") {
+		contextPath = "/" + contextPath
+	}
+	// Remove trailing slash from contextPath
+	contextPath = strings.TrimSuffix(contextPath, "/")
+
+	// Handle root path
+	if relativePath == "/" {
+		return contextPath + "/"
+	}
+
+	// Ensure relativePath starts with /
+	if !strings.HasPrefix(relativePath, "/") {
+		relativePath = "/" + relativePath
+	}
+
+	return contextPath + relativePath
+}
+
 func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	// 处理 API 路由
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
+			fullPath := httpServer.joinContextPath(handlerInfo.RelativePath())
 			if handlerInfo.IsWebSocket() {
-				httpServer.handleWebSocket(handlerInfo.RelativePath(), handlerInfo.Upgrader(), handlerInfo.WebSocketHandler())
+				httpServer.handleWebSocket(fullPath, handlerInfo.Upgrader(), handlerInfo.WebSocketHandler())
 			} else if handlerInfo.IsSSE() {
-				httpServer.handleSSE(handlerInfo.RelativePath(), handlerInfo.SSEHandler())
+				httpServer.handleSSE(fullPath, handlerInfo.SSEHandler())
 			} else if handlerInfo.IsReverseProxy() {
-				httpServer.handleReverseProxy(httpMethod, handlerInfo.RelativePath(), handlerInfo.TargetUrl())
+				httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo.TargetUrl())
 			} else if handlerInfo.IsStaticFs() {
-				httpServer.handleStaticFs(handlerInfo.RelativePath(), handlerInfo.FileSystem())
+				httpServer.handleStaticFs(fullPath, handlerInfo.FileSystem())
 			} else if len(handlerInfo.handlers) > 0 {
-				httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
+				httpServer.engine.Handle(httpMethod, fullPath, httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
 			}
 		}
 	}

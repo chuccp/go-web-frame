@@ -57,8 +57,7 @@ type Filter interface {
 }
 
 type Handles struct {
-	routeTree    RouteTree
-	staticFsList []*HandlerInfo
+	routeTree RouteTree
 }
 
 func (h *Handles) Handles(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
@@ -74,17 +73,14 @@ func (h *Handles) Handle(httpMethod string, relativePath string, handlers ...Han
 }
 func (h *Handles) AddStaticFs(relativePath string, fs http.FileSystem) *HandlerInfo {
 	handlerInfo := NewStaticFsHandlerInfo(relativePath, fs)
-	h.staticFsList = append(h.staticFsList, handlerInfo)
+	h.routeTree.Set(http.MethodGet, handlerInfo)
 	log.Debug("staticFs", zap.String("path", relativePath))
 	return handlerInfo
 }
-func (h *Handles) StaticFsList() []*HandlerInfo {
-	return h.staticFsList
-}
+
 func NewHandles() *Handles {
 	return &Handles{
-		routeTree:    make(RouteTree),
-		staticFsList: make([]*HandlerInfo, 0),
+		routeTree: make(RouteTree),
 	}
 }
 

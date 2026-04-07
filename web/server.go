@@ -104,14 +104,15 @@ func (httpServer *HttpServer) Engine() *gin.Engine {
 }
 
 func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
-	// 处理静态文件系统
-	for _, handlerInfo := range handlerConfig.Handles().StaticFsList() {
-		httpServer.handleStaticFs(handlerInfo.RelativePath(), handlerInfo.FileSystem())
-	}
 	// 处理 API 路由
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
-			httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
+			if len(handlerInfo.handlers) > 0 {
+				httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
+			}
+			if handlerInfo.IsStaticFs() {
+				httpServer.handleStaticFs(handlerInfo.RelativePath(), handlerInfo.FileSystem())
+			}
 		}
 	}
 }

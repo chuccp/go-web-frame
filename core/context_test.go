@@ -168,24 +168,19 @@ func newContextWithHandlers(t *testing.T) (*Context, *web.Handles) {
 	return ctx, handles
 }
 
-func TestContext_StaticFsRegistersStaticFsInfo(t *testing.T) {
+func TestContext_StaticFsRegistersInRouteTree(t *testing.T) {
 	ctx, handles := newContextWithHandlers(t)
 	fs := http.FS(os.DirFS("testdata"))
 
 	info := ctx.StaticFs("/assets", fs)
 	assert.Equal(t, "/assets", info.RelativePath())
+	assert.True(t, info.IsStaticFs())
 
-	// 验证静态文件信息被注册到 StaticFsList
-	staticFsList := handles.StaticFsList()
-	assert.Len(t, staticFsList, 1)
-	assert.Equal(t, "/assets", staticFsList[0].RelativePath())
-
-	// 验证静态文件不在 RouteTree 中（因为现在是 HttpServer.Handle() 处理）
-	assert.False(t, handles.HasHandler(http.MethodGet, "/assets/*filepath"))
-	assert.False(t, handles.HasHandler(http.MethodHead, "/assets/*filepath"))
+	// 验证静态文件信息被注册到 RouteTree 的 GET 方法下
+	assert.True(t, handles.HasHandler(http.MethodGet, "/assets"))
 }
 
-func TestContext_StaticRegistersStaticFsInfo(t *testing.T) {
+func TestContext_StaticRegistersInRouteTree(t *testing.T) {
 	ctx, handles := newContextWithHandlers(t)
 	dir := t.TempDir()
 	file := filepath.Join(dir, "app.js")
@@ -194,11 +189,10 @@ func TestContext_StaticRegistersStaticFsInfo(t *testing.T) {
 
 	info := ctx.Static("/static", dir)
 	assert.Equal(t, "/static", info.RelativePath())
+	assert.True(t, info.IsStaticFs())
 
-	// 验证静态文件信息被注册到 StaticFsList
-	staticFsList := handles.StaticFsList()
-	assert.Len(t, staticFsList, 1)
-	assert.Equal(t, "/static", staticFsList[0].RelativePath())
+	// 验证静态文件信息被注册到 RouteTree 的 GET 方法下
+	assert.True(t, handles.HasHandler(http.MethodGet, "/static"))
 }
 
 func TestContext_StaticFsServesFileViaHttpServer(t *testing.T) {

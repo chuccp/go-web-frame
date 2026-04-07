@@ -7,6 +7,7 @@ type HandlerInfo struct {
 	handlerMeta *HandlerMeta
 	handlers    []HandlerFunc
 	fs          http.FileSystem // 静态文件系统，用于 StaticFs
+	targetUrl   string          // 反向代理目标 URL，用于 ReverseProxy
 }
 
 func (hi *HandlerInfo) RelativePath() string {
@@ -18,8 +19,14 @@ func (hi *HandlerInfo) HandlerFunc() []HandlerFunc {
 func (hi *HandlerInfo) FileSystem() http.FileSystem {
 	return hi.fs
 }
+func (hi *HandlerInfo) TargetUrl() string {
+	return hi.targetUrl
+}
 func (hi *HandlerInfo) IsStaticFs() bool {
 	return hi.fs != nil
+}
+func (hi *HandlerInfo) IsReverseProxy() bool {
+	return hi.targetUrl != ""
 }
 
 type RouteInfo []*HandlerInfo
@@ -30,6 +37,10 @@ func NewHandlerInfo(path string, handlers ...HandlerFunc) *HandlerInfo {
 
 func NewStaticFsHandlerInfo(relativePath string, fs http.FileSystem) *HandlerInfo {
 	return &HandlerInfo{handlerMeta: NewHandlerMeta(), path: relativePath, fs: fs}
+}
+
+func NewReverseProxyHandlerInfo(relativePath string, targetUrl string) *HandlerInfo {
+	return &HandlerInfo{handlerMeta: NewHandlerMeta(), path: relativePath, targetUrl: targetUrl}
 }
 
 type RouteTree map[string]RouteInfo

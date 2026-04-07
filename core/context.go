@@ -1,12 +1,7 @@
 package core
 
 import (
-	"emperror.dev/errors"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"path"
-	"strings"
 	"sync"
 
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -195,40 +190,7 @@ func (c *Context) Static(relativePath string, filepath string) *web.HandlerInfo 
 	return c.StaticFs(relativePath, http.Dir(filepath))
 }
 func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.HandlerInfo {
-	target, err := url.Parse(targetUrl)
-	if err != nil {
-		log.Error("ReverseProxy targetUrl", zap.Error(err), zap.String("targetUrl", targetUrl))
-		handler := func(req *web.Request) (any, error) {
-			return nil, errors.WithStackIf(err)
-		}
-		if relativePath == "/" {
-			return c.handles(anyMethods, "/*proxyPath", handler)
-		}
-		c.handles(anyMethods, relativePath, handler)
-		return c.handles(anyMethods, path.Join(relativePath, "/*proxyPath"), handler)
-	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	baseDirector := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		originalPath := r.URL.Path
-		baseDirector(r)
-		requestPath := originalPath
-		if relativePath != "/" && strings.HasPrefix(originalPath, relativePath) {
-			requestPath = strings.TrimPrefix(originalPath, relativePath)
-		}
-		r.URL.Path = joinURLPath(target.Path, requestPath)
-		r.URL.RawPath = r.URL.EscapedPath()
-		r.Host = target.Host
-	}
-	handler := func(req *web.Request) (any, error) {
-		proxy.ServeHTTP(req.Response(), req.Request())
-		return nil, nil
-	}
-	if relativePath == "/" {
-		return c.handles(anyMethods, "/*proxyPath", handler)
-	}
-	c.handles(anyMethods, relativePath, handler)
-	return c.handles(anyMethods, path.Join(relativePath, "/*proxyPath"), handler)
+	return c.handlerConfig.Handles().AddReverseProxy(relativePath, targetUrl)
 }
 
 func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.HandlerInfo {
@@ -342,21 +304,4 @@ func UnmarshalKeyConfig[T any](key string, c *Context) (T, error) {
 		return t, err
 	}
 	return newValue, nil
-}
-
-func joinURLPath(basePath, extraPath string) string {
-	if basePath == "" {
-		basePath = "/"
-	}
-	if extraPath == "" {
-		extraPath = "/"
-	}
-	switch {
-	case strings.HasSuffix(basePath, "/") && strings.HasPrefix(extraPath, "/"):
-		return basePath + strings.TrimPrefix(extraPath, "/")
-	case !strings.HasSuffix(basePath, "/") && !strings.HasPrefix(extraPath, "/"):
-		return basePath + "/" + extraPath
-	default:
-		return basePath + extraPath
-	}
 }

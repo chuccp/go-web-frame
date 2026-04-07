@@ -11,6 +11,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -107,11 +109,12 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	// 处理 API 路由
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
-			if len(handlerInfo.handlers) > 0 {
-				httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
-			}
-			if handlerInfo.IsStaticFs() {
+			if handlerInfo.IsReverseProxy() {
+				httpServer.handleReverseProxy(httpMethod, handlerInfo.RelativePath(), handlerInfo.TargetUrl())
+			} else if handlerInfo.IsStaticFs() {
 				httpServer.handleStaticFs(handlerInfo.RelativePath(), handlerInfo.FileSystem())
+			} else if len(handlerInfo.handlers) > 0 {
+				httpServer.engine.Handle(httpMethod, handlerInfo.RelativePath(), httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
 			}
 		}
 	}
@@ -129,6 +132,41 @@ func (httpServer *HttpServer) handleStaticFs(relativePath string, fs http.FileSy
 	httpServer.engine.HEAD(pattern, func(ctx *gin.Context) {
 		fileServer.ServeHTTP(ctx.Writer, ctx.Request)
 	})
+}
+
+func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath string, targetUrl string) {
+	target, err := url.Parse(targetUrl)
+	if err != nil {
+		log.Error("handleReverseProxy targetUrl", zap.Error(err), zap.String("targetUrl", targetUrl))
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	baseDirector := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		originalPath := r.URL.Path
+		baseDirector(r)
+		requestPath := originalPath
+		if relativePath != "/" && strings.HasPrefix(originalPath, relativePath) {
+			requestPath = strings.TrimPrefix(originalPath, relativePath)
+		}
+		r.URL.Path = joinURLPath(target.Path, requestPath)
+		r.URL.RawPath = r.URL.EscapedPath()
+		r.Host = target.Host
+	}
+
+	// 注册两个路由：精确匹配和通配符匹配
+	if relativePath == "/" {
+		httpServer.engine.Handle(httpMethod, "/*proxyPath", func(ctx *gin.Context) {
+			proxy.ServeHTTP(ctx.Writer, ctx.Request)
+		})
+	} else {
+		httpServer.engine.Handle(httpMethod, relativePath, func(ctx *gin.Context) {
+			proxy.ServeHTTP(ctx.Writer, ctx.Request)
+		})
+		httpServer.engine.Handle(httpMethod, path.Join(relativePath, "/*proxyPath"), func(ctx *gin.Context) {
+			proxy.ServeHTTP(ctx.Writer, ctx.Request)
+		})
+	}
 }
 func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
@@ -486,4 +524,21 @@ func (cm *CertManager) Run(ctx context.Context) error {
 		return errors.WithStackIf(errorsPool.Wait())
 	}
 	return nil
+}
+
+func joinURLPath(basePath, extraPath string) string {
+	if basePath == "" {
+		basePath = "/"
+	}
+	if extraPath == "" {
+		extraPath = "/"
+	}
+	switch {
+	case strings.HasSuffix(basePath, "/") && strings.HasPrefix(extraPath, "/"):
+		return basePath + strings.TrimPrefix(extraPath, "/")
+	case !strings.HasSuffix(basePath, "/") && !strings.HasPrefix(extraPath, "/"):
+		return basePath + "/" + extraPath
+	default:
+		return basePath + extraPath
+	}
 }

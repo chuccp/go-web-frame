@@ -251,33 +251,37 @@ func TestContext_ReverseProxyForwardsRequest(t *testing.T) {
 	ctx, handles := newContextWithHandlers(t)
 	info := ctx.ReverseProxy("/api", backend.URL+"/backend")
 
-	assert.Equal(t, "/api/*proxyPath", info.RelativePath())
+	assert.Equal(t, "/api", info.RelativePath())
+	assert.True(t, info.IsReverseProxy())
 	assert.True(t, handles.HasHandler(http.MethodGet, "/api"))
-	assert.True(t, handles.HasHandler(http.MethodPost, "/api/*proxyPath"))
+	assert.True(t, handles.HasHandler(http.MethodPost, "/api"))
 
-	req, recorder := newTestRequest(
-		t,
-		http.MethodPost,
-		"/api/users?id=7",
-		strings.NewReader("name=alice"),
-		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
-	)
-	_, err := info.HandlerFunc()[0](req)
+	// 使用 HttpServer.Handle() 来处理反向代理
+	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
+	server.Handle(ctx.handlerConfig)
+
+	// 使用实际的 HTTP 服务器测试
+	ts := httptest.NewServer(server.Engine())
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/api/users?id=7", "application/x-www-form-urlencoded", strings.NewReader("name=alice"))
 	assert.NoError(t, err)
-	assert.Equal(t, http.StatusCreated, recorder.Code)
-	assert.Equal(t, "POST /backend/users?id=7 name=alice", recorder.Body.String())
-	assert.Contains(t, recorder.Header().Get("X-Upstream-Host"), "127.0.0.1:")
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	assert.Equal(t, "POST /backend/users?id=7 name=alice", string(body))
+	assert.Contains(t, resp.Header.Get("X-Upstream-Host"), "127.0.0.1:")
 }
 
-func TestContext_ReverseProxyInvalidTargetReturnsError(t *testing.T) {
+func TestContext_ReverseProxyInvalidTargetUrl(t *testing.T) {
 	ctx, handles := newContextWithHandlers(t)
 
 	info := ctx.ReverseProxy("/bad-proxy", "://bad target")
-	assert.Equal(t, "/bad-proxy/*proxyPath", info.RelativePath())
+	assert.Equal(t, "/bad-proxy", info.RelativePath())
+	assert.True(t, info.IsReverseProxy())
+	// 即使目标 URL 无效，也会注册到 RouteTree
 	assert.True(t, handles.HasHandler(http.MethodGet, "/bad-proxy"))
-
-	req, recorder := newTestRequest(t, http.MethodGet, "/bad-proxy/health", nil, nil)
-	_, err := info.HandlerFunc()[0](req)
-	assert.Error(t, err)
-	assert.Equal(t, http.StatusOK, recorder.Code)
 }

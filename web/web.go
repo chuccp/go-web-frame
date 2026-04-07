@@ -13,6 +13,15 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	// anyMethods for RouterGroup Any method
+	anyMethods = []string{
+		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch,
+		http.MethodHead, http.MethodOptions, http.MethodDelete, http.MethodConnect,
+		http.MethodTrace,
+	}
+)
+
 // FilterChain 是过滤器链接口，用于在过滤器之间传递控制权
 //
 // 过滤器链支持责任链模式，每个过滤器可以决定是否继续执行后续过滤器。
@@ -75,6 +84,15 @@ func (h *Handles) AddStaticFs(relativePath string, fs http.FileSystem) *HandlerI
 	handlerInfo := NewStaticFsHandlerInfo(relativePath, fs)
 	h.routeTree.Set(http.MethodGet, handlerInfo)
 	log.Debug("staticFs", zap.String("path", relativePath))
+	return handlerInfo
+}
+func (h *Handles) AddReverseProxy(relativePath string, targetUrl string) *HandlerInfo {
+	handlerInfo := NewReverseProxyHandlerInfo(relativePath, targetUrl)
+	// 反向代理需要处理所有 HTTP 方法
+	for _, method := range anyMethods {
+		h.routeTree.Set(method, handlerInfo)
+	}
+	log.Debug("reverseProxy", zap.String("path", relativePath), zap.String("target", targetUrl))
 	return handlerInfo
 }
 

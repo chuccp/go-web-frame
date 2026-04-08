@@ -12,7 +12,9 @@
       "Bash(xxd core/testdata/hello.txt)",
       "Bash(go get:*)",
       "Bash(go mod:*)",
-      "Bash(ls -la *.md)"
+      "Bash(ls -la *.md)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ]
   }
 }

@@ -219,18 +219,6 @@ func (w *WebFrame) Test(f func(ctx *core.Context) error) error {
 func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error) {
 
 	gin.SetMode(gin.ReleaseMode)
-	var logConfig log.Config
-	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() {
-		err := log.Sync()
-		if err != nil {
-			log.Error("Failed to close the service", zap.Error(err))
-		}
-	}()
-	log.InitLogger(&logConfig)
 
 	for _, component := range w.component {
 		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
@@ -284,7 +272,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
 		var serverConfig = web.DefaultServerConfig()
-		err = w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
+		err := w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -294,7 +282,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		w.restGroups = append(w.restGroups, rootGroup)
 	}
 	server := core.NewServer(w.restGroups, w.runners)
-	err = server.Init(coreContext)
+	err := server.Init(coreContext)
 	if err != nil {
 		return nil, nil, errors.WithStackIf(err)
 	}
@@ -302,6 +290,19 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 
 }
 func (w *WebFrame) Run(ctx context.Context) error {
+	var logConfig log.Config
+	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := log.Sync()
+		if err != nil {
+			log.Error("Failed to close the service", zap.Error(err))
+		}
+	}()
+	log.InitLogger(&logConfig)
+
 	server, _, err := w.init(ctx)
 	if err != nil {
 		return errors.WithStackIf(err)

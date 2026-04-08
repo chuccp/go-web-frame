@@ -12,12 +12,12 @@ type Component struct {
 }
 
 func (l *Component) Init(ctx context.Context, config config2.IConfig) error {
-	var options = redis2.Options{}
+	var options = &redis2.Options{}
 	err := config.UnmarshalKey("web.redis", options)
 	if err != nil {
 		return err
 	}
-	l.client = redis2.NewClient(&options)
+	l.client = redis2.NewClient(options)
 	return nil
 }
 func (l *Component) GetClient() *redis2.Client {

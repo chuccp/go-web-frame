@@ -195,14 +195,14 @@ func getDefaultLogger() *logger {
 	}
 }
 func InitLogger(logConfig *Config) {
-	mode := logConfig.Write
+
 	level, err := zapcore.ParseLevel(logConfig.Level)
 	if err != nil {
 		level = zapcore.InfoLevel
 		Error("log level", zap.Error(err), zap.String("level", level.String()))
 	}
-	Info("log level", zap.String("level", level.String()), zap.Bool("write", mode))
-	if mode {
+	Info("log level", zap.String("level", level.String()), zap.Bool("write", logConfig.Write))
+	if logConfig.Write {
 		if len(logConfig.Path) > 0 {
 			abs, err := filepath.Abs(logConfig.Path)
 			if err == nil {

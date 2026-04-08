@@ -201,8 +201,8 @@ func InitLogger(logConfig *Config) {
 		level = zapcore.InfoLevel
 		Error("log level", zap.Error(err), zap.String("level", level.String()))
 	}
-	Info("Running Mode", zap.String("level", logConfig.Level), zap.Bool("run in the background", mode))
-	if !mode {
+	Info("log level", zap.String("level", level.String()), zap.Bool("write", mode))
+	if mode {
 		if len(logConfig.Path) > 0 {
 			abs, err := filepath.Abs(logConfig.Path)
 			if err == nil {

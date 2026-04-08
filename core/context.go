@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"net/http"
 	"sync"
 
@@ -257,26 +258,35 @@ var (
 )
 
 func GetService[T IService](c *Context) T {
-	t, _ := c.GetService(func(m IService) bool {
+	t, ok := c.GetService(func(m IService) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetService error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	return t
 }
 
 func GetModel[T IModel](c *Context) T {
-	t, _ := c.GetModel(func(m IModel) bool {
+	t, ok := c.GetModel(func(m IModel) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetModel error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	return t
 }
 
 func GetFilter[T IFilter](c *Context) T {
-	t, _ := c.GetFilter(func(m IFilter) bool {
+	t, ok := c.GetFilter(func(m IFilter) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetFilter error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	return t
 }
 
@@ -285,6 +295,9 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetModel error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	if ok {
 		t, _ = t.ReNew(db, c).(T)
 		return t
@@ -293,18 +306,24 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 }
 
 func GetComponent[T IComponent](c *Context) T {
-	t, _ := c.GetComponent(func(m IComponent) bool {
+	t, ok := c.GetComponent(func(m IComponent) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetComponent error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	return t
 }
 
 func GetRunner[T IRunner](c *Context) T {
-	t, _ := c.GetRunner(func(m IRunner) bool {
+	t, ok := c.GetRunner(func(m IRunner) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
+	if !ok {
+		log.PanicErrors("GetRunner error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
+	}
 	return t
 }
 

@@ -35,3 +35,4 @@ go.work.sum
 .DS_Store
 /example/start/tmp
 /example/config/tmp
+/.claude

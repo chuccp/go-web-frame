@@ -77,7 +77,7 @@ func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, m := range model {
-		name := util.GetStructFullName(m)
+		name := util.GetStructFullQualifiedName(m)
 		c.modelMap[name] = m
 	}
 }
@@ -86,7 +86,7 @@ func (c *Context) AddRunner(runner ...IRunner) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, r := range runner {
-		name := util.GetStructFullName(r)
+		name := util.GetStructFullQualifiedName(r)
 		c.runnerMap[name] = r
 		c.allServiceMap[name] = r
 	}
@@ -119,7 +119,7 @@ func (c *Context) AddComponent(components ...IComponent) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, component := range components {
-		name := util.GetStructFullName(component)
+		name := util.GetStructFullQualifiedName(component)
 		c.componentMap[name] = component
 	}
 }
@@ -128,7 +128,7 @@ func (c *Context) AddService(services ...IService) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
 	for _, s := range services {
-		name := util.GetStructFullName(s)
+		name := util.GetStructFullQualifiedName(s)
 		c.serviceMap[name] = s
 		c.allServiceMap[name] = s
 	}

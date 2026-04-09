@@ -24,7 +24,8 @@
       "Bash(printf \"\\\\n---\\\\nTestBuilder all passed\\\\n\\\\n\")",
       "Bash(printf \"\\\\n---\\\\nTestWebFrame_Test all passed\\\\n\\\\n\")",
       "Bash(printf \"\\\\n---\\\\nGet* tests all passed\\\\n\\\\n\")",
-      "Bash(printf \"\\\\n---\\\\nTestUnmarshalKeyConfig passed\\\\n\\\\n\")"
+      "Bash(printf \"\\\\n---\\\\nTestUnmarshalKeyConfig passed\\\\n\\\\n\")",
+      "Bash(git commit:*)"
     ]
   }
 }

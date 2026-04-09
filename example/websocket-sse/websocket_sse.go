@@ -6,6 +6,7 @@ import (
 	"time"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -45,11 +46,11 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 		conn.SetReadLimit(512)
 
 		// Set read deadline
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 
 		// Set pong handler to reset read deadline
 		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 			return nil
 		})
 
@@ -77,7 +78,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 			case <-done:
 				return nil
 			case <-ticker.C:
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					return err
 				}
@@ -130,7 +131,7 @@ func (c *SSEController) Init(ctx *core.Context) error {
 		log.Info("SSE client connected to counter stream")
 
 		// Send initial retry setting (reconnect after 3 seconds if disconnected)
-		stream.SendRetry(3000)
+		_ = stream.SendRetry(3000)
 
 		for i := 0; i < 10; i++ {
 			select {
@@ -141,16 +142,16 @@ func (c *SSEController) Init(ctx *core.Context) error {
 
 			// Send different event types
 			if i%3 == 0 {
-				stream.SendWithID(fmt.Sprintf("%d", i), "milestone", fmt.Sprintf("Milestone reached: %d", i))
+				_ = stream.SendWithID(fmt.Sprintf("%d", i), "milestone", fmt.Sprintf("Milestone reached: %d", i))
 			} else {
-				stream.Send("update", fmt.Sprintf("Counter: %d", i))
+				_ = stream.Send("update", fmt.Sprintf("Counter: %d", i))
 			}
 
 			time.Sleep(time.Second)
 		}
 
 		// Send final message
-		stream.SendMessage("Counter finished!")
+		_ = stream.SendMessage("Counter finished!")
 		return nil
 	})
 
@@ -158,14 +159,14 @@ func (c *SSEController) Init(ctx *core.Context) error {
 }
 
 func main() {
-	app := wf.NewWithAutoConfig()
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// Add WebSocket and SSE controllers
-	app.AddRest(&WebSocketController{})
-	app.AddRest(&SSEController{})
+	builder.Rest(&WebSocketController{})
+	builder.Rest(&SSEController{})
 
 	// Add a simple index page with JavaScript clients
-	app.Get("/", func(c *web.Request) (any, error) {
+	builder.Get("/", func(c *web.Request) (any, error) {
 		return `<!DOCTYPE html>
 <html>
 <head>
@@ -200,7 +201,7 @@ func main() {
         // SSE Time
         const sseTime = new EventSource('/events/time');
         sseTime.addEventListener('time', (e) => {
-            document.getElementById('sse-time').innerHTML = '<p>' + e.data + '</p>';
+            document.getElementById('sse-time').innerHTML += '<p>' + e.data + '</p>';
         });
 
         // SSE Counter
@@ -215,6 +216,8 @@ func main() {
 </body>
 </html>`, nil
 	})
+
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -118,94 +118,106 @@ type WebFrame struct {
 	handles           *web.Handles
 }
 
-func NewWithAutoConfig() *WebFrame {
-	return New(LoadAutoConfig())
-}
+//func NewWithAutoConfig() *WebFrame {
+//	return New(LoadAutoConfig())
+//}
 
-func New(config config2.IConfig) *WebFrame {
-	w := &WebFrame{
-		models:            make([]core.IModel, 0),
-		services:          make([]core.IService, 0),
-		restGroups:        make([]*core.RestGroup, 0),
-		modelGroup:        make([]core.IModelGroup, 0),
-		rests:             make([]core.IRest, 0),
-		component:         make([]core.IComponent, 0),
-		runners:           make([]core.IRunner, 0),
-		filters:           make([]core.IFilter, 0),
-		config:            config,
-		defaultModelGroup: core.DefaultModelGroup(),
-		handles:           web.NewHandles(),
-	}
-	return w
-}
-
-func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return w.handles.Handle(http.MethodGet, relativePath, handlers...)
-}
-
-func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return w.handles.Handle(http.MethodPost, relativePath, handlers...)
-}
-func (w *WebFrame) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return w.handles.Handle(http.MethodDelete, relativePath, handlers...)
-
-}
-func (w *WebFrame) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return w.handles.Handle(http.MethodPut, relativePath, handlers...)
-}
-
-func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return w.handles.Handle(http.MethodGet, relativePath, handlers...)
-
-}
-
-func (w *WebFrame) AddRest(rest ...core.IRest) *WebFrame {
-	w.rests = append(w.rests, rest...)
-	return w
-}
-func (w *WebFrame) AddComponent(component ...core.IComponent) *WebFrame {
-	w.component = append(w.component, component...)
-	return w
-}
-func (w *WebFrame) AddRunner(runner ...core.IRunner) {
-	w.runners = append(w.runners, runner...)
-}
-func (w *WebFrame) AddModel(model ...core.IModel) *WebFrame {
-	w.models = append(w.models, model...)
-	return w
-}
-func (w *WebFrame) addService(service core.IService) {
-	w.services = append(w.services, service)
-}
-func (w *WebFrame) AddService(service ...core.IService) *WebFrame {
-	w.services = append(w.services, service...)
-	return w
-}
-func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
-	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())
-	w.restGroups = append(w.restGroups, groupGroup)
-	return groupGroup
-}
-
-func (w *WebFrame) NewModelGroup(db *db2.DB, name string) *core.ModelGroup {
-	modelGroup := core.NewModelGroup(db, name)
-	w.modelGroup = append(w.modelGroup, modelGroup)
-	return modelGroup
-}
-func (w *WebFrame) NewEmptyModelGroup(name string) *core.ModelGroup {
-	modelGroup := core.EmptyModelGroup(name)
-	w.modelGroup = append(w.modelGroup, modelGroup)
-	return modelGroup
-}
-func (w *WebFrame) GetDefaultModelGroup() core.IModelGroup {
-	return w.defaultModelGroup
-}
-func (w *WebFrame) AddFilter(filters ...core.IFilter) {
-	w.filters = append(w.filters, filters...)
-}
-func (w *WebFrame) SetDefaultDB(db *db2.DB) {
-	w.defaultModelGroup.SetDefaultDB(db)
-}
+//	func New(config config2.IConfig) *WebFrame {
+//		w := &WebFrame{
+//			models:            make([]core.IModel, 0),
+//			services:          make([]core.IService, 0),
+//			restGroups:        make([]*core.RestGroup, 0),
+//			modelGroup:        make([]core.IModelGroup, 0),
+//			rests:             make([]core.IRest, 0),
+//			component:         make([]core.IComponent, 0),
+//			runners:           make([]core.IRunner, 0),
+//			filters:           make([]core.IFilter, 0),
+//			config:            config,
+//			defaultModelGroup: core.DefaultModelGroup(),
+//			handles:           web.NewHandles(),
+//		}
+//		return w
+//	}
+//
+//	func (w *WebFrame) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//		return w.handles.Handle(http.MethodGet, relativePath, handlers...)
+//	}
+//
+//	func (w *WebFrame) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//		return w.handles.Handle(http.MethodPost, relativePath, handlers...)
+//	}
+//
+//	func (w *WebFrame) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//		return w.handles.Handle(http.MethodDelete, relativePath, handlers...)
+//
+// }
+//
+//	func (w *WebFrame) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//		return w.handles.Handle(http.MethodPut, relativePath, handlers...)
+//	}
+//
+//	func (w *WebFrame) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
+//		return w.handles.Handle(http.MethodGet, relativePath, handlers...)
+//
+// }
+//
+//	func (w *WebFrame) AddRest(rest ...core.IRest) *WebFrame {
+//		w.rests = append(w.rests, rest...)
+//		return w
+//	}
+//
+//	func (w *WebFrame) AddComponent(component ...core.IComponent) *WebFrame {
+//		w.component = append(w.component, component...)
+//		return w
+//	}
+//
+//	func (w *WebFrame) AddRunner(runner ...core.IRunner) {
+//		w.runners = append(w.runners, runner...)
+//	}
+//
+//	func (w *WebFrame) AddModel(model ...core.IModel) *WebFrame {
+//		w.models = append(w.models, model...)
+//		return w
+//	}
+//
+//	func (w *WebFrame) addService(service core.IService) {
+//		w.services = append(w.services, service)
+//	}
+//
+//	func (w *WebFrame) AddService(service ...core.IService) *WebFrame {
+//		w.services = append(w.services, service...)
+//		return w
+//	}
+//
+//	func (w *WebFrame) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
+//		groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())
+//		w.restGroups = append(w.restGroups, groupGroup)
+//		return groupGroup
+//	}
+//
+//	func (w *WebFrame) NewModelGroup(db *db2.DB, name string) *core.ModelGroup {
+//		modelGroup := core.NewModelGroup(db, name)
+//		w.modelGroup = append(w.modelGroup, modelGroup)
+//		return modelGroup
+//	}
+//
+//	func (w *WebFrame) NewEmptyModelGroup(name string) *core.ModelGroup {
+//		modelGroup := core.EmptyModelGroup(name)
+//		w.modelGroup = append(w.modelGroup, modelGroup)
+//		return modelGroup
+//	}
+//
+//	func (w *WebFrame) GetDefaultModelGroup() core.IModelGroup {
+//		return w.defaultModelGroup
+//	}
+//
+//	func (w *WebFrame) AddFilter(filters ...core.IFilter) {
+//		w.filters = append(w.filters, filters...)
+//	}
+//
+//	func (w *WebFrame) SetDefaultDB(db *db2.DB) {
+//		w.defaultModelGroup.SetDefaultDB(db)
+//	}
 func (w *WebFrame) Start() error {
 	return w.Run(context.Background())
 }
@@ -325,7 +337,7 @@ type Builder struct {
 	defaultDB         *db2.DB
 }
 
-func NewBuilder() *Builder {
+func NewBuilder(config config2.IConfig) *Builder {
 	return &Builder{
 		models:            make([]core.IModel, 0),
 		services:          make([]core.IService, 0),
@@ -337,17 +349,8 @@ func NewBuilder() *Builder {
 		filters:           make([]core.IFilter, 0),
 		defaultModelGroup: core.DefaultModelGroup(),
 		handles:           web.NewHandles(),
+		config:            config,
 	}
-}
-
-func (b *Builder) Config(config config2.IConfig) *Builder {
-	b.config = config
-	return b
-}
-
-func (b *Builder) AutoConfig() *Builder {
-	b.config = LoadAutoConfig()
-	return b
 }
 
 func (b *Builder) Get(relativePath string, handlers ...web.HandlerFunc) *Builder {
@@ -375,63 +378,51 @@ func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder
 	return b
 }
 
-func (b *Builder) AddRest(rest ...core.IRest) *Builder {
+func (b *Builder) Rest(rest ...core.IRest) *Builder {
 	b.rests = append(b.rests, rest...)
 	return b
 }
 
-func (b *Builder) AddComponent(component ...core.IComponent) *Builder {
+func (b *Builder) Component(component ...core.IComponent) *Builder {
 	b.component = append(b.component, component...)
 	return b
 }
 
-func (b *Builder) AddRunner(runner ...core.IRunner) *Builder {
+func (b *Builder) Runner(runner ...core.IRunner) *Builder {
 	b.runners = append(b.runners, runner...)
 	return b
 }
 
-func (b *Builder) AddModel(model ...core.IModel) *Builder {
+func (b *Builder) Model(model ...core.IModel) *Builder {
 	b.models = append(b.models, model...)
 	return b
 }
 
-func (b *Builder) AddService(service ...core.IService) *Builder {
+func (b *Builder) Service(service ...core.IService) *Builder {
 	b.services = append(b.services, service...)
 	return b
 }
 
-func (b *Builder) AddFilter(filters ...core.IFilter) *Builder {
+func (b *Builder) Filter(filters ...core.IFilter) *Builder {
 	b.filters = append(b.filters, filters...)
 	return b
 }
 
-func (b *Builder) SetDefaultDB(db *db2.DB) *Builder {
+func (b *Builder) DefaultDB(db *db2.DB) *Builder {
 	b.defaultDB = db
 	return b
 }
 
-func (b *Builder) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
-	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())
-	b.restGroups = append(b.restGroups, groupGroup)
-	return groupGroup
+func (b *Builder) RestGroup(restGroups ...*core.RestGroup) *Builder {
+	b.restGroups = append(b.restGroups, restGroups...)
+	return b
 }
 
-func (b *Builder) NewModelGroup(db *db2.DB, name string) *core.ModelGroup {
-	modelGroup := core.NewModelGroup(db, name)
-	b.modelGroup = append(b.modelGroup, modelGroup)
-	return modelGroup
+func (b *Builder) ModelGroup(modelGroups ...core.IModelGroup) *Builder {
+	b.modelGroup = append(b.modelGroup, modelGroups...)
+	return b
 }
-
-func (b *Builder) NewEmptyModelGroup(name string) *core.ModelGroup {
-	modelGroup := core.EmptyModelGroup(name)
-	b.modelGroup = append(b.modelGroup, modelGroup)
-	return modelGroup
-}
-
 func (b *Builder) Build() *WebFrame {
-	if b.config == nil {
-		b.config = LoadAutoConfig()
-	}
 	w := &WebFrame{
 		models:            b.models,
 		services:          b.services,

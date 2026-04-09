@@ -208,16 +208,16 @@ func main() {
 	// }
 
 	// Main application using auto config
-	app := wf.NewWithAutoConfig()
+	builder := wf.NewBuilder(config.LoadAutoConfig())
 
 	// Add config service
-	app.AddService(&ConfigService{})
+	builder.Service(&ConfigService{})
 
 	// Add config controller
-	app.AddRest(&ConfigController{})
+	builder.Rest(&ConfigController{})
 
 	// Add a simple health check endpoint
-	app.Get("/health", func(c *web.Request) (any, error) {
+	builder.Get("/health", func(c *web.Request) (any, error) {
 		return map[string]string{
 			"status": "healthy",
 			"config": "loaded",
@@ -225,7 +225,9 @@ func main() {
 	})
 
 	// Add a custom config value (demonstrating Put method)
-	app.AddService(&CustomConfigService{})
+	builder.Service(&CustomConfigService{})
+
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

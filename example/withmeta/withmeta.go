@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -48,7 +49,9 @@ func (f *LoginAuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, err
 	// For demonstration, we just check that it's not empty
 	// In real app, you would verify and set user info to context:
 	// user := verifyToken(token)
-	// req.GinContext().Set("user", user)
+	// ctx := req.Request().Context()
+	// ctx = context.WithValue(ctx, "user", user)
+	// *req.Request() = *req.Request().WithContext(ctx)
 
 	return fc.Next()
 }
@@ -80,7 +83,7 @@ func (c *ApiController) Init(ctx *core.Context) error {
 		// Handle login, return JWT token
 		return map[string]string{
 			"status": "ok",
-			"token": "example-jwt-token",
+			"token":  "example-jwt-token",
 		}, nil
 	}).WithMeta(SkipAuth()) // Skip auth since login doesn't need to be authenticated
 
@@ -92,9 +95,9 @@ func (c *ApiController) Init(ctx *core.Context) error {
 
 	// Protected route - requires auth via .WithMeta(RequireAuth())
 	ctx.Get("/api/profile", func(c *web.Request) (any, error) {
-		// Get authenticated user from context set by filter
-		user, exists := c.GinContext().Get("user")
-		if !exists {
+		// Get authenticated user from request context set by filter
+		user := c.Request().Context().Value("user")
+		if user == nil {
 			user = "current-user"
 		}
 		return map[string]any{
@@ -115,16 +118,22 @@ func (c *ApiController) Init(ctx *core.Context) error {
 }
 
 func main() {
-	app := wf.NewWithAutoConfig()
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// Add global authentication filter - checks all routes that have require_auth meta
-	app.AddFilter(&LoginAuthFilter{})
+	builder.Filter(&LoginAuthFilter{})
 
 	// Create a rest group for API
-	apiGroup := app.NewRestGroup(web.DefaultServerConfig())
+	serverConfig := web.DefaultServerConfig()
+	apiGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
 
 	// Add our controller to the group - all routes are registered in controller.Init()
 	apiGroup.AddRest(&ApiController{})
+
+	// Add the rest group to builder
+	builder.RestGroup(apiGroup)
+
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -29,7 +30,8 @@ func (f *RequestIDFilter) Handle(fc web.FilterChain, req *web.Request) (any, err
 	requestID := fmt.Sprintf("%d", time.Now().UnixNano())
 
 	// Add request ID to request context for use in handler
-	req.GinContext().Set("request_id", requestID)
+	ctx := context.WithValue(req.Request().Context(), "request_id", requestID)
+	*req.Request() = *req.Request().WithContext(ctx)
 
 	// Continue processing the request
 	return fc.Next()
@@ -94,14 +96,14 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 }
 
 func main() {
-	app := wf.NewWithAutoConfig()
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// Add global filters that apply to all routes
-	app.AddFilter(&LoggingFilter{})
-	app.AddFilter(&RequestIDFilter{})
+	builder.Filter(&LoggingFilter{})
+	builder.Filter(&RequestIDFilter{})
 
 	// Public route doesn't need auth
-	app.Get("/api/public", func(c *web.Request) (any, error) {
+	builder.Get("/api/public", func(c *web.Request) (any, error) {
 		return map[string]string{
 			"message": "public resource",
 		}, nil
@@ -109,11 +111,17 @@ func main() {
 
 	// Create a separate rest group for protected routes that requires auth
 	// This way all routes in this group get the AuthFilter
-	protectedGroup := app.NewRestGroup(web.DefaultServerConfig())
+	serverConfig := web.DefaultServerConfig()
+	protectedGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
 	protectedGroup.AddFilter(&AuthFilter{})
 
 	// Add a REST controller for protected routes
 	protectedGroup.AddRest(&ProtectedController{})
+
+	// Add the rest group to builder
+	builder.RestGroup(protectedGroup)
+
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -131,7 +139,7 @@ type ProtectedController struct {
 func (c *ProtectedController) Init(ctx *core.Context) error {
 	ctx.Get("/api/protected", func(c *web.Request) (any, error) {
 		// Get request ID from context set by filter
-		requestID, _ := c.GinContext().Get("request_id")
+		requestID := c.Request().Context().Value("request_id")
 
 		return map[string]any{
 			"message":    "protected resource accessed",

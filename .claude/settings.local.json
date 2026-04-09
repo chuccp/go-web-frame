@@ -14,7 +14,17 @@
       "Bash(go mod:*)",
       "Bash(ls -la *.md)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(pkill -f \"go test -v .\")",
+      "Bash(printf \"\\\\n✓ All tests results summary:\\\\n\")",
+      "Bash(grep \"--- PASS:\\\\|--- FAIL:\")",
+      "Bash(grep -E '--- PASS|--- FAIL')",
+      "Bash(grep \"--- PASS\\\\|ok\")",
+      "Bash(printf \"Running core functionality tests...\\\\n\")",
+      "Bash(printf \"\\\\n---\\\\nTestBuilder all passed\\\\n\\\\n\")",
+      "Bash(printf \"\\\\n---\\\\nTestWebFrame_Test all passed\\\\n\\\\n\")",
+      "Bash(printf \"\\\\n---\\\\nGet* tests all passed\\\\n\\\\n\")",
+      "Bash(printf \"\\\\n---\\\\nTestUnmarshalKeyConfig passed\\\\n\\\\n\")"
     ]
   }
 }

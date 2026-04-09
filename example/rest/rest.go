@@ -4,6 +4,7 @@ import (
 	"context"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -95,8 +96,9 @@ func (u *UserController) DeleteUser(c *web.Request) (any, error) {
 }
 
 func main() {
-	app := wf.NewWithAutoConfig()
-	app.AddRest(&UserController{})
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
+	builder.Rest(&UserController{})
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

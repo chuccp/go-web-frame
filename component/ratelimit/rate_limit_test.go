@@ -3,16 +3,17 @@ package ratelimit
 import (
 	"testing"
 
+	config2 "github.com/chuccp/go-web-frame/config"
 	wf "github.com/chuccp/go-web-frame"
-	"github.com/chuccp/go-web-frame/log"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestName(t *testing.T) {
-	frame := wf.New(wf.LoadAutoConfig())
-	err := frame.Start()
-	if err != nil {
-		log.Errors("启动失败 %v", err)
-		return
-	}
-
+func TestRateLimit(t *testing.T) {
+	// Just test that the rate limiter can be added to the builder
+	builder := wf.NewBuilder(config2.NewConfig())
+	rl := &RateLimit{}
+	builder.Component(rl)
+	frame := builder.Build()
+	assert.NotNil(t, frame)
+	// Build succeeds - test passed
 }

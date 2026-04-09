@@ -8,6 +8,7 @@ import (
 	"time"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/component/ratelimit"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
@@ -331,64 +332,70 @@ func (f *APIVersionFilter) Handle(fc web.FilterChain, req *web.Request) (any, er
 // ========== 使用示例 ==========
 
 func main() {
-	app := wf.NewWithAutoConfig()
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// 添加组件（用于限流中间件）
-	app.AddComponent(&ratelimit.RateLimit{})
+	builder.Component(&ratelimit.RateLimit{})
 
 	// 添加中间件（顺序很重要）
 	// 1. 恢复中间件 - 最先执行，捕获 panic
-	app.AddFilter(NewRecoveryFilter())
+	builder.Filter(NewRecoveryFilter())
 
 	// 2. 日志中间件 - 记录所有请求
-	app.AddFilter(NewLoggingFilter())
+	builder.Filter(NewLoggingFilter())
 
 	// 3. 安全头中间件 - 添加安全响应头
-	app.AddFilter(NewSecurityFilter())
+	builder.Filter(NewSecurityFilter())
 
 	// 4. CORS 中间件 - 处理跨域
-	app.AddFilter(NewCorsFilter("*"))
+	builder.Filter(NewCorsFilter("*"))
 
 	// 5. API 版本控制中间件
-	app.AddFilter(NewAPIVersionFilter("v1.0"))
+	builder.Filter(NewAPIVersionFilter("v1.0"))
 
 	// 6. 限流中间件 - 限制请求频率
-	app.AddFilter(NewRateLimitFilter())
+	builder.Filter(NewRateLimitFilter())
 
 	// 7. 请求体大小限制中间件
-	app.AddFilter(NewBodySizeLimitFilter(10 * 1024 * 1024)) // 10MB
+	builder.Filter(NewBodySizeLimitFilter(10 * 1024 * 1024)) // 10MB
 
 	// 8. 缓存中间件 - 缓存 GET 请求
-	app.AddFilter(NewMemoryCacheFilter(5*time.Minute))
+	builder.Filter(NewMemoryCacheFilter(5*time.Minute))
 
 	// 注册路由
-	app.Get("/", func(c *web.Request) (any, error) {
+	builder.Get("/", func(c *web.Request) (any, error) {
 		return map[string]string{
 			"message": "Hello, World!",
 			"version": "v1.0",
 		}, nil
 	})
 
-	app.Get("/data", func(c *web.Request) (any, error) {
+	builder.Get("/data", func(c *web.Request) (any, error) {
 		// 这个接口会被缓存 5 分钟
 		return map[string]any{
-			"data": []string{"item1", "item2", "item3"},
+			"data":      []string{"item1", "item2", "item3"},
 			"timestamp": time.Now().Unix(),
 		}, nil
 	})
 
-	app.Post("/api/test", func(c *web.Request) (any, error) {
+	builder.Post("/api/test", func(c *web.Request) (any, error) {
 		return map[string]string{
 			"status": "success",
 		}, nil
 	})
 
 	// 创建一个需要认证的 REST 组
-	authGroup := app.NewRestGroup(web.DefaultServerConfig())
+	serverConfig := web.DefaultServerConfig()
+	authGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
 	authGroup.AddFilter(&AuthFilter{})
 
 	// 添加 REST 控制器
 	authGroup.AddRest(&ProtectedController{})
+
+	// Add the rest group to builder
+	builder.RestGroup(authGroup)
+
+	app := builder.Build()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

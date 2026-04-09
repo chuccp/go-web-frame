@@ -5,6 +5,7 @@ import (
 	"time"
 
 	wf "github.com/chuccp/go-web-frame"
+	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -61,21 +62,23 @@ func (t *StartupTask) Run(ctx context.Context) error {
 }
 
 func main() {
-	// Create application with auto config
-	app := wf.NewWithAutoConfig()
+	// Create application with auto config using Builder
+	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// Add a simple route
-	app.Get("/", func(c *web.Request) (any, error) {
+	builder.Get("/", func(c *web.Request) (any, error) {
 		return map[string]string{
-			"status": "running",
+			"status":  "running",
 			"message": "Background tasks are running",
 		}, nil
 	})
 
 	// Register background runners
 	// The framework will manage their lifecycle automatically
-	app.AddRunner(&BackgroundRunner{})
-	app.AddRunner(&StartupTask{})
+	builder.Runner(&BackgroundRunner{})
+	builder.Runner(&StartupTask{})
+
+	app := builder.Build()
 
 	// Run with context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

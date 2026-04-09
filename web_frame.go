@@ -309,3 +309,144 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	}
 	return errors.WithStackIf(server.Run(ctx))
 }
+
+type Builder struct {
+	component         []core.IComponent
+	restGroups        []*core.RestGroup
+	modelGroup        []core.IModelGroup
+	config            config2.IConfig
+	models            []core.IModel
+	services          []core.IService
+	rests             []core.IRest
+	runners           []core.IRunner
+	filters           []core.IFilter
+	defaultModelGroup core.IModelGroup
+	handles           *web.Handles
+	defaultDB         *db2.DB
+}
+
+func NewBuilder() *Builder {
+	return &Builder{
+		models:            make([]core.IModel, 0),
+		services:          make([]core.IService, 0),
+		restGroups:        make([]*core.RestGroup, 0),
+		modelGroup:        make([]core.IModelGroup, 0),
+		rests:             make([]core.IRest, 0),
+		component:         make([]core.IComponent, 0),
+		runners:           make([]core.IRunner, 0),
+		filters:           make([]core.IFilter, 0),
+		defaultModelGroup: core.DefaultModelGroup(),
+		handles:           web.NewHandles(),
+	}
+}
+
+func (b *Builder) Config(config config2.IConfig) *Builder {
+	b.config = config
+	return b
+}
+
+func (b *Builder) AutoConfig() *Builder {
+	b.config = LoadAutoConfig()
+	return b
+}
+
+func (b *Builder) Get(relativePath string, handlers ...web.HandlerFunc) *Builder {
+	b.handles.Handle(http.MethodGet, relativePath, handlers...)
+	return b
+}
+
+func (b *Builder) Post(relativePath string, handlers ...web.HandlerFunc) *Builder {
+	b.handles.Handle(http.MethodPost, relativePath, handlers...)
+	return b
+}
+
+func (b *Builder) Delete(relativePath string, handlers ...web.HandlerFunc) *Builder {
+	b.handles.Handle(http.MethodDelete, relativePath, handlers...)
+	return b
+}
+
+func (b *Builder) Put(relativePath string, handlers ...web.HandlerFunc) *Builder {
+	b.handles.Handle(http.MethodPut, relativePath, handlers...)
+	return b
+}
+
+func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder {
+	b.handles.Handle(http.MethodGet, relativePath, handlers...)
+	return b
+}
+
+func (b *Builder) AddRest(rest ...core.IRest) *Builder {
+	b.rests = append(b.rests, rest...)
+	return b
+}
+
+func (b *Builder) AddComponent(component ...core.IComponent) *Builder {
+	b.component = append(b.component, component...)
+	return b
+}
+
+func (b *Builder) AddRunner(runner ...core.IRunner) *Builder {
+	b.runners = append(b.runners, runner...)
+	return b
+}
+
+func (b *Builder) AddModel(model ...core.IModel) *Builder {
+	b.models = append(b.models, model...)
+	return b
+}
+
+func (b *Builder) AddService(service ...core.IService) *Builder {
+	b.services = append(b.services, service...)
+	return b
+}
+
+func (b *Builder) AddFilter(filters ...core.IFilter) *Builder {
+	b.filters = append(b.filters, filters...)
+	return b
+}
+
+func (b *Builder) SetDefaultDB(db *db2.DB) *Builder {
+	b.defaultDB = db
+	return b
+}
+
+func (b *Builder) NewRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
+	groupGroup := core.NewRestGroup(serverConfig, &DefaultConverter{}, web.NewHandles())
+	b.restGroups = append(b.restGroups, groupGroup)
+	return groupGroup
+}
+
+func (b *Builder) NewModelGroup(db *db2.DB, name string) *core.ModelGroup {
+	modelGroup := core.NewModelGroup(db, name)
+	b.modelGroup = append(b.modelGroup, modelGroup)
+	return modelGroup
+}
+
+func (b *Builder) NewEmptyModelGroup(name string) *core.ModelGroup {
+	modelGroup := core.EmptyModelGroup(name)
+	b.modelGroup = append(b.modelGroup, modelGroup)
+	return modelGroup
+}
+
+func (b *Builder) Build() *WebFrame {
+	if b.config == nil {
+		b.config = LoadAutoConfig()
+	}
+	w := &WebFrame{
+		models:            b.models,
+		services:          b.services,
+		restGroups:        b.restGroups,
+		modelGroup:        b.modelGroup,
+		rests:             b.rests,
+		component:         b.component,
+		runners:           b.runners,
+		filters:           b.filters,
+		config:            b.config,
+		defaultModelGroup: b.defaultModelGroup,
+		handles:           b.handles,
+	}
+	if b.defaultDB != nil {
+		w.defaultModelGroup.SetDefaultDB(b.defaultDB)
+	}
+	return w
+}

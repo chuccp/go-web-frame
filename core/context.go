@@ -17,21 +17,20 @@ import (
 )
 
 type Context struct {
-	config            config2.IConfig
-	modelMap          map[string]IModel
-	rLock             *sync.RWMutex
-	serviceMap        map[string]IService
-	componentMap      map[string]IComponent
-	runnerMap         map[string]IRunner
-	defaultModelGroup IModelGroup
-	modelGroup        map[string]IModelGroup
-	handlerConfig     *web.HandlerConfig
-	filters           []IFilter
-	certManager       *web.CertManager
-	allServiceMap     map[string]IService
+	config        config2.IConfig
+	modelMap      map[string]IModel
+	rLock         *sync.RWMutex
+	serviceMap    map[string]IService
+	componentMap  map[string]IComponent
+	runnerMap     map[string]IRunner
+	modelGroup    map[string]IModelGroup
+	handlerConfig *web.HandlerConfig
+	filters       []IFilter
+	certManager   *web.CertManager
+	allServiceMap map[string]IService
 }
 
-func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context {
+func NewContext(config config2.IConfig) *Context {
 	context := &Context{
 		config:        config,
 		modelMap:      make(map[string]IModel),
@@ -39,12 +38,10 @@ func NewContext(config config2.IConfig, defaultModelGroup IModelGroup) *Context 
 		serviceMap:    make(map[string]IService),
 		allServiceMap: make(map[string]IService),
 		componentMap:  make(map[string]IComponent),
-		//transaction:  model.NewTransaction(db),
-		runnerMap:         make(map[string]IRunner),
-		modelGroup:        make(map[string]IModelGroup),
-		defaultModelGroup: defaultModelGroup,
-		filters:           make([]IFilter, 0),
-		certManager:       web.NewCertManager(),
+		runnerMap:     make(map[string]IRunner),
+		modelGroup:    make(map[string]IModelGroup),
+		filters:       make([]IFilter, 0),
+		certManager:   web.NewCertManager(),
 	}
 	return context
 }
@@ -54,24 +51,26 @@ func (c *Context) CertManager() *web.CertManager {
 
 func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Context {
 	context := &Context{
-		config:            c.config,
-		modelMap:          c.modelMap,
-		rLock:             c.rLock,
-		serviceMap:        c.serviceMap,
-		allServiceMap:     c.allServiceMap,
-		componentMap:      c.componentMap,
-		runnerMap:         c.runnerMap,
-		modelGroup:        c.modelGroup,
-		defaultModelGroup: c.defaultModelGroup,
-		handlerConfig:     handlerConfig,
-		filters:           filters,
-		certManager:       c.certManager,
+		config:        c.config,
+		modelMap:      c.modelMap,
+		rLock:         c.rLock,
+		serviceMap:    c.serviceMap,
+		allServiceMap: c.allServiceMap,
+		componentMap:  c.componentMap,
+		runnerMap:     c.runnerMap,
+		modelGroup:    c.modelGroup,
+		handlerConfig: handlerConfig,
+		filters:       filters,
+		certManager:   c.certManager,
 	}
 	return context
 }
 
 func (c *Context) GetTransaction() *model.Transaction {
-	return c.defaultModelGroup.GetTransaction()
+	return c.DefaultModelGroup().GetTransaction()
+}
+func (c *Context) GetTransactionByName(name string) *model.Transaction {
+	return c.GetModelGroup(name).GetTransaction()
 }
 func (c *Context) AddModel(model ...IModel) {
 	c.rLock.Lock()
@@ -101,9 +100,7 @@ func (c *Context) AddModelGroup(modelGroup ...IModelGroup) {
 	}
 }
 func (c *Context) DefaultModelGroup() IModelGroup {
-	c.rLock.RLock()
-	defer c.rLock.RUnlock()
-	return c.defaultModelGroup
+	return c.GetModelGroup(ModelDefaultName)
 }
 
 func (c *Context) GetModelGroup(name string) IModelGroup {

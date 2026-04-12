@@ -1,6 +1,12 @@
 package core
 
 import (
+	"net/http"
+	"os"
+	"path"
+	"strings"
+
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 )
 
@@ -44,7 +50,7 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 
-func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter, handles *web.Handles) *RestGroup {
+func restGroup(serverConfig *web.ServerConfig, converter IConverter, handles *web.Handles) *RestGroup {
 	return &RestGroup{
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
@@ -53,4 +59,91 @@ func NewRestGroup(serverConfig *web.ServerConfig, converter IConverter, handles 
 		filters:      make([]IFilter, 0),
 		handles:      handles,
 	}
+}
+
+type DefaultConverter struct {
+	ctx *Context
+}
+
+func (receiver *DefaultConverter) Init(ctx *Context) error {
+	receiver.ctx = ctx
+	return nil
+}
+
+func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *web.Request) {
+	value, err := filterChain.Next()
+	resp := request.Response()
+	if err != nil {
+		err0 := web.Errors(value, err)
+		resp.JSON(err0.Code, err0)
+		resp.Abort()
+	} else {
+		if value != nil {
+			switch t := value.(type) {
+			case *web.Message:
+				if t.Code == http.StatusMovedPermanently {
+					resp.Redirect(http.StatusMovedPermanently, t.Data.(string))
+					resp.Abort()
+					return
+				}
+				resp.JSON(t.Code, value)
+			case string:
+				_, err2 := resp.Write([]byte(t))
+				if err2 != nil {
+					resp.Abort()
+					return
+				}
+			case *web.File:
+				if len(t.FileName) == 0 {
+					_, filename := path.Split(t.Path)
+					t.FileName = filename
+				}
+				if util.IsNotBlank(t.Suffix) && !strings.HasSuffix(t.FileName, t.Suffix) {
+					if !strings.HasPrefix(t.Suffix, ".") {
+						t.Suffix = "." + t.Suffix
+					}
+					t.FileName = t.FileName + t.Suffix
+				}
+				resp.FileAttachment(t.Path, t.FileName)
+			case *os.File:
+				resp.FileAttachment(t.Name(), t.Name())
+			default:
+				resp.JSON(200, web.Data(value))
+			}
+		}
+	}
+}
+
+type RestGroupBuilder struct {
+	converter    IConverter
+	serverConfig *web.ServerConfig
+	handles      *web.Handles
+}
+
+func (b *RestGroupBuilder) Converter(converter IConverter) *RestGroupBuilder {
+	b.converter = converter
+	return b
+}
+func (b *RestGroupBuilder) ServerConfig(serverConfig *web.ServerConfig) *RestGroupBuilder {
+	b.serverConfig = serverConfig
+	return b
+}
+func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {
+	b.handles = handles
+	return b
+}
+func (b *RestGroupBuilder) Build() *RestGroup {
+	if b.serverConfig == nil {
+		b.serverConfig = web.DefaultServerConfig()
+	}
+	if b.handles == nil {
+		b.handles = web.NewHandles()
+	}
+	if b.converter == nil {
+		b.converter = &DefaultConverter{}
+	}
+	return restGroup(b.serverConfig, b.converter, b.handles)
+}
+func NewRestGroupBuilder() *RestGroupBuilder {
+	return &RestGroupBuilder{}
 }

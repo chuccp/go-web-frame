@@ -118,6 +118,9 @@ type RestGroupBuilder struct {
 	converter    IConverter
 	serverConfig *web.ServerConfig
 	handles      *web.Handles
+	rests        []IRest
+	filters      []IFilter
+	port         int
 }
 
 func (b *RestGroupBuilder) Converter(converter IConverter) *RestGroupBuilder {
@@ -128,13 +131,31 @@ func (b *RestGroupBuilder) ServerConfig(serverConfig *web.ServerConfig) *RestGro
 	b.serverConfig = serverConfig
 	return b
 }
+func (b *RestGroupBuilder) Port(port int) *RestGroupBuilder {
+	if b.serverConfig == nil {
+		b.serverConfig = web.DefaultServerConfig()
+	}
+	b.serverConfig.Port = port
+	return b
+}
 func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {
 	b.handles = handles
+	return b
+}
+func (b *RestGroupBuilder) Rest(rest ...IRest) *RestGroupBuilder {
+	b.rests = append(b.rests, rest...)
+	return b
+}
+func (b *RestGroupBuilder) Filter(filters ...IFilter) *RestGroupBuilder {
+	b.filters = append(b.filters, filters...)
 	return b
 }
 func (b *RestGroupBuilder) Build() *RestGroup {
 	if b.serverConfig == nil {
 		b.serverConfig = web.DefaultServerConfig()
+	}
+	if b.port != 0 {
+		b.serverConfig.Port = b.port
 	}
 	if b.handles == nil {
 		b.handles = web.NewHandles()
@@ -142,7 +163,10 @@ func (b *RestGroupBuilder) Build() *RestGroup {
 	if b.converter == nil {
 		b.converter = &DefaultConverter{}
 	}
-	return restGroup(b.serverConfig, b.converter, b.handles)
+	group := restGroup(b.serverConfig, b.converter, b.handles)
+	group.AddRest(b.rests...)
+	group.AddFilter(b.filters...)
+	return group
 }
 func NewRestGroupBuilder() *RestGroupBuilder {
 	return &RestGroupBuilder{}

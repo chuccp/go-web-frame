@@ -108,12 +108,15 @@ func EmptyModelGroup(name string) *ModelGroup {
 type ModelGroupBuilder struct {
 	db   *db.DB
 	name string
+	models []IModel
+	autoCreateTable bool
 }
 
 func NewModelGroupBuilder() *ModelGroupBuilder {
 	return &ModelGroupBuilder{
 		db:   nil,
 		name: ModelDefaultName,
+		models: make([]IModel, 0),
 	}
 }
 func (m *ModelGroupBuilder) DB(db *db.DB) *ModelGroupBuilder {
@@ -124,6 +127,17 @@ func (m *ModelGroupBuilder) Name(name string) *ModelGroupBuilder {
 	m.name = name
 	return m
 }
+func (m *ModelGroupBuilder) Model(model ...IModel) *ModelGroupBuilder {
+	m.models = append(m.models, model...)
+	return m
+}
+func (m *ModelGroupBuilder) AutoCreateTable(auto bool) *ModelGroupBuilder {
+	m.autoCreateTable = auto
+	return m
+}
 func (m *ModelGroupBuilder) Build() *ModelGroup {
-	return newModelGroup(m.db, m.name)
+	group := newModelGroup(m.db, m.name)
+	group.AddModel(m.models...)
+	group.AutoCreateTable(m.autoCreateTable)
+	return group
 }

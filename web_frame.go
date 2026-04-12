@@ -128,12 +128,15 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		var serverConfig = web.DefaultServerConfig()
 		err := w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.WithStackIf(err)
 		}
-		rootGroup := defaultRestGroup(serverConfig, w.handles)
-		rootGroup.AddRest(w.rests...)
-		rootGroup.AddFilter(w.filters...)
-		w.restGroups = append(w.restGroups, rootGroup)
+		restGroup := core.NewRestGroupBuilder().
+			ServerConfig(serverConfig).
+			Handles(w.handles).
+			Rest(w.rests...).
+			Filter(w.filters...).
+			Build()
+		w.restGroups = append(w.restGroups, restGroup)
 	}
 	server := core.NewServer(w.restGroups, w.runners)
 	err := server.Init(coreContext)

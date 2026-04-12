@@ -100,14 +100,9 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			}
 			modelGroupBuilder.DB(db)
 		}
+		modelGroupBuilder.Model(w.models...)
 		modelGroup := modelGroupBuilder.Build()
-		coreContext.AddModel(w.models...)
-		coreContext.AddModelGroup(modelGroup)
-		modelGroup.AddModel(w.models...)
-		err := modelGroup.Init(coreContext)
-		if err != nil {
-			return nil, nil, errors.WithStackIf(err)
-		}
+		w.modelGroup = append(w.modelGroup, modelGroup)
 	}
 
 	if len(w.modelGroup) > 0 {

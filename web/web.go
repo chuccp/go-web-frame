@@ -70,6 +70,10 @@ type Handles struct {
 	routeTree RouteTree
 }
 
+func (h *Handles) Empty() bool {
+	return len(h.routeTree) == 0
+}
+
 func (h *Handles) Handles(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	handlerInfo := NewHandlerInfo(relativePath, handlers...)
 	for _, httpMethod := range httpMethods {

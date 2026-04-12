@@ -80,26 +80,50 @@ func (m *ModelGroup) Init(context *Context) error {
 	return nil
 }
 
-const DefaultName = "DefaultName"
+const ModelDefaultName = "ModelDefaultName"
 
-func NewModelGroup(db *db.DB, name string) *ModelGroup {
+func newModelGroup(db *db.DB, name string) *ModelGroup {
 	return &ModelGroup{
 		db:     db,
 		name:   name,
 		models: make([]IModel, 0),
 	}
 }
-func DefaultModelGroup() *ModelGroup {
-	return &ModelGroup{
-		db:     nil,
-		name:   DefaultName,
-		models: make([]IModel, 0),
-	}
-}
+
+//	func DefaultModelGroup() *ModelGroup {
+//		return &ModelGroup{
+//			db:     nil,
+//			name:   DefaultName,
+//			models: make([]IModel, 0),
+//		}
+//	}
 func EmptyModelGroup(name string) *ModelGroup {
 	return &ModelGroup{
 		db:     nil,
 		name:   name,
 		models: make([]IModel, 0),
 	}
+}
+
+type ModelGroupBuilder struct {
+	db   *db.DB
+	name string
+}
+
+func NewModelGroupBuilder() *ModelGroupBuilder {
+	return &ModelGroupBuilder{
+		db:   nil,
+		name: ModelDefaultName,
+	}
+}
+func (m *ModelGroupBuilder) DB(db *db.DB) *ModelGroupBuilder {
+	m.db = db
+	return m
+}
+func (m *ModelGroupBuilder) Name(name string) *ModelGroupBuilder {
+	m.name = name
+	return m
+}
+func (m *ModelGroupBuilder) Build() *ModelGroup {
+	return newModelGroup(m.db, m.name)
 }

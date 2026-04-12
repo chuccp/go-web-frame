@@ -386,7 +386,7 @@ func main() {
 
 	// 创建一个需要认证的 REST 组
 	serverConfig := web.DefaultServerConfig()
-	authGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
+	authGroup := core.NewRestGroupBuilder().ServerConfig(serverConfig).Build()
 	authGroup.AddFilter(&AuthFilter{})
 
 	// 添加 REST 控制器

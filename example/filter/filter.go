@@ -112,7 +112,7 @@ func main() {
 	// Create a separate rest group for protected routes that requires auth
 	// This way all routes in this group get the AuthFilter
 	serverConfig := web.DefaultServerConfig()
-	protectedGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
+	protectedGroup := core.NewRestGroupBuilder().ServerConfig(serverConfig).Build()
 	protectedGroup.AddFilter(&AuthFilter{})
 
 	// Add a REST controller for protected routes

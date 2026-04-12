@@ -125,7 +125,7 @@ func main() {
 
 	// Create a rest group for API
 	serverConfig := web.DefaultServerConfig()
-	apiGroup := core.NewRestGroup(serverConfig, &wf.DefaultConverter{}, web.NewHandles())
+	apiGroup := core.NewRestGroupBuilder().ServerConfig(serverConfig).Build()
 
 	// Add our controller to the group - all routes are registered in controller.Init()
 	apiGroup.AddRest(&ApiController{})

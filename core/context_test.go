@@ -28,7 +28,7 @@ func (t *TestService) Init(ctx *Context) error {
 func TestContext_AddService(t *testing.T) {
 	// Given: a new context
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 
 	// When: adding a service
 	service := &TestService{}
@@ -46,7 +46,7 @@ func TestContext_AddService(t *testing.T) {
 func TestContext_GetService(t *testing.T) {
 	// Given: context with a service added
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 	service := &TestService{}
 	ctx.AddService(service)
 
@@ -60,7 +60,7 @@ func TestContext_GetService(t *testing.T) {
 func TestContext_GetConfig(t *testing.T) {
 	// Given: a context with config
 	cfg, _ := config.NewFromBytes([]byte(`{"test": {"key": "value", "num": 42}}`), "json")
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 
 	// When: getting config from context
 	resultConfig := ctx.GetConfig()
@@ -71,21 +71,28 @@ func TestContext_GetConfig(t *testing.T) {
 	assert.Equal(t, 42, resultConfig.GetInt("test.num"))
 }
 
-func TestGetService_NotFoundReturnsZero(t *testing.T) {
+// TestGetService_NotFoundPanics verifies that GetService panics when service is not found
+// because missing dependencies should fail fast at startup
+func TestGetService_NotFoundPanics(t *testing.T) {
 	// Given: an empty context
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 
 	// When: trying to get a non-existent service
-	// GetService returns the zero value for the type when not found
-	result := GetService[*TestService](ctx)
-	assert.Nil(t, result)
+	// Then: should panic since service is not registered
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic when getting non-existent service, got no panic")
+		}
+	}()
+
+	_ = GetService[*TestService](ctx)
 }
 
 func TestGetModel(t *testing.T) {
 	// This test just verifies the generic GetModel function signature compiles
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 	assert.NotNil(t, ctx)
 	// No panic expected when just checking the function exists
 }
@@ -163,7 +170,7 @@ func newContextWithHandlers(t *testing.T) (*Context, *web.Handles) {
 	cfg, err := config.NewFromBytes([]byte(`{}`), "json")
 	assert.NoError(t, err)
 	handles := web.NewHandles()
-	ctx := NewContext(cfg, nil)
+	ctx := NewContext(cfg)
 	ctx.handlerConfig = web.NewHandlerConfig(nil, handles)
 	return ctx, handles
 }

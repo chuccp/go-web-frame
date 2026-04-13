@@ -278,3 +278,10 @@ func (b *Builder) Build() *WebFrame {
 	}
 	return w
 }
+
+func NewRestGroupBuilder() *core.RestGroupBuilder {
+	return core.NewRestGroupBuilder()
+}
+func NewModelGroupBuilder() *core.ModelGroupBuilder {
+	return core.NewModelGroupBuilder()
+}

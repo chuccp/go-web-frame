@@ -132,10 +132,7 @@ func (b *RestGroupBuilder) ServerConfig(serverConfig *web.ServerConfig) *RestGro
 	return b
 }
 func (b *RestGroupBuilder) Port(port int) *RestGroupBuilder {
-	if b.serverConfig == nil {
-		b.serverConfig = web.DefaultServerConfig()
-	}
-	b.serverConfig.Port = port
+	b.port = port
 	return b
 }
 func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {

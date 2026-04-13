@@ -147,7 +147,9 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 
 }
 func (w *WebFrame) Run(ctx context.Context) error {
-	var logConfig log.Config
+	var logConfig = &log.Config{
+		Level: "debug",
+	}
 	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
 	if err != nil {
 		return err
@@ -158,7 +160,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 			log.Error("Failed to close the service", zap.Error(err))
 		}
 	}()
-	log.InitLogger(&logConfig)
+	log.InitLogger(logConfig)
 
 	server, _, err := w.init(ctx)
 	if err != nil {

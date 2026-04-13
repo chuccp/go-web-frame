@@ -16,6 +16,7 @@ type RestGroup struct {
 	converter    IConverter
 	filters      []IFilter
 	serverConfig *web.ServerConfig
+	ContextPath  string
 	handles      *web.Handles
 }
 
@@ -121,6 +122,7 @@ type RestGroupBuilder struct {
 	rests        []IRest
 	filters      []IFilter
 	port         int
+	contextPath  string
 }
 
 func (b *RestGroupBuilder) Converter(converter IConverter) *RestGroupBuilder {
@@ -133,6 +135,11 @@ func (b *RestGroupBuilder) ServerConfig(serverConfig *web.ServerConfig) *RestGro
 }
 func (b *RestGroupBuilder) Port(port int) *RestGroupBuilder {
 	b.port = port
+	return b
+}
+
+func (b *RestGroupBuilder) ContextPath(contextPath string) *RestGroupBuilder {
+	b.contextPath = contextPath
 	return b
 }
 func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {
@@ -159,6 +166,9 @@ func (b *RestGroupBuilder) Build() *RestGroup {
 	}
 	if b.converter == nil {
 		b.converter = &DefaultConverter{}
+	}
+	if b.contextPath != "" {
+		b.serverConfig.ContextPath = b.contextPath
 	}
 	group := restGroup(b.serverConfig, b.converter, b.handles)
 	group.AddRest(b.rests...)

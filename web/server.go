@@ -108,8 +108,8 @@ func (httpServer *HttpServer) Engine() *gin.Engine {
 }
 
 // joinContextPath joins the context path prefix with the relative path
-func (httpServer *HttpServer) joinContextPath(relativePath string) string {
-	contextPath := httpServer.serverConfig.ContextPath
+func (httpServer *HttpServer) joinContextPath(contextPath string, relativePath string) string {
+
 	if contextPath == "" {
 		return relativePath
 	}
@@ -138,17 +138,21 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
 			// 设置 contextPath 到 HandlerMeta
-			handlerInfo.HandlerMeta().SetContextPath(httpServer.serverConfig.ContextPath)
-			fullPath := httpServer.joinContextPath(handlerInfo.RelativePath())
+			fullPath := httpServer.joinContextPath(handlerConfig.contextPath, handlerInfo.RelativePath())
 			if handlerInfo.IsWebSocket() {
+				log.Debug("Handle WebSocket", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
 				httpServer.handleWebSocket(fullPath, handlerConfig, handlerInfo)
 			} else if handlerInfo.IsSSE() {
+				log.Debug("Handle SSE", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
 				httpServer.handleSSE(fullPath, handlerConfig, handlerInfo)
 			} else if handlerInfo.IsReverseProxy() {
+				log.Debug("Handle ReverseProxy", zap.String("path", fullPath))
 				httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo)
 			} else if handlerInfo.IsStaticFs() {
+				log.Debug("Handle StaticFs", zap.String("path", fullPath))
 				httpServer.handleStaticFs(fullPath, handlerInfo)
 			} else if len(handlerInfo.handlers) > 0 {
+				log.Debug("handle", zap.String("method", httpMethod), zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
 				httpServer.engine.Handle(httpMethod, fullPath, httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
 			}
 		}

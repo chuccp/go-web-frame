@@ -78,7 +78,6 @@ func (h *Handles) Handles(httpMethods []string, relativePath string, handlers ..
 	handlerInfo := NewHandlerInfo(relativePath, handlers...)
 	for _, httpMethod := range httpMethods {
 		h.routeTree.Set(httpMethod, handlerInfo)
-		log.Debug("handle", zap.String("method", httpMethod), zap.String("path", relativePath), zap.Any("handlers", Of(handlers...).GetFuncName()))
 	}
 	return handlerInfo
 }
@@ -123,9 +122,10 @@ func NewHandles() *Handles {
 }
 
 type HandlerConfig struct {
-	converter Converter
-	handles   *Handles
-	filters   []Filter
+	converter   Converter
+	handles     *Handles
+	filters     []Filter
+	contextPath string
 }
 
 type mockFilterChain struct {
@@ -218,11 +218,12 @@ func (h *HandlerConfig) Use(handlers ...Filter) {
 	h.filters = append(h.filters, handlers...)
 }
 
-func NewHandlerConfig(converter Converter, handles *Handles) *HandlerConfig {
+func NewHandlerConfig(converter Converter, handles *Handles, serverConfig *ServerConfig) *HandlerConfig {
 	return &HandlerConfig{
-		converter: converter,
-		filters:   make([]Filter, 0),
-		handles:   handles,
+		converter:   converter,
+		filters:     make([]Filter, 0),
+		handles:     handles,
+		contextPath: serverConfig.ContextPath,
 	}
 }
 

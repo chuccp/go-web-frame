@@ -19,12 +19,6 @@ func (hm *HandlerMeta) Get(key string) any {
 	}
 	return nil
 }
-func (hm *HandlerMeta) ContextPath() string {
-	return hm.contextPath
-}
-func (hm *HandlerMeta) SetContextPath(contextPath string) {
-	hm.contextPath = contextPath
-}
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
 		data: make(JsonObject),

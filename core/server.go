@@ -49,7 +49,7 @@ func (server *Server) Init(ctx *Context) error {
 		serverConfig := restGroup.serverConfig
 		httpServer := server.getHttpServer(serverConfig)
 		handlerConfig := web.NewHandlerConfig(restGroup.converter, restGroup.handles, serverConfig)
-		restContext := ctx.Copy(handlerConfig, restGroup.filters)
+		restContext := ctx.Copy(restGroup.handles, restGroup.filters)
 		err := restGroup.converter.Init(restContext)
 		if err != nil {
 			return errors.WithStackIf(err)

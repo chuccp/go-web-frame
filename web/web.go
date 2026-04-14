@@ -196,7 +196,7 @@ func (last *lastFilter) Handle(filterChain FilterChain, request *Request) (any, 
 func (h *Handles) HasHandler(httpMethod string, fullPath string) bool {
 	return h.routeTree.Has(httpMethod, fullPath)
 }
-func (h *Handles) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
+func (h *Handles) HandlerMeta(httpMethod, fullPath string) *HandlerMeta {
 	return h.routeTree.GetHandlerMeta(httpMethod, fullPath)
 }
 
@@ -206,7 +206,7 @@ func (h *Handles) RouteTree() RouteTree {
 func (h *HandlerConfig) HasHandler(httpMethod string, fullPath string) bool {
 	return h.handles.HasHandler(httpMethod, fullPath)
 }
-func (h *HandlerConfig) HandlerMeta(httpMethod string, fullPath string) *HandlerMeta {
+func (h *HandlerConfig) HandlerMeta(httpMethod, fullPath string) *HandlerMeta {
 	return h.handles.HandlerMeta(httpMethod, fullPath)
 }
 

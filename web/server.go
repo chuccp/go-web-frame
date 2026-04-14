@@ -108,7 +108,7 @@ func (httpServer *HttpServer) Engine() *gin.Engine {
 }
 
 // joinContextPath joins the context path prefix with the relative path
-func (httpServer *HttpServer) joinContextPath(contextPath string, relativePath string) string {
+func joinContextPath(contextPath string, relativePath string) string {
 
 	if contextPath == "" {
 		return relativePath
@@ -138,7 +138,8 @@ func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
 	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 		for _, handlerInfo := range routeInfo {
 			// 设置 contextPath 到 HandlerMeta
-			fullPath := httpServer.joinContextPath(handlerConfig.contextPath, handlerInfo.RelativePath())
+			fullPath := joinContextPath(handlerConfig.contextPath, handlerInfo.path)
+			handlerInfo.fullPath = fullPath
 			if handlerInfo.IsWebSocket() {
 				log.Debug("Handle WebSocket", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
 				httpServer.handleWebSocket(fullPath, handlerConfig, handlerInfo)
@@ -257,8 +258,7 @@ func (httpServer *HttpServer) toGinHandlerFunc(handlerConfig *HandlerConfig, han
 	handlerFunc := func(ctx *gin.Context) {
 		resp := newResponse(ctx)
 		handlerMeta := handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath())
-		handlerMeta.SetContextPath(httpServer.serverConfig.ContextPath)
-		request := NewRequest(ctx, resp, handlerMeta)
+		request := newRequest(ctx, resp, handlerMeta, handlerConfig)
 		mock := newMockFilterChain(request, handlerConfig.converter, handlerConfig.filters, &lastFilter{handler})
 		mock.Converter()
 	}

@@ -24,13 +24,13 @@ type Context struct {
 	componentMap  map[string]IComponent
 	runnerMap     map[string]IRunner
 	modelGroup    map[string]IModelGroup
-	handlerConfig *web.HandlerConfig
+	handles       *web.Handles
 	filters       []IFilter
 	certManager   *web.CertManager
 	allServiceMap map[string]IService
 }
 
-func NewContext(config config2.IConfig) *Context {
+func NewContext(handles *web.Handles, config config2.IConfig) *Context {
 	context := &Context{
 		config:        config,
 		modelMap:      make(map[string]IModel),
@@ -42,6 +42,7 @@ func NewContext(config config2.IConfig) *Context {
 		modelGroup:    make(map[string]IModelGroup),
 		filters:       make([]IFilter, 0),
 		certManager:   web.NewCertManager(),
+		handles:       handles,
 	}
 	return context
 }
@@ -49,7 +50,7 @@ func (c *Context) CertManager() *web.CertManager {
 	return c.certManager
 }
 
-func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Context {
+func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
 	context := &Context{
 		config:        c.config,
 		modelMap:      c.modelMap,
@@ -59,7 +60,7 @@ func (c *Context) Copy(handlerConfig *web.HandlerConfig, filters []IFilter) *Con
 		componentMap:  c.componentMap,
 		runnerMap:     c.runnerMap,
 		modelGroup:    c.modelGroup,
-		handlerConfig: handlerConfig,
+		handles:       handles,
 		filters:       filters,
 		certManager:   c.certManager,
 	}
@@ -189,11 +190,11 @@ func (c *Context) Static(relativePath string, filepath string) *web.HandlerInfo 
 	return c.StaticFs(relativePath, http.Dir(filepath))
 }
 func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.HandlerInfo {
-	return c.handlerConfig.Handles().AddReverseProxy(relativePath, targetUrl)
+	return c.handles.AddReverseProxy(relativePath, targetUrl)
 }
 
 func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.HandlerInfo {
-	return c.handlerConfig.Handles().AddStaticFs(relativePath, fs)
+	return c.handles.AddStaticFs(relativePath, fs)
 }
 
 func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler, upgrader ...*websocket.Upgrader) *web.HandlerInfo {
@@ -201,11 +202,11 @@ func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler, u
 	if len(upgrader) > 0 {
 		up = upgrader[0]
 	}
-	return c.handlerConfig.Handles().AddWebSocket(relativePath, handler, up)
+	return c.handles.AddWebSocket(relativePath, handler, up)
 }
 
 func (c *Context) SSE(relativePath string, handler web.SSEHandler) *web.HandlerInfo {
-	return c.handlerConfig.Handles().AddSSE(relativePath, handler)
+	return c.handles.AddSSE(relativePath, handler)
 }
 
 func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
@@ -219,7 +220,7 @@ func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.Han
 }
 
 func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handles(anyMethods, relativePath, handlers...)
+	return c.handles.Handles(anyMethods, relativePath, handlers...)
 }
 func (c *Context) Go(f func(c *Context)) {
 	go func() {
@@ -235,12 +236,8 @@ func (c *Context) Go(f func(c *Context)) {
 }
 
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handles([]string{httpMethod}, relativePath, handlers...)
+	return c.handles.Handles([]string{httpMethod}, relativePath, handlers...)
 }
-func (c *Context) handles(httpMethod []string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handlerConfig.Handle(httpMethod, relativePath, handlers...)
-}
-
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config
 }

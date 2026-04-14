@@ -34,11 +34,12 @@ func (o JsonObject) Add(key string, value any) {
 }
 
 type Request struct {
-	c           *gin.Context
-	cookie      *Cookie
-	jsonBody    *JsonObject
-	handlerMeta *HandlerMeta
-	response    Response
+	c             *gin.Context
+	cookie        *Cookie
+	jsonBody      *JsonObject
+	handlerMeta   *HandlerMeta
+	response      Response
+	handlerConfig *HandlerConfig
 }
 
 func (r *Request) HandlerMeta() *HandlerMeta {
@@ -46,7 +47,7 @@ func (r *Request) HandlerMeta() *HandlerMeta {
 }
 
 func (r *Request) ContextPath() string {
-	return r.handlerMeta.ContextPath()
+	return r.handlerConfig.contextPath
 }
 func (r *Request) FullPath() string {
 	return r.c.FullPath()
@@ -226,6 +227,18 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
-func NewRequest(c *gin.Context, response Response, handlerMeta *HandlerMeta) *Request {
-	return &Request{c: c, cookie: NewCookie(c), response: response, handlerMeta: handlerMeta}
+func newRequest(c *gin.Context, response Response, handlerMeta *HandlerMeta, handlerConfig *HandlerConfig) *Request {
+	return &Request{c: c, cookie: NewCookie(c), response: response, handlerMeta: handlerMeta, handlerConfig: handlerConfig}
+}
+
+// NewRequestForTest creates a Request for testing purposes.
+// This is exported only for use in tests outside the web package.
+func NewRequestForTest(c *gin.Context, response Response, handlerMeta *HandlerMeta) *Request {
+	handlerConfig := &HandlerConfig{
+		converter:   nil,
+		handles:     NewHandles(),
+		filters:     nil,
+		contextPath: "",
+	}
+	return newRequest(c, response, handlerMeta, handlerConfig)
 }

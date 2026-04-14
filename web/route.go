@@ -20,18 +20,22 @@ type SSEStream struct {
 }
 
 type HandlerInfo struct {
-	path           string
-	handlerMeta    *HandlerMeta
-	handlers       []HandlerFunc
-	fs             http.FileSystem   // 静态文件系统，用于 StaticFs
-	targetUrl      string            // 反向代理目标 URL，用于 ReverseProxy
-	wsHandler      WebSocketHandler  // WebSocket handler
-	sseHandler     SSEHandler         // SSE handler
-	wsUpgrader     *websocket.Upgrader // WebSocket upgrader config
+	path        string
+	fullPath    string
+	handlerMeta *HandlerMeta
+	handlers    []HandlerFunc
+	fs          http.FileSystem     // 静态文件系统，用于 StaticFs
+	targetUrl   string              // 反向代理目标 URL，用于 ReverseProxy
+	wsHandler   WebSocketHandler    // WebSocket handler
+	sseHandler  SSEHandler          // SSE handler
+	wsUpgrader  *websocket.Upgrader // WebSocket upgrader config
 }
 
 func (hi *HandlerInfo) RelativePath() string {
 	return hi.path
+}
+func (hi *HandlerInfo) FullPath() string {
+	return hi.fullPath
 }
 func (hi *HandlerInfo) HandlerMeta() *HandlerMeta {
 	return hi.handlerMeta
@@ -108,7 +112,7 @@ func (rt RouteTree) Has(method, path string) bool {
 func (rt RouteTree) GetHandlerMeta(method, path string) *HandlerMeta {
 	if rt[method] != nil {
 		for _, info := range rt[method] {
-			if info.path == path {
+			if info.fullPath == path {
 				return info.handlerMeta
 			}
 		}

@@ -68,12 +68,7 @@ func TestHttpServer_JoinContextPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serverConfig := &ServerConfig{
-				Port:        19009,
-				ContextPath: tt.contextPath,
-			}
-			httpServer := &HttpServer{serverConfig: serverConfig}
-			result := httpServer.joinContextPath(tt.relativePath)
+			result := joinContextPath(tt.contextPath, tt.relativePath)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -92,7 +87,7 @@ func TestHttpServer_HandleWithContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles))
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -122,7 +117,7 @@ func TestHttpServer_WebSocketWithContextPath(t *testing.T) {
 	}, nil)
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles))
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
 
 	// Verify route is registered with context path
 	routes := server.Engine().Routes()
@@ -148,7 +143,7 @@ func TestHttpServer_SSEWithContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles))
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
 
 	// Verify route is registered with context path
 	routes := server.Engine().Routes()
@@ -172,7 +167,7 @@ func TestHttpServer_StaticFsWithContextPath(t *testing.T) {
 	handles.AddStaticFs("/assets", http.Dir("."))
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles))
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
 
 	// Verify routes are registered with context path
 	routes := server.Engine().Routes()
@@ -189,4 +184,103 @@ func TestHttpServer_StaticFsWithContextPath(t *testing.T) {
 	}
 	assert.True(t, getFound, "Static GET route should be registered with context path")
 	assert.True(t, headFound, "Static HEAD route should be registered with context path")
+}
+
+func TestHandlerInfo_FullPath(t *testing.T) {
+	handles := NewHandles()
+	info := handles.Handle(http.MethodGet, "/users", func(req *Request) (any, error) {
+		return "ok", nil
+	})
+
+	// Before Handle is called on server, fullPath should be empty
+	assert.Empty(t, info.FullPath())
+	assert.Equal(t, "/users", info.RelativePath())
+
+	// After Handle is called on server, fullPath should be set
+	serverConfig := DefaultServerConfig()
+	server := NewHttpServer(serverConfig, NewCertManager())
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+
+	assert.Equal(t, "/users", info.FullPath())
+}
+
+func TestHandlerInfo_FullPathWithContextPath(t *testing.T) {
+	serverConfig := &ServerConfig{
+		Port:        19009,
+		ContextPath: "/api/v1",
+	}
+
+	handles := NewHandles()
+	info := handles.Handle(http.MethodGet, "/users/:id", func(req *Request) (any, error) {
+		return "ok", nil
+	})
+
+	server := NewHttpServer(serverConfig, NewCertManager())
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+
+	assert.Equal(t, "/users/:id", info.RelativePath())
+	assert.Equal(t, "/api/v1/users/:id", info.FullPath())
+}
+
+func TestRequest_ContextPath(t *testing.T) {
+	serverConfig := &ServerConfig{
+		Port:        19009,
+		ContextPath: "/api",
+	}
+
+	handles := NewHandles()
+	var capturedContextPath string
+	handles.Handle(http.MethodGet, "/test", func(req *Request) (any, error) {
+		capturedContextPath = req.ContextPath()
+		return "ok", nil
+	})
+
+	server := NewHttpServer(serverConfig, NewCertManager())
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+
+	ts := httptest.NewServer(server.Engine())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/test")
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "/api", capturedContextPath)
+	resp.Body.Close()
+}
+
+func TestRequest_ContextPath_Empty(t *testing.T) {
+	serverConfig := DefaultServerConfig()
+
+	handles := NewHandles()
+	var capturedContextPath string
+	handles.Handle(http.MethodGet, "/test", func(req *Request) (any, error) {
+		capturedContextPath = req.ContextPath()
+		return "ok", nil
+	})
+
+	server := NewHttpServer(serverConfig, NewCertManager())
+	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+
+	ts := httptest.NewServer(server.Engine())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/test")
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Empty(t, capturedContextPath)
+	resp.Body.Close()
+}
+
+func TestHandles_AddReverseProxy(t *testing.T) {
+	handles := NewHandles()
+	info := handles.AddReverseProxy("/proxy", "http://localhost:8080")
+
+	assert.Equal(t, "/proxy", info.RelativePath())
+	assert.True(t, info.IsReverseProxy())
+	assert.Equal(t, "http://localhost:8080", info.TargetUrl())
+
+	// Reverse proxy should register all HTTP methods
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
+		assert.True(t, handles.HasHandler(method, "/proxy"), "method %s should be registered", method)
+	}
 }

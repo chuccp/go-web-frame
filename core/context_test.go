@@ -28,7 +28,7 @@ func (t *TestService) Init(ctx *Context) error {
 func TestContext_AddService(t *testing.T) {
 	// Given: a new context
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(cfg)
+	ctx := NewContext(web.NewHandles(), cfg)
 
 	// When: adding a service
 	service := &TestService{}
@@ -46,7 +46,7 @@ func TestContext_AddService(t *testing.T) {
 func TestContext_GetService(t *testing.T) {
 	// Given: context with a service added
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(cfg)
+	ctx := NewContext(web.NewHandles(), cfg)
 	service := &TestService{}
 	ctx.AddService(service)
 
@@ -60,7 +60,7 @@ func TestContext_GetService(t *testing.T) {
 func TestContext_GetConfig(t *testing.T) {
 	// Given: a context with config
 	cfg, _ := config.NewFromBytes([]byte(`{"test": {"key": "value", "num": 42}}`), "json")
-	ctx := NewContext(cfg)
+	ctx := NewContext(web.NewHandles(), cfg)
 
 	// When: getting config from context
 	resultConfig := ctx.GetConfig()
@@ -76,7 +76,7 @@ func TestContext_GetConfig(t *testing.T) {
 func TestGetService_NotFoundPanics(t *testing.T) {
 	// Given: an empty context
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(cfg)
+	ctx := NewContext(web.NewHandles(), cfg)
 
 	// When: trying to get a non-existent service
 	// Then: should panic since service is not registered
@@ -92,7 +92,7 @@ func TestGetService_NotFoundPanics(t *testing.T) {
 func TestGetModel(t *testing.T) {
 	// This test just verifies the generic GetModel function signature compiles
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(cfg)
+	ctx := NewContext(web.NewHandles(), cfg)
 	assert.NotNil(t, ctx)
 	// No panic expected when just checking the function exists
 }
@@ -162,7 +162,7 @@ func newTestRequest(t *testing.T, method, target string, body io.Reader, headers
 	}
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
-	return web.NewRequest(c, &testResponse{ResponseWriter: c.Writer, ctx: c}, web.NewHandlerMeta()), recorder.ResponseRecorder
+	return web.NewRequestForTest(c, &testResponse{ResponseWriter: c.Writer, ctx: c}, web.NewHandlerMeta()), recorder.ResponseRecorder
 }
 
 func newContextWithHandlers(t *testing.T) (*Context, *web.Handles) {
@@ -170,8 +170,7 @@ func newContextWithHandlers(t *testing.T) (*Context, *web.Handles) {
 	cfg, err := config.NewFromBytes([]byte(`{}`), "json")
 	assert.NoError(t, err)
 	handles := web.NewHandles()
-	ctx := NewContext(cfg)
-	ctx.handlerConfig = web.NewHandlerConfig(nil, handles)
+	ctx := NewContext(handles, cfg)
 	return ctx, handles
 }
 
@@ -203,14 +202,15 @@ func TestContext_StaticRegistersInRouteTree(t *testing.T) {
 }
 
 func TestContext_StaticFsServesFileViaHttpServer(t *testing.T) {
-	ctx, _ := newContextWithHandlers(t)
+	ctx, handles := newContextWithHandlers(t)
 	fs := http.FS(os.DirFS("testdata"))
 
 	ctx.StaticFs("/assets", fs)
 
 	// 使用 HttpServer.Handle() 来处理静态文件
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
-	server.Handle(ctx.handlerConfig)
+	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
+	server.Handle(handlerConfig)
 
 	// 创建测试请求
 	req := httptest.NewRequest(http.MethodGet, "/assets/hello.txt", nil)
@@ -223,14 +223,15 @@ func TestContext_StaticFsServesFileViaHttpServer(t *testing.T) {
 }
 
 func TestContext_StaticFsHandlesHeadRequestViaHttpServer(t *testing.T) {
-	ctx, _ := newContextWithHandlers(t)
+	ctx, handles := newContextWithHandlers(t)
 	fs := http.FS(os.DirFS("testdata"))
 
 	ctx.StaticFs("/assets", fs)
 
 	// 使用 HttpServer.Handle() 来处理静态文件
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
-	server.Handle(ctx.handlerConfig)
+	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
+	server.Handle(handlerConfig)
 
 	req := httptest.NewRequest(http.MethodHead, "/assets/hello.txt", nil)
 	recorder := httptest.NewRecorder()
@@ -265,7 +266,8 @@ func TestContext_ReverseProxyForwardsRequest(t *testing.T) {
 
 	// 使用 HttpServer.Handle() 来处理反向代理
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
-	server.Handle(ctx.handlerConfig)
+	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
+	server.Handle(handlerConfig)
 
 	// 使用实际的 HTTP 服务器测试
 	ts := httptest.NewServer(server.Engine())

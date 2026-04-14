@@ -85,7 +85,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		}
 	}
 
-	coreContext := core.NewContext(w.config)
+	coreContext := core.NewContext(w.handles, w.config)
 	coreContext.AddComponent(w.component...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)

@@ -9,13 +9,20 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 )
 
+// Converter transforms handler return values into HTTP responses.
+// It is called after the filter chain completes.
 type Converter interface {
+	// Request converts the handler result to an HTTP response.
 	Request(filterChain FilterChain, request *Request)
 }
 
+// DefaultConverter is the built-in converter that handles Message, string,
+// *File, *os.File, and arbitrary values (converted to JSON).
 type DefaultConverter struct {
 }
 
+// Request converts the handler result to the appropriate HTTP response.
+// It handles errors, Message, string, file download, and JSON responses.
 func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 	value, err := filterChain.Next()
 	if err == nil {

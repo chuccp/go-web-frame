@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -105,10 +106,14 @@ func (s *SSEStream) Heartbeat() error {
 	return nil
 }
 
-// StartHeartbeat starts a periodic heartbeat goroutine
-func (s *SSEStream) StartHeartbeat(interval time.Duration) chan struct{} {
+// StartHeartbeat starts a periodic heartbeat goroutine.
+// Returns a stop function that blocks until the goroutine has exited.
+func (s *SSEStream) StartHeartbeat(interval time.Duration) func() {
 	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -124,5 +129,8 @@ func (s *SSEStream) StartHeartbeat(interval time.Duration) chan struct{} {
 			}
 		}
 	}()
-	return stop
+	return func() {
+		close(stop)
+		wg.Wait()
+	}
 }

@@ -12,11 +12,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// MemFileSystem is a memory-cached file system that reads from disk locations
+// and caches files in memory for faster subsequent access.
 type MemFileSystem struct {
 	fs           afero.Fs
 	serverConfig *ServerConfig
 }
 
+// Open opens a file by name, searching configured locations.
 func (m *MemFileSystem) Open(name string) (http.File, error) {
 	var err0 error
 	if m.noLocation() {
@@ -42,12 +45,12 @@ func (m *MemFileSystem) Open(name string) (http.File, error) {
 	return nil, errors.WithStackIf(err0)
 
 }
-func (m *MemFileSystem) Exists(name string) (bool, error) {
 
+// Exists reports whether a file exists in any configured location.
+func (m *MemFileSystem) Exists(name string) (bool, error) {
 	if m.noLocation() {
 		return afero.Exists(m.fs, name)
 	}
-
 	for _, location := range m.serverConfig.Locations {
 		exists, err := afero.Exists(m.fs, path.Join(location, name))
 		if err != nil {
@@ -58,7 +61,6 @@ func (m *MemFileSystem) Exists(name string) (bool, error) {
 		}
 	}
 	return false, nil
-
 }
 
 func (m *MemFileSystem) noLocation() bool {
@@ -68,6 +70,7 @@ func (m *MemFileSystem) noLocation() bool {
 	return false
 }
 
+// Stat returns file info for the named file, searching configured locations.
 func (m *MemFileSystem) Stat(name string) (os.FileInfo, error) {
 	if m.noLocation() {
 		return m.fs.Stat(name)
@@ -86,6 +89,8 @@ func (m *MemFileSystem) Stat(name string) (os.FileInfo, error) {
 	}
 	return nil, errors.WithStackIf(err0)
 }
+
+// NewMemFileSystem creates a MemFileSystem with the given cache duration and server config.
 func NewMemFileSystem(cacheTime time.Duration, serverConfig *ServerConfig) *MemFileSystem {
 	baseFs := afero.NewOsFs()
 	cacheLayer := afero.NewMemMapFs()
@@ -93,6 +98,8 @@ func NewMemFileSystem(cacheTime time.Duration, serverConfig *ServerConfig) *MemF
 		afero.NewCacheOnReadFs(baseFs, cacheLayer, cacheTime), serverConfig,
 	}
 }
+
+// DefaultMemFileSystem creates a MemFileSystem with a 10-minute cache duration.
 func DefaultMemFileSystem(serverConfig *ServerConfig) *MemFileSystem {
 	return NewMemFileSystem(10*time.Minute, serverConfig)
 }

@@ -5,13 +5,16 @@ import (
 	"strings"
 )
 
+// File represents a downloadable file response.
+// Path is the file system path, FileName is the download name,
+// and Suffix is an optional suffix appended to the filename.
 type File struct {
-	Path     string
-	FileName string
-	Suffix   string
+	Path     string // File system path to the file
+	FileName string // Name shown to the client on download
+	Suffix   string // Optional suffix appended to the filename
 }
 
-// CreateFile creates a File instance with auto-extracted filename and suffix
+// CreateFile creates a File from a path, auto-extracting the filename and suffix.
 func CreateFile(path string) *File {
 	fileName := filepath.Base(path)
 	suffix := ""
@@ -25,7 +28,7 @@ func CreateFile(path string) *File {
 	}
 }
 
-// CreateFileWithName creates a File instance with a custom filename
+// CreateFileWithName creates a File from a path with a custom download filename.
 func CreateFileWithName(path string, fileName string) *File {
 	suffix := ""
 	if idx := strings.LastIndex(fileName, "."); idx != -1 {

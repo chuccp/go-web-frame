@@ -174,8 +174,8 @@ func TestSSEStream_HeartbeatGoroutine(t *testing.T) {
 	// Wait for a few heartbeats
 	time.Sleep(150 * time.Millisecond)
 
-	// Stop heartbeat
-	close(stop)
+	// Stop heartbeat (blocks until goroutine exits)
+	stop()
 	stream.Close()
 
 	// Verify heartbeat was sent (body should contain heartbeat comments)

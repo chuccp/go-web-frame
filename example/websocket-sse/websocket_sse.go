@@ -101,7 +101,7 @@ func (c *SSEController) Init(ctx *core.Context) error {
 
 		// Start heartbeat to keep connection alive
 		stopHeartbeat := stream.StartHeartbeat(15 * time.Second)
-		defer close(stopHeartbeat)
+		defer stopHeartbeat()
 
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()

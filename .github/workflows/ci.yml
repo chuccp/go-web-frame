@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.21', '1.22']
+        go-version: ['1.24']
 
     steps:
       - name: Checkout code
@@ -33,14 +33,16 @@ jobs:
         run: go test -v -race ./...
 
       - name: Run tests with coverage
-        run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
+        run: |
+          mkdir -p coverage
+          for pkg in $(go list ./...); do
+            go test -coverprofile="coverage/$(echo $pkg | tr / _).out" -covermode=atomic "$pkg"
+          done
+          # Merge coverage files (deduplicate mode line)
+          echo "mode: atomic" > coverage.out
+          for f in coverage/*.out; do grep -v "^mode:" "$f" >> coverage.out; done
+          echo "Coverage summary:"
+          go tool cover -func=coverage.out | tail -1
 
       - name: Run benchmarks
         run: go test -bench=. -benchmem -run=XXX ./...
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          fail_ci_if_error: false
-          verbose: true

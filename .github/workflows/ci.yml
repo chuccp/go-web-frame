@@ -36,9 +36,13 @@ jobs:
         run: |
           mkdir -p coverage
           for pkg in $(go list ./...); do
+            # Skip packages without test files to avoid covdata errors
+            if ! go list -f '{{join .TestGoFiles " "}}' "$pkg" | grep -q '_test.go'; then
+              echo "SKIP (no tests): $pkg"
+              continue
+            fi
             go test -coverprofile="coverage/$(echo $pkg | tr / _).out" -covermode=atomic "$pkg"
           done
-          # Merge coverage files (deduplicate mode line)
           echo "mode: atomic" > coverage.out
           for f in coverage/*.out; do grep -v "^mode:" "$f" >> coverage.out; done
           echo "Coverage summary:"

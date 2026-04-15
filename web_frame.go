@@ -170,17 +170,16 @@ func (w *WebFrame) Run(ctx context.Context) error {
 }
 
 type Builder struct {
-	component         []core.IComponent
-	restGroups        []*core.RestGroup
-	modelGroup        []core.IModelGroup
-	config            config2.IConfig
-	models            []core.IModel
-	services          []core.IService
-	rests             []core.IRest
-	runners           []core.IRunner
-	filters           []core.IFilter
-	defaultModelGroup core.IModelGroup
-	handles           *web.Handles
+	component  []core.IComponent
+	restGroups []*core.RestGroup
+	modelGroup []core.IModelGroup
+	config     config2.IConfig
+	models     []core.IModel
+	services   []core.IService
+	rests      []core.IRest
+	runners    []core.IRunner
+	filters    []core.IFilter
+	handles    *web.Handles
 }
 
 func NewBuilder(config config2.IConfig) *Builder {
@@ -194,9 +193,8 @@ func NewBuilder(config config2.IConfig) *Builder {
 		component:  make([]core.IComponent, 0),
 		runners:    make([]core.IRunner, 0),
 		filters:    make([]core.IFilter, 0),
-		//defaultModelGroup: core.DefaultModelGroup(),
-		handles: web.NewHandles(),
-		config:  config,
+		handles:    web.NewHandles(),
+		config:     config,
 	}
 	return builder
 }

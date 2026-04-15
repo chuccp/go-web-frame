@@ -65,7 +65,7 @@ func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 		mysqlConfig.Port = 3306
 	}
 	if util.IsBlank(mysqlConfig.Charset) {
-		mysqlConfig.Charset = "utf8"
+		mysqlConfig.Charset = "utf8mb4"
 	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)
 	log2.Debug("mysql", zap.String("dsn", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", mysqlConfig.Username, "******", mysqlConfig.Host, mysqlConfig.Port, mysqlConfig.Database, mysqlConfig.Charset)))

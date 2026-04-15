@@ -70,7 +70,7 @@ func (server *Server) Init(ctx *Context) error {
 				return errors.WithStackIf(err)
 			}
 		}
-		httpServer.Handle(handlerConfig)
+		httpServer.AddHandle(handlerConfig)
 	}
 	return nil
 }
@@ -78,11 +78,7 @@ func (server *Server) Run(ctx context.Context) error {
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
 	errorsPool := wg.WithContext(ctx).WithFirstError()
-	for _, httpServer := range server.httpServers {
-		errorsPool.Go(func(ctx context.Context) error {
-			return errors.WithStackIf(httpServer.Run(ctx))
-		})
-	}
+
 	for _, runner := range server.runners {
 		errorsPool.Go(func(ctx context.Context) error {
 			log.Info("runner", zap.String("runner", util.GetStructFullName(runner)))
@@ -94,9 +90,18 @@ func (server *Server) Run(ctx context.Context) error {
 			return err
 		})
 	}
+
 	errorsPool.Go(func(ctx context.Context) error {
 		return errors.WithStackIf(server.certManager.Run(ctx))
 	})
+
+	for _, httpServer := range server.httpServers {
+		httpServer.Handle()
+		errorsPool.Go(func(ctx context.Context) error {
+			return errors.WithStackIf(httpServer.Run(ctx))
+		})
+	}
+
 	return errors.WithStackIf(errorsPool.Wait())
 }
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {

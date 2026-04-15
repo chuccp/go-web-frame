@@ -67,11 +67,12 @@ func DefaultServerConfig() *ServerConfig {
 }
 
 type HttpServer struct {
-	httpServer    *http.Server
-	engine        *gin.Engine
-	serverConfig  *ServerConfig
-	certManager   *CertManager
-	memFileSystem *MemFileSystem
+	httpServer     *http.Server
+	engine         *gin.Engine
+	serverConfig   *ServerConfig
+	certManager    *CertManager
+	memFileSystem  *MemFileSystem
+	handlerConfigs []*HandlerConfig
 }
 
 func defaultEngine() *gin.Engine {
@@ -93,10 +94,11 @@ func defaultEngine() *gin.Engine {
 func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpServer {
 	engine := defaultEngine()
 	return &HttpServer{
-		engine:        engine,
-		serverConfig:  serverConfig,
-		certManager:   certManager,
-		memFileSystem: DefaultMemFileSystem(serverConfig),
+		engine:         engine,
+		serverConfig:   serverConfig,
+		certManager:    certManager,
+		memFileSystem:  DefaultMemFileSystem(serverConfig),
+		handlerConfigs: make([]*HandlerConfig, 0),
 	}
 }
 func (httpServer *HttpServer) Port() int {
@@ -132,29 +134,34 @@ func joinContextPath(contextPath string, relativePath string) string {
 
 	return contextPath + relativePath
 }
+func (httpServer *HttpServer) AddHandle(handlerConfig *HandlerConfig) {
+	httpServer.handlerConfigs = append(httpServer.handlerConfigs, handlerConfig)
+}
 
-func (httpServer *HttpServer) Handle(handlerConfig *HandlerConfig) {
-	// 处理 API 路由
-	for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
-		for _, handlerInfo := range routeInfo {
-			// 设置 contextPath 到 HandlerMeta
-			fullPath := joinContextPath(handlerConfig.contextPath, handlerInfo.path)
-			handlerInfo.fullPath = fullPath
-			if handlerInfo.IsWebSocket() {
-				log.Debug("Handle WebSocket", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
-				httpServer.handleWebSocket(fullPath, handlerConfig, handlerInfo)
-			} else if handlerInfo.IsSSE() {
-				log.Debug("Handle SSE", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
-				httpServer.handleSSE(fullPath, handlerConfig, handlerInfo)
-			} else if handlerInfo.IsReverseProxy() {
-				log.Debug("Handle ReverseProxy", zap.String("path", fullPath))
-				httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo)
-			} else if handlerInfo.IsStaticFs() {
-				log.Debug("Handle StaticFs", zap.String("path", fullPath))
-				httpServer.handleStaticFs(fullPath, handlerInfo)
-			} else if len(handlerInfo.handlers) > 0 {
-				log.Debug("handle", zap.String("method", httpMethod), zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
-				httpServer.engine.Handle(httpMethod, fullPath, httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
+func (httpServer *HttpServer) Handle() {
+	for _, handlerConfig := range httpServer.handlerConfigs {
+		// 处理 API 路由
+		for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
+			for _, handlerInfo := range routeInfo {
+				// 设置 contextPath 到 HandlerMeta
+				fullPath := joinContextPath(handlerConfig.contextPath, handlerInfo.path)
+				handlerInfo.fullPath = fullPath
+				if handlerInfo.IsWebSocket() {
+					log.Debug("Handle WebSocket", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
+					httpServer.handleWebSocket(fullPath, handlerConfig, handlerInfo)
+				} else if handlerInfo.IsSSE() {
+					log.Debug("Handle SSE", zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
+					httpServer.handleSSE(fullPath, handlerConfig, handlerInfo)
+				} else if handlerInfo.IsReverseProxy() {
+					log.Debug("Handle ReverseProxy", zap.String("path", fullPath))
+					httpServer.handleReverseProxy(httpMethod, fullPath, handlerInfo)
+				} else if handlerInfo.IsStaticFs() {
+					log.Debug("Handle StaticFs", zap.String("path", fullPath))
+					httpServer.handleStaticFs(fullPath, handlerInfo)
+				} else if len(handlerInfo.handlers) > 0 {
+					log.Debug("handle", zap.String("method", httpMethod), zap.String("path", fullPath), zap.Any("handlers", Of(handlerInfo.handlers...).GetFuncName()))
+					httpServer.engine.Handle(httpMethod, fullPath, httpServer.ToGinHandlerFunc(handlerConfig, handlerInfo.handlers...)...)
+				}
 			}
 		}
 	}
@@ -228,7 +235,7 @@ func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath
 		if relativePath != "/" && strings.HasPrefix(originalPath, relativePath) {
 			requestPath = strings.TrimPrefix(originalPath, relativePath)
 		}
-		r.URL.Path = joinURLPath(target.Path, requestPath)
+		r.URL.Path = util.JoinUrl(target.Path, requestPath)
 		r.URL.RawPath = r.URL.EscapedPath()
 		r.Host = target.Host
 	}
@@ -604,21 +611,4 @@ func (cm *CertManager) Run(ctx context.Context) error {
 		return errors.WithStackIf(errorsPool.Wait())
 	}
 	return nil
-}
-
-func joinURLPath(basePath, extraPath string) string {
-	if basePath == "" {
-		basePath = "/"
-	}
-	if extraPath == "" {
-		extraPath = "/"
-	}
-	switch {
-	case strings.HasSuffix(basePath, "/") && strings.HasPrefix(extraPath, "/"):
-		return basePath + strings.TrimPrefix(extraPath, "/")
-	case !strings.HasSuffix(basePath, "/") && !strings.HasPrefix(extraPath, "/"):
-		return basePath + "/" + extraPath
-	default:
-		return basePath + extraPath
-	}
 }

@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// Server manages HTTP servers and background runners.
+// It initializes REST groups, filters, converters, and runs them concurrently.
 type Server struct {
 	certManager *web.CertManager
 	restGroups  []*RestGroup
@@ -37,6 +39,8 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	server.httpServers[serverConfig.Port] = httpServer
 	return httpServer
 }
+// Init initializes all runners, filters, converters, and REST controllers.
+// It also registers route handlers on the HTTP servers.
 func (server *Server) Init(ctx *Context) error {
 	server.ctx = ctx
 	server.certManager = ctx.CertManager()
@@ -76,6 +80,9 @@ func (server *Server) Init(ctx *Context) error {
 	}
 	return nil
 }
+// Run starts all HTTP servers and background runners concurrently.
+// It uses a goroutine pool with the server's context for lifecycle management.
+// Returns when any component fails or the context is cancelled.
 func (server *Server) Run() error {
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
@@ -107,6 +114,7 @@ func (server *Server) Run() error {
 
 	return errors.WithStackIf(errorsPool.Wait())
 }
+// NewServer creates a new Server with the given REST groups and runners.
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
 		restGroups:  restGroups,

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ func (t *TestService) Init(ctx *Context) error {
 func TestContext_AddService(t *testing.T) {
 	// Given: a new context
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(web.NewHandles(), cfg)
+	ctx := NewContext(web.NewHandles(), cfg, context.Background())
 
 	// When: adding a service
 	service := &TestService{}
@@ -46,7 +47,7 @@ func TestContext_AddService(t *testing.T) {
 func TestContext_GetService(t *testing.T) {
 	// Given: context with a service added
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(web.NewHandles(), cfg)
+	ctx := NewContext(web.NewHandles(), cfg, context.Background())
 	service := &TestService{}
 	ctx.AddService(service)
 
@@ -60,7 +61,7 @@ func TestContext_GetService(t *testing.T) {
 func TestContext_GetConfig(t *testing.T) {
 	// Given: a context with config
 	cfg, _ := config.NewFromBytes([]byte(`{"test": {"key": "value", "num": 42}}`), "json")
-	ctx := NewContext(web.NewHandles(), cfg)
+	ctx := NewContext(web.NewHandles(), cfg, context.Background())
 
 	// When: getting config from context
 	resultConfig := ctx.GetConfig()
@@ -76,7 +77,7 @@ func TestContext_GetConfig(t *testing.T) {
 func TestGetService_NotFoundPanics(t *testing.T) {
 	// Given: an empty context
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(web.NewHandles(), cfg)
+	ctx := NewContext(web.NewHandles(), cfg, context.Background())
 
 	// When: trying to get a non-existent service
 	// Then: should panic since service is not registered
@@ -92,7 +93,7 @@ func TestGetService_NotFoundPanics(t *testing.T) {
 func TestGetModel(t *testing.T) {
 	// This test just verifies the generic GetModel function signature compiles
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(web.NewHandles(), cfg)
+	ctx := NewContext(web.NewHandles(), cfg, context.Background())
 	assert.NotNil(t, ctx)
 	// No panic expected when just checking the function exists
 }
@@ -170,7 +171,7 @@ func newContextWithHandlers(t *testing.T) (*Context, *web.Handles) {
 	cfg, err := config.NewFromBytes([]byte(`{}`), "json")
 	assert.NoError(t, err)
 	handles := web.NewHandles()
-	ctx := NewContext(handles, cfg)
+	ctx := NewContext(handles, cfg, context.Background())
 	return ctx, handles
 }
 
@@ -210,7 +211,8 @@ func TestContext_StaticFsServesFileViaHttpServer(t *testing.T) {
 	// 使用 HttpServer.Handle() 来处理静态文件
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
 	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
-	server.Handle(handlerConfig)
+	server.AddHandle(handlerConfig)
+	server.Handle()
 
 	// 创建测试请求
 	req := httptest.NewRequest(http.MethodGet, "/assets/hello.txt", nil)
@@ -231,7 +233,8 @@ func TestContext_StaticFsHandlesHeadRequestViaHttpServer(t *testing.T) {
 	// 使用 HttpServer.Handle() 来处理静态文件
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
 	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
-	server.Handle(handlerConfig)
+	server.AddHandle(handlerConfig)
+	server.Handle()
 
 	req := httptest.NewRequest(http.MethodHead, "/assets/hello.txt", nil)
 	recorder := httptest.NewRecorder()
@@ -267,7 +270,8 @@ func TestContext_ReverseProxyForwardsRequest(t *testing.T) {
 	// 使用 HttpServer.Handle() 来处理反向代理
 	server := web.NewHttpServer(web.DefaultServerConfig(), web.NewCertManager())
 	handlerConfig := web.NewHandlerConfig(nil, handles, web.DefaultServerConfig())
-	server.Handle(handlerConfig)
+	server.AddHandle(handlerConfig)
+	server.Handle()
 
 	// 使用实际的 HTTP 服务器测试
 	ts := httptest.NewServer(server.Engine())

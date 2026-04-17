@@ -24,8 +24,8 @@ func (r *BackgroundRunner) Init(ctx *core.Context) error {
 }
 
 // Run is called by the framework to start the background task
-// It runs until context is canceled
-func (r *BackgroundRunner) Run(ctx context.Context) error {
+// It runs until the application context is canceled (framework handles lifecycle)
+func (r *BackgroundRunner) Run() error {
 	log.Info("Background runner starting...")
 
 	// Run a periodic task every 5 seconds
@@ -34,9 +34,6 @@ func (r *BackgroundRunner) Run(ctx context.Context) error {
 
 	for {
 		select {
-		case <-ctx.Done():
-			log.Info("Background runner stopping...")
-			return nil
 		case <-ticker.C:
 			// Do your background work here
 			log.Debug("Background runner is working...")
@@ -53,7 +50,7 @@ func (t *StartupTask) Init(ctx *core.Context) error {
 	return nil
 }
 
-func (t *StartupTask) Run(ctx context.Context) error {
+func (t *StartupTask) Run() error {
 	log.Info("Running startup initialization task...")
 	// Do one-time initialization here
 	// For example: warm up cache, load configuration, etc.

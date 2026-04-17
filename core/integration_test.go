@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sync"
 	"testing"
-	"time"
 
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/db"
@@ -16,7 +15,7 @@ import (
 // TestIntegration_ServiceDependencyInjection tests Service -> Model -> DB dependency injection chain
 func TestIntegration_ServiceDependencyInjection(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(web.NewHandles(), config)
+	ctx := NewContext(web.NewHandles(), config, context.Background())
 
 	var modelInitCalled, serviceInitCalled bool
 
@@ -48,7 +47,7 @@ func TestIntegration_ServiceDependencyInjection(t *testing.T) {
 func TestIntegration_RestControllerLifecycle(t *testing.T) {
 	config := config2.NewConfig()
 	handles := web.NewHandles()
-	ctx := NewContext(handles, config)
+	ctx := NewContext(handles, config, context.Background())
 
 	restCtrl := &testRestController{initCalled: false}
 	ctx.AddService(restCtrl)
@@ -68,7 +67,7 @@ func TestIntegration_RestControllerLifecycle(t *testing.T) {
 func TestIntegration_FilterChainExecution(t *testing.T) {
 	config := config2.NewConfig()
 	handles := web.NewHandles()
-	ctx := NewContext(handles, config)
+	ctx := NewContext(handles, config, context.Background())
 
 	handles.Handle(http.MethodGet, "/api", func(req *web.Request) (any, error) {
 		return "ok", nil
@@ -93,7 +92,7 @@ func TestIntegration_FilterChainExecution(t *testing.T) {
 // TestIntegration_ConcurrentContextAccess tests concurrent access to context
 func TestIntegration_ConcurrentContextAccess(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(web.NewHandles(), config)
+	ctx := NewContext(web.NewHandles(), config, context.Background())
 
 	// Add multiple services concurrently (same type overwrites by qualified name)
 	var wg sync.WaitGroup
@@ -128,7 +127,7 @@ func TestIntegration_ConcurrentContextAccess(t *testing.T) {
 // TestIntegration_RunnerLifecycle tests runner init and run lifecycle
 func TestIntegration_RunnerLifecycle(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(web.NewHandles(), config)
+	ctx := NewContext(web.NewHandles(), config, context.Background())
 
 	runner := &testRunner{}
 	ctx.AddRunner(runner)
@@ -137,28 +136,17 @@ func TestIntegration_RunnerLifecycle(t *testing.T) {
 	err := runner.Init(ctx)
 	assert.NoError(t, err)
 
-	// Run runner in background with timeout
-	ctx2, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	done := make(chan error, 1)
-	go func() {
-		done <- runner.Run(ctx2)
-	}()
-
-	select {
-	case err := <-done:
-		assert.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("runner did not stop within timeout")
-	}
+	// Run runner (no longer takes context — runner manages its own lifecycle)
+	err = runner.Run()
+	assert.NoError(t, err)
+	assert.True(t, runner.runCalled)
 }
 
 // TestIntegration_ContextCopyIsolation tests that copied contexts have isolated handles
 func TestIntegration_ContextCopyIsolation(t *testing.T) {
 	config := config2.NewConfig()
 	handles1 := web.NewHandles()
-	ctx := NewContext(handles1, config)
+	ctx := NewContext(handles1, config, context.Background())
 
 	// Add service to parent context
 	ctx.AddService(&testService{})
@@ -274,8 +262,7 @@ func (r *testRunner) Init(ctx *Context) error {
 	return nil
 }
 
-func (r *testRunner) Run(ctx context.Context) error {
+func (r *testRunner) Run() error {
 	r.runCalled = true
-	<-ctx.Done()
 	return nil
 }

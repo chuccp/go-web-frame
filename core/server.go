@@ -82,7 +82,7 @@ func (server *Server) Run(ctx context.Context) error {
 	for _, runner := range server.runners {
 		errorsPool.Go(func(ctx context.Context) error {
 			log.Info("runner", zap.String("runner", util.GetStructFullName(runner)))
-			err := errors.WithStackIf(runner.Run(ctx))
+			err := errors.WithStackIf(runner.Run())
 			if err != nil {
 				log.Error("runner", zap.String("runner", util.GetStructFullName(runner)), zap.Error(err))
 				log.PrintPanic(err)

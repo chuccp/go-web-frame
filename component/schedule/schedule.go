@@ -1,7 +1,6 @@
 package schedule
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -132,9 +131,9 @@ func (c *Schedule) Init(ctx *core.Context) error {
 	c.ctx = ctx
 	return nil
 }
-func (c *Schedule) Run(context context.Context) error {
+func (c *Schedule) Run() error {
 	go func() {
-		<-context.Done()
+		<-c.ctx.Done()
 		c.cron.Stop()
 	}()
 	c.cron.Start()

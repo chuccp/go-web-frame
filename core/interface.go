@@ -116,17 +116,9 @@ type IComponent interface {
 	Init(ctx context.Context, config config2.IConfig) error
 }
 
-// IRun 是可运行任务的接口（已弃用，请使用 IRunner）
-type IRun interface {
-	// Run 运行任务
-	// ctx: 应用上下文，用于控制任务生命周期
-	// 返回 error: 任务失败时返回错误
-	Run(ctx context.Context) error
-}
-
 // IRunner 是后台任务的接口，继承自 IService
 //
-// 实现此接口的任务会在应用启动后在后台运行，直到上下文被取消。
+// 实现此接口的任务会在应用启动后在后台运行，框架通过 context pool 管理生命周期。
 // 适用于定时任务、消息消费者、数据同步等场景。
 //
 // 使用示例：
@@ -139,14 +131,12 @@ type IRun interface {
 //	    return nil
 //	}
 //
-//	func (t *BackgroundTask) Run(ctx context.Context) error {
+//	func (t *BackgroundTask) Run() error {
 //	    ticker := time.NewTicker(5 * time.Second)
 //	    defer ticker.Stop()
 //
 //	    for {
 //	        select {
-//	        case <-ctx.Done():
-//	            return nil
 //	        case <-ticker.C:
 //	            // 执行任务
 //	        }
@@ -154,10 +144,9 @@ type IRun interface {
 //	}
 type IRunner interface {
 	IService
-	// Run 运行后台任务
-	// ctx: 应用上下文，用于控制任务生命周期
+	// Run 运行后台任务，框架通过 context pool 控制生命周期
 	// 返回 error: 任务失败时返回错误
-	Run(ctx context.Context) error
+	Run() error
 }
 
 // IModelGroup 是模型组的接口，用于管理多个相关的模型

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sync"
@@ -17,6 +18,7 @@ import (
 )
 
 type Context struct {
+	context.Context
 	config        config2.IConfig
 	modelMap      map[string]IModel
 	rLock         *sync.RWMutex
@@ -30,8 +32,9 @@ type Context struct {
 	allServiceMap map[string]IService
 }
 
-func NewContext(handles *web.Handles, config config2.IConfig) *Context {
+func NewContext(handles *web.Handles, config config2.IConfig, ctx context.Context) *Context {
 	context := &Context{
+		Context:       ctx,
 		config:        config,
 		modelMap:      make(map[string]IModel),
 		rLock:         new(sync.RWMutex),
@@ -51,7 +54,8 @@ func (c *Context) CertManager() *web.CertManager {
 }
 
 func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
-	context := &Context{
+	context2 := &Context{
+		Context:       c.Context,
 		config:        c.config,
 		modelMap:      c.modelMap,
 		rLock:         c.rLock,
@@ -64,7 +68,7 @@ func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
 		filters:       filters,
 		certManager:   c.certManager,
 	}
-	return context
+	return context2
 }
 
 func (c *Context) GetTransaction() *model.Transaction {

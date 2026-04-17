@@ -87,7 +87,8 @@ func TestHttpServer_HandleWithContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -117,7 +118,8 @@ func TestHttpServer_WebSocketWithContextPath(t *testing.T) {
 	}, nil)
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	// Verify route is registered with context path
 	routes := server.Engine().Routes()
@@ -143,7 +145,8 @@ func TestHttpServer_SSEWithContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	// Verify route is registered with context path
 	routes := server.Engine().Routes()
@@ -167,7 +170,8 @@ func TestHttpServer_StaticFsWithContextPath(t *testing.T) {
 	handles.AddStaticFs("/assets", http.Dir("."))
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	// Verify routes are registered with context path
 	routes := server.Engine().Routes()
@@ -199,7 +203,8 @@ func TestHandlerInfo_FullPath(t *testing.T) {
 	// After Handle is called on server, fullPath should be set
 	serverConfig := DefaultServerConfig()
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	assert.Equal(t, "/users", info.FullPath())
 }
@@ -216,7 +221,8 @@ func TestHandlerInfo_FullPathWithContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	assert.Equal(t, "/users/:id", info.RelativePath())
 	assert.Equal(t, "/api/v1/users/:id", info.FullPath())
@@ -236,7 +242,8 @@ func TestRequest_ContextPath(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -259,7 +266,8 @@ func TestRequest_ContextPath_Empty(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()

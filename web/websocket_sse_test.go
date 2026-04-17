@@ -52,7 +52,8 @@ func TestWebSocket_EchoHandler(t *testing.T) {
 	}, nil)
 
 	server := NewHttpServer(DefaultServerConfig(), NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, DefaultServerConfig()))
+	server.AddHandle(NewHandlerConfig(nil, handles, DefaultServerConfig()))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -86,7 +87,8 @@ func TestSSE_EventHandler(t *testing.T) {
 	})
 
 	server := NewHttpServer(DefaultServerConfig(), NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, DefaultServerConfig()))
+	server.AddHandle(NewHandlerConfig(nil, handles, DefaultServerConfig()))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()

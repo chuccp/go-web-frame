@@ -131,7 +131,8 @@ func BenchmarkHttpServer_Handle(b *testing.B) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

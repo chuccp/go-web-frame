@@ -501,14 +501,12 @@ func (t *CleanupTask) Init(ctx *core.Context) error {
     return nil
 }
 
-func (t *CleanupTask) Run(ctx context.Context) error {
+func (t *CleanupTask) Run() error {
     ticker := time.NewTicker(5 * time.Minute)
     defer ticker.Stop()
 
     for {
         select {
-        case <-ctx.Done():
-            return nil
         case <-ticker.C:
             // Execute cleanup task
         }

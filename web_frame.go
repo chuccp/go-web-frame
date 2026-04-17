@@ -76,16 +76,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 
 	gin.SetMode(gin.ReleaseMode)
 
-	for _, component := range w.component {
-		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
-		err := errors.WithStackIf(component.Init(ctx, w.config))
-		if err != nil {
-			log.Error("Failed to initialize the component", zap.Error(err))
-			return nil, nil, err
-		}
-	}
-
-	coreContext := core.NewContext(w.handles, w.config)
+	coreContext := core.NewContext(w.handles, w.config, ctx)
 	coreContext.AddComponent(w.component...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
@@ -113,6 +104,15 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			if err != nil {
 				return nil, nil, errors.WithStackIf(err)
 			}
+		}
+	}
+
+	for _, component := range w.component {
+		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
+		err := errors.WithStackIf(component.Init(ctx, w.config))
+		if err != nil {
+			log.Error("Failed to initialize the component", zap.Error(err))
+			return nil, nil, err
 		}
 	}
 

@@ -30,7 +30,8 @@ func TestIntegration_FullRequestChain(t *testing.T) {
 	config.Use(&authFilter{callFlag: &filter2Called})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(config)
+	server.AddHandle(config)
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -60,7 +61,8 @@ func TestIntegration_MultipleRestGroups(t *testing.T) {
 		return "server1", nil
 	})
 	server1 := NewHttpServer(config1, NewCertManager())
-	server1.Handle(NewHandlerConfig(nil, handles1, config1))
+	server1.AddHandle(NewHandlerConfig(nil, handles1, config1))
+	server1.Handle()
 
 	// Server 2
 	config2 := &ServerConfig{Port: 19011}
@@ -69,7 +71,8 @@ func TestIntegration_MultipleRestGroups(t *testing.T) {
 		return "server2", nil
 	})
 	server2 := NewHttpServer(config2, NewCertManager())
-	server2.Handle(NewHandlerConfig(nil, handles2, config2))
+	server2.AddHandle(NewHandlerConfig(nil, handles2, config2))
+	server2.Handle()
 
 	ts1 := httptest.NewServer(server1.Engine())
 	defer ts1.Close()
@@ -110,7 +113,8 @@ func TestIntegration_ContextPathWithFilters(t *testing.T) {
 	config.Use(&contextPathCaptureFilter{capture: &capturedContextPath})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(config)
+	server.AddHandle(config)
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -143,7 +147,8 @@ func TestIntegration_ConcurrentRequests(t *testing.T) {
 	})
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()
@@ -185,7 +190,8 @@ func TestIntegration_StaticAndAPI(t *testing.T) {
 	handles.AddStaticFs("/static", http.Dir("."))
 
 	server := NewHttpServer(serverConfig, NewCertManager())
-	server.Handle(NewHandlerConfig(nil, handles, serverConfig))
+	server.AddHandle(NewHandlerConfig(nil, handles, serverConfig))
+	server.Handle()
 
 	ts := httptest.NewServer(server.Engine())
 	defer ts.Close()

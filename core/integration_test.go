@@ -136,7 +136,7 @@ func TestIntegration_RunnerLifecycle(t *testing.T) {
 	err := runner.Init(ctx)
 	assert.NoError(t, err)
 
-	// Run runner (no longer takes context — runner manages its own lifecycle)
+	// Run runner (lifecycle managed by server's context pool)
 	err = runner.Run()
 	assert.NoError(t, err)
 	assert.True(t, runner.runCalled)

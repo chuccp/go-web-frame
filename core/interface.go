@@ -119,15 +119,19 @@ type IComponent interface {
 // IRunner 是后台任务的接口，继承自 IService
 //
 // 实现此接口的任务会在应用启动后在后台运行，框架通过 context pool 管理生命周期。
+// Run 方法不再接收参数，生命周期由 server 的 context pool 控制。
+// 如需依赖查找，可在 Init 中缓存 *Context。
 // 适用于定时任务、消息消费者、数据同步等场景。
 //
 // 使用示例：
 //
 //	type BackgroundTask struct {
 //	    core.IRunner
+//	    ctx *core.Context
 //	}
 //
 //	func (t *BackgroundTask) Init(ctx *Context) error {
+//	    t.ctx = ctx
 //	    return nil
 //	}
 //
@@ -138,13 +142,13 @@ type IComponent interface {
 //	    for {
 //	        select {
 //	        case <-ticker.C:
-//	            // 执行任务
+//	            // 执行任务，需要依赖查找时使用 t.ctx
 //	        }
 //	    }
 //	}
 type IRunner interface {
 	IService
-	// Run 运行后台任务，框架通过 context pool 控制生命周期
+	// Run 运行后台任务，生命周期由 server 的 context pool 控制
 	// 返回 error: 任务失败时返回错误
 	Run() error
 }

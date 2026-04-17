@@ -18,6 +18,7 @@ type Server struct {
 	httpServers map[int]*web.HttpServer
 	lock        *sync.RWMutex
 	runners     []IRunner
+	ctx         *Context
 }
 
 func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpServer {
@@ -37,6 +38,7 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	return httpServer
 }
 func (server *Server) Init(ctx *Context) error {
+	server.ctx = ctx
 	server.certManager = ctx.CertManager()
 	for _, runner := range server.runners {
 		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
@@ -74,17 +76,18 @@ func (server *Server) Init(ctx *Context) error {
 	}
 	return nil
 }
-func (server *Server) Run(ctx context.Context) error {
+func (server *Server) Run() error {
 	var wg = pool.New()
 	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
-	errorsPool := wg.WithContext(ctx).WithFirstError()
+	errorsPool := wg.WithContext(server.ctx).WithFirstError()
 
 	for _, runner := range server.runners {
-		errorsPool.Go(func(ctx context.Context) error {
-			log.Info("runner", zap.String("runner", util.GetStructFullName(runner)))
-			err := errors.WithStackIf(runner.Run())
+		r := runner
+		errorsPool.Go(func(poolCtx context.Context) error {
+			log.Info("runner", zap.String("runner", util.GetStructFullName(r)))
+			err := errors.WithStackIf(r.Run())
 			if err != nil {
-				log.Error("runner", zap.String("runner", util.GetStructFullName(runner)), zap.Error(err))
+				log.Error("runner", zap.String("runner", util.GetStructFullName(r)), zap.Error(err))
 				log.PrintPanic(err)
 			}
 			return err

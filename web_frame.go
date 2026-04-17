@@ -166,7 +166,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
-	return errors.WithStackIf(server.Run(ctx))
+	return errors.WithStackIf(server.Run())
 }
 
 type Builder struct {

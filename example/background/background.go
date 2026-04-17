@@ -24,7 +24,7 @@ func (r *BackgroundRunner) Init(ctx *core.Context) error {
 }
 
 // Run is called by the framework to start the background task
-// It runs until the application context is canceled (framework handles lifecycle)
+// Lifecycle is managed by the server's context pool
 func (r *BackgroundRunner) Run() error {
 	log.Info("Background runner starting...")
 

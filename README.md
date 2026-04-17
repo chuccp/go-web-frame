@@ -500,7 +500,7 @@ func main() {
    - `IComponent`: Independent components initialized with config
    - `IRunner`: Background task runners (extends IService)
    - `IFilter`: HTTP request filters/middleware (extends IService)
-   - `Context`: Dependency injection container that manages all components
+   - `Context`: Dependency injection container that manages all components (embeds `context.Context` for lifecycle control)
 
 2. **Web Layer (`./web`)**: HTTP handling with request/response abstraction
    - Request/response abstraction with helper methods

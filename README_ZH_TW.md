@@ -136,18 +136,22 @@ import (
     "time"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // 建立 web 框架實例，自動載入配置
-    app := wf.NewWithAutoConfig()
+    // 建立 Web 框架實例，自動載入配置
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
     // 註冊簡單路由
-    app.Get("/", func(c *web.Request) (any, error) {
+    builder.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
+
+    // 構建應用
+    app := builder.Build()
 
     // 使用上下文執行服務，支援優雅關閉
     ctx, cancel := context.WithCancel(context.Background())
@@ -174,6 +178,7 @@ import (
     "context"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
@@ -232,8 +237,9 @@ func (u *UserController) CreateUser(c *web.Request) (any, error) {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-        AddRest(&UserController{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Rest(&UserController{})
+    app := builder.Build()
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -255,6 +261,89 @@ func (c *AssetsController) Init(ctx *core.Context) error {
 ```
 
 `Context.Static()` 用於掛載目前服務上的本地靜態目錄，`Context.ReverseProxy()` 用於把指定前綴轉發到上游服務。
+
+### Context Path（路由前綴）
+
+類似 Tomcat 的 context path，可以為所有路由設定全局前綴：
+
+```yaml
+# application.yml
+web:
+  server:
+    port: 8080
+    context_path: /api
+```
+
+配置後：
+- 註冊路由 `/users` → 訪問地址 `/api/users`
+- 註冊路由 `/orders` → 訪問地址 `/api/orders`
+- WebSocket `/ws` → 訪問地址 `/api/ws`
+- 靜態文件 `/assets` → 訪問地址 `/api/assets`
+
+### WebSocket 支援
+
+```go
+// 簡單的 Echo 伺服器
+ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+    for {
+        messageType, message, err := conn.ReadMessage()
+        if err != nil {
+            return err
+        }
+        err = conn.WriteMessage(messageType, message)
+        if err != nil {
+            return err
+        }
+    }
+})
+
+// 自定義 Upgrader
+upgrader := &websocket.Upgrader{
+    ReadBufferSize:  4096,
+    WriteBufferSize: 4096,
+    CheckOrigin: func(r *http.Request) bool {
+        return r.Header.Get("Origin") == "https://example.com"
+    },
+}
+ctx.WebSocket("/ws/chat", handler, upgrader)
+```
+
+### Server-Sent Events (SSE) 支援
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    // 設定響應頭
+    stream.SetHeaders()
+
+    // 設定重連間隔（斷開後 3 秒重連）
+    stream.SendRetry(3000)
+
+    // 發送事件
+    for i := 0; i < 10; i++ {
+        // 發送帶事件名的消息
+        stream.Send("update", fmt.Sprintf("Count: %d", i))
+
+        // 或發送普通消息
+        // stream.SendMessage("plain message")
+
+        // 或發送帶 ID 的消息
+        // stream.SendWithID("123", "event", "data")
+
+        time.Sleep(time.Second)
+    }
+    return nil
+})
+```
+
+**SSE Stream 方法：**
+| 方法 | 說明 |
+|------|------|
+| `Send(event, data)` | 發送帶事件名的消息 |
+| `SendMessage(data)` | 發送普通消息 |
+| `SendWithID(id, event, data)` | 發送帶 ID 的消息 |
+| `SendRetry(ms)` | 設定重連間隔 |
+| `Heartbeat()` | 發送心跳註釋 |
+| `StartHeartbeat(interval)` | 啟動心跳協程 |
 
 ### 🏷️ 路由元數據 `.WithMeta()` 用法
 
@@ -323,6 +412,7 @@ package main
 import (
     "context"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
@@ -348,12 +438,11 @@ func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-    // 註冊模型到 DI 容器
-        AddModel(&UserModel{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Model(&UserModel{})
 
     // ORM 操作範例
-    app.Get("/users", func(c *web.Request) (any, error) {
+    builder.Get("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // 鏈式 API 查詢
@@ -365,7 +454,7 @@ func main() {
         return users, err
     })
 
-    app.Post("/users", func(c *web.Request) (any, error) {
+    builder.Post("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // 建立使用者
@@ -374,7 +463,7 @@ func main() {
         return user.Id, err
     })
 
-    app.Put("/users/:id", func(c *web.Request) (any, error) {
+    builder.Put("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -384,7 +473,7 @@ func main() {
             UpdateColumn("name", "張三（已更新）")
     })
 
-    app.Delete("/users/:id", func(c *web.Request) (any, error) {
+    builder.Delete("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -394,8 +483,9 @@ func main() {
             Delete()
     })
 
+    app := builder.Build()
     ctx := context.Background()
-    _ = app.Run(ctx)
+    app.Run(ctx)
 }
 ```
 
@@ -450,10 +540,10 @@ func main() {
 
 ### 應用生命週期
 
-1. **建立**：使用 `NewWithAutoConfig()` 或 `New(config)` 初始化 `WebFrame`
-2. **註冊**：添加路由、控制器、模型、服務、組件和執行器
-3. **配置**：自定義設定、添加中間件、配置日誌
-4. **執行**：使用 `Run(ctx)` 啟動伺服器
+1. **建立**：使用 `NewBuilder(config)` 初始化 `Builder`
+2. **配置**：透過 Builder 方法鏈添加路由、控制器、模型、服務、組件和執行器
+3. **構建**：使用 `builder.Build()` 建立 `WebFrame` 實例
+4. **執行**：使用 `app.Run(ctx)` 啟動伺服器
 
 ## 配置範例
 
@@ -670,12 +760,13 @@ rate_limit:
 ├── config/              # 配置管理
 ├── log/                 # Zap 日誌
 ├── component/           # 可復用組件
-│   ├── cache/           # 快取組件
-│   ├── localcache/      # 本地記憶體快取
-│   ├── ratelimit/       # 限流
-│   ├── captcha/         # 驗證碼生成
-│   ├── schedule/        # Cron 定時任務
-│   └── validator/       # 輸入驗證
+│   ├── cache.go         # 快取組件
+│   ├── localcache.go    # 本地記憶體快取
+│   ├── rate_limit.go    # 限流
+│   ├── captcha.go       # 驗證碼生成
+│   ├── qrcode.go        # 二維碼生成
+│   ├── cron.go          # Cron 定時任務
+│   └── validate.go      # 輸入驗證
 ├── util/                # 工具函數
 └── example/             # 範例應用
     ├── helloworld/      # 基礎 hello world 範例
@@ -770,9 +861,12 @@ go mod tidy
 
 ## 文件
 
+- **[架構設計](./ARCHITECTURE.md)** - 內部架構和設計決策
+- **[最佳實踐](./BEST_PRACTICES.md)** - 推薦的模式和實踐
+- **[更新日誌](./CHANGELOG.md)** - 版本歷史和變更
+- **[CLAUDE.md](./CLAUDE.md)** - AI 輔助開發指南
 - [Go 參考文件](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [範例應用](./example/)
-- [CLAUDE.md](./CLAUDE.md) - Claude Code 詳細開發者指南
 
 ## 貢獻
 

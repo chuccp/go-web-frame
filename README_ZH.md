@@ -136,18 +136,22 @@ import (
     "time"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // 创建 web 框架实例，自动加载配置
-    app := wf.NewWithAutoConfig()
+    // 创建 Web 框架实例，自动加载配置
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
     // 注册简单路由
-    app.Get("/", func(c *web.Request) (any, error) {
+    builder.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
+
+    // 构建应用
+    app := builder.Build()
 
     // 使用上下文运行服务，支持优雅关闭
     ctx, cancel := context.WithCancel(context.Background())
@@ -174,6 +178,7 @@ import (
     "context"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
@@ -232,8 +237,9 @@ func (u *UserController) CreateUser(c *web.Request) (any, error) {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-        AddRest(&UserController{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Rest(&UserController{})
+    app := builder.Build()
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -406,6 +412,7 @@ package main
 import (
     "context"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
@@ -431,12 +438,11 @@ func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-    // 注册模型到 DI 容器
-        AddModel(&UserModel{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Model(&UserModel{})
 
     // ORM 操作示例
-    app.Get("/users", func(c *web.Request) (any, error) {
+    builder.Get("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // 链式 API 查询
@@ -448,7 +454,7 @@ func main() {
         return users, err
     })
 
-    app.Post("/users", func(c *web.Request) (any, error) {
+    builder.Post("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // 创建用户
@@ -457,7 +463,7 @@ func main() {
         return user.Id, err
     })
 
-    app.Put("/users/:id", func(c *web.Request) (any, error) {
+    builder.Put("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -467,7 +473,7 @@ func main() {
             UpdateColumn("name", "张三（已更新）")
     })
 
-    app.Delete("/users/:id", func(c *web.Request) (any, error) {
+    builder.Delete("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -477,8 +483,9 @@ func main() {
             Delete()
     })
 
+    app := builder.Build()
     ctx := context.Background()
-    _ = app.Run(ctx)
+    app.Run(ctx)
 }
 ```
 
@@ -533,10 +540,10 @@ func main() {
 
 ### 应用生命周期
 
-1. **创建**：使用 `NewWithAutoConfig()` 或 `New(config)` 初始化 `WebFrame`
-2. **注册**：添加路由、控制器、模型、服务、组件和运行器
-3. **配置**：自定义设置、添加中间件、配置日志
-4. **运行**：使用 `Run(ctx)` 启动服务器
+1. **创建**：使用 `NewBuilder(config)` 初始化 `Builder`
+2. **配置**：通过 Builder 方法链添加路由、控制器、模型、服务、组件和运行器
+3. **构建**：使用 `builder.Build()` 创建 `WebFrame` 实例
+4. **运行**：使用 `app.Run(ctx)` 启动服务器
 
 ## 配置示例
 

@@ -136,18 +136,22 @@ import (
     "time"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // Create web framework instance with auto config loading
-    app := wf.NewWithAutoConfig()
+    // Create builder with auto config loading
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
     // Register a simple route
-    app.Get("/", func(c *web.Request) (any, error) {
+    builder.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
+
+    // Build the application
+    app := builder.Build()
 
     // Run with context for graceful shutdown
     ctx, cancel := context.WithCancel(context.Background())
@@ -174,6 +178,7 @@ import (
     "context"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
@@ -232,8 +237,9 @@ func (u *UserController) CreateUser(c *web.Request) (any, error) {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-        AddRest(&UserController{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Rest(&UserController{})
+    app := builder.Build()
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -406,6 +412,7 @@ package main
 import (
     "context"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
@@ -431,12 +438,11 @@ func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-        // Register model to DI container
-        AddModel(&UserModel{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Model(&UserModel{})
 
     // Example ORM operations
-    app.Get("/users", func(c *web.Request) (any, error) {
+    builder.Get("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // Query with chain API
@@ -448,7 +454,7 @@ func main() {
         return users, err
     })
 
-    app.Post("/users", func(c *web.Request) (any, error) {
+    builder.Post("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // Create user
@@ -457,7 +463,7 @@ func main() {
         return user.Id, err
     })
 
-    app.Put("/users/:id", func(c *web.Request) (any, error) {
+    builder.Put("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -467,7 +473,7 @@ func main() {
             UpdateColumn("name", "John Updated")
     })
 
-    app.Delete("/users/:id", func(c *web.Request) (any, error) {
+    builder.Delete("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -477,6 +483,7 @@ func main() {
             Delete()
     })
 
+    app := builder.Build()
     ctx := context.Background()
     app.Run(ctx)
 }
@@ -516,10 +523,10 @@ func main() {
 
 ### Application Lifecycle
 
-1. **Create**: Initialize `WebFrame` with `NewWithAutoConfig()` or `New(config)`
-2. **Register**: Add routes, controllers, models, services, components, and runners
-3. **Configure**: Customize settings, add middleware, configure logging
-4. **Run**: Start the server with `Run(ctx)`
+1. **Create**: Initialize `Builder` with `NewBuilder(config)` or `NewBuilder(config.LoadAutoConfig())`
+2. **Configure**: Add routes, controllers, models, services, components, runners, and filters via builder methods
+3. **Build**: Create `WebFrame` instance with `builder.Build()`
+4. **Run**: Start the server with `app.Run(ctx)`
 
 ## Configuration Example
 

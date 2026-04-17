@@ -136,18 +136,22 @@ import (
     "time"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // 自動設定読み込みでWebフレームワークインスタンスを作成
-    app := wf.NewWithAutoConfig()
+    // 自動設定読み込みでビルダーを作成
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
     // シンプルなルートを登録
-    app.Get("/", func(c *web.Request) (any, error) {
+    builder.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
+
+    // アプリケーションをビルド
+    app := builder.Build()
 
     // グレースフルシャットダウン対応のコンテキストで実行
     ctx, cancel := context.WithCancel(context.Background())
@@ -174,6 +178,7 @@ import (
     "context"
 
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
@@ -232,8 +237,9 @@ func (u *UserController) CreateUser(c *web.Request) (any, error) {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-        AddRest(&UserController{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Rest(&UserController{})
+    app := builder.Build()
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -255,6 +261,89 @@ func (c *AssetsController) Init(ctx *core.Context) error {
 ```
 
 `Context.Static()` は現在のサービスでローカル静的ファイルを配信し、`Context.ReverseProxy()` は指定したプレフィックスを上流サービスへ転送します。
+
+### Context Path（ルートプレフィックス）
+
+Tomcatのcontext pathと同様に、すべてのルートにグローバルプレフィックスを設定できます：
+
+```yaml
+# application.yml
+web:
+  server:
+    port: 8080
+    context_path: /api
+```
+
+設定後：
+- 登録ルート `/users` → アクセスURL `/api/users`
+- 登録ルート `/orders` → アクセスURL `/api/orders`
+- WebSocket `/ws` → アクセスURL `/api/ws`
+- 静的ファイル `/assets` → アクセスURL `/api/assets`
+
+### WebSocket サポート
+
+```go
+// シンプルなエコーサーバー
+ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+    for {
+        messageType, message, err := conn.ReadMessage()
+        if err != nil {
+            return err
+        }
+        err = conn.WriteMessage(messageType, message)
+        if err != nil {
+            return err
+        }
+    }
+})
+
+// カスタム Upgrader
+upgrader := &websocket.Upgrader{
+    ReadBufferSize:  4096,
+    WriteBufferSize: 4096,
+    CheckOrigin: func(r *http.Request) bool {
+        return r.Header.Get("Origin") == "https://example.com"
+    },
+}
+ctx.WebSocket("/ws/chat", handler, upgrader)
+```
+
+### Server-Sent Events (SSE) サポート
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    // ヘッダーを設定
+    stream.SetHeaders()
+
+    // 再接続間隔を設定（切断後3秒で再接続）
+    stream.SendRetry(3000)
+
+    // イベントを送信
+    for i := 0; i < 10; i++ {
+        // イベント名付きメッセージを送信
+        stream.Send("update", fmt.Sprintf("Count: %d", i))
+
+        // または通常メッセージを送信
+        // stream.SendMessage("plain message")
+
+        // またはID付きメッセージを送信
+        // stream.SendWithID("123", "event", "data")
+
+        time.Sleep(time.Second)
+    }
+    return nil
+})
+```
+
+**SSE Stream メソッド：**
+| メソッド | 説明 |
+|--------|------|
+| `Send(event, data)` | イベント名付きメッセージを送信 |
+| `SendMessage(data)` | 通常メッセージを送信 |
+| `SendWithID(id, event, data)` | ID付きメッセージを送信 |
+| `SendRetry(ms)` | 再接続間隔を設定 |
+| `Heartbeat()` | ハートビートコメントを送信 |
+| `StartHeartbeat(interval)` | ハートビートゴルーチンを起動 |
 
 ### 🏷️ ルートメタデータ `.WithMeta()` の使用法
 
@@ -323,6 +412,7 @@ package main
 import (
     "context"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
@@ -348,12 +438,11 @@ func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig().
-    // DIコンテナにモデルを登録
-        AddModel(&UserModel{})
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Model(&UserModel{})
 
     // ORM操作の例
-    app.Get("/users", func(c *web.Request) (any, error) {
+    builder.Get("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // チェーンAPIでクエリ
@@ -365,7 +454,7 @@ func main() {
         return users, err
     })
 
-    app.Post("/users", func(c *web.Request) (any, error) {
+    builder.Post("/users", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
 
         // ユーザー作成
@@ -374,7 +463,7 @@ func main() {
         return user.Id, err
     })
 
-    app.Put("/users/:id", func(c *web.Request) (any, error) {
+    builder.Put("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -384,7 +473,7 @@ func main() {
             UpdateColumn("name", "田中（更新済み）")
     })
 
-    app.Delete("/users/:id", func(c *web.Request) (any, error) {
+    builder.Delete("/users/:id", func(c *web.Request) (any, error) {
         userModel := wf.GetModel[*UserModel](c.Context())
         id := c.ParamInt("id")
 
@@ -394,8 +483,9 @@ func main() {
             Delete()
     })
 
+    app := builder.Build()
     ctx := context.Background()
-    _ = app.Run(ctx)
+    app.Run(ctx)
 }
 ```
 
@@ -450,10 +540,10 @@ func main() {
 
 ### アプリケーションライフサイクル
 
-1. **作成**: `NewWithAutoConfig()` または `New(config)` で `WebFrame` を初期化
-2. **登録**: ルート、コントローラー、モデル、サービス、コンポーネント、ランナーを追加
-3. **設定**: 設定のカスタマイズ、ミドルウェアの追加、ロギングの設定
-4. **実行**: `Run(ctx)` でサーバーを起動
+1. **作成**: `NewBuilder(config)` で `Builder` を初期化
+2. **設定**: Builderメソッドチェーンでルート、コントローラー、モデル、サービス、コンポーネント、ランナーを追加
+3. **ビルド**: `builder.Build()` で `WebFrame` インスタンスを作成
+4. **実行**: `app.Run(ctx)` でサーバーを起動
 
 ## 設定例
 
@@ -670,12 +760,13 @@ rate_limit:
 ├── config/              # 設定管理
 ├── log/                 # Zapロギング
 ├── component/           # 再利用可能なコンポーネント
-│   ├── cache/           # キャッシュコンポーネント
-│   ├── localcache/      # ローカルメモリキャッシュ
-│   ├── ratelimit/       # レート制限
-│   ├── captcha/         # キャプチャ生成
-│   ├── schedule/        # Cronスケジュールタスク
-│   └── validator/       # 入力検証
+│   ├── cache.go         # キャッシュコンポーネント
+│   ├── localcache.go    # ローカルメモリキャッシュ
+│   ├── rate_limit.go    # レート制限
+│   ├── captcha.go       # キャプチャ生成
+│   ├── qrcode.go        # QRコード生成
+│   ├── cron.go          # Cronスケジュールタスク
+│   └── validate.go      # 入力検証
 ├── util/                # ユーティリティ関数
 └── example/             # サンプルアプリケーション
     ├── helloworld/      # 基本的なhello worldの例
@@ -770,9 +861,12 @@ go mod tidy
 
 ## ドキュメント
 
+- **[アーキテクチャ設計](./ARCHITECTURE.md)** - 内部アーキテクチャと設計判断
+- **[ベストプラクティス](./BEST_PRACTICES.md)** - 推奨パターンと実践
+- **[変更履歴](./CHANGELOG.md)** - バージョン履歴と変更点
+- **[CLAUDE.md](./CLAUDE.md)** - AI支援開発ガイド
 - [Goリファレンスドキュメント](https://pkg.go.dev/github.com/chuccp/go-web-frame)
 - [サンプルアプリケーション](./example/)
-- [CLAUDE.md](./CLAUDE.md) - Claude Code詳細開発者ガイド
 
 ## 貢献
 

@@ -117,6 +117,8 @@ Go Web Frame 是一个 opinionated 的 Web 框架，通过基于组件的设计�
 - 🛡️ **请求过滤**：HTTP 中间件/过滤器系统，处理横切关注点
 - 🏷️ **路由元数据**：支持 `.WithMeta()` 为路由附加自定义元数据，实现灵活的路由级别认证、权限检查等
 - 🎯 **统一错误处理**：服务错误自动转换为标准化 HTTP 服务错误
+- 🔗 **Gin 生态兼容**：暴露 `GinContext()` 方法，无缝包装和复用 gin-contrib 生态中的现有中间件（CORS、Gzip、Secure、Session 等）
+- 🌐 **内置 CORS 组件**：预配置的 CORS 过滤器，支持带凭证的跨域请求
 
 ## 🚀 快速开始
 
@@ -403,6 +405,80 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 ```
 
 完整示例请查看：[example/withmeta/withmeta.go](./example/withmeta/withmeta.go)
+
+### 🔗 Gin 生态集成（CORS、Gzip 等）
+
+框架通过 `Request.GinContext()` 方法暴露底层的 Gin 上下文，可以无缝包装和复用 gin-contrib 生态中已有的数百个经过生产验证的中间件，无需重写代码。
+
+**内置 CORS 过滤器：**
+
+```go
+package main
+
+import (
+    "context"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/component/cors"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/log"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+func main() {
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    
+    // 添加 CORS 过滤器 - 处理预检 OPTIONS 请求并设置 CORS 头
+    builder.Filter(&cors.Filter{})
+    
+    builder.Get("/", func(c *web.Request) (any, error) {
+        return "已启用 CORS 的接口", nil
+    })
+    
+    app := builder.Build()
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+    
+    if err := app.Run(ctx); err != nil {
+        log.PrintPanic(err)
+    }
+}
+```
+
+**包装其他 Gin 中间件：**
+
+使用相同的模式可以包装任何 `gin.HandlerFunc` 类型的中间件。例如，包装 Gzip 压缩中间件：
+
+```go
+import (
+    "github.com/gin-contrib/gzip"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type GzipFilter struct {
+    core.IFilter
+    handler gin.HandlerFunc
+}
+
+func (f *GzipFilter) Init(ctx *core.Context) error {
+    f.handler = gzip.Gzip(gzip.DefaultCompression)
+    return nil
+}
+
+func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    f.handler(req.GinContext())
+    return fc.Next()
+}
+
+// 使用方式：builder.Filter(&GzipFilter{})
+```
+
+相同的模式适用于：
+- **Secure**：安全头设置 (github.com/gin-contrib/secure)
+- **Session**：会话管理 (github.com/gin-contrib/sessions)
+- **Logger**：自定义日志 (github.com/gin-contrib/logger)
+- **Recovery**：自定义 Panic 恢复
+- 以及其他众多 Gin 中间件
 
 ### ⚡ 泛型 ORM 操作示例
 
@@ -761,6 +837,7 @@ rate_limit:
 ├── config/              # 配置管理
 ├── log/                 # Zap 日志
 ├── component/           # 可复用组件
+│   ├── cors/            # CORS 跨域资源共享过滤器
 │   ├── cache.go         # 缓存组件
 │   ├── localcache.go    # 本地内存缓存
 │   ├── rate_limit.go    # 限流

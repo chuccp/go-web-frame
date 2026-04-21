@@ -117,6 +117,8 @@ If you're looking for:
 - **Request Filtering**: HTTP middleware/filter system for cross-cutting concerns
 - **Route Metadata**: `.WithMeta()` support for attaching custom metadata to routes (enables flexible per-route authentication, permissions, etc.)
 - **Unified Error Handling**: Automatic conversion of service errors to standardized HTTP responses
+- **Gin Ecosystem Compatibility**: Expose `GinContext()` to seamlessly wrap and reuse existing gin-contrib middleware (CORS, Gzip, Secure, Session, etc.)
+- **Built-in CORS Component**: Pre-configured CORS filter supporting cross-origin requests with credentials
 
 ## Quick Start
 
@@ -403,6 +405,80 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 ```
 
 See the complete example at [example/withmeta/withmeta.go](./example/withmeta/withmeta.go)
+
+### 🔗 Gin Ecosystem Integration (CORS, Gzip, etc.)
+
+The framework exposes `Request.GinContext()` to seamlessly wrap and reuse existing gin middleware from the gin-contrib ecosystem. This enables compatibility with hundreds of battle-tested middleware without rewriting them.
+
+**Built-in CORS Filter:**
+
+```go
+package main
+
+import (
+    "context"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/component/cors"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/log"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+func main() {
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    
+    // Add CORS filter - handles preflight OPTIONS requests and sets CORS headers
+    builder.Filter(&cors.Filter{})
+    
+    builder.Get("/", func(c *web.Request) (any, error) {
+        return "CORS-enabled endpoint", nil
+    })
+    
+    app := builder.Build()
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+    
+    if err := app.Run(ctx); err != nil {
+        log.PrintPanic(err)
+    }
+}
+```
+
+**Wrapping Other Gin Middleware:**
+
+You can wrap any `gin.HandlerFunc` middleware using the same pattern. For example, to wrap Gzip compression:
+
+```go
+import (
+    "github.com/gin-contrib/gzip"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type GzipFilter struct {
+    core.IFilter
+    handler gin.HandlerFunc
+}
+
+func (f *GzipFilter) Init(ctx *core.Context) error {
+    f.handler = gzip.Gzip(gzip.DefaultCompression)
+    return nil
+}
+
+func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    f.handler(req.GinContext())
+    return fc.Next()
+}
+
+// Usage: builder.Filter(&GzipFilter{})
+```
+
+The same pattern works for:
+- **Secure**: Security headers (github.com/gin-contrib/secure)
+- **Session**: Session management (github.com/gin-contrib/sessions)
+- **Logger**: Custom logging (github.com/gin-contrib/logger)
+- **Recovery**: Panic recovery with custom logic
+- And hundreds of other gin middleware
 
 ### ⚡ Generic ORM Example
 
@@ -744,6 +820,7 @@ rate_limit:
 ├── config/              # Configuration management
 ├── log/                 # Logging with Zap
 ├── component/           # Reusable components
+│   ├── cors/            # CORS cross-origin resource sharing filter
 │   ├── cache.go         # Cache component
 │   ├── localcache.go    # Local in-memory cache
 │   ├── rate_limit.go    # Rate limiting

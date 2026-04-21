@@ -160,6 +160,15 @@ func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]
 	// 合并 Where 条件
 	finalSql, finalArgs := q.mergeWheres(sql, args...)
 
+	// 添加 ORDER BY（如果有多个排序字段）
+	if len(q.orders) > 0 {
+		orderParts := make([]string, len(q.orders))
+		for i, o := range q.orders {
+			orderParts[i] = fmt.Sprintf("%v", o)
+		}
+		finalSql = finalSql + " ORDER BY " + strings.Join(orderParts, ", ")
+	}
+
 	// 构建 count SQL
 	countSql := toCountSql(finalSql)
 	var num int64

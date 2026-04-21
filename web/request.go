@@ -58,6 +58,9 @@ func (r *Request) HandlerMeta() *HandlerMeta {
 
 // ContextPath returns the configured context path prefix (e.g. "/api/v1").
 func (r *Request) ContextPath() string {
+	if r.handlerConfig == nil {
+		return ""
+	}
 	return r.handlerConfig.contextPath
 }
 
@@ -286,6 +289,10 @@ func (r *Request) Request() *http.Request {
 // Response returns the Response writer for this request.
 func (r *Request) Response() Response {
 	return r.response
+}
+
+func (r *Request) GinContext() *gin.Context {
+	return r.c
 }
 
 func newRequest(c *gin.Context, response Response, handlerMeta *HandlerMeta, handlerConfig *HandlerConfig) *Request {

@@ -23,7 +23,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/gin-contrib/cors"
+	//"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
@@ -81,13 +81,13 @@ func defaultEngine() *gin.Engine {
 	engine.SetTrustedProxies([]string{"0.0.0.0/0"})
 	// 启用从客户端 IP 头获取真实 IP
 	engine.ForwardedByClientIP = true
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = false
-	config.AllowCredentials = true
-	config.AllowOriginFunc = func(origin string) bool {
-		return true
-	}
-	engine.Use(cors.New(config))
+	//config := cors.DefaultConfig()
+	//config.AllowAllOrigins = false
+	//config.AllowCredentials = true
+	//config.AllowOriginFunc = func(origin string) bool {
+	//	return true
+	//}
+	//engine.Use(cors.New(config))
 	return engine
 }
 
@@ -139,6 +139,21 @@ func (httpServer *HttpServer) AddHandle(handlerConfig *HandlerConfig) {
 }
 
 func (httpServer *HttpServer) Handle() {
+	allFilters := make([]Filter, 0)
+	for _, handlerConfig := range httpServer.handlerConfigs {
+		allFilters = append(allFilters, handlerConfig.filters...)
+	}
+	httpServer.engine.Use(func(ctx *gin.Context) {
+		fullPath := ctx.FullPath()
+		if len(fullPath) == 0 {
+			resp := newResponse(ctx)
+			request := newRequest(ctx, resp, NewHandlerMeta(), nil)
+			mock := newMockFilterChain(request, nil, allFilters, nil)
+			mock.Converter()
+		}
+
+	})
+
 	for _, handlerConfig := range httpServer.handlerConfigs {
 		// 处理 API 路由
 		for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {

@@ -35,3 +35,7 @@ func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any,
 	return filterChain.Next()
 
 }
+
+func NewCrosFilter() *Filter {
+	return &Filter{}
+}

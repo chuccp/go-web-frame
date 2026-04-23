@@ -197,6 +197,9 @@ func (c *mockFilterChain) Next() (any, error) {
 		c.index++
 		return c.filters[c.index].Handle(c, c.request)
 	}
+	if c.lastFilter == nil {
+		return nil, nil
+	}
 	return c.lastFilter.Handle(c, c.request)
 }
 
@@ -219,6 +222,7 @@ func newMockFilterChain(request *Request, converter Converter, filters []Filter,
 		converter:  converter,
 	}
 }
+
 // Handle registers handlers for the given HTTP methods and relative path.
 func (h *HandlerConfig) Handle(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	return h.handles.Handles(httpMethods, relativePath, handlers...)

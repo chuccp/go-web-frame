@@ -62,13 +62,14 @@ func (s *AuthenticationFilter) Handle(filterChain web.FilterChain, request *web.
 func User[T any](r *AuthenticationFilter, request *web.Request) (T, error) {
 	u, err := r.User(request)
 	if err != nil {
-		return u.(T), err
+		var u T
+		return u, err
 	}
 	v, ok := u.(T)
 	if !ok {
 		return v, errors.New("Type conversion error. Please check if it is a pointer type." + reflect.TypeOf(u).Name())
 	}
-	return u.(T), err
+	return u.(T), nil
 
 }
 

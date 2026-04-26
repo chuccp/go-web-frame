@@ -258,7 +258,14 @@ func (r *Request) BindJSON(value any) error {
 	if err != nil {
 		return err
 	}
-	return mapstructure.Decode(json, value)
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  value,
+	})
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(json)
 }
 
 // ContentType returns the request Content-Type header.

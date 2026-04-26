@@ -102,6 +102,13 @@ func (c *Schedule) StopIdFunc(id uint) {
 		c.cron.Remove(info.entryID)
 	}
 }
+func (c *Schedule) GetIds() []uint {
+	ids := make([]uint, 0)
+	for _, info := range c.idInfoMap {
+		ids = append(ids, info.id)
+	}
+	return ids
+}
 func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()

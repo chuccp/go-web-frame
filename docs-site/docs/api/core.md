@@ -8,12 +8,17 @@
 
 ### 工厂方法
 
+框架使用 `Builder` 模式创建应用：
+
 ```go
-// 使用自动配置创建应用（无需配置文件）
-app := wf.NewWithAutoConfig()
+// 加载配置文件
+cfg, err := config.LoadSingleFileConfig("application.yml")
+if err != nil {
+    // 处理错误
+}
 
 // 使用 Builder 和自定义配置创建应用
-builder := wf.NewBuilder(config)
+builder := wf.NewBuilder(cfg)
 app := builder.Build()
 ```
 

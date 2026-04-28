@@ -11,7 +11,7 @@ myapp/
 ├── main.go                 # 应用入口
 ├── go.mod                  # Go 模块文件
 ├── go.sum
-├── config.ini              # 配置文件（INI 格式）
+├── application.yml         # 配置文件（YAML 格式）
 ├── controller/             # HTTP 处理器 / REST 控制器
 │   ├── user_controller.go
 │   └── order_controller.go
@@ -45,23 +45,25 @@ go get github.com/chuccp/go-web-frame
 
 ### 2. 创建配置文件
 
-创建 `config.ini`：
+创建 `application.yml`：
 
-```ini
-[core]
-init      = true
-cachePath = .cache
+```yaml
+# 服务器配置
+web:
+  server:
+    port: 8081
+    host: 0.0.0.0
 
-[sqlite]
-filename = data.db
+# 数据库配置（SQLite 示例）
+web:
+  db:
+    type: sqlite
+    path: data.db
 
-[manage]
-port     = 8081
-username = admin
-password = admin123
-
-[api]
-port = 8082
+# 日志配置
+log:
+  level: debug
+  path: ./logs/app.log
 ```
 
 ### 3. 编写入口文件
@@ -72,7 +74,7 @@ port = 8082
 package main
 
 import (
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/config"
 	wf "github.com/chuccp/go-web-frame"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
@@ -80,23 +82,19 @@ import (
 
 func main() {
 	// 加载配置
-	fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+	cfg, err := config.LoadSingleFileConfig("application.yml")
 	if err != nil {
 		zap.L().Fatal("加载配置失败", zap.Error(err))
 	}
 
-	// 创建应用
-	builder := wf.NewBuilder(fileConfig)
-
-	// 注册路由
+	// 创建 Builder 并注册路由
+	builder := wf.NewBuilder(cfg)
 	builder.Get("/", func(req *web.Request) (any, error) {
 		return "Welcome!", nil
 	})
 
-	// 构建应用
+	// 构建并启动应用
 	app := builder.Build()
-
-	// 启动应用
 	err = app.Start()
 	if err != nil {
 		zap.L().Fatal("启动应用失败", zap.Error(err))
@@ -116,14 +114,21 @@ go run main.go
 
 ### WebFrame 创建
 
-```go
-// 方式一：使用配置文件
-fileConfig, err := config.LoadSingleFileConfig("config.ini")
-builder := wf.NewBuilder(fileConfig)
-app := builder.Build()
+框架使用 `Builder` 模式构建应用：
 
-// 方式二：使用自动配置
-app := wf.NewWithAutoConfig()
+```go
+// 加载配置文件
+cfg, err := config.LoadSingleFileConfig("application.yml")
+builder := wf.NewBuilder(cfg)
+
+// 注册路由、服务、模型、过滤器等
+builder.Get("/users", handler)
+builder.Model(&UserModel{})
+builder.Service(&UserService{})
+builder.Filter(&AuthFilter{})
+
+// 构建应用
+app := builder.Build()
 ```
 
 ### 路由注册
@@ -153,7 +158,7 @@ func handler(req *web.Request) (any, error)
 package main
 
 import (
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/config"
 	wf "github.com/chuccp/go-web-frame"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
@@ -161,13 +166,13 @@ import (
 
 func main() {
 	// 加载配置
-	fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+	cfg, err := config.LoadSingleFileConfig("application.yml")
 	if err != nil {
 		zap.L().Fatal("加载配置失败", zap.Error(err))
 	}
 
 	// 创建 Builder
-	builder := wf.NewBuilder(fileConfig)
+	builder := wf.NewBuilder(cfg)
 
 	// 基本路由
 	builder.Get("/", func(req *web.Request) (any, error) {

@@ -145,12 +145,10 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 
 ```go
 tx := ctx.GetTransaction()
-err := tx.Exec(func(db *gorm.DB) error {
+err := tx.Exec(func(tx *db.DB) error {
     // 在事务中执行操作
-    if err := db.Create(user).Error; err != nil {
-        return err
-    }
-    return nil
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
 })
 ```
 
@@ -158,9 +156,10 @@ err := tx.Exec(func(db *gorm.DB) error {
 
 ```go
 tx := ctx.GetTransactionByName("user_group")
-err := tx.Exec(func(db *gorm.DB) error {
+err := tx.Exec(func(tx *db.DB) error {
     // 在命名事务中执行操作
-    return nil
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
 })
 ```
 

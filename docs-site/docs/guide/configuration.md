@@ -2,30 +2,38 @@
 
 Go Web Frame 提供灵活的配置管理，支持多位置和多种格式。
 
-## 自动配置
+## 配置加载
 
-### 使用自动配置（推荐）
+框架提供多种配置加载方式：
 
-```go
-app := wf.NewWithAutoConfig()
-```
+### 单文件加载（推荐）
 
-框架会自动从以下位置加载配置（后面的覆盖前面的）：
-
-1. `./config/` - 开发环境（项目本地）
-2. `~/.<appname>/` - 用户特定设置
-3. `/etc/<appname>/` - 系统级（生产环境）
-
-### 手动配置
+使用 `config.LoadSingleFileConfig()` 加载单个 YAML 文件：
 
 ```go
-// 使用配置文件（INI 格式）
-fileConfig, err := config.LoadSingleFileConfig("config.ini")
+cfg, err := config.LoadSingleFileConfig("application.yml")
 if err != nil {
-	log.Panic("加载配置失败", zap.Error(err))
+    log.PanicErrors("加载配置失败", err)
 }
 
-builder := wf.NewBuilder(fileConfig)
+builder := wf.NewBuilder(cfg)
+app := builder.Build()
+```
+
+### 多文件加载
+
+使用 `config.LoadConfig()` 按顺序加载多个配置文件，后面的配置会覆盖前面的：
+
+```go
+cfg, err := config.LoadConfig(
+    "/etc/myapp/application.yml",  // 系统级配置
+    "./application.yml",            // 项目级配置
+)
+if err != nil {
+    log.PanicErrors("加载配置失败", err)
+}
+
+builder := wf.NewBuilder(cfg)
 app := builder.Build()
 ```
 
@@ -33,10 +41,10 @@ app := builder.Build()
 
 框架使用 Viper 库，支持以下格式：
 
-- **INI**（默认，推荐用于简单配置）
 - **JSON**
-- **YAML**（推荐用于复杂配置）
+- **YAML**（推荐）
 - **TOML**
+- **INI**
 
 ### YAML 示例（application.yml）
 
@@ -84,15 +92,15 @@ log:
 }
 ```
 
-### INI 示例（config.ini）
+### TOML 示例（config.toml）
 
-```ini
+```toml
 [web.server]
 port = 8081
 
 [web.db]
-type = sqlite
-path = ./data.db
+type = "sqlite"
+path = "./data.db"
 ```
 
 ## 配置项

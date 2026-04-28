@@ -52,7 +52,7 @@ go mod download
 package main
 
 import (
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/config"
 	wf "github.com/chuccp/go-web-frame"
 	"github.com/chuccp/go-web-frame/web"
 	"go.uber.org/zap"
@@ -60,13 +60,13 @@ import (
 
 func main() {
 	// 加载配置
-	fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+	cfg, err := config.LoadSingleFileConfig("application.yml")
 	if err != nil {
 		zap.L().Fatal("加载配置失败", zap.Error(err))
 	}
 
 	// 创建应用
-	builder := wf.NewBuilder(fileConfig)
+	builder := wf.NewBuilder(cfg)
 	builder.Get("/", func(req *web.Request) (any, error) {
 		return "Hello, Go Web Frame!", nil
 	})
@@ -81,23 +81,25 @@ func main() {
 }
 ```
 
-创建 `config.ini` 配置文件：
+创建 `application.yml` 配置文件：
 
-```ini
-[core]
-init      = true
-cachePath = .cache
+```yaml
+# 服务器配置
+web:
+  server:
+    port: 8081
+    host: 0.0.0.0
 
-[sqlite]
-filename = data.db
+# 数据库配置
+web:
+  db:
+    type: sqlite
+    path: ./data.db
 
-[manage]
-port     = 8081
-username = admin
-password = admin123
-
-[api]
-port = 8082
+# 日志配置
+log:
+  level: debug
+  path: ./logs/app.log
 ```
 
 运行：

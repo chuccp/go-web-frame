@@ -310,35 +310,30 @@ func (s *UserService) Init(context *core.Context) error {
 ```go
 func (s *OrderService) CreateOrder(input *CreateOrderInput) (*Order, error) {
     var order *Order
-    
+
     tx := s.ctx.GetTransaction()
-    err := tx.Exec(func(db *gorm.DB) error {
+    err := tx.Exec(func(tx *db.DB) error {
+        // 使用 GetReNewModel 在事务中创建模型
+        orderModel := wf.GetReNewModel[*OrderModel](tx, s.ctx)
+
         // 步骤 1：创建订单
         order = &Order{UserID: input.UserID, Total: input.Total}
-        if err := db.Create(order).Error; err != nil {
+        if err := orderModel.Save(order); err != nil {
             return err
         }
-        
+
         // 步骤 2：创建订单项
+        itemModel := wf.GetReNewModel[*OrderItemModel](tx, s.ctx)
         for _, item := range input.Items {
             orderItem := &OrderItem{OrderID: order.Id, ProductID: item.ProductID}
-            if err := db.Create(orderItem).Error; err != nil {
+            if err := itemModel.Save(orderItem); err != nil {
                 return err
             }
         }
-        
-        // 步骤 3：更新库存
-        for _, item := range input.Items {
-            if err := db.Model(&Product{}).
-                Where("id = ?", item.ProductID).
-                Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
-                return err
-            }
-        }
-        
+
         return nil
     })
-    
+
     return order, err
 }
 ```
@@ -437,26 +432,36 @@ func TestUserService_CreateUser(t *testing.T) {
 }
 ```
 
-### 集成测试 with HTTP 服务器
+### 集成测试
+
+使用 `WebFrame.Test()` 方法进行集成测试（不启动 HTTP 服务器）：
 
 ```go
 func TestUserController_GetUser(t *testing.T) {
-    // 设置
-    app := setupTestApp()
-    ts := httptest.NewServer(app.Engine())
-    defer ts.Close()
-    
-    // 执行
-    resp, err := http.Get(ts.URL + "/users/1")
+    // 加载测试配置
+    cfg, err := config.LoadSingleFileConfig("test.yml")
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // 构建应用
+    builder := wf.NewBuilder(cfg)
+    builder.Model(&model.UserModel{})
+    builder.Service(&service.UserService{})
+    builder.Rest(&controller.UserController{})
+    app := builder.Build()
+
+    // 使用 Test 方法初始化并运行测试
+    err = app.Test(func(ctx *core.Context) error {
+        userService := wf.GetService[*service.UserService](ctx)
+        user, err := userService.GetUserById(1)
+        if err != nil {
+            return err
+        }
+        assert.Equal(t, "test_user", user.Name)
+        return nil
+    })
     assert.NoError(t, err)
-    defer resp.Body.Close()
-    
-    // 断言
-    assert.Equal(t, http.StatusOK, resp.StatusCode)
-    
-    var result map[string]any
-    json.NewDecoder(resp.Body).Decode(&result)
-    assert.Equal(t, float64(1), result["id"])
 }
 ```
 

@@ -158,7 +158,7 @@ func (c *UserController) Get(req *web.Request) (any, error) {
 
 func main() {
     // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("config.ini")
+    fileConfig, err := config.LoadSingleFileConfig("application.yml")
     if err != nil {
         zap.L().Fatal("加载配置失败", zap.Error(err))
     }
@@ -252,7 +252,7 @@ import (
 
 func main() {
     // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("config.ini")
+    fileConfig, err := config.LoadSingleFileConfig("application.yml")
     if err != nil {
         zap.L().Fatal("加载配置失败", zap.Error(err))
     }

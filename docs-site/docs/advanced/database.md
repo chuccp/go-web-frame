@@ -9,35 +9,30 @@
 ```go
 func (s *OrderService) CreateOrder(input *CreateOrderInput) (*Order, error) {
     var order *Order
-    
-    tx := s.GetTransaction()
-    err := tx.Exec(func(db *gorm.DB) error {
+
+    tx := ctx.GetTransaction()
+    err := tx.Exec(func(tx *db.DB) error {
+        // 使用 GetReNewModel 在事务中创建模型
+        orderModel := wf.GetReNewModel[*OrderModel](tx, ctx)
+
         // 步骤 1：创建订单
         order = &Order{UserID: input.UserID, Total: input.Total}
-        if err := db.Create(order).Error; err != nil {
+        if err := orderModel.Save(order); err != nil {
             return err
         }
-        
+
         // 步骤 2：创建订单项
+        itemModel := wf.GetReNewModel[*OrderItemModel](tx, ctx)
         for _, item := range input.Items {
             orderItem := &OrderItem{OrderID: order.Id, ProductID: item.ProductID}
-            if err := db.Create(orderItem).Error; err != nil {
+            if err := itemModel.Save(orderItem); err != nil {
                 return err
             }
         }
-        
-        // 步骤 3：更新库存
-        for _, item := range input.Items {
-            if err := db.Model(&Product{}).
-                Where("id = ?", item.ProductID).
-                Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
-                return err
-            }
-        }
-        
+
         return nil
     })
-    
+
     return order, err
 }
 ```
@@ -46,9 +41,10 @@ func (s *OrderService) CreateOrder(input *CreateOrderInput) (*Order, error) {
 
 ```go
 func (s *UserService) UpdateUserWithTransaction(user *User) error {
-    tx := s.GetTransaction()
-    return tx.Exec(func(db *gorm.DB) error {
-        return db.Save(user).Error
+    tx := ctx.GetTransaction()
+    return tx.Exec(func(tx *db.DB) error {
+        userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+        return userModel.Save(user)
     })
 }
 ```
@@ -90,13 +86,12 @@ func main() {
 ### 复杂查询
 
 ```go
-// 多条件查询
+// 多条件查询（Where 可多次调用）
 users, err := userModel.Query().
     Where("status = ?", 1).
     Where("age > ?", 18).
     Order("create_time desc").
-    Limit(10).
-    Find()
+    List(10)
 ```
 
 ### 关联查询
@@ -107,7 +102,7 @@ user, err := userModel.Query().
     Preload("Profile").
     Preload("Roles").
     Where("id = ?", 1).
-    First()
+    One()
 ```
 
 ### 原生 SQL
@@ -115,36 +110,32 @@ user, err := userModel.Query().
 ```go
 // 原生 SQL 查询
 var users []User
-err := userModel.Query().
-    Raw("SELECT * FROM t_user WHERE status = ?", 1).
-    Scan(&users).Error
+users, err := userModel.Query().
+    Exec("SELECT * FROM t_user WHERE status = ?", 1)
 ```
 
 ## 数据库配置
 
 ### SQLite
 
-```ini
-[core]
-dbType = sqlite
-
-[sqlite]
-filename = data.db
+```yaml
+web:
+  db:
+    type: sqlite
+    path: ./data.db
 ```
 
 ### MySQL
 
-```ini
-[core]
-dbType = mysql
-
-[mysql]
-host     = localhost
-port     = 3306
-dbname   = mydb
-charset  = utf8
-username = root
-password = password
+```yaml
+web:
+  db:
+    type: mysql
+    host: localhost
+    port: 3306
+    database: mydb
+    user: root
+    password: your_password
 ```
 
 ### 连接池配置

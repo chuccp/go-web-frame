@@ -27,7 +27,6 @@ builder.Get("/users", handler)
 builder.Post("/users", handler)
 builder.Put("/users/:id", handler)
 builder.Delete("/users/:id", handler)
-builder.Patch("/users/:id", handler)
 
 // 任意方法
 builder.Any("/api", handler)

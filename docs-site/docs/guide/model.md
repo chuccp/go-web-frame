@@ -206,7 +206,9 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 
 ```go
 func main() {
-    builder := wf.NewBuilder(config.LoadAutoConfig())
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+
+    builder := wf.NewBuilder(cfg)
 
     // 注册模型到默认模型组
     builder.Model(&UserModel{}, &OrderModel{})
@@ -265,7 +267,8 @@ func (m *UserModel) FindByEmail(email string) (*entity.User, error) {
 }
 
 func main() {
-    builder := wf.NewBuilder(config.LoadAutoConfig())
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+    builder := wf.NewBuilder(cfg)
     builder.Model(&UserModel{})
     app := builder.Build()
     app.Start()

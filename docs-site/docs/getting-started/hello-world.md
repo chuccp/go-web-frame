@@ -18,13 +18,13 @@ import (
 
 func main() {
     // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("config.ini")
+    cfg, err := config.LoadSingleFileConfig("application.yml")
     if err != nil {
         zap.L().Fatal("加载配置失败", zap.Error(err))
     }
 
     // 创建应用
-    builder := wf.NewBuilder(fileConfig)
+    builder := wf.NewBuilder(cfg)
     
     // 注册路由
     builder.Get("/", func(req *web.Request) (any, error) {
@@ -134,7 +134,7 @@ builder.Post("/users", func(req *web.Request) (any, error) {
 发送 POST 请求：
 
 ```bash
-curl -X POST http://localhost:8080/users \
+curl -X POST http://localhost:8081/users \
   -H "Content-Type: application/json" \
   -d '{"name":"Alice","email":"alice@example.com"}'
 ```
@@ -146,7 +146,9 @@ package main
 
 import (
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/web"
+    "go.uber.org/zap"
 )
 
 var users = []map[string]any{
@@ -155,7 +157,12 @@ var users = []map[string]any{
 }
 
 func main() {
-    builder := wf.NewBuilder(config.LoadAutoConfig())
+    cfg, err := config.LoadSingleFileConfig("application.yml")
+    if err != nil {
+        zap.L().Fatal("加载配置失败", zap.Error(err))
+    }
+
+    builder := wf.NewBuilder(cfg)
 
     // 获取所有用户
     builder.Get("/users", func(req *web.Request) (any, error) {

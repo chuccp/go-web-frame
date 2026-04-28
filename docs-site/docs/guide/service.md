@@ -10,16 +10,16 @@
 package service
 
 import (
-	core2 "github.com/chuccp/go-web-frame/core"
+	core "github.com/chuccp/go-web-frame/core"
 	wf "github.com/chuccp/go-web-frame"
 )
 
 type UserService struct {
-	core2.IService
+	core.IService
 	userModel *model.UserModel
 }
 
-func (s *UserService) Init(context *core2.Context) error {
+func (s *UserService) Init(context *core.Context) error {
 	// 从 Context 获取模型
 	s.userModel = wf.GetModel[*model.UserModel](context)
 	return nil
@@ -42,7 +42,7 @@ func (s *UserService) GetAllUsers() ([]*entity.User, error) {
 package main
 
 import (
-	config2 "github.com/chuccp/go-web-frame/config"
+	config "github.com/chuccp/go-web-frame/config"
 	wf "github.com/chuccp/go-web-frame"
 	"go.uber.org/zap"
 	"myapp/service"
@@ -50,7 +50,7 @@ import (
 
 func createApp() (*wf.WebFrame, error) {
 	// 加载配置
-	fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+	fileConfig, err := config.LoadSingleFileConfig("application.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -88,12 +88,12 @@ func main() {
 
 ```go
 type UserService struct {
-	core2.IService
+	core.IService
 	userModel    *model.UserModel
 	profileModel *model.ProfileModel
 }
 
-func (s *UserService) Init(context *core2.Context) error {
+func (s *UserService) Init(context *core.Context) error {
 	s.userModel = wf.GetModel[*model.UserModel](context)
 	s.profileModel = wf.GetModel[*model.ProfileModel](context)
 	return nil
@@ -104,12 +104,12 @@ func (s *UserService) Init(context *core2.Context) error {
 
 ```go
 type OrderService struct {
-	core2.IService
+	core.IService
 	userService *service.UserService
 	orderModel  *model.OrderModel
 }
 
-func (s *OrderService) Init(context *core2.Context) error {
+func (s *OrderService) Init(context *core.Context) error {
 	s.userService = wf.GetService[*service.UserService](context)
 	s.orderModel = wf.GetModel[*model.OrderModel](context)
 	return nil
@@ -120,11 +120,11 @@ func (s *OrderService) Init(context *core2.Context) error {
 
 ```go
 type EmailService struct {
-	core2.IService
+	core.IService
 	apiKey string
 }
 
-func (s *EmailService) Init(context *core2.Context) error {
+func (s *EmailService) Init(context *core.Context) error {
 	s.apiKey = context.GetConfig().GetString("email.api_key")
 	return nil
 }
@@ -210,11 +210,11 @@ func (s *OrderService) CreateOrder(input *CreateOrderInput) (*entity.Order, erro
 
 ```go
 type UserController struct {
-	core2.IService
+	core.IService
 	userService *service.UserService
 }
 
-func (c *UserController) Init(context *core2.Context) error {
+func (c *UserController) Init(context *core.Context) error {
 	// 获取服务
 	c.userService = wf.GetService[*service.UserService](context)
 	
@@ -247,12 +247,12 @@ func (c *UserController) Get(req *web.Request) (any, error) {
 
 ```go
 type PaymentService struct {
-	core2.IService
+	core.IService
 	orderService *service.OrderService
 	emailService *service.EmailService
 }
 
-func (s *PaymentService) Init(context *core2.Context) error {
+func (s *PaymentService) Init(context *core.Context) error {
 	s.orderService = wf.GetService[*service.OrderService](context)
 	s.emailService = wf.GetService[*service.EmailService](context)
 	return nil
@@ -265,8 +265,8 @@ func (s *PaymentService) Init(context *core2.Context) error {
 package main
 
 import (
-	config2 "github.com/chuccp/go-web-frame/config"
-	core2 "github.com/chuccp/go-web-frame/core"
+	config "github.com/chuccp/go-web-frame/config"
+	core "github.com/chuccp/go-web-frame/core"
 	wf "github.com/chuccp/go-web-frame"
 	"go.uber.org/zap"
 	"myapp/controller"
@@ -276,7 +276,7 @@ import (
 
 func createApp() (*wf.WebFrame, error) {
 	// 加载配置
-	fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+	fileConfig, err := config.LoadSingleFileConfig("application.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func createApp() (*wf.WebFrame, error) {
 	builder.Service(&service.UserService{})
 
 	// 注册 REST 控制器
-	restGroupBuilder := core2.NewRestGroupBuilder()
+	restGroupBuilder := wf.NewRestGroupBuilder()
 	restGroupBuilder.Rest(&controller.UserController{})
 	restGroupBuilder.Port(8081)
 	restGroup := restGroupBuilder.Build()

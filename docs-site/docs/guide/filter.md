@@ -47,7 +47,7 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 package main
 
 import (
-    config2 "github.com/chuccp/go-web-frame/config"
+    config "github.com/chuccp/go-web-frame/config"
     wf "github.com/chuccp/go-web-frame"
     "go.uber.org/zap"
     "myapp/filter"
@@ -55,7 +55,7 @@ import (
 
 func createApp() (*wf.WebFrame, error) {
     // 加载配置
-    fileConfig, err := config2.LoadSingleFileConfig("config.ini")
+    fileConfig, err := config.LoadSingleFileConfig("application.yml")
     if err != nil {
         return nil, err
     }
@@ -404,7 +404,7 @@ func (c *UserController) List(req *web.Request) (any, error) {
 
 func main() {
     // 使用 Builder 注册组件
-    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder := wf.NewBuilder(config.LoadSingleFileConfig("application.yml"))
     
     // 注册过滤器（顺序很重要）
     builder.Filter(&LoggingFilter{}, &AuthFilter{})

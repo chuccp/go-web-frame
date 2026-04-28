@@ -53,9 +53,7 @@ web:
   server:
     port: 8081
     host: 0.0.0.0
-
-# 数据库配置（SQLite 示例）
-web:
+  # 数据库配置（SQLite 示例）
   db:
     type: sqlite
     path: data.db

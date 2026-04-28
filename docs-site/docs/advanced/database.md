@@ -140,11 +140,20 @@ web:
 
 ### 连接池配置
 
-```go
-// 在代码中配置连接池
-db.DB().SetMaxOpenConns(100)
-db.DB().SetMaxIdleConns(10)
-db.DB().SetConnMaxLifetime(time.Hour)
+在 YAML 配置文件中设置连接池参数：
+
+```yaml
+web:
+  db:
+    type: mysql
+    host: localhost
+    port: 3306
+    database: mydb
+    user: root
+    password: your_password
+    max_open_conns: 100      # 最大打开连接数
+    max_idle_conns: 10        # 最大空闲连接数
+    conn_max_lifetime: 3600   # 连接最大生命周期（秒）
 ```
 
 ## 数据库迁移

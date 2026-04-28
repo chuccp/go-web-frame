@@ -213,12 +213,45 @@ idUint := req.ParamUint("id")
 // 获取查询参数
 keyword := req.Query("q")
 
+// 带默认值的查询参数
+page := req.DefaultQuery("page", "1")
+
 // 获取 JSON 请求体
 jsonObject, err := req.Json()
 
 // 绑定 JSON 到结构体
 var data MyStruct
 err := req.BindJSON(&data)
+```
+
+### JsonObject
+
+`req.Json()` 返回 `JsonObject` 类型，提供便捷的 JSON 值获取方法：
+
+```go
+jsonObject, err := req.Json()
+if err != nil {
+    return nil, err
+}
+
+// 获取字符串
+name := jsonObject.GetString("name")
+
+// 获取整数
+age := jsonObject.GetInt("age")
+
+// 获取浮点数
+price := jsonObject.GetFloat("price")
+
+// 获取布尔值
+active := jsonObject.GetBool("active")
+
+// 获取数组
+tags := jsonObject.GetSlice("tags")
+
+// 获取嵌套对象
+subObj := jsonObject.GetObject("address")
+city := subObj.GetString("city")
 ```
 
 ### 请求头

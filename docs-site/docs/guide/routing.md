@@ -167,7 +167,7 @@ func main() {
     builder := wf.NewBuilder(fileConfig)
     
     // 注册 REST 控制器
-    restGroupBuilder := core.NewRestGroupBuilder()
+    restGroupBuilder := wf.NewRestGroupBuilder()
     restGroupBuilder.Rest(&UserController{})
     restGroupBuilder.Port(8081)
     restGroup := restGroupBuilder.Build()
@@ -218,23 +218,79 @@ func main() {
 
 ### 静态文件目录
 
+在控制器的 `Init` 方法中注册：
+
 ```go
-// 需要在 HandlerFunc 中处理
-// 框架支持通过 HandlerFunc 返回 *web.File 来提供文件下载
+func (c *MyController) Init(ctx *core.Context) error {
+    // 注册静态文件目录，访问 /static/* 返回 ./www/*
+    ctx.Static("/static", "./www")
+    return nil
+}
 ```
+
+访问 `/static/style.css` 会返回 `./www/style.css` 文件。
 
 ### 静态文件系统
 
+使用 `http.FileSystem` 接口注册静态文件，支持嵌入文件系统：
+
 ```go
-// 框架支持静态文件服务
-// 具体用法请参考实际项目代码
+import "net/http"
+
+func (c *MyController) Init(ctx *core.Context) error {
+    // 使用 http.Dir 注册静态文件系统
+    ctx.StaticFs("/assets", http.Dir("./dist"))
+    return nil
+}
 ```
 
 ## 反向代理
 
+在控制器中注册反向代理，将请求转发到后端服务：
+
 ```go
-// 框架支持反向代理功能
-// 具体用法请参考实际项目代码
+func (c *MyController) Init(ctx *core.Context) error {
+    // 所有 /api/* 请求会被代理到 http://backend:8080/api/*
+    ctx.ReverseProxy("/api", "http://backend:8080")
+    return nil
+}
+```
+
+## WebSocket
+
+注册 WebSocket 端点：
+
+```go
+import "github.com/gorilla/websocket"
+
+func (c *MyController) Init(ctx *core.Context) error {
+    ctx.WebSocket("/ws", func(conn *websocket.Conn, req *web.Request) {
+        // WebSocket 处理逻辑
+        defer conn.Close()
+        for {
+            _, message, err := conn.ReadMessage()
+            if err != nil {
+                break
+            }
+            conn.WriteMessage(websocket.TextMessage, message)
+        }
+    })
+    return nil
+}
+```
+
+## SSE（Server-Sent Events）
+
+注册 SSE 端点，用于服务器推送事件：
+
+```go
+func (c *MyController) Init(ctx *core.Context) error {
+    ctx.SSE("/events", func(writer web.SSEWriter, req *web.Request) {
+        // SSE 事件处理逻辑
+        writer.Send("message", "Hello World")
+    })
+    return nil
+}
 ```
 
 ## 完整示例

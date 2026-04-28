@@ -112,6 +112,74 @@ func handler(req *web.Request) (any, error) {
 }
 ```
 
+## web.Message 标准响应
+
+框架提供 `web.Message` 类型作为标准响应格式：
+
+```go
+type Message struct {
+    Code int    `json:"code"`
+    Data any    `json:"data"`
+    Msg  string `json:"msg"`
+    Type string `json:"type"`
+}
+```
+
+### 辅助函数
+
+```go
+// 成功响应（code=200）
+return web.Ok(), nil
+return web.Ok("操作成功"), nil
+
+// 带数据的成功响应
+return web.Data(users), nil
+
+// 带自定义状态码和数据的响应
+return web.DataCode(201, createdUser), nil
+
+// 带类型的响应
+return web.DataType("table", data), nil
+
+// 错误响应（code=500）
+return nil, errors.New("something went wrong")
+// 或显式创建错误消息
+return web.ErrorMessage("server error"), nil
+return web.Error(err), nil
+
+// 带数据的错误响应
+return web.Errors(invalidData, errors.New("validation failed")), nil
+
+// 未授权响应（code=401）
+return web.Unauthorized(nil, errors.New("token expired")), nil
+
+// 重定向响应
+return web.Redirect("/login"), nil
+```
+
+### 在控制器中使用
+
+```go
+func (c *UserController) List(req *web.Request) (any, error) {
+    users, err := c.userService.GetAllUsers()
+    if err != nil {
+        return nil, err
+    }
+    return web.Data(users), nil
+}
+
+func (c *UserController) Create(req *web.Request) (any, error) {
+    var input UserInput
+    if err := req.BindJSON(&input); err != nil {
+        return nil, err
+    }
+    if err := c.userService.Create(&input); err != nil {
+        return nil, err
+    }
+    return web.Ok("创建成功"), nil
+}
+```
+
 ## 静态文件
 
 ### 静态文件目录

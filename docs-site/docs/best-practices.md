@@ -150,6 +150,7 @@ var (
     ErrUserNotFound    = errors.New("user not found")
     ErrInvalidInput    = errors.New("invalid input")
     ErrUnauthorized    = errors.New("unauthorized")
+    ErrForbidden       = errors.New("forbidden")
 )
 ```
 
@@ -168,7 +169,7 @@ func (c *UserController) GetUser(req *web.Request) (any, error) {
 }
 ```
 
-### 自定义转换器用于错误响应
+### 自定义响应转换器
 
 ```go
 type APIConverter struct{}
@@ -176,25 +177,20 @@ type APIConverter struct{}
 func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
     result, err := fc.Next()
     if err != nil {
-        var appErr *AppError
-        if errors.As(err, &appErr) {
-            req.Response().AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-                "code":    appErr.Code,
-                "message": appErr.Message,
-            })
-            return
-        }
-        req.Response().AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-            "code":    "INTERNAL_ERROR",
-            "message": err.Error(),
-        })
+        // 返回标准错误响应
+        req.Response().AbortWithStatusJSON(200, web.ErrorMessage(err.Error()))
         return
     }
-    req.Response().AbortWithStatusJSON(http.StatusOK, gin.H{
-        "code": "SUCCESS",
-        "data": result,
-    })
+    // 返回标准成功响应
+    req.Response().AbortWithStatusJSON(200, web.Data(result))
 }
+```
+
+通过注册转换器过滤器，可以统一所有 API 的响应格式：
+
+```go
+builder := wf.NewBuilder(cfg)
+builder.Filter(&APIConverter{})
 ```
 
 ## 认证与授权
@@ -365,10 +361,13 @@ func (r *EmailRunner) Init(context *core.Context) error {
     return nil
 }
 
-func (r *EmailRunner) Run(ctx context.Context) error {
+func (r *EmailRunner) Run() error {
+    ticker := time.NewTicker(5 * time.Minute)
+    defer ticker.Stop()
+
     for {
         select {
-        case <-ctx.Done():
+        case <-r.ctx.Done():
             // 在退出前处理剩余邮件
             r.drainQueue()
             return nil

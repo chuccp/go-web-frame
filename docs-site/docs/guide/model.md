@@ -138,8 +138,26 @@ func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
 // 根据主键查找
 user, err := userModel.FindById(1)
 
+// 根据主键查找（带预加载）
+user, err := userModel.FindByIdWithPreload(1, "Profile", "Role")
+
 // 查找所有记录
 users, err := userModel.FindAll()
+
+// 查找所有记录（带预加载）
+users, err := userModel.FindAllWithPreload("Profile", "Role")
+
+// 根据 ID 列表批量查找
+users, err := userModel.FindAllByIds(1, 2, 3)
+
+// 根据 ID 列表批量查找（带预加载）
+users, err := userModel.FindAllByIdsWithPreload([]uint{1, 2, 3}, "Profile")
+
+// 条件查询单条（找不到返回 nil 而不是错误）
+user, err := userModel.FindOne("email = ?", "test@example.com")
+
+// 条件查询单条（带预加载）
+user, err := userModel.FindOneWithPreload("status = ?", []interface{}{1}, "Profile")
 
 // 根据 ID 删除
 err := userModel.DeleteById(1)
@@ -151,8 +169,26 @@ err := userModel.UpdateById(user)
 page := &web.Page{PageNo: 1, PageSize: 10}
 users, total, err := userModel.Page(page)
 
+// 带条件的分页查询
+users, total, err := userModel.QueryPage(page, "status = ?", 1)
+
 // 更新单列
 err := userModel.UpdateColumn(1, "status", 0)
+
+// 按 ID 更新 Map
+err := userModel.UpdateForMap(1, map[string]interface{}{"name": "Bob"})
+
+// 批量保存
+err := userModel.Saves([]entity.User{user1, user2})
+
+// 保存 Map 并返回主键
+id, err := userModel.SaveForMapWithPk(map[string]interface{}{"name": "Alice"}, "id")
+
+// 保存 Map 并返回 uint 主键
+id, err := userModel.SaveForMapWithUintPk(mapValue, "id")
+
+// 创建记录并返回主键
+id, err := userModel.CreateWithPk(user, "id", reflect.Uint)
 ```
 
 ## 查询构建器
@@ -173,12 +209,15 @@ count, err := userModel.Query().Where("status = ?", 1).Count()
 ### 分页
 
 ```go
-// 分页查询
+// 分页查询（返回列表和总数）
 page := &web.Page{PageNo: 1, PageSize: 10}
 users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
 
 // Web 分页（返回 PageAble 结构）
 pageAble, err := userModel.Query().Where("status = ?", 1).PageForWeb(page)
+
+// 分页列表（不返回总数）
+users, err := userModel.Query().Where("status = ?", 1).ListPage(page)
 ```
 
 ### 排序和限制
@@ -189,6 +228,9 @@ users, err := userModel.Query().Order("id desc").All()
 
 // 限制数量
 users, err := userModel.Query().Order("id desc").List(100)
+
+// 限制数量并返回总数
+users, total, err := userModel.Query().Order("id desc").Size(100)
 ```
 
 ### 预加载关联
@@ -198,6 +240,28 @@ users, err := userModel.Query().Order("id desc").List(100)
 users, err := userModel.Query().Preload("Profile").Preload("Role").All()
 
 user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
+```
+
+### JOIN 查询
+
+```go
+// JOIN 查询
+users, err := userModel.Query().Joins("Profile").Where("status = ?", 1).All()
+```
+
+### 原生 SQL
+
+```go
+// 原生 SQL 查询（支持 Where 条件自动合并）
+users, err := userModel.Query().
+    Where("status = ?", 1).
+    Exec("SELECT * FROM t_user WHERE status = ?")
+
+// 原生 SQL 分页查询
+users, total, err := userModel.Query().
+    Where("status = ?", 1).
+    Order("id desc").
+    ExecPage(page, "SELECT * FROM t_user WHERE status = ?")
 ```
 
 ## 模型组
@@ -279,3 +343,4 @@ func main() {
 
 - [服务](service.md) - 业务逻辑层
 - [数据库高级用法](../advanced/database.md) - 事务、迁移等
+- [后台任务](runner.md) - Runner 和定时任务

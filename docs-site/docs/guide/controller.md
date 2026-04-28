@@ -334,3 +334,4 @@ func main() {
 - [模型](model.md) - 使用类型安全的 ORM
 - [服务](service.md) - 业务逻辑层
 - [过滤器/中间件](filter.md) - 添加横切关注点
+- [后台任务](runner.md) - Runner 和定时任务

@@ -57,7 +57,7 @@ func (a *EntryModel[T]) FindById(id uint) (T, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var zero T
-			return zero, gorm.ErrRecordNotFound
+			return zero, nil
 		}
 		var zero T
 		return zero, err
@@ -78,7 +78,7 @@ func (a *EntryModel[T]) FindByIdWithPreload(id uint, preloads ...string) (T, err
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var zero T
-			return zero, gorm.ErrRecordNotFound
+			return zero, nil
 		}
 		var zero T
 		return zero, err
@@ -92,7 +92,7 @@ func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, erro
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var zero T
-			return zero, gorm.ErrRecordNotFound
+			return zero, nil
 		}
 		var zero T
 		return zero, err
@@ -112,7 +112,7 @@ func (a *EntryModel[T]) FindOneWithPreload(query interface{}, args []interface{}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var zero T
-			return zero, gorm.ErrRecordNotFound
+			return zero, nil
 		}
 		var zero T
 		return zero, err

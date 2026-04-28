@@ -1,0 +1,80 @@
+site_name: Go Web Frame 使用手册
+site_url: https://go-web-frame.dev
+site_description: Go Web Frame 框架官方文档
+site_author: Go Web Frame Team
+
+theme:
+  name: material
+  language: zh
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+plugins:
+  - search
+  - i18n:
+      default_language: zh
+      languages:
+        zh:
+          name: 中文
+          link: /zh/
+        en:
+          name: English
+          link: /en/
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - 首页: index.md
+  - 快速开始:
+      - 安装: getting-started/installation.md
+      - 快速开始: getting-started/quick-start.md
+      - Hello World: getting-started/hello-world.md
+  - 指南:
+      - 路由: guide/routing.md
+      - 控制器: guide/controller.md
+      - 模型: guide/model.md
+      - 服务: guide/service.md
+      - 过滤器/中间件: guide/filter.md
+      - 配置: guide/configuration.md
+  - 高级:
+      - 数据库: advanced/database.md
+  - API 参考:
+      - 核心 API: api/core.md
+      - Web API: api/web.md
+      - 模型 API: api/model.md
+  - 最佳实践: best-practices.md
+  - 更新日志: changelog.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/chuccp/go-web-frame

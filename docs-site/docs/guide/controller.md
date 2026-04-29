@@ -217,6 +217,122 @@ func (c *UserController) Error(req *web.Request) (any, error) {
 }
 ```
 
+### 统一响应格式（web.Message）
+
+框架提供 `web.Message` 类型，用于构建统一格式的 API 响应：
+
+```go
+type Message struct {
+    Code int    `json:"code"`
+    Data any    `json:"data"`
+    Msg  string `json:"msg"`
+    Type string `json:"type"`
+}
+```
+
+#### 辅助函数
+
+```go
+// 成功响应
+return web.Ok(), nil                    // {"code":200,"data":null,"msg":"","type":""}
+return web.Ok("操作成功"), nil           // {"code":200,"data":null,"msg":"操作成功","type":""}
+
+// 带数据的成功响应
+return web.Data(users), nil             // {"code":200,"data":[...],"msg":"","type":""}
+
+// 带类型标签的响应
+return web.DataType("table", data), nil // {"code":200,"data":...,"type":"table"}
+
+// 带自定义状态码的响应
+return web.DataCode(201, user), nil     // {"code":201,"data":{...},"msg":"","type":""}
+
+// 错误响应（code=500）
+return web.ErrorMessage("服务器错误"), nil
+return web.Error(err), nil              // 从 error 创建
+return web.Errors(data, err), nil       // 带数据和错误信息
+
+// 未授权响应（code=401）
+return web.Unauthorized(nil, errors.New("token expired")), nil
+
+// 检查响应是否成功
+msg := web.Data(users)
+if msg.IsOK() { /* code == 200 */ }
+```
+
+#### 在控制器中使用
+
+```go
+func (c *UserController) List(req *web.Request) (any, error) {
+    users, err := c.userService.GetAllUsers()
+    if err != nil {
+        return nil, err
+    }
+    return web.Data(users), nil
+}
+
+func (c *UserController) Create(req *web.Request) (any, error) {
+    var input CreateUserInput
+    if err := req.BindJSON(&input); err != nil {
+        return nil, err
+    }
+    if err := c.userService.Create(&input); err != nil {
+        return nil, err
+    }
+    return web.Ok("创建成功"), nil
+}
+```
+
+### 自定义响应转换器（IConverter）
+
+`DefaultConverter` 是框架默认的响应转换器，处理逻辑如下：
+
+| handler 返回值 | 响应行为 |
+|----------------|----------|
+| `error` | 返回 `web.Error(err)`，HTTP 500 |
+| `*web.Message` | 如果是 Redirect 类型则 301 跳转，否则返回 JSON |
+| `string` | 直接写入纯文本 |
+| `*web.File` / `*os.File` | 文件下载 |
+| 其他值 | 包装为 `web.Data(result)` 返回 JSON |
+
+如果需要统一所有 API 的响应格式（例如强制所有响应都走 `web.Message`），可以实现 `core.IConverter` 接口：
+
+```go
+type APIConverter struct {
+    core.IConverter
+}
+
+func (c *APIConverter) Init(ctx *core.Context) error {
+    return nil
+}
+
+func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
+    result, err := fc.Next()
+    if err != nil {
+        // 所有错误统一返回 Message 格式
+        req.Response().AbortWithStatusJSON(200, web.Error(err))
+        return
+    }
+    // 如果已经是 Message 类型，直接返回
+    if msg, ok := result.(*web.Message); ok {
+        req.Response().AbortWithStatusJSON(200, msg)
+        return
+    }
+    // 其他类型包装为 Message
+    req.Response().AbortWithStatusJSON(200, web.Data(result))
+}
+```
+
+注册转换器到 RestGroup：
+
+```go
+restGroup := wf.NewRestGroupBuilder().
+    Rest(&UserController{}).
+    Converter(&APIConverter{}).
+    Port(8081).
+    Build()
+builder.RestGroup(restGroup)
+```
+
 ## 依赖注入
 
 控制器可以通过 `Init` 方法的 `ctx` 参数获取其他组件：

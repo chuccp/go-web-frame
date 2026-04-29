@@ -309,6 +309,8 @@ func (c *MyController) Init(ctx *core.Context) error {
 
 ## WebSocket
 
+### 基本用法
+
 注册 WebSocket 端点：
 
 ```go
@@ -316,7 +318,6 @@ import "github.com/gorilla/websocket"
 
 func (c *MyController) Init(ctx *core.Context) error {
     ctx.WebSocket("/ws", func(conn *websocket.Conn, req *web.Request) {
-        // WebSocket 处理逻辑
         defer conn.Close()
         for {
             _, message, err := conn.ReadMessage()
@@ -328,6 +329,83 @@ func (c *MyController) Init(ctx *core.Context) error {
     })
     return nil
 }
+```
+
+### 完整示例（聊天室）
+
+```go
+type ChatController struct {
+    core.IService
+    clients map[*websocket.Conn]bool
+    mu      sync.Mutex
+}
+
+func (c *ChatController) Init(ctx *core.Context) error {
+    c.clients = make(map[*websocket.Conn]bool)
+    ctx.WebSocket("/ws/chat", c.HandleChat)
+    return nil
+}
+
+func (c *ChatController) HandleChat(conn *websocket.Conn, req *web.Request) {
+    // 新客户端加入
+    c.mu.Lock()
+    c.clients[conn] = true
+    c.mu.Unlock()
+
+    defer func() {
+        // 客户端离开
+        c.mu.Lock()
+        delete(c.clients, conn)
+        c.mu.Unlock()
+        conn.Close()
+    }()
+
+    for {
+        _, message, err := conn.ReadMessage()
+        if err != nil {
+            break
+        }
+        // 广播消息给所有客户端
+        c.mu.Lock()
+        for client := range c.clients {
+            err := client.WriteMessage(websocket.TextMessage, message)
+            if err != nil {
+                client.Close()
+                delete(c.clients, client)
+            }
+        }
+        c.mu.Unlock()
+    }
+}
+```
+
+### 自定义 WebSocket 升级器
+
+默认升级器允许所有来源，读缓冲区 1024 字节。如需自定义：
+
+```go
+upgrader := web.WebSocketUpgraderWithOptions(
+    4096,  // 读缓冲区大小
+    4096,  // 写缓冲区大小
+    func(r *http.Request) bool {
+        // 自定义 Origin 检查
+        return r.Header.Get("Origin") == "https://yourdomain.com"
+    },
+)
+```
+
+### 消息类型
+
+```go
+// 文本消息
+conn.WriteMessage(websocket.TextMessage, []byte("hello"))
+
+// 二进制消息
+conn.WriteMessage(websocket.BinaryMessage, data)
+
+// 关闭连接
+conn.WriteMessage(websocket.CloseMessage,
+    websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 ```
 
 ## SSE（Server-Sent Events）

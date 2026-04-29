@@ -432,6 +432,68 @@ builder.Filter(cors.NewCrosFilter())
 
 如需自定义 CORS 策略，可以创建自己的过滤器并在其中配置 `gin-contrib/cors`。
 
+### Redis 组件（redis）
+
+基于 [go-redis/v9](https://github.com/redis/go-redis) 的 Redis 客户端组件：
+
+```go
+import "github.com/chuccp/go-web-frame/redis"
+
+type MyController struct {
+    core.IService
+    redisClient *redis.Component
+}
+
+func (c *MyController) Init(ctx *core.Context) error {
+    c.redisClient = wf.GetComponent[*redis.Component](ctx)
+    ctx.Get("/cache", c.GetCache)
+    ctx.Post("/cache", c.SetCache)
+    return nil
+}
+
+func (c *MyController) GetCache(req *web.Request) (any, error) {
+    // 获取 go-redis 客户端
+    client := c.redisClient.GetClient()
+
+    // 基本操作
+    val, err := client.Get(req.Request().Context(), "key").Result()
+    if err != nil {
+        return nil, err
+    }
+    return val, nil
+}
+
+func (c *MyController) SetCache(req *web.Request) (any, error) {
+    client := c.redisClient.GetClient()
+
+    // 设置键值（带过期时间）
+    err := client.Set(req.Request().Context(), "key", "value", 10*time.Minute).Err()
+    if err != nil {
+        return nil, err
+    }
+    return web.Ok(), nil
+}
+```
+
+注册组件：
+
+```go
+builder.Component(&redis.Component{})
+```
+
+配置（`application.yml`）：
+
+```yaml
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+  pool_size: 10           # 连接池大小
+  min_idle_conns: 5        # 最小空闲连接数
+```
+
+`GetClient()` 返回 `*github.com/redis/go-redis/v9.Client`，支持 go-redis 的全部 API（String、Hash、List、Set、Sorted Set、Stream、Pipeline 等）。
+
 ## 下一步
 
 - [Runner（后台任务）](runner.md) - 后台任务运行器

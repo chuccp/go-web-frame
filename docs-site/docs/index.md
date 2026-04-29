@@ -21,8 +21,10 @@ Go Web Frame 是一个基于 Gin 的 Go 语言 Web 框架，提供结构化的 W
 ### 数据存储
 | 组件 | 说明 |
 |------|------|
-| [go-redis](https://github.com/redis/go-redis) | Redis 官方推荐客户端 |
+| [gorm/driver/mysql](https://gorm.io/driver/mysql/) | GORM MySQL 驱动 |
+| [gorm/driver/postgres](https://gorm.io/driver/postgres/) | GORM PostgreSQL 驱动 |
 | [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | 纯 Go SQLite 实现，无 CGO 依赖 |
+| [go-redis](https://github.com/redis/go-redis) | Redis 官方推荐客户端 |
 
 ## 快速链接
 
@@ -40,18 +42,21 @@ Go Web Frame 是一个基于 Gin 的 Go 语言 Web 框架，提供结构化的 W
 - [模型](guide/model.md) - 类型安全的 ORM（Model、EntryModel、查询构建器、事务）
 - [过滤器/中间件](guide/filter.md) - HTTP 请求过滤（认证、日志、CORS、限流、路由元数据）
 - [配置](guide/configuration.md) - 配置管理（YAML/JSON/TOML、环境变量、多环境）
+- [日志](guide/logging.md) - 结构化日志（Zap、文件轮转、日志级别）
 - [后台任务](guide/runner.md) - Runner 和定时任务调度
 - [组件](guide/components.md) - 框架内置组件（限流、认证、定时任务、缓存、验证码等）
 
 ### 高级主题
 
 - [数据库高级用法](advanced/database.md) - 事务、模型组、迁移、原生 SQL
+- [部署](advanced/deployment.md) - HTTPS、SSL 证书、优雅关闭、生产环境配置
 
 ### API 参考
 
 - [核心 API](api/core.md) - WebFrame、Builder、Context、Request、Response
 - [Web API](api/web.md) - HandlerFunc、路由注册、响应类型、web.Message
 - [模型 API](api/model.md) - Model、EntryModel、Query、Transaction
+- [工具库 API](api/util.md) - 字符串、加密、文件、网络、时间等工具函数
 
 ### 最佳实践
 

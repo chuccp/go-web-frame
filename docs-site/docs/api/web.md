@@ -230,8 +230,11 @@ func (c *MyController) Init(ctx *core.Context) error {
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.SSE("/events", func(writer web.SSEWriter, req *web.Request) {
-        // SSE 事件处理逻辑
+    ctx.SSE("/events", func(stream *web.SSEStream) error {
+        stream.SetHeaders()
+        stream.Send("message", "Hello")
+        stream.Close()
+        return nil
     })
     return nil
 }

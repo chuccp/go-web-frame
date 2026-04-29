@@ -102,6 +102,12 @@ func (c *UserController) Handle(req *web.Request) (any, error) {
     name := jsonObject.GetString("name")
     age := jsonObject.GetInt("age")
 
+    // 便捷方法：直接从请求体获取 JSON 值（无需先解析 Json()）
+    name, _ := req.GetJsonStringValue("name")
+    name, _ := req.GetJsonStringValueOrDefault("name", "default")
+    age, _ := req.GetJsonIntValue("age")
+    age, _ := req.GetJsonIntValueOrDefault("age", 0)
+
     return "ok", nil
 }
 ```

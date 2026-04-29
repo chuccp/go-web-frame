@@ -204,10 +204,233 @@ func (r *MyRunner) Init(c *core.Context) error {
 
 | 组件 | 包路径 | 说明 |
 |------|--------|------|
-| 本地缓存 | `component/localcache` | 基于内存的本地缓存，支持过期时间 |
-| 验证码 | `component/captcha` | 图形验证码生成和验证 |
+| 内存缓存 | `component/cache` | 基于 Otter 的高性能内存缓存，支持过期时间 |
+| 本地缓存 | `component/localcache` | 基于文件的本地缓存，支持 Base64 文件存储 |
+| 验证码 | `component/captcha` | 滑块验证码生成和验证 |
 | 输入验证 | `component/validator` | 基于 go-playground/validator 的输入验证 |
-| CORS | `component/cors` | 跨域资源共享中间件 |
+| CORS | `component/cors` | 跨域资源共享过滤器 |
+
+### 内存缓存组件（cache）
+
+基于 [Otter](https://github.com/maypok86/otter) 的高性能内存缓存组件：
+
+```go
+import "github.com/chuccp/go-web-frame/component/cache"
+
+type MyController struct {
+    core.IService
+    cache *cache.Cache
+}
+
+func (c *MyController) Init(ctx *core.Context) error {
+    c.cache = wf.GetComponent[*cache.Cache](ctx)
+    ctx.Get("/api/data", c.Handle)
+    return nil
+}
+
+func (c *MyController) Handle(req *web.Request) (any, error) {
+    // 设置缓存
+    c.cache.Set("key", "value")
+
+    // 获取缓存
+    val, exists := c.cache.Get("key")
+
+    // 仅在不存在时设置（带过期时间）
+    c.cache.SetNX("temp", "data", 5*time.Minute)
+
+    // 如果不存在则计算并缓存
+    c.cache.ComputeIfAbsent("expensive_key", func() {
+        // 执行耗时计算，结果自动缓存
+    })
+
+    // 使缓存失效
+    c.cache.Invalidate("key")
+
+    // 获取缓存统计
+    stats := c.cache.Stats()
+
+    return val, nil
+}
+```
+
+注册缓存组件：
+
+```go
+builder.Component(&cache.Cache{})
+```
+
+### 本地缓存组件（localcache）
+
+基于文件的本地缓存，适合缓存生成的文件（如图片、PDF 等）：
+
+```go
+import "github.com/chuccp/go-web-frame/component/localcache"
+
+type MyController struct {
+    core.IService
+    localCache *localcache.LocalCache
+}
+
+func (c *MyController) Init(ctx *core.Context) error {
+    c.localCache = wf.GetComponent[*localcache.LocalCache](ctx)
+    ctx.Get("/report", c.GetReport)
+    return nil
+}
+
+func (c *MyController) GetReport(req *web.Request) (any, error) {
+    // 生成文件并缓存（如果已缓存则直接返回）
+    file, err := c.localCache.GetFile(func(value ...any) ([]byte, error) {
+        // 生成文件内容
+        return generateReport()
+    }, "report", "2024")
+    if err != nil {
+        return nil, err
+    }
+    return file, nil
+}
+```
+
+配置（`application.yml`）：
+
+```yaml
+local_cache:
+  open: true        # 是否启用
+  path: ./cache     # 缓存文件存储目录
+```
+
+注册组件：
+
+```go
+builder.Component(&localcache.LocalCache{})
+```
+
+### 滑块验证码组件（captcha）
+
+提供滑块验证码的生成和验证功能：
+
+```go
+import "github.com/chuccp/go-web-frame/component/captcha"
+
+type CaptchaController struct {
+    core.IService
+    captcha *captcha.Captcha
+}
+
+func (c *CaptchaController) Init(ctx *core.Context) error {
+    c.captcha = wf.GetComponent[*captcha.Captcha](ctx)
+    ctx.Get("/captcha", c.GetCaptcha)
+    ctx.Post("/captcha/verify", c.Verify)
+    return nil
+}
+
+// 获取验证码
+func (c *CaptchaController) GetCaptcha(req *web.Request) (any, error) {
+    data, err := c.captcha.GetCaptchaData()
+    if err != nil {
+        return nil, err
+    }
+    // 返回给前端：data.TileImage（滑块图）、data.MasterImage（背景图）、data.ThumbCode（加密验证码）
+    return data, nil
+}
+
+// 验证用户滑块位置
+func (c *CaptchaController) Verify(req *web.Request) (any, error) {
+    thumbCode := req.Query("thumbCode")  // 前端传回的加密验证码
+    x := req.Query("x")                  // 用户滑动的 x 坐标
+
+    data, valid := c.captcha.ValidateThumb(thumbCode, x)
+    if !valid {
+        return nil, errors.New("验证码验证失败")
+    }
+    // data.Code 为验证通过的凭证码，可用于后续业务验证
+    return web.Data(data), nil
+}
+```
+
+配置（`application.yml`）：
+
+```yaml
+captcha:
+  codeKey: "your-encryption-key"   # AES 加密密钥（16 字节）
+  codeIv: "your-encryption-iv"     # AES 加密 IV（16 字节）
+```
+
+注册组件：
+
+```go
+builder.Component(&captcha.Captcha{})
+```
+
+### 输入验证组件（validator）
+
+基于 [go-playground/validator](https://github.com/go-playground/validator) 的输入验证，内置自定义规则：
+
+```go
+import "github.com/chuccp/go-web-frame/component/validator"
+
+type MyController struct {
+    core.IService
+    validator *validator.Validator
+}
+
+func (c *MyController) Init(ctx *core.Context) error {
+    c.validator = wf.GetComponent[*validator.Validator](ctx)
+    ctx.Post("/users", c.Create)
+    return nil
+}
+
+type CreateUserInput struct {
+    Name     string `json:"name" validate:"required"`
+    Phone    string `json:"phone" validate:"mobile"`      // 中国手机号验证
+    Password string `json:"password" validate:"password"`  // 强密码验证
+}
+
+func (c *MyController) Create(req *web.Request) (any, error) {
+    var input CreateUserInput
+    if err := req.BindJSON(&input); err != nil {
+        return nil, err
+    }
+    // 使用验证器验证
+    if err := c.validator.Validate(input); err != nil {
+        return nil, err
+    }
+    // 创建用户...
+    return web.Ok(), nil
+}
+```
+
+内置验证规则：
+
+| 规则 | 说明 |
+|------|------|
+| `mobile` | 验证中国手机号（支持 +86 前缀、空格、连字符） |
+| `password` | 强密码验证（最少 8 位，需包含大写、小写和数字） |
+
+注册组件：
+
+```go
+builder.Component(&validator.Validator{})
+```
+
+### CORS 过滤器（cors）
+
+跨域资源共享过滤器，基于 [gin-contrib/cors](https://github.com/gin-contrib/cors)：
+
+```go
+import "github.com/chuccp/go-web-frame/component/cors"
+
+// 注册 CORS 过滤器
+builder.Filter(cors.NewCrosFilter())
+```
+
+默认策略：
+
+- 允许所有来源（`AllowOriginFunc: returns true`）
+- 允许凭证（`AllowCredentials: true`）
+- 允许的请求头：`Origin`、`Content-Length`、`Content-Type`、`Authorization`
+- 自动处理 OPTIONS 预检请求
+
+如需自定义 CORS 策略，可以创建自己的过滤器并在其中配置 `gin-contrib/cors`。
 
 ## 下一步
 

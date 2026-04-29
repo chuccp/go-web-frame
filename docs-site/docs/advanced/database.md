@@ -51,34 +51,117 @@ func (s *UserService) UpdateUserWithTransaction(user *User) error {
 
 ## 模型组
 
-### 创建模型组
+模型组的核心用途是**支持多数据库**。每个模型组绑定一个独立的数据库连接，同组内的模型共享该连接和事务。
+
+### 默认模型组
+
+使用 `builder.Model()` 注册模型时，框架自动创建默认模型组，使用配置文件中 `web.db` 指定的数据库连接：
 
 ```go
 func main() {
     builder := wf.NewBuilder(cfg)
 
-    // 注册模型到默认模型组
-    builder.Model(&UserModel{}, &ProfileModel{})
+    // 注册模型到默认模型组（自动使用 web.db 配置的数据库）
+    builder.Model(&UserModel{}, &OrderModel{})
 
     app := builder.Build()
     app.Start()
 }
 ```
 
-### 默认模型组
+### 多数据库模型组
 
-模型通过 `builder.Model()` 注册后会自动加入默认模型组，共享同一个数据库连接和事务：
+当应用需要连接多个数据库时，使用 `wf.NewModelGroupBuilder()` 创建独立的模型组：
 
 ```go
 func main() {
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
     builder := wf.NewBuilder(cfg)
 
-    // 添加模型到默认模型组
+    // 默认数据库（MySQL）
     builder.Model(&UserModel{}, &OrderModel{})
+
+    // 第二个数据库（SQLite）
+    sqliteDB, _ := db.ConnectionSQLite("./logs.db")
+    logGroup := wf.NewModelGroupBuilder().
+        Name("log_group").
+        DB(sqliteDB).
+        Model(&LogModel{}).
+        AutoCreateTable(true).
+        Build()
+    builder.ModelGroup(logGroup)
+
+    // 第三个数据库（另一个 MySQL 实例）
+    archiveDB, _ := db.ConnectionMysql("archive.internal", 3306, "reader", "pass", "archive", "utf8mb4")
+    archiveGroup := wf.NewModelGroupBuilder().
+        Name("archive_group").
+        DB(archiveDB).
+        Model(&ArchiveModel{}).
+        AutoCreateTable(true).
+        Build()
+    builder.ModelGroup(archiveGroup)
 
     app := builder.Build()
     app.Start()
 }
+```
+
+也可通过配置文件创建连接：
+
+```go
+// 从配置文件读取 MySQL 配置
+var mysqlConfig db.MysqlConfig
+cfg.UnmarshalKey("archive_db", &mysqlConfig)
+archiveDB, err := mysqlConfig.Connection()
+
+// 从配置文件读取 SQLite 配置
+var sqliteConfig db.SQLiteConfig
+cfg.UnmarshalKey("log_db", &sqliteConfig)
+logDB, err := sqliteConfig.Connection()
+
+// 从配置文件读取 PostgreSQL 配置
+var pgConfig db.PostgresConfig
+cfg.UnmarshalKey("analytics_db", &pgConfig)
+pgDB, err := pgConfig.Connection()
+```
+
+### 多数据库事务
+
+不同模型组的事务是独立的，通过名称区分：
+
+```go
+// 默认模型组的事务
+tx := ctx.GetTransaction()
+err := tx.Exec(func(tx *db.DB) error {
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
+})
+
+// 指定模型组的事务
+logTx := ctx.GetTransactionByName("log_group")
+err := logTx.Exec(func(tx *db.DB) error {
+    logModel := wf.GetReNewModel[*LogModel](tx, ctx)
+    return logModel.Save(logEntry)
+})
+
+// 归档数据库的事务
+archiveTx := ctx.GetTransactionByName("archive_group")
+err := archiveTx.Exec(func(tx *db.DB) error {
+    archiveModel := wf.GetReNewModel[*ArchiveModel](tx, ctx)
+    return archiveModel.Save(archiveRecord)
+})
+```
+
+> **注意**：跨模型组不支持分布式事务。如需跨库一致性，请在应用层自行处理补偿逻辑。
+
+### 动态切换数据库
+
+模型组支持运行时切换数据库连接，所有模型会自动重新初始化：
+
+```go
+newDB, err := db.ConnectionMysql("new-host", 3306, "user", "pass", "newdb", "utf8mb4")
+modelGroup := ctx.GetModelGroup("log_group")
+err = modelGroup.SwitchDB(newDB, ctx)
 ```
 
 ## 查询构建器高级用法
@@ -136,6 +219,25 @@ web:
     database: mydb
     user: root
     password: your_password
+    max_open_conns: 100      # 最大打开连接数
+    max_idle_conns: 10        # 最大空闲连接数
+    conn_max_lifetime: 3600   # 连接最大生命周期（秒）
+```
+
+### PostgreSQL
+
+```yaml
+web:
+  db:
+    type: postgres
+    host: localhost
+    port: 5432
+    database: mydb
+    user: postgres
+    password: your_password
+    max_open_conns: 100      # 最大打开连接数
+    max_idle_conns: 10        # 最大空闲连接数
+    conn_max_lifetime: 3600   # 连接最大生命周期（秒）
 ```
 
 ### 连接池配置
@@ -191,5 +293,5 @@ func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
 
 ## 下一步
 
-- [缓存](../advanced/cache.md) - 了解缓存用法
+- [组件](../guide/components.md) - 了解缓存组件等
 - [最佳实践](../best-practices.md) - 推荐的使用模式

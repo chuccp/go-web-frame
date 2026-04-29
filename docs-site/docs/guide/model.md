@@ -187,6 +187,9 @@ id, err := userModel.SaveForMapWithPk(map[string]interface{}{"name": "Alice"}, "
 // 保存 Map 并返回 uint 主键
 id, err := userModel.SaveForMapWithUintPk(mapValue, "id")
 
+// ReNew 创建新实例（用于事务）
+newModel := userModel.NewEntryModel(tx)
+
 // 创建记录并返回主键
 id, err := userModel.CreateWithPk(user, "id", reflect.Uint)
 ```
@@ -249,6 +252,23 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 users, err := userModel.Query().Joins("Profile").Where("status = ?", 1).All()
 ```
 
+### 链式更新
+
+```go
+// 使用 Set 链式更新多个字段
+err := userModel.Update().
+    Where("id = ?", 1).
+    Set("name", "Alice").
+    Set("status", 1).
+    Exec()
+
+// 也可以使用 UpdateForMap 批量更新
+err := userModel.Update().Where("id = ?", 1).UpdateForMap(map[string]interface{}{
+    "name":   "Bob",
+    "status": 1,
+})
+```
+
 ### 原生 SQL
 
 ```go
@@ -266,7 +286,11 @@ users, total, err := userModel.Query().
 
 ## 模型组
 
-将模型分组以共享数据库连接和事务：
+模型组（ModelGroup）的核心用途是**支持多数据库**。每个模型组绑定一个独立的数据库连接，同组内的模型共享该连接和事务。通过模型组，可以在一个应用中同时使用多个不同的数据库（如 MySQL + SQLite、多个 MySQL 实例等）。
+
+### 默认模型组
+
+使用 `builder.Model()` 注册模型时，框架会自动创建默认模型组，并使用配置文件中 `web.db` 指定的数据库连接：
 
 ```go
 func main() {
@@ -274,12 +298,173 @@ func main() {
 
     builder := wf.NewBuilder(cfg)
 
-    // 注册模型到默认模型组
+    // 注册模型到默认模型组（自动使用 web.db 配置的数据库）
     builder.Model(&UserModel{}, &OrderModel{})
 
     app := builder.Build()
     app.Start()
 }
+```
+
+默认模型组的名称为 `ModelDefaultName`，事务通过 `ctx.GetTransaction()` 获取。
+
+### 多数据库模型组
+
+当应用需要连接多个数据库时，使用 `wf.NewModelGroupBuilder()` 创建独立的模型组，每个组绑定不同的数据库连接：
+
+```go
+package main
+
+import (
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/db"
+    "github.com/chuccp/go-web-frame/core"
+)
+
+func main() {
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+
+    builder := wf.NewBuilder(cfg)
+
+    // === 默认数据库（MySQL） ===
+    // UserModel 和 OrderModel 使用配置文件中的 web.db 数据库
+    builder.Model(&UserModel{}, &OrderModel{})
+
+    // === 第二个数据库（SQLite） ===
+    // 手动创建 SQLite 数据库连接
+    sqliteDB, err := db.ConnectionSQLite("./logs.db")
+    if err != nil {
+        panic(err)
+    }
+
+    // 创建独立的模型组，绑定 SQLite 连接
+    logGroup := wf.NewModelGroupBuilder().
+        Name("log_group").          // 模型组名称（用于获取事务）
+        DB(sqliteDB).               // 绑定数据库连接
+        Model(&LogModel{}).         // 添加模型
+        AutoCreateTable(true).      // 自动建表
+        Build()
+
+    builder.ModelGroup(logGroup)
+
+    // === 第三个数据库（另一个 MySQL 实例） ===
+    archiveDB, err := db.ConnectionMysql("archive.internal", 3306, "reader", "reader_pass", "archive", "utf8mb4")
+    if err != nil {
+        panic(err)
+    }
+
+    archiveGroup := wf.NewModelGroupBuilder().
+        Name("archive_group").
+        DB(archiveDB).
+        Model(&ArchiveModel{}).
+        AutoCreateTable(true).
+        Build()
+
+    builder.ModelGroup(archiveGroup)
+
+    app := builder.Build()
+    app.Start()
+}
+```
+
+也可以通过配置文件创建数据库连接：
+
+```go
+// 从配置文件读取 MySQL 配置并创建连接
+var mysqlConfig db.MysqlConfig
+cfg.UnmarshalKey("archive_db", &mysqlConfig)
+archiveDB, err := mysqlConfig.Connection()
+
+// 从配置文件读取 SQLite 配置并创建连接
+var sqliteConfig db.SQLiteConfig
+cfg.UnmarshalKey("log_db", &sqliteConfig)
+logDB, err := sqliteConfig.Connection()
+
+// 从配置文件读取 PostgreSQL 配置并创建连接
+var pgConfig db.PostgresConfig
+cfg.UnmarshalKey("analytics_db", &pgConfig)
+pgDB, err := pgConfig.Connection()
+```
+
+对应配置文件（`application.yml`）：
+
+```yaml
+# 默认数据库（MySQL） — 由 builder.Model() 自动使用
+web:
+  db:
+    type: mysql
+    host: localhost
+    port: 3306
+    database: mydb
+    user: root
+    password: your_password
+
+# 日志数据库（SQLite） — 手动创建连接
+log_db:
+  file_path: ./logs.db
+
+# 归档数据库（另一个 MySQL 实例） — 手动创建连接
+archive_db:
+  host: archive.internal
+  port: 3306
+  database: archive
+  user: reader
+  password: reader_pass
+```
+
+### ModelGroupBuilder API
+
+| 方法 | 说明 |
+|------|------|
+| `Name(name string)` | 设置模型组名称（用于通过名称获取事务） |
+| `DB(db *db.DB)` | 绑定数据库连接 |
+| `Model(model ...IModel)` | 添加模型到组 |
+| `AutoCreateTable(auto bool)` | 是否自动创建表 |
+| `Build()` | 构建模型组 |
+
+### 多数据库事务
+
+不同模型组使用不同的数据库连接，因此事务也是独立的：
+
+```go
+// 默认模型组的事务（MySQL）
+tx := ctx.GetTransaction()
+err := tx.Exec(func(tx *db.DB) error {
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
+})
+
+// 按名称获取指定模型组的事务（SQLite）
+logTx := ctx.GetTransactionByName("log_group")
+err := logTx.Exec(func(tx *db.DB) error {
+    logModel := wf.GetReNewModel[*LogModel](tx, ctx)
+    return logModel.Save(logEntry)
+})
+
+// 归档数据库的事务
+archiveTx := ctx.GetTransactionByName("archive_group")
+err := archiveTx.Exec(func(tx *db.DB) error {
+    archiveModel := wf.GetReNewModel[*ArchiveModel](tx, ctx)
+    return archiveModel.Save(archiveRecord)
+})
+```
+
+> **注意**：跨模型组的事务不支持分布式事务。如果业务需要跨库一致性，需要在应用层自行处理补偿逻辑。
+
+### 动态切换数据库
+
+模型组支持在运行时切换数据库连接，所有模型会自动重新初始化：
+
+```go
+// 切换模型组的数据库连接
+newDB, err := db.CreateDBWithConfig(cfg, "web.new_db")
+if err != nil {
+    panic(err)
+}
+
+modelGroup := ctx.GetModelGroup("log_group")
+err = modelGroup.SwitchDB(newDB, ctx)
 ```
 
 ## 完整示例

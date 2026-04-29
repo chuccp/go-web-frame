@@ -46,7 +46,6 @@ Go Web Frame 是一个基于 Gin 的 Go 语言 Web 框架，提供结构化的 W
 ### 高级主题
 
 - [数据库高级用法](advanced/database.md) - 事务、模型组、迁移、原生 SQL
-- [缓存](advanced/cache.md) - 缓存用法（待补充）
 
 ### API 参考
 
@@ -64,7 +63,6 @@ Go Web Frame 是一个基于 Gin 的 Go 语言 Web 框架，提供结构化的 W
 - **类型安全 ORM** - 零样板代码的泛型 Model
 - **灵活配置** - 多位置、多格式配置文件（YAML/JSON/TOML）
 - **组件系统** - 可复用的独立组件（限流、认证、定时任务等）
-- **守护进程模式** - 支持作为系统服务运行
 - **HTTPS 自动证书** - 集成 Let's Encrypt
 
 ## 社区

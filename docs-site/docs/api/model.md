@@ -119,6 +119,9 @@ err := userModel.Saves([]entity.User{user1, user2})
 // 保存 Map 并返回主键
 id, err := userModel.SaveForMapWithPk(map[string]interface{}{"name": "Alice"}, "id")
 
+// 保存 Map 并返回 uint 主键
+id, err := userModel.SaveForMapWithUintPk(mapValue, "id")
+
 // 创建记录并返回主键
 id, err := userModel.CreateWithPk(user, "id", reflect.Uint)
 
@@ -184,6 +187,17 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 ```go
 // JOIN 查询
 users, err := userModel.Query().Joins("Profile").Where("status = ?", 1).All()
+```
+
+### 链式更新
+
+```go
+// 使用 Set 链式更新多个字段
+err := userModel.Update().
+    Where("id = ?", 1).
+    Set("name", "Alice").
+    Set("status", 1).
+    Exec()
 ```
 
 ### 原生 SQL

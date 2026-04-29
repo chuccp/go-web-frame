@@ -32,7 +32,6 @@ myapp/
 ├── runner/                 # 后台任务
 │   └── cleanup_runner.go
 ├── util/                   # 应用工具函数
-├── certs/                  # SSL 证书（自动生成）
 ├── logs/                   # 日志文件
 └── www/                    # 静态文件（可选）
 ```

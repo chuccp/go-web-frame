@@ -62,7 +62,14 @@ app := builder.Build()
 ```go
 // 启动应用（阻塞直到关闭）
 err := app.Start()
+
+// 使用 context 启动应用（支持优雅关闭）
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+err := app.Run(ctx)
 ```
+
+`Run(ctx)` 支持通过 context 取消来优雅关闭 HTTP 服务器和后台 Runner。
 
 ### 测试方法
 

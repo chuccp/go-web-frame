@@ -168,6 +168,9 @@ web:
     database: mydb
     user: postgres
     password: your_password
+    max_open_conns: 100      # 最大打开连接数
+    max_idle_conns: 10        # 最大空闲连接数
+    conn_max_lifetime: 3600   # 连接最大生命周期（秒）
 ```
 
 ### Redis 配置

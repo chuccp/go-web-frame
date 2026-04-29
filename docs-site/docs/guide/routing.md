@@ -186,33 +186,84 @@ func main() {
 
 ## 路由组
 
-使用 `core.NewRestGroupBuilder()` 创建路由组：
+使用 `wf.NewRestGroupBuilder()` 创建路由组，路由组可以配置独立的端口、前缀、过滤器和响应转换器：
+
+### 基本路由组
 
 ```go
 func main() {
     builder := wf.NewBuilder(fileConfig)
-    
+
     // 创建路由组
-    users := core.NewRestGroupBuilder()
-    users.Rest(&UserController{})
-    users.Port(8081)
-    
-    // 构建并注册
-    restGroup := users.Build()
+    restGroup := wf.NewRestGroupBuilder().
+        Rest(&UserController{}).
+        Port(8081).
+        Build()
+
     builder.RestGroup(restGroup)
-    
+
     app := builder.Build()
     app.Start()
 }
 ```
 
+### 路由前缀（ContextPath）
+
+使用 `ContextPath` 为路由组添加统一前缀：
+
+```go
+restGroup := wf.NewRestGroupBuilder().
+    ContextPath("/api/v1").  // 所有路由前缀 /api/v1
+    Rest(&UserController{}).
+    Port(8081).
+    Build()
+```
+
 生成的路由：
 
-- `GET /users/`
-- `GET /users/:id`
-- `POST /users/`
-- `PUT /users/:id`
-- `DELETE /users/:id`
+- `GET /api/v1/users/`
+- `GET /api/v1/users/:id`
+- `POST /api/v1/users/`
+- `PUT /api/v1/users/:id`
+- `DELETE /api/v1/users/:id`
+
+### 路由组过滤器
+
+路由组可以配置独立的过滤器：
+
+```go
+import auth2 "github.com/chuccp/go-web-frame/component/auth"
+
+restGroup := wf.NewRestGroupBuilder().
+    Rest(&UserController{}).
+    Filter(auth2.NewAuthenticationFilter(&MyAuthenticator{})).
+    Port(8081).
+    Build()
+```
+
+### 路由组响应转换器
+
+使用 `Converter` 为路由组配置自定义响应格式：
+
+```go
+restGroup := wf.NewRestGroupBuilder().
+    Rest(&UserController{}).
+    Converter(&APIConverter{}).
+    Port(8081).
+    Build()
+```
+
+### RestGroupBuilder 完整 API
+
+| 方法 | 说明 |
+|------|------|
+| `Rest(rest ...IRest)` | 注册 REST 控制器 |
+| `Port(port int)` | 设置监听端口 |
+| `ContextPath(path string)` | 设置路由前缀 |
+| `Filter(filters ...IFilter)` | 设置过滤器 |
+| `Converter(converter IConverter)` | 设置响应转换器 |
+| `ServerConfig(config *web.ServerConfig)` | 设置服务器配置（SSL、超时等） |
+| `Build()` | 构建路由组 |
 
 ## 静态文件
 
@@ -285,13 +336,51 @@ func (c *MyController) Init(ctx *core.Context) error {
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.SSE("/events", func(writer web.SSEWriter, req *web.Request) {
-        // SSE 事件处理逻辑
-        writer.Send("message", "Hello World")
+    ctx.SSE("/events", func(stream *web.SSEStream) error {
+        // 设置 SSE 响应头
+        stream.SetHeaders()
+
+        // 启动心跳保活（每 30 秒）
+        stopHeartbeat := stream.StartHeartbeat(30 * time.Second)
+        defer stopHeartbeat()
+
+        // 发送命名事件
+        stream.Send("message", "Hello World")
+
+        // 发送默认消息（无事件名）
+        stream.SendMessage("ping")
+
+        // 发送带 ID 的事件（客户端可断线重连）
+        stream.SendWithID("1", "update", `{"status":"ok"}`)
+
+        // 设置重连时间（毫秒）
+        stream.SendRetry(3000)
+
+        // 发送心跳
+        stream.Heartbeat()
+
+        // 关闭流
+        stream.Close()
+
+        return nil
     })
     return nil
 }
 ```
+
+### SSEStream API
+
+| 方法 | 说明 |
+|------|------|
+| `SetHeaders()` | 设置 SSE 响应头（Content-Type、Cache-Control 等） |
+| `Send(event, data)` | 发送命名事件 |
+| `SendMessage(data)` | 发送默认消息（无事件名） |
+| `SendWithID(id, event, data)` | 发送带 ID 的事件，客户端断线重连时可使用 Last-Event-ID |
+| `SendRetry(retryMs)` | 设置客户端重连时间（毫秒） |
+| `Heartbeat()` | 发送心跳注释，保持连接活跃 |
+| `StartHeartbeat(interval)` | 启动定时心跳 goroutine，返回停止函数 |
+| `Close()` | 关闭 SSE 流 |
+| `Done()` | 返回关闭通知 channel |
 
 ## 完整示例
 

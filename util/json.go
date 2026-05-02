@@ -1,9 +1,9 @@
 package util
 
-import "encoding/json"
+import "github.com/bytedance/sonic"
 
 func JsonEncode(v any) (string, error) {
-	marshal, err := json.Marshal(v)
+	marshal, err := sonic.Marshal(v)
 	if err != nil {
 		return "", err
 	}

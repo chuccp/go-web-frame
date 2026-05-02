@@ -2,7 +2,7 @@ package captcha
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/bytedance/sonic"
 	"math"
 
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -114,7 +114,7 @@ func (c *Captcha) GetCaptchaData() (*SlideCaptchaData, error) {
 }
 func (c *Captcha) generateCode(value string) (string, error) {
 	data := util.OfMap2("time", util.NowDateFormatTime(util.TimestampFormat), "thumbX", value)
-	js, _ := json.Marshal(data)
+	js, _ := sonic.Marshal(data)
 	return util.EncryptByCBC(string(js), c.key, c.iv)
 }
 func (c *Captcha) ValidateThumb(code string, x string) (*Data, bool) {
@@ -124,7 +124,7 @@ func (c *Captcha) ValidateThumb(code string, x string) (*Data, bool) {
 		return nil, false
 	}
 	var data map[string]interface{}
-	err = json.Unmarshal([]byte(v), &data)
+	err = sonic.Unmarshal([]byte(v), &data)
 	if err != nil {
 		return nil, false
 	}
@@ -150,7 +150,7 @@ func (c *Captcha) ValidateCode(code string) (bool, error) {
 		return false, err
 	}
 	var data map[string]interface{}
-	err = json.Unmarshal([]byte(v), &data)
+	err = sonic.Unmarshal([]byte(v), &data)
 	if err != nil {
 		return false, err
 	}

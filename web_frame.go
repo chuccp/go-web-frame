@@ -30,11 +30,6 @@ func GetReNewModel[T core.IModel](db *db2.DB, c *core.Context) T {
 	return core.GetReNewModel[T](db, c)
 }
 
-// GetComponent retrieves a component of the specified type from the context.
-func GetComponent[T core.IComponent](c *core.Context) T {
-	return core.GetComponent[T](c)
-}
-
 // GetRunner retrieves a runner of the specified type from the context.
 func GetRunner[T core.IRunner](c *core.Context) T {
 	return core.GetRunner[T](c)
@@ -62,7 +57,6 @@ func (receiver *DefaultRest) Init(ctx *core.Context) error {
 // WebFrame is the main application struct that holds all components, services, models,
 // REST groups, and configuration for a web application.
 type WebFrame struct {
-	component  []core.IComponent
 	restGroups []*core.RestGroup
 	modelGroup []core.IModelGroup
 	config     config2.IConfig
@@ -71,8 +65,7 @@ type WebFrame struct {
 	rests      []core.IRest
 	runners    []core.IRunner
 	filters    []core.IFilter
-	//defaultModelGroup core.IModelGroup
-	handles *web.Handles
+	handles    *web.Handles
 }
 
 // Start initializes and runs the web application with a background context.
@@ -95,7 +88,6 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	gin.SetMode(gin.ReleaseMode)
 
 	coreContext := core.NewContext(w.handles, w.config, ctx)
-	coreContext.AddComponent(w.component...)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
 
@@ -122,15 +114,6 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			if err != nil {
 				return nil, nil, errors.WithStackIf(err)
 			}
-		}
-	}
-
-	for _, component := range w.component {
-		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
-		err := errors.WithStackIf(component.Init(coreContext))
-		if err != nil {
-			log.Error("Failed to initialize the component", zap.Error(err))
-			return nil, nil, err
 		}
 	}
 
@@ -192,10 +175,9 @@ func (w *WebFrame) Run(ctx context.Context) error {
 }
 
 // Builder provides a fluent API for constructing a WebFrame application.
-// Register routes, REST controllers, models, services, filters, components,
+// Register routes, REST controllers, models, services, filters,
 // and runners, then call Build() to create the application.
 type Builder struct {
-	component  []core.IComponent
 	restGroups []*core.RestGroup
 	modelGroup []core.IModelGroup
 	config     config2.IConfig
@@ -216,7 +198,6 @@ func NewBuilder(config config2.IConfig) *Builder {
 		restGroups: make([]*core.RestGroup, 0),
 		modelGroup: make([]core.IModelGroup, 0),
 		rests:      make([]core.IRest, 0),
-		component:  make([]core.IComponent, 0),
 		runners:    make([]core.IRunner, 0),
 		filters:    make([]core.IFilter, 0),
 		handles:    web.NewHandles(),
@@ -258,12 +239,6 @@ func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder
 // Rest registers one or more REST controllers and returns the builder for chaining.
 func (b *Builder) Rest(rest ...core.IRest) *Builder {
 	b.rests = append(b.rests, rest...)
-	return b
-}
-
-// Component registers one or more independent components and returns the builder for chaining.
-func (b *Builder) Component(component ...core.IComponent) *Builder {
-	b.component = append(b.component, component...)
 	return b
 }
 
@@ -312,7 +287,6 @@ func (b *Builder) Build() *WebFrame {
 		restGroups: b.restGroups,
 		modelGroup: b.modelGroup,
 		rests:      b.rests,
-		component:  b.component,
 		runners:    b.runners,
 		filters:    b.filters,
 		config:     b.config,

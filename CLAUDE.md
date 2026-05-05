@@ -89,7 +89,7 @@ The framework is built around several key interfaces that define the component m
 - `IService`: Base interface for services that need initialization
 - `IModel`: Data access layer interface with CRUD and table management
 - `IRest`: REST controller interface (extends `IService`)
-- `IComponent`: Independent components that initialize with config
+- `IComponent`: *Removed* — components now implement `IService` directly, registered via `Service()`, retrieved via `GetService[T]`
 - `IRunner`: Background task runners (extends `IService` and `IRun`)
 - `IFilter`: HTTP request filters (extends `IService` and `web.Filter`)
 
@@ -560,7 +560,7 @@ MySQL configuration:
 
 ### 11. Component
 
-Create reusable components:
+Components are services registered with `Service()` and retrieved with `GetService[T]`:
 
 ```go
 package main
@@ -570,7 +570,7 @@ import (
 )
 
 type CacheComponent struct {
-    core.IComponent
+    core.IService
     // component fields
 }
 
@@ -580,8 +580,9 @@ func (c *CacheComponent) Init(ctx *core.Context) error {
     return nil
 }
 
-// Register component:
-// app.AddComponent(&CacheComponent{})
+// Register component (before dependent services for correct init order):
+// builder.Service(&CacheComponent{})
+// Retrieve: wf.GetService[*CacheComponent](ctx)
 ```
 
 ### 12. Model Groups

@@ -488,7 +488,7 @@ func (c *UserController) CreateUser(req *web.Request) (any, error) {
     }
     
     // Use validator component
-    validator := wf.GetComponent[*validator.Validator](req.Context())
+    validator := wf.GetService[*validator.Validator](req.Context())
     if err := validator.Validate(input); err != nil {
         return nil, err
     }

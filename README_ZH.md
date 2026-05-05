@@ -590,7 +590,7 @@ func main() {
    - `IService`：所有需要初始化的服务基接口
    - `IModel`：数据访问层接口，包含 CRUD 和表管理
    - `IRest`：REST 控制器接口（继承 IService）
-   - `IComponent`：独立组件（继承 IService）
+   - `IService`：所有服务和组件的基接口
    - `IRunner`：后台任务运行器（继承 IService）
    - `IFilter`：HTTP 请求过滤器/中间件（继承 IService）
    - `Context`：管理所有组件的依赖注入容器

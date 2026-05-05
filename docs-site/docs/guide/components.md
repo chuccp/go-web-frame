@@ -1,10 +1,10 @@
 # 组件
 
-组件是框架中独立的功能模块，通过 `core.IComponent` 接口初始化，可以注册到应用中供其他组件使用。
+组件是框架中独立的功能模块，实现 `core.IService` 接口，通过 `Service()` 注册，可以注册到应用中供其他组件使用。
 
 ## 创建组件
 
-嵌入 `core.IComponent` 接口：
+实现 `core.IService` 接口：
 
 ```go
 package main
@@ -14,7 +14,7 @@ import (
 )
 
 type CacheComponent struct {
-    core.IComponent
+    core.IService
     cache map[string]string
 }
 
@@ -36,7 +36,7 @@ func (c *CacheComponent) Set(key, value string) {
 
 ```go
 builder := wf.NewBuilder(cfg)
-builder.Component(&CacheComponent{})
+builder.Service(&CacheComponent{})
 app := builder.Build()
 app.Start()
 ```
@@ -50,7 +50,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.cache = wf.GetComponent[*CacheComponent](ctx)
+    c.cache = wf.GetService[*CacheComponent](ctx)
     ctx.Get("/cache", c.Handle)
     return nil
 }
@@ -79,7 +79,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.rateLimit = wf.GetComponent[*ratelimit.RateLimit](ctx)
+    c.rateLimit = wf.GetService[*ratelimit.RateLimit](ctx)
     ctx.Get("/api/data", c.Handle)
     return nil
 }
@@ -94,7 +94,7 @@ func (c *MyController) Handle(req *web.Request) (any, error) {
 
 func main() {
     builder := wf.NewBuilder(cfg)
-    builder.Component(&ratelimit.RateLimit{})
+    builder.Service(&ratelimit.RateLimit{})
     builder.Rest(&MyController{})
     app := builder.Build()
     app.Start()
@@ -221,7 +221,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.cache = wf.GetComponent[*cache.Cache](ctx)
+    c.cache = wf.GetService[*cache.Cache](ctx)
     ctx.Get("/api/data", c.Handle)
     return nil
 }
@@ -254,7 +254,7 @@ func (c *MyController) Handle(req *web.Request) (any, error) {
 注册缓存组件：
 
 ```go
-builder.Component(&cache.Cache{})
+builder.Service(&cache.Cache{})
 ```
 
 ### 本地缓存组件（localcache）
@@ -270,7 +270,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.localCache = wf.GetComponent[*localcache.LocalCache](ctx)
+    c.localCache = wf.GetService[*localcache.LocalCache](ctx)
     ctx.Get("/report", c.GetReport)
     return nil
 }
@@ -299,7 +299,7 @@ local_cache:
 注册组件：
 
 ```go
-builder.Component(&localcache.LocalCache{})
+builder.Service(&localcache.LocalCache{})
 ```
 
 ### 滑块验证码组件（captcha）
@@ -315,7 +315,7 @@ type CaptchaController struct {
 }
 
 func (c *CaptchaController) Init(ctx *core.Context) error {
-    c.captcha = wf.GetComponent[*captcha.Captcha](ctx)
+    c.captcha = wf.GetService[*captcha.Captcha](ctx)
     ctx.Get("/captcha", c.GetCaptcha)
     ctx.Post("/captcha/verify", c.Verify)
     return nil
@@ -356,7 +356,7 @@ captcha:
 注册组件：
 
 ```go
-builder.Component(&captcha.Captcha{})
+builder.Service(&captcha.Captcha{})
 ```
 
 ### 输入验证组件（validator）
@@ -372,7 +372,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.validator = wf.GetComponent[*validator.Validator](ctx)
+    c.validator = wf.GetService[*validator.Validator](ctx)
     ctx.Post("/users", c.Create)
     return nil
 }
@@ -407,7 +407,7 @@ func (c *MyController) Create(req *web.Request) (any, error) {
 注册组件：
 
 ```go
-builder.Component(&validator.Validator{})
+builder.Service(&validator.Validator{})
 ```
 
 ### CORS 过滤器（cors）
@@ -443,7 +443,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.redisClient = wf.GetComponent[*redis.Component](ctx)
+    c.redisClient = wf.GetService[*redis.Component](ctx)
     ctx.Get("/cache", c.GetCache)
     ctx.Post("/cache", c.SetCache)
     return nil
@@ -476,7 +476,7 @@ func (c *MyController) SetCache(req *web.Request) (any, error) {
 注册组件：
 
 ```go
-builder.Component(&redis.Component{})
+builder.Service(&redis.Component{})
 ```
 
 配置（`application.yml`）：

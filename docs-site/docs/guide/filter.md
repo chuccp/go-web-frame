@@ -215,7 +215,7 @@ type MyController struct {
 }
 
 func (c *MyController) Init(ctx *core.Context) error {
-    c.rateLimit = wf.GetComponent[*ratelimit.RateLimit](ctx)
+    c.rateLimit = wf.GetService[*ratelimit.RateLimit](ctx)
     ctx.Get("/api/data", c.Handle)
     return nil
 }
@@ -230,7 +230,7 @@ func (c *MyController) Handle(req *web.Request) (any, error) {
 
 func main() {
     builder := wf.NewBuilder(cfg)
-    builder.Component(&ratelimit.RateLimit{})
+    builder.Service(&ratelimit.RateLimit{})
     builder.Rest(&MyController{})
     app := builder.Build()
     app.Start()

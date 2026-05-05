@@ -19,14 +19,13 @@ import (
 
 // Context is the core dependency injection container for the framework.
 // It embeds context.Context for lifecycle control and manages all services,
-// models, components, runners, and filters.
+// models, runners, and filters.
 type Context struct {
 	context.Context
 	config        config2.IConfig
 	modelMap      map[string]IModel
 	rLock         *sync.RWMutex
 	serviceMap    map[string]IService
-	componentMap  map[string]IComponent
 	runnerMap     map[string]IRunner
 	modelGroup    map[string]IModelGroup
 	handles       *web.Handles
@@ -44,7 +43,6 @@ func NewContext(handles *web.Handles, config config2.IConfig, ctx context.Contex
 		rLock:         new(sync.RWMutex),
 		serviceMap:    make(map[string]IService),
 		allServiceMap: make(map[string]IService),
-		componentMap:  make(map[string]IComponent),
 		runnerMap:     make(map[string]IRunner),
 		modelGroup:    make(map[string]IModelGroup),
 		filters:       make([]IFilter, 0),
@@ -69,7 +67,6 @@ func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
 		rLock:         c.rLock,
 		serviceMap:    c.serviceMap,
 		allServiceMap: c.allServiceMap,
-		componentMap:  c.componentMap,
 		runnerMap:     c.runnerMap,
 		modelGroup:    c.modelGroup,
 		handles:       handles,
@@ -135,17 +132,6 @@ func (c *Context) GetModelGroup(name string) IModelGroup {
 	return nil
 }
 
-// AddComponent registers one or more independent components into the context.
-func (c *Context) AddComponent(components ...IComponent) {
-	c.rLock.Lock()
-	defer c.rLock.Unlock()
-	for _, component := range components {
-		name := util.GetStructFullQualifiedName(component)
-		c.componentMap[name] = component
-		c.allServiceMap[name] = component
-	}
-}
-
 // AddService registers one or more services into the context.
 func (c *Context) AddService(services ...IService) {
 	c.rLock.Lock()
@@ -174,18 +160,6 @@ func (c *Context) GetService(f func(m IService) bool) IService {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
 	for _, s := range c.allServiceMap {
-		if f(s) {
-			return s
-		}
-	}
-	return nil
-}
-
-// GetComponent finds the first component matching the predicate.
-func (c *Context) GetComponent(f func(m IComponent) bool) IComponent {
-	c.rLock.RLock()
-	defer c.rLock.RUnlock()
-	for _, s := range c.componentMap {
 		if f(s) {
 			return s
 		}
@@ -357,19 +331,6 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	if ok {
 		t, _ = t.ReNew(db, c).(T)
 		return t
-	}
-	return t
-}
-
-// GetComponent retrieves a component of the specified type from the context.
-// Panics if the component is not registered.
-func GetComponent[T IComponent](c *Context) T {
-	t, ok := c.GetComponent(func(m IComponent) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	if !ok {
-		log.PanicErrors("GetComponent error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
 	}
 	return t
 }

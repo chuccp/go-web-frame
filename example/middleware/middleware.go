@@ -139,7 +139,7 @@ func NewRateLimitFilter() *RateLimitFilter {
 }
 
 func (f *RateLimitFilter) Init(ctx *core.Context) error {
-	f.rateLimiter = core.GetComponent[*ratelimit.RateLimit](ctx)
+	f.rateLimiter = core.GetService[*ratelimit.RateLimit](ctx)
 	if f.rateLimiter == nil {
 		log.Info("Rate limit filter not found, using default rate limit")
 		return nil
@@ -335,7 +335,7 @@ func main() {
 	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// 添加组件（用于限流中间件）
-	builder.Component(&ratelimit.RateLimit{})
+	builder.Service(&ratelimit.RateLimit{})
 
 	// 添加中间件（顺序很重要）
 	// 1. 恢复中间件 - 最先执行，捕获 panic

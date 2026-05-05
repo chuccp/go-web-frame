@@ -51,7 +51,7 @@ builder.RestGroup(restGroups ...*core.RestGroup)
 builder.Runner(runners ...core.IRunner)
 
 // 注册组件
-builder.Component(components ...core.IComponent)
+builder.Service(services ...core.IService)
 
 // 构建应用
 app := builder.Build()
@@ -155,7 +155,7 @@ service := wf.GetService[*UserService](ctx)
 model := wf.GetModel[*UserModel](ctx)
 
 // 获取组件
-component := wf.GetComponent[*CacheComponent](ctx)
+component := wf.GetService[*CacheComponent](ctx)
 
 // 获取任务
 runner := wf.GetRunner[*EmailRunner](ctx)

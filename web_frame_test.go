@@ -111,17 +111,15 @@ func TestBuilder_AllMethods(t *testing.T) {
 
 	// Test all chainable methods
 	var (
-		rest      = &MockRest{}
-		component = &MockComponent{}
-		runner    = &MockRunner{}
-		model     = &MockModel{}
-		service   = &MockService{}
-		filter    = &MockFilter{}
+		rest    = &MockRest{}
+		runner  = &MockRunner{}
+		model   = &MockModel{}
+		service = &MockService{}
+		filter  = &MockFilter{}
 	)
 
 	// Act
 	builder.Rest(rest)
-	builder.Component(component)
 	builder.Runner(runner)
 	builder.Model(model)
 	builder.Service(service)
@@ -132,7 +130,6 @@ func TestBuilder_AllMethods(t *testing.T) {
 	// Assert
 	assert.NotNil(t, app)
 	assert.Equal(t, 1, len(app.rests))
-	assert.Equal(t, 1, len(app.component))
 	assert.Equal(t, 1, len(app.runners))
 	assert.Equal(t, 1, len(app.models))
 	assert.Equal(t, 1, len(app.services))
@@ -249,15 +246,15 @@ func TestGetModel(t *testing.T) {
 	assert.Equal(t, model, result)
 }
 
-func TestGetComponent(t *testing.T) {
+func TestGetComponentViaService(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
 	ctx := core.NewContext(web.NewHandles(), config, context.Background())
 	component := &MockComponent{}
-	ctx.AddComponent(component)
+	ctx.AddService(component)
 
 	// Act
-	result := GetComponent[*MockComponent](ctx)
+	result := GetService[*MockComponent](ctx)
 
 	// Assert
 	assert.Equal(t, component, result)
@@ -564,7 +561,7 @@ func (m *MockModel) TableName() string {
 }
 
 type MockComponent struct {
-	core.IComponent
+	core.IService
 	initCalled bool
 }
 

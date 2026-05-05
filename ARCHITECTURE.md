@@ -97,16 +97,13 @@ IService (base)
     ├── IRest     (REST controllers)
     ├── IRunner   (background tasks)
     └── IFilter   (HTTP middleware)
-
-IComponent (extends IService)
 ```
 
 ### Initialization Order
 
 ```
-1. IComponent.Init(ctx)           ← First, extends IService
-2. IModel.Init(db, ctx)          ← Second, DB ready
-3. IService.Init(ctx)            ← Third, services can use models
+1. IModel.Init(db, ctx)          ← First, DB ready
+2. IService.Init(ctx)            ← Second, services (including components) can use models
 4. IFilter.Init(ctx)             ← Fourth, filters can use services
 5. IRunner.Run(ctx)              ← Last, background tasks start
 ```
@@ -168,7 +165,7 @@ type Context struct {
     config       IConfig
     modelMap     map[string]IModel
     serviceMap   map[string]IService
-    componentMap map[string]IComponent
+    componentMap map[string]IService  // removed, merged into serviceMap
     runnerMap    map[string]IRunner
     // ...
 }
@@ -328,8 +325,8 @@ server:
 
 ### Adding New Component
 
-1. Implement `IService` or `IComponent`
-2. Register with `AddService()` or `AddComponent()`
+1. Implement `IService`
+2. Register with `AddService()`
 3. Retrieve via `GetService[T](ctx)`
 
 ### Custom Converter

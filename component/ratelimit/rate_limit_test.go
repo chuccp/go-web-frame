@@ -12,7 +12,7 @@ func TestRateLimit(t *testing.T) {
 	// Just test that the rate limiter can be added to the builder
 	builder := wf.NewBuilder(config2.NewConfig())
 	rl := &RateLimit{}
-	builder.Component(rl)
+	builder.Service(rl)
 	frame := builder.Build()
 	assert.NotNil(t, frame)
 	// Build succeeds - test passed

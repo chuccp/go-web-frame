@@ -91,24 +91,6 @@ type IRest interface {
 	IService
 }
 
-// IComponent 是独立组件的接口，不需要依赖注入容器
-//
-// 实现此接口的组件会在应用启动时初始化，通常用于功能模块如缓存、验证器等。
-//
-// 使用示例：
-//
-//	type CacheComponent struct {
-//	    core.IComponent
-//	}
-//
-//	func (c *CacheComponent) Init(ctx *Context) error {
-//	    // 初始化组件
-//	    return nil
-//	}
-type IComponent interface {
-	IService
-}
-
 // IRunner 是后台任务的接口，继承自 IService
 //
 // 实现此接口的任务会在应用启动后在后台运行，框架通过 context pool 管理生命周期。

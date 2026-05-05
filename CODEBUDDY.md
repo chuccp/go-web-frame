@@ -74,7 +74,7 @@ HTTP Request → Gin Engine → Filter Chain → Handler → Converter → HTTP 
 
 | Directory | Purpose |
 |-----------|---------|
-| `core/` | Core abstractions and interfaces (IService, IModel, IRest, IFilter, IRunner, IComponent) |
+| `core/` | Core abstractions and interfaces (IService, IModel, IRest, IFilter, IRunner) |
 | `web/` | HTTP layer built on Gin - routing, request handling, response conversion |
 | `db/` | Database abstraction using GORM (MySQL, SQLite, PostgreSQL) |
 | `model/` | Type-safe generic base models with zero-boilerplate CRUD |
@@ -87,9 +87,8 @@ HTTP Request → Gin Engine → Filter Chain → Handler → Converter → HTTP 
 
 Components initialize in a specific order to ensure dependencies are available:
 
-1. `IComponent.Init(ctx)` - Standalone components (extends IService)
-2. `IModel.Init(db, ctx)` - Data access layer
-3. `IService.Init(ctx)` - Business logic services
+1. `IModel.Init(db, ctx)` - Data access layer
+2. `IService.Init(ctx)` - Business logic services (including components)
 4. `IFilter.Init(ctx)` - HTTP middleware filters
 5. `IRunner.Run(ctx)` - Background tasks
 

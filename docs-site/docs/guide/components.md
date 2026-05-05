@@ -10,8 +10,6 @@
 package main
 
 import (
-    "context"
-    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
 )
 
@@ -20,7 +18,7 @@ type CacheComponent struct {
     cache map[string]string
 }
 
-func (c *CacheComponent) Init(ctx context.Context, cfg config.IConfig) error {
+func (c *CacheComponent) Init(ctx *core.Context) error {
     c.cache = make(map[string]string)
     return nil
 }

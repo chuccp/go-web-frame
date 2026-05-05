@@ -514,7 +514,7 @@ func main() {
    - `IService`：所有需要初始化的服務基介面
    - `IModel`：資料存取層介面，包含 CRUD 和表管理
    - `IRest`：REST 控制器介面（繼承 IService）
-   - `IComponent`：通過配置初始化的獨立組件
+   - `IComponent`：獨立組件（繼承 IService）
    - `IRunner`：後台任務執行器（繼承 IService）
    - `IFilter`：HTTP 請求過濾器/中間件（繼承 IService）
    - `Context`：管理所有組件的依賴注入容器

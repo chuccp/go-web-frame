@@ -1,12 +1,11 @@
 package validator
 
 import (
-	"context"
 	"regexp"
 	"strings"
 
 	"emperror.dev/errors"
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/go-playground/validator/v10"
 )
@@ -46,7 +45,7 @@ type Validator struct {
 	validate *validator.Validate
 }
 
-func (v *Validator) Init(ctx context.Context, config config2.IConfig) error {
+func (v *Validator) Init(ctx *core.Context) error {
 	v.validate = validator.New()
 	err := v.validate.RegisterValidation("mobile", validateMobile)
 	if err != nil {

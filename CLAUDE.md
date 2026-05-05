@@ -566,8 +566,6 @@ Create reusable components:
 package main
 
 import (
-    "context"
-    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
 )
 
@@ -576,9 +574,9 @@ type CacheComponent struct {
     // component fields
 }
 
-func (c *CacheComponent) Init(ctx context.Context, cfg config.IConfig) error {
+func (c *CacheComponent) Init(ctx *core.Context) error {
     // Initialize component with config
-    // cfg.UnmarshalKey("cache", &cacheConfig)
+    // ctx.GetConfig().UnmarshalKey("cache", &cacheConfig)
     return nil
 }
 

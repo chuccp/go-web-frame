@@ -53,6 +53,7 @@ func NewContext(handles *web.Handles, config config2.IConfig, ctx context.Contex
 	}
 	return context
 }
+
 // CertManager returns the TLS certificate manager for this context.
 func (c *Context) CertManager() *web.CertManager {
 	return c.certManager
@@ -118,6 +119,7 @@ func (c *Context) AddModelGroup(modelGroup ...IModelGroup) {
 		c.allServiceMap[m.Name()] = m
 	}
 }
+
 // DefaultModelGroup returns the default model group registered under ModelDefaultName.
 func (c *Context) DefaultModelGroup() IModelGroup {
 	return c.GetModelGroup(ModelDefaultName)
@@ -140,6 +142,7 @@ func (c *Context) AddComponent(components ...IComponent) {
 	for _, component := range components {
 		name := util.GetStructFullQualifiedName(component)
 		c.componentMap[name] = component
+		c.allServiceMap[name] = component
 	}
 }
 
@@ -153,6 +156,7 @@ func (c *Context) AddService(services ...IService) {
 		c.allServiceMap[name] = s
 	}
 }
+
 // GetRunner finds the first runner matching the predicate function.
 func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
 	c.rLock.RLock()
@@ -188,6 +192,7 @@ func (c *Context) GetComponent(f func(m IComponent) bool) IComponent {
 	}
 	return nil
 }
+
 // GetModel finds the first model matching the predicate.
 func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	c.rLock.RLock()
@@ -199,6 +204,7 @@ func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	}
 	return nil
 }
+
 // GetFilter finds the first filter matching the predicate.
 func (c *Context) GetFilter(f func(m IFilter) bool) IFilter {
 	c.rLock.RLock()
@@ -210,6 +216,7 @@ func (c *Context) GetFilter(f func(m IFilter) bool) IFilter {
 	}
 	return nil
 }
+
 // Get registers a GET route handler and returns the handler info.
 func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handle(http.MethodGet, relativePath, handlers...)
@@ -263,6 +270,7 @@ func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.Han
 func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handles.Handles(anyMethods, relativePath, handlers...)
 }
+
 // Go runs the given function in a goroutine with panic recovery.
 // Errors are logged instead of crashing the application.
 func (c *Context) Go(f func(c *Context)) {
@@ -281,6 +289,7 @@ func (c *Context) Go(f func(c *Context)) {
 func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
 	return c.handles.Handles([]string{httpMethod}, relativePath, handlers...)
 }
+
 // GetConfig returns the configuration object associated with this context.
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config

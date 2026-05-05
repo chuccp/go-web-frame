@@ -568,7 +568,7 @@ type MockComponent struct {
 	initCalled bool
 }
 
-func (m *MockComponent) Init(ctx context.Context, config config2.IConfig) error {
+func (m *MockComponent) Init(ctx *core.Context) error {
 	m.initCalled = true
 	return nil
 }

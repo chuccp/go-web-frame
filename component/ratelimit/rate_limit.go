@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"emperror.dev/errors"
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	"github.com/maypok86/otter/v2"
 	"github.com/maypok86/otter/v2/stats"
 	"golang.org/x/time/rate"
@@ -55,7 +55,7 @@ func (r *RateLimit) _limiterLoader(burst int) otter.Loader[string, *rate.Limiter
 		return rate.NewLimiter(rate.Every(time.Duration(r.config.Limit)*time.Second), burst), nil
 	})
 }
-func (r *RateLimit) Init(ctx context.Context, config config2.IConfig) error {
+func (r *RateLimit) Init(ctx *core.Context) error {
 	lConfig := &Config{
 		Limit:   600,
 		Burst:   5,
@@ -64,7 +64,7 @@ func (r *RateLimit) Init(ctx context.Context, config config2.IConfig) error {
 	}
 
 	r.ctx = ctx
-	err := config.UnmarshalKey("rate_limit", lConfig)
+	err := ctx.GetConfig().UnmarshalKey("rate_limit", lConfig)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

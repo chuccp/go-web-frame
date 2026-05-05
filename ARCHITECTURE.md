@@ -98,13 +98,13 @@ IService (base)
     ├── IRunner   (background tasks)
     └── IFilter   (HTTP middleware)
 
-IComponent (standalone, config-driven)
+IComponent (extends IService)
 ```
 
 ### Initialization Order
 
 ```
-1. IComponent.Init(ctx, config)  ← First, config available
+1. IComponent.Init(ctx)           ← First, extends IService
 2. IModel.Init(db, ctx)          ← Second, DB ready
 3. IService.Init(ctx)            ← Third, services can use models
 4. IFilter.Init(ctx)             ← Fourth, filters can use services

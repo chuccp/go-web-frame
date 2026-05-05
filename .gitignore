@@ -36,3 +36,4 @@ go.work.sum
 /example/start/tmp
 /example/config/tmp
 /.claude
+/docs-site/site

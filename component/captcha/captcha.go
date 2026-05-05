@@ -1,11 +1,11 @@
 package captcha
 
 import (
-	"context"
 	"github.com/bytedance/sonic"
+	"github.com/chuccp/go-web-frame/core"
+
 	"math"
 
-	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/spf13/cast"
@@ -49,9 +49,9 @@ func (c *Config) Key() string {
 type SlideCaptcha struct {
 }
 
-func (c *Captcha) Init(context context.Context, config config2.IConfig) error {
+func (c *Captcha) Init(context *core.Context) error {
 	var cfg Config
-	err := config.UnmarshalKey(cfg.Key(), &cfg)
+	err := context.GetConfig().UnmarshalKey(cfg.Key(), &cfg)
 	if err != nil {
 		return err
 	}

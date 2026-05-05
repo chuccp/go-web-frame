@@ -573,7 +573,7 @@ func main() {
    - `IService`: Base interface for all services requiring initialization
    - `IModel`: Data access layer interface with CRUD and table management
    - `IRest`: REST controller interface (extends IService)
-   - `IComponent`: Independent components initialized with config
+   - `IComponent`: Independent components (extends IService)
    - `IRunner`: Background task runners (extends IService)
    - `IFilter`: HTTP request filters/middleware (extends IService)
    - `Context`: Dependency injection container that manages all components (embeds `context.Context` for lifecycle control)

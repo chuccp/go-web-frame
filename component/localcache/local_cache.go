@@ -2,13 +2,11 @@ package localcache
 
 import (
 	"bufio"
-	"context"
-
 	"os"
 	"path"
 
 	"emperror.dev/errors"
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
@@ -26,9 +24,9 @@ type LocalCache struct {
 	config *Config
 }
 
-func (l *LocalCache) Init(context context.Context, cfg config2.IConfig) error {
+func (l *LocalCache) Init(context *core.Context) error {
 	var config Config
-	err := cfg.UnmarshalKey("local_cache", &config)
+	err := context.GetConfig().UnmarshalKey("local_cache", &config)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

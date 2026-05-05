@@ -1,9 +1,6 @@
 package core
 
 import (
-	"context"
-
-	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/web"
@@ -104,16 +101,12 @@ type IRest interface {
 //	    core.IComponent
 //	}
 //
-//	func (c *CacheComponent) Init(ctx context.Context, config config2.IConfig) error {
+//	func (c *CacheComponent) Init(ctx *Context) error {
 //	    // 初始化组件
 //	    return nil
 //	}
 type IComponent interface {
-	// Init 初始化组件
-	// ctx: 应用上下文
-	// config: 配置对象
-	// 返回 error: 初始化失败时返回错误
-	Init(ctx context.Context, config config2.IConfig) error
+	IService
 }
 
 // IRunner 是后台任务的接口，继承自 IService

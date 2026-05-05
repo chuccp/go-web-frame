@@ -1,11 +1,10 @@
 package cache
 
 import (
-	"context"
 	"time"
 
 	"emperror.dev/errors"
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/maypok86/otter/v2"
 	"github.com/maypok86/otter/v2/stats"
@@ -62,7 +61,7 @@ func (c *Cache) Stats() stats.Stats {
 	return c.cache.Stats()
 }
 
-func (c *Cache) Init(context context.Context, config config2.IConfig) error {
+func (c *Cache) Init(context *core.Context) error {
 	lConfig := &Config{
 		MaxSize: 1000_000,
 		Expiry:  3600,

@@ -127,7 +127,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 
 	for _, component := range w.component {
 		log.Debug("Init", zap.String("component", util.GetStructFullQualifiedName(component)))
-		err := errors.WithStackIf(component.Init(ctx, w.config))
+		err := errors.WithStackIf(component.Init(coreContext))
 		if err != nil {
 			log.Error("Failed to initialize the component", zap.Error(err))
 			return nil, nil, err
@@ -164,6 +164,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	return server, coreContext, nil
 
 }
+
 // Run initializes the logger, sets up all components, services, models, and REST groups,
 // then starts the HTTP servers and background runners. The provided context controls
 // the application lifecycle for graceful shutdown.

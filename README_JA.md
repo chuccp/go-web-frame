@@ -514,7 +514,7 @@ func main() {
    - `IService`: 初期化が必要なすべてのサービスのベースインターフェース
    - `IModel`: CRUDとテーブル管理を含むデータアクセスレイヤーインターフェース
    - `IRest`: RESTコントローラーインターフェース（IServiceを継承）
-   - `IComponent`: 設定で初期化される独立したコンポーネント
+   - `IComponent`: 独立したコンポーネント（IServiceを継承）
    - `IRunner`: バックグラウンドタスクランナー（IServiceを継承）
    - `IFilter`: HTTPリクエストフィルター/ミドルウェア（IServiceを継承）
    - `Context`: すべてのコンポーネントを管理する依存性注入コンテナ

@@ -1,9 +1,7 @@
 package redis
 
 import (
-	"context"
-
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/core"
 	redis2 "github.com/redis/go-redis/v9"
 )
 
@@ -11,9 +9,9 @@ type Component struct {
 	client *redis2.Client
 }
 
-func (l *Component) Init(ctx context.Context, config config2.IConfig) error {
+func (l *Component) Init(ctx *core.Context) error {
 	var options = &redis2.Options{}
-	err := config.UnmarshalKey("web.redis", options)
+	err := ctx.GetConfig().UnmarshalKey("web.redis", options)
 	if err != nil {
 		return err
 	}

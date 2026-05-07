@@ -11,9 +11,9 @@
 
 ## 项目概述
 
-Go Web Frame 是一个基于 Gin 的 Go Web 框架，提供声明式路由元数据、泛型 ORM、依赖注入等功能。
+Go Web Frame 组合了 Go 生态中的最佳开源组件：Gin（HTTP）、GORM（ORM）、Viper（配置）、Zap（日志）、Sonic（JSON）、Otter（缓存）等。提供声明式路由元数据、类型安全泛型 ORM、依赖注入，开箱即用。
 
-**与 Gin 的主要差异：**
+**核心特性：**
 - **WithMeta**：为每个路由声明元数据（认证、权限、限流标记），在 Filter 中统一处理
 - **Builder 模式**：显式注册、可控的初始化顺序，无隐式扫描
 - **泛型 ORM**：零样板代码 CRUD，基于 `Model[T]`，无需代码生成

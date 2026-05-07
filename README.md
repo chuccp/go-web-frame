@@ -11,9 +11,9 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 
 ## Project Overview
 
-Go Web Frame is an opinionated web framework built on Gin. It provides declarative route metadata (WithMeta), Builder pattern initialization, type-safe generic ORM, and dependency injection.
+Go Web Frame combines the best open-source components from the Go ecosystem: Gin (HTTP), GORM (ORM), Viper (config), Zap (logging), Sonic (JSON), Otter (cache), and more. It provides declarative route metadata, type-safe generic ORM, and dependency injection out of the box.
 
-**Key Differences from Gin:**
+**Key Features:**
 - **WithMeta**: Declare metadata per route (auth, permissions, rate limit flags) and handle uniformly in filters
 - **Builder Pattern**: Explicit registration, controllable initialization order, no implicit scanning
 - **Generic ORM**: Zero-boilerplate CRUD with `Model[T]`, no code generation

@@ -8,7 +8,6 @@ import (
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/maypok86/otter/v2"
 	"github.com/maypok86/otter/v2/stats"
-	"github.com/sourcegraph/conc/panics"
 )
 
 type Config struct {
@@ -43,14 +42,14 @@ func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
 	return value, true
 }
 
-func (c *Cache) ComputeIfAbsent(key string, f func()) bool {
-	_, fa := c.cache.ComputeIfAbsent(key, func() (any, bool) {
-		defer c.cache.Invalidate(key) // 執行完自動刪除標記，讓下次可以重新進入
-		var catcher panics.Catcher
-		catcher.Try(f)
-		return struct{}{}, true
+func (c *Cache) GetOrSet(key string, f func() any) any {
+	v, _ := c.cache.ComputeIfAbsent(key, func() (newValue any, cancel bool) {
+		return f(), false
 	})
-	return fa
+	return v
+}
+func (c *Cache) ComputeIfAbsent(key string, f func() (any, bool)) (any, bool) {
+	return c.cache.ComputeIfAbsent(key, f)
 }
 
 func (c *Cache) Invalidate(key string) (any, bool) {

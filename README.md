@@ -11,9 +11,13 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 
 ## Project Overview
 
-Go Web Frame is an opinionated web framework that enforces clean architecture through component-based design. It provides built-in dependency injection, type-safe ORM, and database integration out of the box.
+Go Web Frame is an opinionated web framework built on Gin. It provides declarative route metadata (WithMeta), Builder pattern initialization, type-safe generic ORM, and dependency injection.
 
-**Core Advantage**: This framework integrates the best open-source packages and frameworks from the Go ecosystem, applying best practices in an organic combination. It represents the optimal solution for rapidly building production-ready applications, significantly boosting development efficiency.
+**Key Differences from Gin:**
+- **WithMeta**: Declare metadata per route (auth, permissions, rate limit flags) and handle uniformly in filters
+- **Builder Pattern**: Explicit registration, controllable initialization order, no implicit scanning
+- **Generic ORM**: Zero-boilerplate CRUD with `Model[T]`, no code generation
+- **Transparent Context**: All dependencies injectable via `GetService[T]`, debug-friendly
 
 ## 🧩 Tech Stack
 
@@ -93,32 +97,31 @@ This framework carefully selects and integrates the following excellent open-sou
 
 ### Selection Guide
 
-If you're looking for:
-- A **feature-complete** and **ready-to-use** Go web framework
-- **Production-proven** excellent components integrated without repeated research
-- **Generic-powered** type-safe ORM with minimal boilerplate
-- **Clean architecture** for maintainability and team collaboration
-- **Rapid development** to shorten time from idea to product
+If you need:
+- A feature-complete Go web framework with declarative route metadata
+- Production-proven components pre-integrated
+- Type-safe generic ORM without code generation
+- Clean architecture with explicit initialization
 
-**Go Web Frame is your best choice!**
+Go Web Frame may be a good fit.
 
 ## Features
 
+- **Route Metadata (WithMeta)**: Declare metadata per route (auth, permissions, rate limit) and handle uniformly in filters - no repetitive auth checks in each handler
+- **Builder Pattern**: Explicit registration, controllable initialization order, no implicit scanning or reflection
+- **Type-safe Generic ORM**: Zero-boilerplate CRUD operations with `Model[T]`, no code generation
+- **Dependency Injection**: Built-in DI container via Context - `GetService[T]`, `GetModel[T]`
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
-- **⚡ Type-safe Generic ORM**: Zero-boilerplate CRUD operations with generics, no reflection overhead
-- **Dependency Injection**: Built-in DI container for managing component lifecycle
-- **Database Integration**: SQLite, MySQL, PostgreSQL, Redis support with extensible database abstraction layer (powered by GORM)
-- **Connection Pool Configuration**: Configurable connection pool settings (`max_open_conns`, `max_idle_conns`, `conn_max_lifetime`)
-- **Component System**: Reusable components including caching, rate limiting, captcha, QR code generation, cron scheduled tasks, and input validation
+- **Database Integration**: SQLite, MySQL, PostgreSQL, Redis support with connection pool configuration
+- **Component System**: Reusable components including caching, rate limiting, captcha, QR code, cron, validation
 - **RESTful Support**: Simplified REST controller implementation
 - **Auto-Configuration**: Auto-loading config from JSON, YAML, or TOML files
 - **Advanced Logging**: Structured logging powered by Zap with rotation support
 - **Background Tasks**: Built-in runner system for background processing
 - **Request Filtering**: HTTP middleware/filter system for cross-cutting concerns
-- **Route Metadata**: `.WithMeta()` support for attaching custom metadata to routes (enables flexible per-route authentication, permissions, etc.)
 - **Unified Error Handling**: Automatic conversion of service errors to standardized HTTP responses
-- **Gin Ecosystem Compatibility**: Expose `GinContext()` to seamlessly wrap and reuse existing gin-contrib middleware (CORS, Gzip, Secure, Session, etc.)
-- **Built-in CORS Component**: Pre-configured CORS filter supporting cross-origin requests with credentials
+- **Gin Ecosystem Compatibility**: `GinContext()` to reuse gin-contrib middleware (CORS, Gzip, Secure, etc.)
+- **Built-in CORS Component**: Pre-configured CORS filter
 
 ## Quick Start
 

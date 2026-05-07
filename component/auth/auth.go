@@ -39,7 +39,7 @@ type AuthenticationFilter struct {
 
 func (s *AuthenticationFilter) Init(ctx *core.Context) error {
 	s.ctx = ctx
-	if s.authentication == nil {
+	if s.authentication != nil {
 		err := s.authentication.Init(ctx)
 		if err != nil {
 			return err

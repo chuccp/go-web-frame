@@ -9,6 +9,10 @@
 
 ---
 
+**📖 [Documentation →](./docs-site/docs-en/index.md)**
+
+---
+
 ## 專案概述
 
 Go Web Frame 組合了 Go 生態中的最佳開源組件：Gin（HTTP）、GORM（ORM）、Viper（配置）、Zap（日誌）、Sonic（JSON）、Otter（快取）等。提供宣告式路由元資料、類型安全泛型 ORM、依賴注入，開箱即用。

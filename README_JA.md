@@ -9,6 +9,10 @@
 
 ---
 
+**📖 [ドキュメント →](./docs-site/docs-en/index.md)**
+
+---
+
 ## プロジェクト概要
 
 Go Web FrameはGoエコシステムの優れたオープンソースコンポーネントを組み合わせています：Gin（HTTP）、GORM（ORM）、Viper（設定）、Zap（ログ）、Sonic（JSON）、Otter（キャッシュ）など。宣言型ルートメタデータ、タイプセーフジェネリックORM、依存性注入を提供し、すぐに使えます。

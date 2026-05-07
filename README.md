@@ -9,6 +9,10 @@ A modern, feature-rich web framework for Go, providing a structured approach to 
 
 ---
 
+**📖 [Documentation →](./docs-site/docs-en/index.md)**
+
+---
+
 ## Project Overview
 
 Go Web Frame combines the best open-source components from the Go ecosystem: Gin (HTTP), GORM (ORM), Viper (config), Zap (logging), Sonic (JSON), Otter (cache), and more. It provides declarative route metadata, type-safe generic ORM, and dependency injection out of the box.

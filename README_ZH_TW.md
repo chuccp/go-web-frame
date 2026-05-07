@@ -864,6 +864,7 @@ go mod tidy
 
 ## 文件
 
+- **[📖 詳細使用手冊 (docs-site)](./docs-site/docs/index.md)** - 完整使用手冊，包含安裝、路由、控制器、模型、過濾器、配置、日誌、後台任務、組件和 API 參考
 - **[架構設計](./ARCHITECTURE.md)** - 內部架構和設計決策
 - **[最佳實踐](./BEST_PRACTICES.md)** - 推薦的模式和實踐
 - **[更新日誌](./CHANGELOG.md)** - 版本歷史和變更

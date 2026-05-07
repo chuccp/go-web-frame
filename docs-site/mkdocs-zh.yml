@@ -1,7 +1,10 @@
 site_name: Go Web Frame 使用手册
-site_url: https://go-web-frame.dev
-site_description: Go Web Frame 框架官方文档
+site_url: https://go-web-frame.dev/zh/
+site_description: Go Web Frame 框架官方文档（中文）
 site_author: Go Web Frame Team
+
+docs_dir: docs-zh
+site_dir: site-zh
 
 theme:
   name: material
@@ -27,15 +30,6 @@ theme:
 
 plugins:
   - search
-  - i18n:
-      default_language: zh
-      languages:
-        zh:
-          name: 中文
-          link: /zh/
-        en:
-          name: English
-          link: /en/
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -65,12 +59,17 @@ nav:
       - 服务: guide/service.md
       - 过滤器/中间件: guide/filter.md
       - 配置: guide/configuration.md
+      - 日志: guide/logging.md
+      - 后台任务: guide/runner.md
+      - 组件: guide/components.md
   - 高级:
       - 数据库: advanced/database.md
+      - 部署: advanced/deployment.md
   - API 参考:
       - 核心 API: api/core.md
       - Web API: api/web.md
       - 模型 API: api/model.md
+      - 工具库 API: api/util.md
   - 最佳实践: best-practices.md
   - 更新日志: changelog.md
 
@@ -78,3 +77,10 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/chuccp/go-web-frame
+  alternate:
+    - name: English
+      link: https://go-web-frame.dev/en/
+      lang: en
+    - name: 中文
+      link: https://go-web-frame.dev/zh/
+      lang: zh

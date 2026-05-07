@@ -925,7 +925,8 @@ go mod tidy
 
 ## Documentation
 
-- **[📖 Detailed User Guide (docs-site)](./docs-site/docs/index.md)** - Complete usage manual with installation, routing, controllers, models, filters, configuration, logging, runners, components, and API reference
+- **[📖 User Guide (中文)](./docs-site/docs-zh/index.md)** - Complete usage manual: installation, routing, controllers, models, filters, configuration, logging, runners, components, API reference
+- **[📖 User Guide (English)](./docs-site/docs-en/index.md)** - English version of the user guide
 - **[Architecture Design](./ARCHITECTURE.md)** - Internal architecture and design decisions
 - **[Best Practices](./BEST_PRACTICES.md)** - Recommended patterns and practices
 - **[Changelog](./CHANGELOG.md)** - Version history and changes

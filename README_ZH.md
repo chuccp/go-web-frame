@@ -942,7 +942,8 @@ go mod tidy
 
 ## 文档
 
-- **[📖 详细使用手册 (docs-site)](./docs-site/docs/index.md)** - 完整使用手册，包含安装、路由、控制器、模型、过滤器、配置、日志、后台任务、组件和 API 参考
+- **[📖 使用手册（中文）](./docs-site/docs-zh/index.md)** - 完整使用手册：安装、路由、控制器、模型、过滤器、配置、日志、后台任务、组件、API 参考
+- **[📖 使用手册（英文）](./docs-site/docs-en/index.md)** - 英文版使用手册
 - **[架构设计](./ARCHITECTURE.md)** - 内部架构和设计决策
 - **[最佳实践](./BEST_PRACTICES.md)** - 推荐的模式和实践
 - **[更新日志](./CHANGELOG.md)** - 版本历史和变更

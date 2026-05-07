@@ -9,8 +9,8 @@ import (
 )
 
 type Authentication interface {
-	SignIn(user any, request *web.Request) (any, error)
-	SignOut(request *web.Request) (any, error)
+	SignIn(user any, request *web.Request, ctx *core.Context) (any, error)
+	SignOut(request *web.Request, ctx *core.Context) (any, error)
 	User(request *web.Request, ctx *core.Context) (any, error)
 }
 
@@ -41,10 +41,11 @@ func (s *AuthenticationFilter) Init(ctx *core.Context) error {
 	return nil
 }
 func (s *AuthenticationFilter) SignIn(user any, request *web.Request) (any, error) {
-	return s.authentication.SignIn(user, request)
+	return s.authentication.SignIn(user, request, s.ctx)
 }
 func (s *AuthenticationFilter) SignOut(request *web.Request) (any, error) {
-	return s.authentication.SignOut(request)
+
+	return s.authentication.SignOut(request, s.ctx)
 }
 func (s *AuthenticationFilter) User(request *web.Request) (any, error) {
 	return s.authentication.User(request, s.ctx)

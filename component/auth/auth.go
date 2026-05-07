@@ -9,9 +9,10 @@ import (
 )
 
 type Authentication interface {
-	SignIn(user any, request *web.Request, ctx *core.Context) (any, error)
-	SignOut(request *web.Request, ctx *core.Context) (any, error)
-	User(request *web.Request, ctx *core.Context) (any, error)
+	core.IService
+	SignIn(user any, request *web.Request) (any, error)
+	SignOut(request *web.Request) (any, error)
+	User(request *web.Request) (any, error)
 }
 
 const (
@@ -38,21 +39,27 @@ type AuthenticationFilter struct {
 
 func (s *AuthenticationFilter) Init(ctx *core.Context) error {
 	s.ctx = ctx
+	if s.authentication == nil {
+		err := s.authentication.Init(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 func (s *AuthenticationFilter) SignIn(user any, request *web.Request) (any, error) {
-	return s.authentication.SignIn(user, request, s.ctx)
+	return s.authentication.SignIn(user, request)
 }
 func (s *AuthenticationFilter) SignOut(request *web.Request) (any, error) {
 
-	return s.authentication.SignOut(request, s.ctx)
+	return s.authentication.SignOut(request)
 }
 func (s *AuthenticationFilter) User(request *web.Request) (any, error) {
-	return s.authentication.User(request, s.ctx)
+	return s.authentication.User(request)
 }
 func (s *AuthenticationFilter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
 	if request.HandlerMeta().Has(LoginKey) {
-		user, err := s.authentication.User(request, s.ctx)
+		user, err := s.authentication.User(request)
 		if err != nil || user == nil {
 			return web.Unauthorized("", err), nil
 		}

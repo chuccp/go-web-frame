@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"emperror.dev/errors"
@@ -125,7 +126,7 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 	if len(q.wheres) > 0 {
 		// 检查 SQL 是否已有 WHERE 子句
 		upperSql := strings.ToUpper(sql)
-		hasWhere := strings.Contains(upperSql, "WHERE ")
+		hasWhere := whereRe.MatchString(upperSql)
 
 		// 构建 WHERE 子句
 		var whereClause strings.Builder
@@ -275,6 +276,8 @@ func (q *Query[T]) Count() (int, error) {
 	err = tx.Count(&num)
 	return int(num), errors.WithStackIf(err)
 }
+
+var whereRe = regexp.MustCompile(`(?i)\sWHERE\s`)
 
 type where struct {
 	query interface{}

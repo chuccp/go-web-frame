@@ -125,7 +125,7 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 	if len(q.wheres) > 0 {
 		// 检查 SQL 是否已有 WHERE 子句
 		upperSql := strings.ToUpper(sql)
-		hasWhere := strings.Contains(upperSql, " WHERE ")
+		hasWhere := strings.Contains(upperSql, "WHERE ")
 
 		// 构建 WHERE 子句
 		var whereClause strings.Builder

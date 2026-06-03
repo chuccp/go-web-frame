@@ -494,3 +494,42 @@ func TextSimilarity(text1, text2 string) int {
 	similarity := float64(commonLen) / float64(len(longer)) * 100
 	return int(similarity)
 }
+
+// CommonCharCount 计算两个文本中相同字符的数量（每个字符只计一次，去重计数）
+// 返回值是相同独立字符的个数
+func CommonCharCount(text1, text2 string) int {
+	text1 = strings.TrimSpace(text1)
+	text2 = strings.TrimSpace(text2)
+
+	if len(text1) == 0 || len(text2) == 0 {
+		return 0
+	}
+
+	// 将 text2 的字符放入 set
+	charSet := make(map[rune]bool)
+	for _, r := range text2 {
+		charSet[r] = true
+	}
+
+	// 遍历 text1，每个字符只计一次
+	seen := make(map[rune]bool)
+	count := 0
+	for _, r := range text1 {
+		if charSet[r] && !seen[r] {
+			count++
+			seen[r] = true
+		}
+	}
+	return count
+}
+
+// CommonCharSimilarity 基于 CommonCharCount 计算相似度（0-100）
+// 得分 = 相同去重字符数 / max(len(text1), len(text2)) * 100
+func CommonCharSimilarity(text1, text2 string) int {
+	common := CommonCharCount(text1, text2)
+	maxLen := max(len([]rune(text1)), len([]rune(text2)))
+	if maxLen == 0 {
+		return 0
+	}
+	return int(float64(common) / float64(maxLen) * 100)
+}

@@ -5,11 +5,8 @@ import (
 	"reflect"
 	"time"
 
-	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
-	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
-	"gorm.io/gorm"
 )
 
 type IEntry interface {
@@ -51,73 +48,34 @@ func (a *EntryModel[T]) Saves(ts []T) error {
 
 }
 func (a *EntryModel[T]) FindById(id uint) (T, error) {
-	t := util.NewPtr(a.model.entry)
-	t.SetId(id)
-	err := a.model.db.Table(a.model.tableName).First(&t)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			var zero T
-			return zero, nil
-		}
-		var zero T
-		return zero, err
-	}
-	return t, err
+	q := a.model.Query()
+	pkCol := a.model.GetPkColumn()
+	return q.Where(fmt.Sprintf("`%s` = (?)", pkCol), id).One()
 }
 
 // FindByIdWithPreload finds a record by ID with preloaded associations
 // Usage: model.FindByIdWithPreload(id, "Profile", "Role")
 func (a *EntryModel[T]) FindByIdWithPreload(id uint, preloads ...string) (T, error) {
-	t := util.NewPtr(a.model.entry)
-	t.SetId(id)
-	tx := a.model.db.Table(a.model.tableName)
+	q := a.model.Query()
 	for _, p := range preloads {
-		tx = tx.Preload(p)
+		q = q.Preload(p)
 	}
-	err := tx.First(&t)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			var zero T
-			return zero, nil
-		}
-		var zero T
-		return zero, err
-	}
-	return t, err
+	pkCol := a.model.GetPkColumn()
+	return q.Where(fmt.Sprintf("`%s` = (?)", pkCol), id).One()
 }
 
 func (a *EntryModel[T]) FindOne(query interface{}, args ...interface{}) (T, error) {
-	t := util.NewPtr(a.model.entry)
-	err := a.model.db.Table(a.model.tableName).Where(query, args...).First(&t)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			var zero T
-			return zero, nil
-		}
-		var zero T
-		return zero, err
-	}
-	return t, nil
+	return a.model.Query().Where(query, args...).One()
 }
 
 // FindOneWithPreload finds one record with preloaded associations
 // Usage: model.FindOneWithPreload("status = ?", 1, "Profile", "Role")
 func (a *EntryModel[T]) FindOneWithPreload(query interface{}, args []interface{}, preloads ...string) (T, error) {
-	t := util.NewPtr(a.model.entry)
-	tx := a.model.db.Table(a.model.tableName).Where(query, args...)
+	q := a.model.Query().Where(query, args...)
 	for _, p := range preloads {
-		tx = tx.Preload(p)
+		q = q.Preload(p)
 	}
-	err := tx.First(&t)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			var zero T
-			return zero, nil
-		}
-		var zero T
-		return zero, err
-	}
-	return t, nil
+	return q.One()
 }
 
 func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
@@ -152,10 +110,8 @@ func (a *EntryModel[T]) FindAllWithPreload(preloads ...string) ([]T, error) {
 	return q.All()
 }
 func (a *EntryModel[T]) DeleteById(id uint) error {
-	t := util.NewPtr(a.model.entry)
 	pkCol := a.model.GetPkColumn()
-	err := a.model.db.Table(a.model.tableName).Where(fmt.Sprintf("`%s` = ?", pkCol), id).Delete(t)
-	return err
+	return a.model.Delete().Where(fmt.Sprintf("`%s` = ?", pkCol), id).Delete()
 }
 
 func (a *EntryModel[T]) UpdateById(t T) error {

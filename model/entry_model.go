@@ -3,24 +3,16 @@ package model
 import (
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/web"
 )
 
-type IEntry interface {
-	SetCreateTime(createTime time.Time)
-	SetUpdateTime(updateTIme time.Time)
-	GetId() uint
-	SetId(id uint)
-}
-
-type EntryModel[T IEntry] struct {
+type EntryModel[T any] struct {
 	model *Model[T]
 }
 
-func NewEntryModel[T IEntry](db *db.DB, tableName string) *EntryModel[T] {
+func NewEntryModel[T any](db *db.DB, tableName string) *EntryModel[T] {
 	return &EntryModel[T]{NewModel[T](db, tableName)}
 }
 
@@ -35,27 +27,21 @@ func (a *EntryModel[T]) DeleteTable() error {
 }
 
 func (a *EntryModel[T]) Save(t T) error {
-	t.SetCreateTime(time.Now())
-	t.SetUpdateTime(time.Now())
 	return a.model.Save(t)
 }
 func (a *EntryModel[T]) Saves(ts []T) error {
-	for _, t := range ts {
-		t.SetCreateTime(time.Now())
-		t.SetUpdateTime(time.Now())
-	}
 	return a.model.Saves(ts)
 
 }
-func (a *EntryModel[T]) FindById(id uint) (T, error) {
+func (a *EntryModel[T]) FindByPK(id uint) (T, error) {
 	q := a.model.Query()
 	pkCol := a.model.GetPkColumn()
 	return q.Where(fmt.Sprintf("`%s` = (?)", pkCol), id).One()
 }
 
-// FindByIdWithPreload finds a record by ID with preloaded associations
-// Usage: model.FindByIdWithPreload(id, "Profile", "Role")
-func (a *EntryModel[T]) FindByIdWithPreload(id uint, preloads ...string) (T, error) {
+// FindByPKWithPreload finds a record by PK with preloaded associations
+// Usage: model.FindByPKWithPreload(id, "Profile", "Role")
+func (a *EntryModel[T]) FindByPKWithPreload(id uint, preloads ...string) (T, error) {
 	q := a.model.Query()
 	for _, p := range preloads {
 		q = q.Preload(p)
@@ -78,15 +64,15 @@ func (a *EntryModel[T]) FindOneWithPreload(query interface{}, args []interface{}
 	return q.One()
 }
 
-func (a *EntryModel[T]) FindAllByIds(id ...uint) ([]T, error) {
+func (a *EntryModel[T]) FindAllByPK(id ...uint) ([]T, error) {
 	q := a.model.Query()
 	pkCol := a.model.GetPkColumn()
 	return q.Where(fmt.Sprintf("`%s` in (?)", pkCol), id).All()
 }
 
-// FindAllByIdsWithPreload finds all records by IDs with preloaded associations
-// Usage: model.FindAllByIdsWithPreload([]uint{1, 2, 3}, "Profile", "Role")
-func (a *EntryModel[T]) FindAllByIdsWithPreload(ids []uint, preloads ...string) ([]T, error) {
+// FindAllByPKWithPreload finds all records by PKs with preloaded associations
+// Usage: model.FindAllByPKWithPreload([]uint{1, 2, 3}, "Profile", "Role")
+func (a *EntryModel[T]) FindAllByPKWithPreload(ids []uint, preloads ...string) ([]T, error) {
 	q := a.model.Query()
 	for _, p := range preloads {
 		q = q.Preload(p)
@@ -109,16 +95,14 @@ func (a *EntryModel[T]) FindAllWithPreload(preloads ...string) ([]T, error) {
 	}
 	return q.All()
 }
-func (a *EntryModel[T]) DeleteById(id uint) error {
+func (a *EntryModel[T]) DeleteByPK(id uint) error {
 	pkCol := a.model.GetPkColumn()
 	return a.model.Delete().Where(fmt.Sprintf("`%s` = ?", pkCol), id).Delete()
 }
 
-func (a *EntryModel[T]) UpdateById(t T) error {
-	t.SetUpdateTime(time.Now())
+func (a *EntryModel[T]) UpdateByPK(t T) error {
 	u := a.model.Update()
-	pkCol := a.model.GetPkColumn()
-	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), t.GetId()).Update(t)
+	return u.Update(t)
 }
 func (a *EntryModel[T]) UpdateColumn(id uint, column string, value interface{}) error {
 	u := a.model.Update()

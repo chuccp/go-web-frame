@@ -506,3 +506,17 @@ func getOtherRootPath() ([]*File, error) {
 	}
 	return nil, err
 }
+
+// AbsPath 将相对路径转为绝对路径，基于当前工作目录解析
+func AbsPath(relativePath string) (string, error) {
+	return filepath.Abs(relativePath)
+}
+
+// ExecDir 返回当前可执行文件所在目录的绝对路径
+func ExecDir() (string, error) {
+	execPath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(execPath), nil
+}

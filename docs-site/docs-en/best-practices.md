@@ -50,7 +50,7 @@ Controller → Service → Model
 ```go
 // Service layer
 func (s *UserService) GetUser(id uint) (*User, error) {
-    user, err := s.userModel.FindById(id)
+    user, err := s.userModel.FindByPK(id)
     if err != nil {
         return nil, fmt.Errorf("user not found: %w", err)
     }

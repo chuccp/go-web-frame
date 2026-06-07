@@ -16,7 +16,7 @@ func (s *UserService) Init(ctx *core.Context) error {
 }
 
 func (s *UserService) GetUserById(id uint) (*User, error) {
-    return s.userModel.FindById(id)
+    return s.userModel.FindByPK(id)
 }
 ```
 

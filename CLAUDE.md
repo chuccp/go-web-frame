@@ -291,45 +291,37 @@ func (m *UserModel) Init(db *db.DB, c *core.Context) error {
 
 ### 4. EntryModel - Enhanced Model with Built-in Methods
 
-For entities with `Id`, `CreateTime`, `UpdateTime` fields:
+For entities with a primary key and optional `CreateTime`/`UpdateTime` fields.
+`EntryModel` accepts two type parameters: `T` (entity type) and `PK` (primary key type, must satisfy `PKConstraint`: `uint`, `int`, `string`, etc.).
 
 ```go
 package main
 
 import (
-    "time"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/db"
     "github.com/chuccp/go-web-frame/model"
 )
 
-// Entity must implement IEntry interface
 type User struct {
-    Id         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-    Name       string    `gorm:"size:255" json:"name"`
-    CreateTime time.Time `json:"createTime"`
-    UpdateTime time.Time `json:"updateTime"`
+    Id   uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+    Name string `gorm:"size:255" json:"name"`
 }
 
-func (u *User) SetCreateTime(t time.Time) { u.CreateTime = t }
-func (u *User) SetUpdateTime(t time.Time) { u.UpdateTime = t }
-func (u *User) GetId() uint                { return u.Id }
-func (u *User) SetId(id uint)              { u.Id = id }
-
 type UserModel struct {
-    *model.EntryModel[*User]
+    *model.EntryModel[*User, uint]
 }
 
 func (m *UserModel) Init(db *db.DB, c *core.Context) error {
-    m.EntryModel = model.NewEntryModel[*User](db, "t_user")
+    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
     return m.CreateTable()
 }
 
 // EntryModel provides additional methods:
-// - FindById(id)                    // Find by primary key
+// - FindByPK(id)                    // Find by primary key
 // - FindAll()                       // Find all records
-// - DeleteById(id)                  // Delete by ID
-// - UpdateById(entity)              // Update by ID
+// - DeleteByPK(id)                  // Delete by primary key
+// - UpdateByPK(entity)              // Update by primary key
 // - Page(page)                      // Pagination query
 // - UpdateColumn(id, column, val)   // Update single column
 ```
@@ -433,7 +425,7 @@ func (s *UserService) Init(ctx *core.Context) error {
 }
 
 func (s *UserService) GetUserById(id uint) (*User, error) {
-    return s.userModel.FindById(id)
+    return s.userModel.FindByPK(id)
 }
 
 // Register service in main:

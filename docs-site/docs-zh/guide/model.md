@@ -88,27 +88,7 @@ err := userModel.Delete().Where("id = ?", 1).Delete()
 
 ## EntryModel
 
-对于包含 `Id`、`CreateTime`、`UpdateTime` 字段的实体，使用 `EntryModel` 获得更多内置方法：
-
-### 实体必须实现 IEntry 接口
-
-```go
-package entity
-
-import "time"
-
-type User struct {
-    Id         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-    Name       string    `gorm:"size:255" json:"name"`
-    CreateTime time.Time `json:"createTime"`
-    UpdateTime time.Time `json:"updateTime"`
-}
-
-func (u *User) SetCreateTime(t time.Time) { u.CreateTime = t }
-func (u *User) SetUpdateTime(t time.Time) { u.UpdateTime = t }
-func (u *User) GetId() uint                { return u.Id }
-func (u *User) SetId(id uint)              { u.Id = id }
-```
+对于包含主键的实体，使用 `EntryModel` 获得更多内置方法。`EntryModel` 接受两个类型参数：`T`（实体类型）和 `PK`（主键类型，支持 `uint`、`int`、`string` 等）。
 
 ### 创建 EntryModel
 
@@ -123,11 +103,11 @@ import (
 )
 
 type UserModel struct {
-    *model.EntryModel[entity.User]
+    *model.EntryModel[entity.User, uint]
 }
 
 func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
-    m.EntryModel = model.NewEntryModel[entity.User](db, "t_user")
+    m.EntryModel = model.NewEntryModel[entity.User, uint](db, "t_user")
     return m.CreateTable()
 }
 ```
@@ -136,10 +116,10 @@ func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
 
 ```go
 // 根据主键查找
-user, err := userModel.FindById(1)
+user, err := userModel.FindByPK(1)
 
 // 根据主键查找（带预加载）
-user, err := userModel.FindByIdWithPreload(1, "Profile", "Role")
+user, err := userModel.FindByPKWithPreload(1, "Profile", "Role")
 
 // 查找所有记录
 users, err := userModel.FindAll()
@@ -147,11 +127,11 @@ users, err := userModel.FindAll()
 // 查找所有记录（带预加载）
 users, err := userModel.FindAllWithPreload("Profile", "Role")
 
-// 根据 ID 列表批量查找
-users, err := userModel.FindAllByIds(1, 2, 3)
+// 根据主键列表批量查找
+users, err := userModel.FindAllByPK(1, 2, 3)
 
-// 根据 ID 列表批量查找（带预加载）
-users, err := userModel.FindAllByIdsWithPreload([]uint{1, 2, 3}, "Profile")
+// 根据主键列表批量查找（带预加载）
+users, err := userModel.FindAllByPKWithPreload([]uint{1, 2, 3}, "Profile")
 
 // 条件查询单条（找不到返回 nil 而不是错误）
 user, err := userModel.FindOne("email = ?", "test@example.com")
@@ -159,11 +139,11 @@ user, err := userModel.FindOne("email = ?", "test@example.com")
 // 条件查询单条（带预加载）
 user, err := userModel.FindOneWithPreload("status = ?", []interface{}{1}, "Profile")
 
-// 根据 ID 删除
-err := userModel.DeleteById(1)
+// 根据主键删除
+err := userModel.DeleteByPK(1)
 
-// 根据 ID 更新
-err := userModel.UpdateById(user)
+// 根据主键更新
+err := userModel.UpdateByPK(user)
 
 // 分页查询
 page := &web.Page{PageNo: 1, PageSize: 10}
@@ -175,7 +155,7 @@ users, total, err := userModel.QueryPage(page, "status = ?", 1)
 // 更新单列
 err := userModel.UpdateColumn(1, "status", 0)
 
-// 按 ID 更新 Map
+// 按主键更新 Map
 err := userModel.UpdateForMap(1, map[string]interface{}{"name": "Bob"})
 
 // 批量保存
@@ -491,18 +471,13 @@ type User struct {
     UpdateTime time.Time `json:"updateTime"`
 }
 
-func (u *User) SetCreateTime(t time.Time) { u.CreateTime = t }
-func (u *User) SetUpdateTime(t time.Time) { u.UpdateTime = t }
-func (u *User) GetId() uint                { return u.Id }
-func (u *User) SetId(id uint)              { u.Id = id }
-
 // 模型
 type UserModel struct {
-    *model.EntryModel[entity.User]
+    *model.EntryModel[entity.User, uint]
 }
 
 func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
-    m.EntryModel = model.NewEntryModel[entity.User](db, "t_user")
+    m.EntryModel = model.NewEntryModel[entity.User, uint](db, "t_user")
     return m.CreateTable()
 }
 

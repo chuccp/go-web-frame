@@ -122,11 +122,11 @@ func (s *UserService) CreateUser(input *CreateUserInput) (*User, error) {
 
 ```go
 type UserModel struct {
-    *model.EntryModel[*User]
+    *model.EntryModel[*User, uint]
 }
 
 func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
-    m.EntryModel = model.NewEntryModel[*User](db, "t_user")
+    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
     return m.CreateTable()
 }
 

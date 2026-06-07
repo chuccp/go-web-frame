@@ -54,17 +54,17 @@ err := userModel.Delete().Where("id = ?", 1).Delete()
 
 ## EntryModel
 
-For entities with `Id`, `CreateTime`, `UpdateTime` fields:
+For entities with a primary key. `EntryModel` accepts two type parameters: `T` (entity type) and `PK` (primary key type).
 
 ```go
 type UserModel struct {
-    *model.EntryModel[*User]
+    *model.EntryModel[*User, uint]
 }
 
 // Additional methods:
-user, err := userModel.FindById(1)
+user, err := userModel.FindByPK(1)
 users, err := userModel.FindAll()
-err := userModel.DeleteById(1)
+err := userModel.DeleteByPK(1)
 pageAble, err := userModel.Query().PageForWeb(page)
 ```
 

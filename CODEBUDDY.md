@@ -134,11 +134,11 @@ Supported formats: JSON, YAML, TOML
 
 ### Model Definition
 
-Use `model.EntryModel[T]` for entities with `Id`, `CreateTime`, `UpdateTime` fields to get built-in CRUD methods:
+Use `model.EntryModel[T, PK]` for entities with a primary key to get built-in CRUD methods. `PK` is the primary key type (`uint`, `int`, `string`, etc.):
 
 ```go
 type UserModel struct {
-    *model.EntryModel[*User]
+    *model.EntryModel[*User, uint]
 }
 ```
 

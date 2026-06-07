@@ -26,7 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Data Access**
   - Generic `Model[T]` for type-safe database operations
-  - `EntryModel[T]` for entities with audit fields
+  - `EntryModel[T, PK]` for entities with primary key support (uint, int, string, etc.)
   - Fluent query builder with chain API
   - Transaction support
   - Connection pool configuration

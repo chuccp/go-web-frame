@@ -26,7 +26,7 @@ func (s *UserService) Init(context *core.Context) error {
 }
 
 func (s *UserService) GetUserById(id uint) (*entity.User, error) {
-	return s.userModel.FindById(id)
+	return s.userModel.FindByPK(id)
 }
 
 func (s *UserService) GetAllUsers() ([]*entity.User, error) {

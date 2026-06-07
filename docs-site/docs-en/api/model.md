@@ -65,20 +65,20 @@ err := m.Save(user)
 // user.Id is populated after Save
 ```
 
-## EntryModel[T]
+## EntryModel[T, PK]
 
-Extended model for entities with Id, CreateTime, UpdateTime.
+Extended model for entities with a primary key. `PK` is the primary key type (`uint`, `int`, `string`, etc.).
 
 ```go
 type UserModel struct {
-    *model.EntryModel[*User]
+    *model.EntryModel[*User, uint]
 }
 
 // Additional methods
-user, err := m.FindById(1)
+user, err := m.FindByPK(1)
 users, err := m.FindAll()
-err := m.DeleteById(1)
-err := m.UpdateById(user)
+err := m.DeleteByPK(1)
+err := m.UpdateByPK(user)
 pageAble, err := m.Query().PageForWeb(page)
 err := m.UpdateColumn(1, "name", "bob")
 ```

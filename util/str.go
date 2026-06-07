@@ -397,6 +397,23 @@ func Number2String(number int64, charset string) string {
 	return string(result)
 }
 
+// String2Number 将指定字符集编码的字符串解码为数字，是 Number2String 的逆操作
+func String2Number(s string, charset string) int64 {
+	if charset == "" {
+		charset = Alphanumeric
+	}
+	base := int64(len(charset))
+	var result int64
+	for i := 0; i < len(s); i++ {
+		idx := strings.IndexByte(charset, s[i])
+		if idx < 0 {
+			return 0
+		}
+		result = result*base + int64(idx)
+	}
+	return result
+}
+
 func Index2Str(index int, charset string) string {
 	if charset == "" {
 		charset = Alphanumeric

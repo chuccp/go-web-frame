@@ -54,6 +54,23 @@ func getPrimaryKeyColumn[T any]() string {
 	return "id"
 }
 
+// getPrimaryKeyValue extracts the primary key value from entity struct via reflection
+func getPrimaryKeyValue[T any](entity T) interface{} {
+	v := reflect.ValueOf(entity)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	rt := v.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		gormTag := field.Tag.Get("gorm")
+		if strings.Contains(gormTag, "primaryKey") {
+			return v.Field(i).Interface()
+		}
+	}
+	return nil
+}
+
 func (a *Model[T]) IsExist() (bool, error) {
 	dbConn, err := a.getBb()
 	if err != nil {

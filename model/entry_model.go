@@ -106,7 +106,9 @@ func (a *EntryModel[T, PK]) DeleteByPK(id PK) error {
 
 func (a *EntryModel[T, PK]) UpdateByPK(t T) error {
 	u := a.model.Update()
-	return u.Update(t)
+	pkCol := a.model.GetPkColumn()
+	pkValue := getPrimaryKeyValue(t)
+	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), pkValue).Update(t)
 }
 func (a *EntryModel[T, PK]) UpdateColumn(id PK, column string, value interface{}) error {
 	u := a.model.Update()

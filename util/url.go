@@ -38,6 +38,11 @@ func AddQueryParam(url, key, value string) string {
 		return fmt.Sprintf("?%s=%s", key, value)
 	}
 
+	// 检查 key 是否已存在于查询参数中，避免重复追加
+	if strings.Contains(url, "?"+key+"=") || strings.Contains(url, "&"+key+"=") {
+		return url
+	}
+
 	separator := "?"
 	for i, c := range url {
 		if c == '?' && i > 0 {

@@ -10,7 +10,7 @@ import (
 )
 
 type SQLiteConfig struct {
-	FilePath string
+	FilePath string `mapstructure:"path"`
 	// Connection pool settings
 	MaxOpenConns    int `mapstructure:"max_open_conns"`
 	MaxIdleConns    int `mapstructure:"max_idle_conns"`

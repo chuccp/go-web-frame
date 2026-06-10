@@ -1,3 +1,17 @@
+// 建议：不要直接使用本包中的 db.DB / db.Table 操作数据库，推荐使用 model.EntryModel 或 model.Model，
+// 它们提供了类型安全、更高层级的 CRUD 封装，代码更简洁且不易出错。
+//
+// Recommendation: Prefer model.EntryModel or model.Model over raw db.DB / db.Table.
+// They provide type-safe, higher-level CRUD operations — less boilerplate and fewer mistakes.
+//
+// 推奨: 本パッケージの生の db.DB / db.Table ではなく model.EntryModel または model.Model を使用してください。
+// 型安全で抽象度の高い CRUD 操作が提供され、コードが簡潔になりミスも減ります。
+//
+// 권장: 이 패키지의 raw db.DB / db.Table 대신 model.EntryModel 또는 model.Model 을 사용하세요.
+// 타입 안전하고 더 높은 수준의 CRUD 연산을 제공하므로 코드가 간결해지고 실수가 줄어듭니다.
+//
+// Рекомендация: используйте model.EntryModel или model.Model вместо прямого db.DB / db.Table из этого пакета.
+// Они предоставляют типобезопасные CRUD-операции высокого уровня — меньше шаблонного кода и ошибок.
 package db
 
 import (
@@ -37,10 +51,10 @@ func ApplyConnectionPool(db *gorm.DB, cfg ConnectionPoolConfig) error {
 }
 
 const (
-	MYSQL  = "mysql"
-	POSTGRES = "postgres"
+	MYSQL      = "mysql"
+	POSTGRES   = "postgres"
 	POSTGRESQL = "postgresql"
-	SQLITE = "sqlite"
+	SQLITE     = "sqlite"
 )
 
 type Source interface {
@@ -55,6 +69,20 @@ func (s *Session) Delete(value any, conds ...any) error {
 	return tx.Error
 }
 
+// 建议：不要直接使用 db.Table，推荐使用 model.EntryModel 或 model.Model，
+// 它们提供了类型安全、更高层级的 CRUD 封装，代码更简洁且不易出错。
+//
+// Recommendation: Prefer model.EntryModel or model.Model over raw db.Table.
+// They provide type-safe, higher-level CRUD operations — less boilerplate and fewer mistakes.
+//
+// 推奨: 生の db.Table ではなく model.EntryModel または model.Model を使用してください。
+// 型安全で抽象度の高い CRUD 操作が提供され、コードが簡潔になりミスも減ります。
+//
+// 권장: raw db.Table 대신 model.EntryModel 또는 model.Model 을 사용하세요.
+// 타입 안전하고 더 높은 수준의 CRUD 연산을 제공하므로 코드가 간결해지고 실수가 줄어듭니다.
+//
+// Рекомендация: используйте model.EntryModel или model.Model вместо прямого db.Table.
+// Они предоставляют типобезопасные CRUD-операции высокого уровня — меньше шаблонного кода и ошибок.
 type Table struct {
 	db        *gorm.DB
 	tableName string
@@ -289,6 +317,20 @@ func (t *Table) Scan(dest any) error {
 	return t.db.Scan(dest).Error
 }
 
+// 建议：不要直接使用 db.DB / db.Table 操作数据库，推荐使用 model.EntryModel 或 model.Model，
+// 它们提供了类型安全、更高层级的 CRUD 封装，代码更简洁且不易出错。
+//
+// Recommendation: Prefer model.EntryModel or model.Model over raw db.DB / db.Table.
+// They provide type-safe, higher-level CRUD operations — less boilerplate and fewer mistakes.
+//
+// 推奨: 生の db.DB / db.Table ではなく model.EntryModel または model.Model を使用してください。
+// 型安全で抽象度の高い CRUD 操作が提供され、コードが簡潔になりミスも減ります。
+//
+// 권장: raw db.DB / db.Table 대신 model.EntryModel 또는 model.Model 을 사용하세요.
+// 타입 안전하고 더 높은 수준의 CRUD 연산을 제공하므로 코드가 간결해지고 실수가 줄어듭니다.
+//
+// Рекомендация: используйте model.EntryModel или model.Model вместо прямого db.DB / db.Table.
+// Они предоставляют типобезопасные CRUD-операции высокого уровня — меньше шаблонного кода и ошибок.
 type DB struct {
 	db *gorm.DB
 }

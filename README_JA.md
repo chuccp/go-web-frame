@@ -496,6 +496,35 @@ func main() {
 }
 ```
 
+### なぜGORM組み込みのジェネリックを使わないのか？
+
+GORM v1.30.0+でジェネリックAPI（`gorm.G[T](db)`）が導入されましたが、本フレームワークのORM層には明確な優位性があります：
+
+| 特徴 | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
+|------|--------------------------|-------------------|
+| テーブル名バインド | 構築時に自動バインド | 毎回のクエリで手動 `.Table()` |
+| ページネーション | 組み込み `Page` / `PageForWeb` | なし |
+| `EntryModel` 便利メソッド | `FindByPK`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn` | なし |
+| Context必須 | 不要 | すべての操作で `ctx` が必要 |
+| Query/Update/Delete | 独立したタイプセーフビルダー（`Query[T]`、`Update[T]`、`Delete[T]`） | 統一 `ChainInterface[T]` |
+| 自動テーブル作成 | `CreateTable()` 自動マイグレーション | 手動 `AutoMigrate` |
+
+**比較例：**
+
+```go
+// Go Web Frame — シンプル、context不要、テーブル名自動バインド
+user, err := userModel.FindByPK(1)
+users, err := userModel.Query().Where("age > ?", 18).All()
+page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+
+// GORM組み込みジェネリック — 冗長、context必要、テーブル名手動
+user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
+users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
+// 組み込みページネーションなし
+```
+
+本フレームワークのORMはGORMの上に構築されたより高レベルな抽象化です——GORMのすべての能力を保持しつつ、GORMジェネリックAPIにないテーブル名管理、ページネーション、便利メソッドを提供します。
+
 ## 📊 パフォーマンス比較
 
 | フレームワーク | QPS | メモリ使用量 | 特徴 |

@@ -572,6 +572,35 @@ func main() {
 }
 ```
 
+### Why Not Use GORM's Built-in Generics?
+
+GORM v1.30.0+ introduced a generic API (`gorm.G[T](db)`), but this framework's ORM layer provides significant advantages:
+
+| Feature | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
+|---------|--------------------------|-------------------|
+| Table name binding | Auto-bound at construction | Manual `.Table()` every query |
+| Pagination | Built-in `Page` / `PageForWeb` | Not available |
+| `EntryModel` convenience | `FindByPK`, `DeleteByPK`, `UpdateByPK`, `UpdateColumn` | Not available |
+| Context required | No | Yes, every operation needs `ctx` |
+| Query/Update/Delete | Separate typed builders (`Query[T]`, `Update[T]`, `Delete[T]`) | Unified `ChainInterface[T]` |
+| Auto table creation | `CreateTable()` with auto-migrate | Manual `AutoMigrate` |
+
+**Example comparison:**
+
+```go
+// Go Web Frame — clean, no context, table auto-bound
+user, err := userModel.FindByPK(1)
+users, err := userModel.Query().Where("age > ?", 18).All()
+page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+
+// GORM built-in generics — verbose, context required, manual table
+user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
+users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
+// No built-in pagination
+```
+
+The framework's ORM is a higher-level abstraction over GORM — it keeps the power of GORM while adding table management, pagination, and convenience methods that GORM's generic API does not provide.
+
 ## Architecture Overview
 
 ### Core Layers

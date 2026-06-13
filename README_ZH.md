@@ -572,6 +572,35 @@ func main() {
 }
 ```
 
+### 为什么不用 GORM 自带的泛型？
+
+GORM v1.30.0+ 引入了泛型 API（`gorm.G[T](db)`），但本框架的 ORM 层有明显优势：
+
+| 特性 | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
+|------|--------------------------|-------------------|
+| 表名绑定 | 构造时自动绑定 | 每次查询都要手动 `.Table()` |
+| 分页 | 内置 `Page` / `PageForWeb` | 无 |
+| `EntryModel` 便捷方法 | `FindByPK`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn` | 无 |
+| 需要 Context | 不需要 | 每个操作都要传 `ctx` |
+| Query/Update/Delete | 独立的类型安全构建器（`Query[T]`、`Update[T]`、`Delete[T]`） | 统一的 `ChainInterface[T]` |
+| 自动建表 | `CreateTable()` 自动迁移 | 需手动 `AutoMigrate` |
+
+**对比示例：**
+
+```go
+// Go Web Frame — 简洁，无需 context，表名自动绑定
+user, err := userModel.FindByPK(1)
+users, err := userModel.Query().Where("age > ?", 18).All()
+page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+
+// GORM 自带泛型 — 冗长，需要 context，手动指定表名
+user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
+users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
+// 没有内置分页
+```
+
+本框架的 ORM 是建立在 GORM 之上的更高层抽象——保留了 GORM 的全部能力，同时提供了 GORM 泛型 API 所没有的表名管理、分页和便捷方法。
+
 ## 📊 性能对比
 
 | 框架 | QPS | 内存占用 | 特点 |

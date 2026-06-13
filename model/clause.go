@@ -9,6 +9,7 @@ import (
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
+	"gorm.io/gorm"
 )
 
 type Query[T any] struct {
@@ -101,6 +102,11 @@ func (q *Query[T]) One() (T, error) {
 		return t, errors.WithStackIf(err)
 	}
 	err = tx.Limit(1).First(&t)
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		var t T
+		return t, errors.WithStackIf(err)
+	}
 	return t, errors.WithStackIf(err)
 }
 

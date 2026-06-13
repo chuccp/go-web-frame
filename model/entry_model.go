@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/web"
 )

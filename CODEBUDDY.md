@@ -152,6 +152,24 @@ type UserController struct {
 }
 ```
 
+### Context Propagation
+
+Use `WithContext(ctx)` to propagate request cancellation, timeouts, and tracing to database operations:
+
+```go
+func (c *UserController) GetUsers(req *web.Request) (any, error) {
+    // Inject request context once — all subsequent operations carry it
+    return c.userModel.WithContext(req.Ctx()).FindAll()
+}
+
+// Custom timeout
+ctx, cancel := context.WithTimeout(req.Ctx(), 5*time.Second)
+defer cancel()
+users, err := userModel.WithContext(ctx).FindAll()
+```
+
+`req.Ctx()` returns the per-request `context.Context`, auto-cancelled when the request completes.
+
 ### Service Layer
 
 Get dependencies via context in `Init()` method:

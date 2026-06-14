@@ -318,6 +318,46 @@ func (s *MyService) Init(ctx *core.Context) error {
 }
 ```
 
+## Context Propagation
+
+### Propagate Request Context to Database
+
+Always propagate the request context to database operations for cancellation and tracing:
+
+```go
+func (c *UserController) GetUser(req *web.Request) (any, error) {
+    id := req.ParamUint("id")
+    return c.userService.GetUserById(req, id)
+}
+
+func (s *UserService) GetUserById(req *web.Request, id uint) (*User, error) {
+    // Inject request context once, all subsequent DB operations carry it
+    return s.userModel.WithContext(req.Ctx()).FindByPK(id)
+}
+```
+
+### Custom Context with Timeout
+
+For slow queries, set a custom timeout:
+
+```go
+func (s *UserService) SearchUsers(req *web.Request, keyword string) ([]*User, error) {
+    ctx, cancel := context.WithTimeout(req.Ctx(), 5*time.Second)
+    defer cancel()
+    return s.userModel.WithContext(ctx).Query().Where("name LIKE ?", "%"+keyword+"%").All()
+}
+```
+
+### Builder-Level Context
+
+Inject context directly on query/update/delete builders:
+
+```go
+users, err := userModel.Query().WithContext(req.Ctx()).Where("status = ?", 1).All()
+err := userModel.Update().WithContext(req.Ctx()).Where("id = ?", 1).UpdateColumn("status", 0)
+err := userModel.Delete().WithContext(req.Ctx()).Where("id = ?", 1).Delete()
+```
+
 ## Database Best Practices
 
 ### Use Transactions for Multi-Step Operations

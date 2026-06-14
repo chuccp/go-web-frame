@@ -114,6 +114,7 @@ Go Web Frame may be a good fit.
 - **Route Metadata (WithMeta)**: Declare metadata per route (auth, permissions, rate limit) and handle uniformly in filters - no repetitive auth checks in each handler
 - **Builder Pattern**: Explicit registration, controllable initialization order, no implicit scanning or reflection
 - **Type-safe Generic ORM**: Zero-boilerplate CRUD operations with `Model[T]`, no code generation
+- **Context Propagation**: `WithContext(ctx)` injects request context once, auto-propagates cancellation and tracing to all DB operations
 - **Dependency Injection**: Built-in DI container via Context - `GetService[T]`, `GetModel[T]`
 - **MVC-like Architecture**: Clean separation of concerns with services, controllers, and models
 - **Database Integration**: SQLite, MySQL, PostgreSQL, Redis support with connection pool configuration
@@ -579,27 +580,28 @@ GORM v1.30.0+ introduced a generic API (`gorm.G[T](db)`), but this framework's O
 | Feature | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
 |---------|--------------------------|-------------------|
 | Table name binding | Auto-bound at construction | Manual `.Table()` every query |
+| Context propagation | `WithContext(ctx)` once, auto-propagation | Manual `ctx` per operation |
 | Pagination | Built-in `Page` / `PageForWeb` | Not available |
 | `EntryModel` convenience | `FindByPK`, `DeleteByPK`, `UpdateByPK`, `UpdateColumn` | Not available |
-| Context required | No | Yes, every operation needs `ctx` |
 | Query/Update/Delete | Separate typed builders (`Query[T]`, `Update[T]`, `Delete[T]`) | Unified `ChainInterface[T]` |
 | Auto table creation | `CreateTable()` with auto-migrate | Manual `AutoMigrate` |
 
 **Example comparison:**
 
 ```go
-// Go Web Frame — clean, no context, table auto-bound
-user, err := userModel.FindByPK(1)
-users, err := userModel.Query().Where("age > ?", 18).All()
-page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+// Go Web Frame — context injected once, table auto-bound
+m := userModel.WithContext(req.Ctx())
+user, err := m.FindByPK(1)
+users, err := m.Query().Where("age > ?", 18).All()
+users, total, err := m.Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// GORM built-in generics — verbose, context required, manual table
+// GORM built-in generics — ctx per operation, manual table
 user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
 users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
 // No built-in pagination
 ```
 
-The framework's ORM is a higher-level abstraction over GORM — it keeps the power of GORM while adding table management, pagination, and convenience methods that GORM's generic API does not provide.
+The framework's ORM is a higher-level abstraction over GORM — it keeps the power of GORM while adding table management, pagination, context propagation, and convenience methods that GORM's generic API does not provide.
 
 ## Architecture Overview
 

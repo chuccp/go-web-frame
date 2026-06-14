@@ -358,6 +358,33 @@ users, err := userModel.Query().Preload("Profile").Preload("Role").All()
 user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 ```
 
+### 5b. Context Propagation (Request Context to Database)
+
+All model and builder types support `WithContext(ctx)` for propagating request-scoped cancellation, timeouts, and tracing to database operations:
+
+```go
+// Auto — request context from web.Request
+func (c *Controller) GetUsers(req *web.Request) (any, error) {
+    return c.userModel.WithContext(req.Ctx()).FindAll()
+}
+
+// Builder-level context injection
+users, err := userModel.Query().WithContext(req.Ctx()).Where("age > ?", 18).All()
+err := userModel.Update().WithContext(req.Ctx()).Where("id = ?", 1).UpdateColumn("status", 0)
+err := userModel.Delete().WithContext(req.Ctx()).Where("id = ?", 1).Delete()
+
+// Custom context with timeout
+ctx, cancel := context.WithTimeout(req.Ctx(), 5*time.Second)
+defer cancel()
+users, err := userModel.WithContext(ctx).FindAll()
+```
+
+Key points:
+- `req.Ctx()` returns the per-request `context.Context` — auto-cancelled when the request completes
+- `WithContext(ctx)` returns a shallow copy — the original model is unchanged, safe for concurrent use
+- Context propagates to all GORM operations automatically
+- Backward compatible — existing code without context continues to work (uses `context.Background()`)
+
 ### 6. Request Handling
 
 The `web.Request` provides rich request handling:

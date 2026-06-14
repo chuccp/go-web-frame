@@ -233,6 +233,34 @@ func NewWithAutoConfig() *WebFrame {
 }
 ```
 
+## Context Propagation
+
+### Request Context → Database
+
+The framework supports propagating HTTP request context to database operations for cancellation, timeouts, and tracing:
+
+```
+HTTP Request (context.Context)
+     │
+     ▼
+web.Request.Ctx()                      ← auto-created per request
+     │
+     ▼
+model.WithContext(req.Ctx())           ← shallow copy, concurrent-safe
+     │
+     ▼
+db.DB.WithContext(ctx)                 ← gorm.DB.WithContext(ctx)
+     │
+     ▼
+All GORM operations carry context      ← cancellation, timeout, trace propagation
+```
+
+Key design decisions:
+- `WithContext(ctx)` returns a shallow copy — the original model is never mutated, safe for concurrent use across requests
+- `Model[T]` and `EntryModel[T, PK]` return concrete types, preserving type-safe chaining
+- `Query[T]`, `Update[T]`, `Delete[T]` support chainable `WithContext(ctx)` for builder-level injection
+- `model` package depends only on `context.Context` (stdlib), not on `web.Request` — clean separation
+
 ## Database Abstraction
 
 ### Connection Pool Configuration

@@ -114,6 +114,7 @@ Go Web Frame 可能适合你。
 - 🏷️ **路由元数据 (WithMeta)**：为每个路由声明元数据（认证、权限、限流），在 Filter 中统一处理 - 无需在每个 Handler 里重复检查
 - 🧱 **Builder 模式**：显式注册、可控的初始化顺序，无隐式扫描或反射
 - ⚡ **类型安全泛型 ORM**：基于 `Model[T]` 的零样板 CRUD，无需代码生成
+- 🔗 **Context 传播**：`WithContext(ctx)` 一次注入，请求取消和超时自动传播到所有数据库操作
 - 🧩 **依赖注入**：内置 DI 容器，通过 Context 获取 - `GetService[T]`、`GetModel[T]`
 - 🎯 **类 MVC 架构**：清晰的关注点分离，包含服务、控制器和模型
 - 📦 **数据库集成**：SQLite、MySQL、PostgreSQL、Redis 支持，可配置连接池参数
@@ -579,27 +580,28 @@ GORM v1.30.0+ 引入了泛型 API（`gorm.G[T](db)`），但本框架的 ORM 层
 | 特性 | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
 |------|--------------------------|-------------------|
 | 表名绑定 | 构造时自动绑定 | 每次查询都要手动 `.Table()` |
+| Context 传播 | `WithContext(ctx)` 一次注入，自动传播 | 每次操作都要传 `ctx` |
 | 分页 | 内置 `Page` / `PageForWeb` | 无 |
 | `EntryModel` 便捷方法 | `FindByPK`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn` | 无 |
-| 需要 Context | 不需要 | 每个操作都要传 `ctx` |
 | Query/Update/Delete | 独立的类型安全构建器（`Query[T]`、`Update[T]`、`Delete[T]`） | 统一的 `ChainInterface[T]` |
 | 自动建表 | `CreateTable()` 自动迁移 | 需手动 `AutoMigrate` |
 
 **对比示例：**
 
 ```go
-// Go Web Frame — 简洁，无需 context，表名自动绑定
-user, err := userModel.FindByPK(1)
-users, err := userModel.Query().Where("age > ?", 18).All()
-page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+// Go Web Frame — context 一次注入，表名自动绑定
+m := userModel.WithContext(req.Ctx())
+user, err := m.FindByPK(1)
+users, err := m.Query().Where("age > ?", 18).All()
+users, total, err := m.Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// GORM 自带泛型 — 冗长，需要 context，手动指定表名
+// GORM 自带泛型 — 每次操作传 ctx，手动指定表名
 user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
 users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
 // 没有内置分页
 ```
 
-本框架的 ORM 是建立在 GORM 之上的更高层抽象——保留了 GORM 的全部能力，同时提供了 GORM 泛型 API 所没有的表名管理、分页和便捷方法。
+本框架的 ORM 是建立在 GORM 之上的更高层抽象——保留了 GORM 的全部能力，同时提供了 GORM 泛型 API 所没有的表名管理、分页、context 传播和便捷方法。
 
 ## 📊 性能对比
 

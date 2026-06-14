@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Context Propagation**: `WithContext(ctx)` on `Model[T]`, `EntryModel[T, PK]`, `Query[T]`, `Update[T]`, `Delete[T]` for propagating request-scoped cancellation, timeouts, and tracing to database operations.
+- `Request.Ctx()` method on `web.Request` to expose the per-request `context.Context`.
+- `DB.WithContext(ctx)` and `Table.WithContext(ctx)` in the `db` package as the foundation layer.
+
+### Changed
+- ORM comparison docs updated — context propagation is now a key differentiator vs GORM's built-in generics.
+
 ## [1.0.0] - 2026-04-07
 
 ### Added

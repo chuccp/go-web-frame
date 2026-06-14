@@ -503,27 +503,28 @@ GORM v1.30.0+ 引入了泛型 API（`gorm.G[T](db)`），但本框架的 ORM 層
 | 特性 | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
 |------|--------------------------|-------------------|
 | 表名綁定 | 建構時自動綁定 | 每次查詢都要手動 `.Table()` |
+| Context 傳播 | `WithContext(ctx)` 一次注入，自動傳播 | 每次操作都要傳 `ctx` |
 | 分頁 | 內建 `Page` / `PageForWeb` | 無 |
 | `EntryModel` 便捷方法 | `FindByPK`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn` | 無 |
-| 需要 Context | 不需要 | 每個操作都要傳 `ctx` |
 | Query/Update/Delete | 獨立的類型安全建構器（`Query[T]`、`Update[T]`、`Delete[T]`） | 統一的 `ChainInterface[T]` |
 | 自動建表 | `CreateTable()` 自動遷移 | 需手動 `AutoMigrate` |
 
 **對比範例：**
 
 ```go
-// Go Web Frame — 簡潔，無需 context，表名自動綁定
-user, err := userModel.FindByPK(1)
-users, err := userModel.Query().Where("age > ?", 18).All()
-page, total, err := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+// Go Web Frame — context 一次注入，表名自動綁定
+m := userModel.WithContext(req.Ctx())
+user, err := m.FindByPK(1)
+users, err := m.Query().Where("age > ?", 18).All()
+users, total, err := m.Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// GORM 自帶泛型 — 冗長，需要 context，手動指定表名
+// GORM 自帶泛型 — 每次操作傳 ctx，手動指定表名
 user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
 users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
 // 沒有內建分頁
 ```
 
-本框架的 ORM 是建立在 GORM 之上的更高層抽象——保留了 GORM 的全部能力，同時提供了 GORM 泛型 API 所沒有的表名管理、分頁和便捷方法。
+本框架的 ORM 是建立在 GORM 之上的更高層抽象——保留了 GORM 的全部能力，同時提供了 GORM 泛型 API 所沒有的表名管理、分頁、context 傳播和便捷方法。
 
 ## 📊 效能對比
 

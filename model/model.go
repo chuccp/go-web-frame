@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -199,4 +200,19 @@ func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 
 func (a *Model[T]) GetPkColumn() string {
 	return a.pkColumn
+}
+
+// WithContext 返回携带 ctx 的模型浅拷贝（实现 core.IModel 接口）。
+// 原实例不变，并发安全。
+// 返回的模型所有数据库操作（Save、Query、Update、Delete）都会自动传播该 context。
+func (a *Model[T]) WithContext(ctx context.Context) *Model[T] {
+	if a.db == nil {
+		return &Model[T]{tableName: a.tableName, entry: a.entry, pkColumn: a.pkColumn}
+	}
+	return &Model[T]{
+		db:        a.db.WithContext(ctx),
+		tableName: a.tableName,
+		entry:     a.entry,
+		pkColumn:  a.pkColumn,
+	}
 }

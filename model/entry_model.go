@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/chuccp/go-web-frame/db"
@@ -17,6 +18,12 @@ type EntryModel[T any, PK PKConstraint] struct {
 
 func NewEntryModel[T any, PK PKConstraint](db *db.DB, tableName string) *EntryModel[T, PK] {
 	return &EntryModel[T, PK]{NewModel[T](db, tableName)}
+}
+
+// WithContext 返回携带 ctx 的 EntryModel 浅拷贝，保持正确的泛型类型。
+// 原实例不变，并发安全。
+func (a *EntryModel[T, PK]) WithContext(ctx context.Context) *EntryModel[T, PK] {
+	return &EntryModel[T, PK]{Model: a.Model.WithContext(ctx)}
 }
 
 func (a *EntryModel[T, PK]) FindByPK(id PK) (T, error) {

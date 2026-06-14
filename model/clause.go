@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -283,6 +284,14 @@ func (q *Query[T]) Count() (int, error) {
 	return int(num), errors.WithStackIf(err)
 }
 
+// WithContext 为该查询构建器设置 context，返回自身以支持链式调用。
+func (q *Query[T]) WithContext(ctx context.Context) *Query[T] {
+	if q.db != nil {
+		q.db = q.db.WithContext(ctx)
+	}
+	return q
+}
+
 var whereRe = regexp.MustCompile(`(?i)\sWHERE\s`)
 
 type where struct {
@@ -346,6 +355,14 @@ func (u *Update[T]) Set(s string, value any) *UpdateSet {
 	return &UpdateSet{tx: tx, set: setMap}
 }
 
+// WithContext 为该更新构建器设置 context，返回自身以支持链式调用。
+func (u *Update[T]) WithContext(ctx context.Context) *Update[T] {
+	if u.db != nil {
+		u.db = u.db.WithContext(ctx)
+	}
+	return u
+}
+
 type UpdateSet struct {
 	tx  *db.Table
 	set map[string]any
@@ -396,4 +413,12 @@ func (d *Delete[T]) Delete() error {
 		return errors.WithStackIf(err)
 	}
 	return tx.Delete(d.model)
+}
+
+// WithContext 为该删除构建器设置 context，返回自身以支持链式调用。
+func (d *Delete[T]) WithContext(ctx context.Context) *Delete[T] {
+	if d.db != nil {
+		d.db = d.db.WithContext(ctx)
+	}
+	return d
 }

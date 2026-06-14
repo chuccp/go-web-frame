@@ -15,6 +15,7 @@
 package db
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"time"
@@ -92,6 +93,17 @@ type Table struct {
 func (t *Table) NewTable() *Table {
 	return &Table{db: t.raw.Table(t.tableName), tableName: t.tableName}
 }
+
+// WithContext 返回一个新的 Table，其内部 *gorm.DB 携带了给定的 context。
+// 同时更新 raw 引用，确保从该 Table 派生的 NewTable() 也携带 context。
+func (t *Table) WithContext(ctx context.Context) *Table {
+	return &Table{
+		db:        t.db.WithContext(ctx),
+		tableName: t.tableName,
+		raw:       t.raw.WithContext(ctx),
+	}
+}
+
 func (t *Table) Session(g *gorm.Session) *Session {
 	return &Session{db: t.db.Session(g)}
 }
@@ -338,6 +350,13 @@ type DB struct {
 func (d *DB) New() *DB {
 	return &DB{db: d.db}
 }
+
+// WithContext 返回一个新的 DB，其内部 *gorm.DB 携带了给定的 context。
+// 原 DB 实例不会被修改，因此跨请求并发使用是安全的。
+func (d *DB) WithContext(ctx context.Context) *DB {
+	return &DB{db: d.db.WithContext(ctx)}
+}
+
 func (d *DB) Transaction(fc func(tx *DB) error) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		return fc(&DB{db: tx})

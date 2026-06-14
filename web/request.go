@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -54,6 +55,13 @@ type Request struct {
 // HandlerMeta returns the metadata attached to the matched route handler.
 func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
+}
+
+// Ctx 返回当前 HTTP 请求的 context.Context。
+// 该 context 在请求完成时自动 cancel，无需用户管理其生命周期。
+// 用于将请求级取消、超时和 trace 传播到数据库操作。
+func (r *Request) Ctx() context.Context {
+	return r.c.Request.Context()
 }
 
 // ContextPath returns the configured context path prefix (e.g. "/api/v1").

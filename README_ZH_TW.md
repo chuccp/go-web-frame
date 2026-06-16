@@ -1,6 +1,6 @@
 # Go Web Frame
 
-一個現代化 Go Web 框架，提供結構化的方式來構建企業級 Web 應用。
+**用 Go 寫 CRUD 後端，零 ORM 樣板程式碼。定義 struct，嵌入泛型 Model——型別安全的查詢、分頁、context 傳播都包含在內。**
 
 ---
 
@@ -9,409 +9,86 @@
 
 ---
 
-**📖 [Documentation →](./docs-site/docs-en/index.md)**
+## 框架概述
+
+Go Web Frame 是一個整合好的後端工具箱。路由、ORM、快取等組件已預先整合，不需要分別選型再手動組裝。
+
+核心是**一個消除 CRUD 樣板程式碼的泛型 Model 層。** 定義實體 struct，嵌入 `Model[T]`，編譯器從資料庫到 handler 全程檢查資料型別。沒有 `interface{}`，不用程式碼生成。
+
+```go
+// 定義一次，到處使用
+type User struct {
+    Id   uint   `gorm:"primaryKey;autoIncrement"`
+    Name string
+}
+
+type UserModel struct {
+    *model.EntryModel[*User, uint]   // ← 所有 CRUD 方法都來自這裡
+}
+
+func (m *UserModel) Init(db *db.DB, c *core.Context) error {
+    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
+    return m.CreateTable()
+}
+
+// 就這些。現在可以在任何地方用了：
+user, _ := userModel.FindByPK(1)          // → *User
+users, _ := userModel.FindAll()            // → []*User
+users, _ := userModel.Query().Where("age > ?", 18).Order("id desc").All()
+total, _ := userModel.Query().Where("status = ?", 1).Count()
+users, total, _ := userModel.Page(&web.Page{PageNo: 1, PageSize: 10})
+userModel.Update().Where("id = ?", 1).UpdateColumn("name", "新名字")
+userModel.DeleteByPK(1)
+```
+
+還附帶：路由（Gin）、認證過濾器、WebSocket、SSE、CORS、限流、定時任務、校驗、快取、Let's Encrypt HTTPS、多資料庫（MySQL / PostgreSQL / SQLite / Redis）——一個 YAML 配好全跑起來。
 
 ---
 
-## 專案概述
+## 快速開始
 
-Go Web Frame 組合了 Go 生態中的最佳開源組件：Gin（HTTP）、GORM（ORM）、Viper（配置）、Zap（日誌）、Sonic（JSON）、Otter（快取）等。提供宣告式路由元資料、類型安全泛型 ORM、依賴注入，開箱即用。
-
-**核心特性：**
-- **WithMeta**：為每個路由宣告元資料（認證、權限、限流標記），在 Filter 中統一處理
-- **Builder 模式**：顯式註冊、可控的初始化順序，無隱式掃描
-- **泛型 ORM**：零樣板程式碼 CRUD，基於 `Model[T]`，無需程式碼生成
-- **透明 Context**：所有依賴透過 `GetService[T]` 注入，除錯友好
-
-## 🧩 技術棧
-
-本框架精選並整合了以下優秀的開源組件，經過深度整合和最佳實踐配置：
-
-### 核心框架
-| 組件 | 說明 |
-|------|------|
-| [Gin](https://github.com/gin-gonic/gin) | 高效能 HTTP Web 框架，API 效能優異 |
-| [GORM](https://gorm.io/) | 強大的 ORM 函式庫，支援多種資料庫 |
-| [Viper](https://github.com/spf13/viper) | 完整的設定解決方案，支援多格式 |
-| [Zap](https://go.uber.org/zap) | Uber 出品的高效能結構化日誌函式庫 |
-
-### 資料儲存
-| 組件 | 說明 |
-|------|------|
-| [go-redis](https://github.com/redis/go-redis) | Redis 官方推薦客戶端 |
-| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | 純 Go 實現的 SQLite，無 CGO 依賴 |
-| [gorm-driver/mysql](https://gorm.io/docs/connecting_to_the_database.html) | MySQL 資料庫驅動 |
-| [gorm-driver/postgres](https://gorm.io/docs/connecting_to_the_database.html) | PostgreSQL 資料庫驅動 |
-
-### 快取與效能
-| 組件 | 說明 |
-|------|------|
-| [Otter](https://github.com/maypok86/otter) | 高效能 Go 本地快取函式庫 |
-| [golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate) | 令牌桶限流器 |
-
-### 實用工具
-| 組件 | 說明 |
-|------|------|
-| [Cron](https://github.com/robfig/cron) | 定時任務調度函式庫 |
-| [go-qrcode](https://github.com/yeqown/go-qrcode) | 二維碼生成 |
-| [go-captcha](https://github.com/wenlng/go-captcha) | 行為驗證碼生成 |
-| [validator](https://github.com/go-playground/validator) | 結構體欄位驗證 |
-| [UUID](https://github.com/google/uuid) | UUID 生成 |
-| [Lumberjack](https://pkg.go.dev/gopkg.in/natefinch/lumberjack.v2) | 日誌輪轉 |
-| [Conc](https://github.com/sourcegraph/conc) | 更好的並發原語 |
-| [Emperror](https://emperror.dev/errors) | 生產級錯誤處理 |
-
-### 為什麼選擇這些組件？
-
-- **生產驗證**：所有組件均在大型生產環境中得到廣泛驗證
-- **高效能**：Gin、Zap、Otter 等都是各自領域效能最優的選擇
-- **最佳實踐**：經過精心整合，開箱即用，無需繁瑣配置
-- **生態成熟**：活躍的社群支持，持續迭代更新
-
-## 🤖 為什麼選擇 Go Web Frame？
-
-### 與其他框架對比
-
-| 特性 | Go Web Frame | Gin | Beego | Echo |
-|------|-------------|-----|-------|------|
-| 開箱即用 | ✅ 完整方案 | ❌ 需自行整合 | ✅ 完整方案 | ⚠️ 部分整合 |
-| 泛型 ORM | ✅ 零樣板 | ❌ 需自行選擇 | ❌ 無泛型 | ❌ 需自行選擇 |
-| 依賴注入 | ✅ 內建 DI | ❌ 需自行實現 | ⚠️ 簡單支援 | ❌ 需自行實現 |
-| 學習曲線 | 🟢 中等 | 🟢 簡單 | 🟡 較陡 | 🟢 簡單 |
-| 功能完整度 | 🟢 高 | 🟡 中等 | 🟢 高 | 🟡 中等 |
-| 效能 | 🟢 優秀 (42k QPS) | 🟢 最優 (45k QPS) | 🟡 一般 | 🟢 優秀 |
-
-### 何時應該選擇 Go Web Frame？
-
-**強烈推薦的場景：**
-
-- 🚀 **快速原型開發**：需要短時間內完成專案原型，框架已整合所有必要組件
-- 🏢 **企業級應用**：需要清晰架構、依賴注入、統一錯誤處理等企業級特性
-- 📊 **管理後台系統**：內建 CRUD 操作、分頁、驗證等常用功能
-- 🔌 **RESTful API 服務**：簡化的控制器實現，自動路由註冊
-- ⚙️ **微服務開發**：輕量級但功能完整
-- 🛠️ **全端 Go 專案**：從前端到後端到資料庫，一站式解決方案
-
-**特別適合：**
-
-- Go 初學者：想學習最佳實踐，避免自己摸索
-- 獨立開發者：需要高效完成專案，減少技術選型時間
-- 小型團隊：統一技術棧，降低協作成本
-- AI 輔助開發：清晰的架構讓 AI 更容易理解和生成程式碼
-
-### 選擇建議
-
-如果你需要：
-- 一個功能完整的 Go Web 框架，支援宣告式路由元資料
-- 預整合的生產級組件
-- 無需程式碼生成的類型安全泛型 ORM
-- 清晰的架構，顯式的初始化流程
-
-Go Web Frame 可能適合你。
-
-## 🌟 特性
-
-- 🏷️ **路由元資料 (WithMeta)**：為每個路由宣告元資料（認證、權限、限流），在 Filter 中統一處理 - 無需在每個 Handler裡重複檢查
-- 🧱 **Builder 模式**：顯式註冊、可控的初始化順序，無隱式掃描或反射
-- ⚡ **類型安全泛型 ORM**：基於 `Model[T]` 的零樣板 CRUD，無需程式碼生成
-- 🧩 **依賴注入**：內建 DI 容器，透過 Context 取得 - `GetService[T]`、`GetModel[T]`
-- 🎯 **類 MVC 架構**：清晰的關注點分離，包含服務、控制器和模型
-- 📦 **資料庫整合**：SQLite、MySQL、PostgreSQL、Redis 支援，可配置連線池參數
-- 🛠️ **組件系統**：可重用組件，包括快取、限流、驗證碼、二維碼、定時任務、輸入驗證
-- 🌐 **RESTful 支援**：簡化的 REST 控制器實現
-- ⚙️ **自動配置**：從 JSON、YAML 或 TOML 檔案自動載入配置
-- 📝 **進階日誌**：基於 Zap 的結構化日誌，支援日誌輪轉
-- 🔄 **後台任務**：內建的後台任務執行器系統
-- 🛡️ **請求過濾**：HTTP 中間件/過濾器系統，處理橫切關注點
-- 🎯 **統一錯誤處理**：服務錯誤自動轉換為標準化 HTTP 服務錯誤
-
-## 🚀 快速開始
-
-### 安裝
+### 30 秒：Hello World
 
 ```bash
 go get github.com/chuccp/go-web-frame
 ```
 
-### 🏠 Hello World 範例
-
 ```go
 package main
 
 import (
     "context"
-    "time"
-
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/config"
-    "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // 建立 Web 框架實例，自動載入配置
     builder := wf.NewBuilder(config.LoadAutoConfig())
-
-    // 註冊簡單路由
     builder.Get("/", func(c *web.Request) (any, error) {
         return "Hello, World!", nil
     })
-
-    // 構建應用
-    app := builder.Build()
-
-    // 使用上下文執行服務，支援優雅關閉
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    // 範例：10 秒後自動關閉
-    go func() {
-        time.Sleep(time.Second * 10)
-        cancel()
-    }()
-
-    if err := app.Run(ctx); err != nil {
-        log.PrintPanic(err)
-    }
+    builder.Build().Run(context.Background())
 }
 ```
 
-### 🔌 REST 控制器範例
-
-```go
-package main
-
-import (
-    "context"
-
-    wf "github.com/chuccp/go-web-frame"
-    "github.com/chuccp/go-web-frame/config"
-    "github.com/chuccp/go-web-frame/core"
-    "github.com/chuccp/go-web-frame/log"
-    "github.com/chuccp/go-web-frame/web"
-)
-
-type UserController struct {
-    //嵌入 core.IService 介面
-    core.IService
-}
-
-// 初始化控制器並註冊路由
-func (u *UserController) Init(ctx *core.Context) error {
-    // 通過上下文註冊路由
-    ctx.Get("/users", u.GetUsers)
-    ctx.Get("/users/:id", u.GetUser)
-    ctx.Post("/users", u.CreateUser)
-
-    return nil
-}
-
-// 處理器：獲取所有使用者
-func (u *UserController) GetUsers(c *web.Request) (any, error) {
-    // 範例：存取查詢參數
-    page := c.Query("page")
-    limit := c.Query("limit")
-
-    return map[string]any{
-        "users": []string{"alice", "bob"},
-        "page":  page,
-        "limit": limit,
-    }, nil
-}
-
-// 處理器：根據 ID 獲取單個使用者
-func (u *UserController) GetUser(c *web.Request) (any, error) {
-    id := c.Param("id")
-    return map[string]any{
-        "id":   id,
-        "name": "alice",
-    }, nil
-}
-
-// 處理器：建立新使用者
-func (u *UserController) CreateUser(c *web.Request) (any, error) {
-    var user struct {
-        Name string `json:"name"`
-    }
-    if err := c.BindJSON(&user); err != nil {
-        return nil, err
-    }
-
-    return map[string]any{
-        "id":   1,
-        "name": user.Name,
-    }, nil
-}
-
-func main() {
-    builder := wf.NewBuilder(config.LoadAutoConfig())
-    builder.Rest(&UserController{})
-    app := builder.Build()
-
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    if err := app.Run(ctx); err != nil {
-        log.PrintPanic(err)
-    }
-}
+```bash
+go run main.go
+# → http://localhost:19009
 ```
 
-### Static Files 和 Reverse Proxy
+### 5 分鐘：REST + 資料庫
 
-```go
-func (c *AssetsController) Init(ctx *core.Context) error {
-    ctx.Static("/assets", "./public")
-    ctx.ReverseProxy("/api", "http://127.0.0.1:8081")
-    return nil
-}
-```
-
-`Context.Static()` 用於掛載目前服務上的本地靜態目錄，`Context.ReverseProxy()` 用於把指定前綴轉發到上游服務。
-
-### Context Path（路由前綴）
-
-類似 Tomcat 的 context path，可以為所有路由設定全局前綴：
+建立 `application.yml`：
 
 ```yaml
-# application.yml
 web:
-  server:
-    port: 8080
-    context_path: /api
+  db:
+    type: sqlite
+    file_path: ./data.db
 ```
 
-配置後：
-- 註冊路由 `/users` → 訪問地址 `/api/users`
-- 註冊路由 `/orders` → 訪問地址 `/api/orders`
-- WebSocket `/ws` → 訪問地址 `/api/ws`
-- 靜態文件 `/assets` → 訪問地址 `/api/assets`
-
-### WebSocket 支援
-
-```go
-// 簡單的 Echo 伺服器
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
-    for {
-        messageType, message, err := conn.ReadMessage()
-        if err != nil {
-            return err
-        }
-        err = conn.WriteMessage(messageType, message)
-        if err != nil {
-            return err
-        }
-    }
-})
-
-// 自定義 Upgrader
-upgrader := &websocket.Upgrader{
-    ReadBufferSize:  4096,
-    WriteBufferSize: 4096,
-    CheckOrigin: func(r *http.Request) bool {
-        return r.Header.Get("Origin") == "https://example.com"
-    },
-}
-ctx.WebSocket("/ws/chat", handler, upgrader)
-```
-
-### Server-Sent Events (SSE) 支援
-
-```go
-ctx.SSE("/events", func(stream *web.SSEStream) error {
-    // 設定響應頭
-    stream.SetHeaders()
-
-    // 設定重連間隔（斷開後 3 秒重連）
-    stream.SendRetry(3000)
-
-    // 發送事件
-    for i := 0; i < 10; i++ {
-        // 發送帶事件名的消息
-        stream.Send("update", fmt.Sprintf("Count: %d", i))
-
-        // 或發送普通消息
-        // stream.SendMessage("plain message")
-
-        // 或發送帶 ID 的消息
-        // stream.SendWithID("123", "event", "data")
-
-        time.Sleep(time.Second)
-    }
-    return nil
-})
-```
-
-**SSE Stream 方法：**
-| 方法 | 說明 |
-|------|------|
-| `Send(event, data)` | 發送帶事件名的消息 |
-| `SendMessage(data)` | 發送普通消息 |
-| `SendWithID(id, event, data)` | 發送帶 ID 的消息 |
-| `SendRetry(ms)` | 設定重連間隔 |
-| `Heartbeat()` | 發送心跳註釋 |
-| `StartHeartbeat(interval)` | 啟動心跳協程 |
-
-### 🏷️ 路由元數據 `.WithMeta()` 用法
-
-`.WithMeta()` 功能允許你為單個路由附加自定義元數據，過濾器可以讀取這些元數據實現靈活的橫切關注點，例如認證、權限檢查、功能開關、快取配置等等。
-
-**基本用法：**
-```go
-// 建立元數據選項
-func RequireAuth() web.MetaOption {
-    return web.WithValue("require_auth", true)
-}
-
-func RequirePermission(perm string) web.MetaOption {
-    return web.WithValue("require_permission", perm)
-}
-
-func SkipAuth() web.MetaOption {
-    return web.WithValue("skip_auth", true)
-}
-
-// 在路由註冊時使用
-func (c *ApiController) Init(ctx *core.Context) error {
-    // 公開路由 - 不需要認證
-    ctx.Get("/api/login", loginHandler).WithMeta(SkipAuth())
-
-    // 受保護路由 - 需要認證
-    ctx.Get("/api/profile", profileHandler).WithMeta(RequireAuth())
-
-    // 受保護路由，多個元數據，同時需要認證和權限
-    ctx.Post("/api/admin/users", createUserHandler).WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-
-    return nil
-}
-```
-
-**在過濾器中存取元數據：**
-```go
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-
-    // 檢查此路由是否要求認證
-    requireAuth, ok := meta.Get("require_auth").(bool)
-    if ok && requireAuth {
-        // 如果標記了跳過認證，則跳過檢查
-        if meta.Has("skip_auth") {
-            return fc.Next()
-        }
-        // 獲取令牌並驗證...
-        token := req.Request().Header.Get("Authorization")
-        if token == "" {
-            return nil, errors.New("缺少授權令牌")
-        }
-    }
-
-    return fc.Next()
-}
-```
-
-完整範例請查看：[example/withmeta/withmeta.go](./example/withmeta/withmeta.go)
-
-### ⚡ 泛型 ORM 操作範例
+建立 `main.go`：
 
 ```go
 package main
@@ -426,496 +103,600 @@ import (
     "github.com/chuccp/go-web-frame/web"
 )
 
-// 定義實體結構體
+// ── 實體 ──
 type User struct {
-    Id   uint   `gorm:"primaryKey"`
-    Name string
-    Age  int
+    Id   uint   `gorm:"primaryKey;autoIncrement"`
+    Name string `gorm:"size:255"`
 }
 
-// UserModel 繼承泛型 Model
+// ── Model（零 CRUD 樣板程式碼）──
 type UserModel struct {
-    *model.Model[*User]
+    *model.EntryModel[*User, uint]
 }
 
-func (u *UserModel) Init(database *db.DB, ctx *core.Context) error {
-    u.Model = model.NewModel[*User](database, "t_user")
-    // 如果表不存在則自動建立
-    return u.CreateTable()
+func (m *UserModel) Init(database *db.DB, ctx *core.Context) error {
+    m.EntryModel = model.NewEntryModel[*User, uint](database, "t_user")
+    return m.CreateTable()
 }
 
+// ── Controller ──
+type UserController struct {
+    core.IService
+    userModel *UserModel
+}
+
+func (c *UserController) Init(ctx *core.Context) error {
+    c.userModel = wf.GetModel[*UserModel](ctx)
+
+    ctx.Get("/users", c.List)
+    ctx.Get("/users/:id", c.Get)
+    ctx.Post("/users", c.Create)
+    ctx.Put("/users/:id", c.Update)
+    ctx.Delete("/users/:id", c.Delete)
+    return nil
+}
+
+func (c *UserController) List(req *web.Request) (any, error) {
+    return c.userModel.FindAll()
+}
+
+func (c *UserController) Get(req *web.Request) (any, error) {
+    return c.userModel.FindByPK(req.ParamUint("id"))
+}
+
+func (c *UserController) Create(req *web.Request) (any, error) {
+    var user User
+    if err := req.BindJSON(&user); err != nil {
+        return nil, err
+    }
+    return &user, c.userModel.Save(&user)
+}
+
+func (c *UserController) Update(req *web.Request) (any, error) {
+    var user User
+    if err := req.BindJSON(&user); err != nil {
+        return nil, err
+    }
+    user.Id = req.ParamUint("id")
+    return nil, c.userModel.UpdateByPK(&user)
+}
+
+func (c *UserController) Delete(req *web.Request) (any, error) {
+    return nil, c.userModel.DeleteByPK(req.ParamUint("id"))
+}
+
+// ── Main ──
 func main() {
     builder := wf.NewBuilder(config.LoadAutoConfig())
     builder.Model(&UserModel{})
-
-    // ORM 操作範例
-    builder.Get("/users", func(c *web.Request) (any, error) {
-        userModel := wf.GetModel[*UserModel](c.Context())
-
-        // 鏈式 API 查詢
-        users, err := userModel.Query().
-            Where("age > ?", 18).
-            Order("id desc").
-            All()
-
-        return users, err
-    })
-
-    builder.Post("/users", func(c *web.Request) (any, error) {
-        userModel := wf.GetModel[*UserModel](c.Context())
-
-        // 建立使用者
-        user := &User{Name: "張三", Age: 25}
-        err := userModel.Save(user)
-        return user.Id, err
-    })
-
-    builder.Put("/users/:id", func(c *web.Request) (any, error) {
-        userModel := wf.GetModel[*UserModel](c.Context())
-        id := c.ParamInt("id")
-
-        // 更新使用者
-        return nil, userModel.Update().
-            Where("id = ?", id).
-            UpdateColumn("name", "張三（已更新）")
-    })
-
-    builder.Delete("/users/:id", func(c *web.Request) (any, error) {
-        userModel := wf.GetModel[*UserModel](c.Context())
-        id := c.ParamInt("id")
-
-        // 刪除使用者
-        return nil, userModel.Delete().
-            Where("id = ?", id).
-            Delete()
-    })
-
-    app := builder.Build()
-    ctx := context.Background()
-    app.Run(ctx)
+    builder.Rest(&UserController{})
+    builder.Build().Run(context.Background())
 }
 ```
 
-### 為什麼不用 GORM 自帶的泛型？
+```bash
+curl http://localhost:19009/users              # → [{"Id":1,"Name":"alice"}]
+curl http://localhost:19009/users/1            # → {"Id":1,"Name":"alice"}
+curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
+```
 
-GORM v1.30.0+ 引入了泛型 API（`gorm.G[T](db)`），但本框架的 ORM 層有明顯優勢：
+資料表自動建立，CRUD 全通。不需要寫 SQL，不需要寫 ORM 樣板程式碼。
 
-| 特性 | Go Web Frame `Model[T]` | GORM `gorm.G[T]` |
-|------|--------------------------|-------------------|
-| 表名綁定 | 建構時自動綁定 | 每次查詢都要手動 `.Table()` |
-| Context 傳播 | `WithContext(ctx)` 一次注入，自動傳播 | 每次操作都要傳 `ctx` |
-| 分頁 | 內建 `Page` / `PageForWeb` | 無 |
-| `EntryModel` 便捷方法 | `FindByPK`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn` | 無 |
-| Query/Update/Delete | 獨立的類型安全建構器（`Query[T]`、`Update[T]`、`Delete[T]`） | 統一的 `ChainInterface[T]` |
-| 自動建表 | `CreateTable()` 自動遷移 | 需手動 `AutoMigrate` |
+---
 
-**對比範例：**
+## 操作資料庫
+
+### Model 分兩級，按需選擇
+
+| 類型 | 提供的方法 | 適用場景 |
+|---|---|---|
+| `Model[T]` | `Save`、`Query()`、`Update()`、`Delete()`、`CreateTable()`、`WithContext()` | 需要完全控制，用流式建構器 |
+| `EntryModel[T, PK]` | Model 全部 + `FindByPK`、`FindAll`、`DeleteByPK`、`UpdateByPK`、`UpdateColumn`、`Page` | 實體有主鍵（最常見） |
+
+`PK` 可以是 `uint`、`int`、`string` 等滿足 `~uint | ~int | ~string` 約束的任意型別。
+
+### 日常查詢
 
 ```go
-// Go Web Frame — context 一次注入，表名自動綁定
-m := userModel.WithContext(req.Ctx())
-user, err := m.FindByPK(1)
-users, err := m.Query().Where("age > ?", 18).All()
-users, total, err := m.Page(&web.Page{PageNo: 1, PageSize: 10})
+m := userModel.WithContext(req.Ctx())   // context 自動傳播到所有 DB 呼叫
 
-// GORM 自帶泛型 — 每次操作傳 ctx，手動指定表名
-user, err := gorm.G[User](db).Table("t_user").Where("id = ?", 1).First(ctx)
-users, err := gorm.G[User](db).Table("t_user").Where("age > ?", 18).Find(ctx)
-// 沒有內建分頁
+// 取得
+user, err := m.FindByPK(1)                          // 按主鍵
+users, err := m.FindAll()                            // 全表
+user, err := m.Query().Where("email = ?", email).One()
+users, err := m.Query().Where("status = ?", 1).Order("id desc").List(100)
+
+// 分頁
+page := &web.Page{PageNo: 1, PageSize: 10}
+users, total, err := m.Query().Where("age > ?", 18).Page(page)
+pageAble, err := m.Query().Where("age > ?", 18).PageForWeb(page)  // 回傳 PageAble[*User]
+
+// 計數
+count, err := m.Query().Where("status = ?", 1).Count()
+
+// 關聯查詢（GORM Preload）
+users, err := m.Query().Preload("Orders").Preload("Profile").All()
+user, err := m.Query().Where("id = ?", 1).Preload("Orders").One()
+
+// Join
+users, err := m.Query().Joins("JOIN orders ON orders.user_id = t_user.id").All()
 ```
 
-本框架的 ORM 是建立在 GORM 之上的更高層抽象——保留了 GORM 的全部能力，同時提供了 GORM 泛型 API 所沒有的表名管理、分頁、context 傳播和便捷方法。
+### 日常寫入
 
-## 📊 效能對比
+```go
+// 插入
+err := m.Save(&User{Name: "alice"})
 
-| 框架 | QPS | 記憶體佔用 | 特點 |
-|------|-----|---------|------|
-| Go Web Frame | 42k | 12MB | 全功能、低開銷 |
-| Gin | 45k | 8MB | 輕量、無內建功能 |
-| Beego | 32k | 25MB | 重量級、內建功能全 |
-| Iris | 38k | 18MB | 功能豐富、API 複雜 |
+// 按主鍵更新
+user.Name = "新名字"
+err := m.UpdateByPK(user)
 
-## 🎯 適用場景
+// 更新單列
+err := m.UpdateColumn(1, "status", 0)
 
-- ✅ 企業級 Web 應用開發
-- ✅ RESTful API 服務
-- ✅ 後台管理系統
-- ✅ 微服務開發
-- ✅ 快速原型開發
+// 條件更新
+err := m.Update().Where("status = ?", 0).UpdateForMap(map[string]any{"status": 1})
 
-## 🏗️ 架構概述
+// 刪除
+err := m.DeleteByPK(1)
+err := m.Delete().Where("status = ?", -1).Delete()
+```
 
-### 核心層級
+### 對比原生 GORM
 
-1. **核心抽象層 (`./core`)**：定義基礎介面和 DI 容器
-   - `IService`：所有需要初始化的服務基介面
-   - `IModel`：資料存取層介面，包含 CRUD 和表管理
-   - `IRest`：REST 控制器介面（繼承 IService）
-   - `IService`：所有服務和組件的基介面
-   - `IRunner`：後台任務執行器（繼承 IService）
-   - `IFilter`：HTTP 請求過濾器/中間件（繼承 IService）
-   - `Context`：管理所有組件的依賴注入容器
+```go
+// Go Web Frame — 表名綁定一次，ctx 傳播一次，分頁內建
+m := userModel.WithContext(req.Ctx())
+user, _ := m.FindByPK(1)
+users, total, _ := m.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
 
-2. **Web 層 (`./web`)**：基於 Gin 的 HTTP 處理
-   - 帶輔助方法的請求/響應抽象
-   - 支援所有 HTTP 方法的路由
-   - 過濾器/中間件系統
-   - 服務響應自動轉換為標準化 HTTP 響應
+// 原生 GORM — 每次呼叫都要寫表名、ctx、手動分頁
+var user User
+db.WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
+var users []User
+db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
+var total int64
+db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
+```
 
-3. **資料存取層 (`./db`, `./model`)**：資料庫抽象和 ORM
-   - `./db`：基於 GORM 的多資料庫抽象（MySQL、SQLite、PostgreSQL）
-   - `./model`：類型安全泛型基礎模型，提供零樣板 CRUD
-   - `./sqlite`：SQLite 特定配置
-   - `./redis`：Redis 快取和訊息整合
-   - 可配置連線池參數，適合生產環境效能調優
+原生 GORM 每次都要重複表名、context 和型別。Go Web Frame 在建構時綁定一次，開發時差異巨大——有 20 個 Model 的時候最明顯。
 
-4. **基礎設施組件**：
-   - `./config`：使用 Viper 進行配置管理（支援 JSON/YAML/TOML）
-   - `./log`：基於 Zap 的結構化日誌
-   - `./component`：可復用組件（快取、限流、驗證碼、二維碼、定時任務、驗證）
-   - `./util`：全面的工具函數（字串、時間、加密、網路等）
+---
 
-### 應用生命週期
+## 組織專案
 
-1. **建立**：使用 `NewBuilder(config)` 初始化 `Builder`
-2. **配置**：透過 Builder 方法鏈添加路由、控制器、模型、服務、組件和執行器
-3. **構建**：使用 `builder.Build()` 建立 `WebFrame` 實例
-4. **執行**：使用 `app.Run(ctx)` 啟動伺服器
+### Builder：一個入口註冊所有組件
 
-## 配置範例
+```go
+builder := wf.NewBuilder(config.LoadAutoConfig())
 
-### 完整配置範例
+// 基礎設施（最先初始化）
+builder.Filter(&cors.Filter{})        // CORS 標頭
+builder.Filter(&AuthFilter{})         // 認證檢查
+
+// 資料層
+builder.Model(&UserModel{})
+builder.Model(&OrderModel{})
+builder.Model(&ProductModel{})
+
+// 業務邏輯
+builder.Service(&UserService{})       // 共享業務邏輯
+builder.Service(&PaymentService{})
+
+// HTTP 層
+builder.Rest(&UserController{})
+builder.Rest(&OrderController{})
+
+// 背景任務
+builder.Runner(&CleanupTask{})
+
+// 啟動
+app := builder.Build()
+app.Run(ctx)
+```
+
+註冊順序決定初始化順序：Filter → Model → Service → Controller → Runner。依賴透過 `Init()` 自動注入。
+
+### 執行時取得依賴
+
+```go
+// 在任何 Init() 或 handler 中，按型別取得：
+userModel := wf.GetModel[*UserModel](ctx)
+userService := wf.GetService[*UserService](ctx)
+authFilter := wf.GetFilter[*AuthFilter](ctx)
+cleanupTask := wf.GetRunner[*CleanupTask](ctx)
+```
+
+沒有字串 key，不做型別斷言。泛型函式直接處理。
+
+### Service 層：共享業務邏輯
+
+多個 Controller 共用邏輯時，抽出一個 Service：
+
+```go
+type UserService struct {
+    core.IService
+    userModel *UserModel
+}
+
+func (s *UserService) Init(ctx *core.Context) error {
+    s.userModel = wf.GetModel[*UserModel](ctx)
+    return nil
+}
+
+func (s *UserService) GetActiveUsers() ([]*User, error) {
+    return s.userModel.Query().Where("status = ?", 1).All()
+}
+
+// 註冊：
+builder.Service(&UserService{})
+
+// 在 Controller 裡用：
+userService := wf.GetService[*UserService](ctx)
+users, _ := userService.GetActiveUsers()
+```
+
+### Model Group：多資料庫
+
+```go
+// 預設資料庫
+builder.Model(&UserModel{}, &LogModel{})
+
+// 分析系統用獨立資料庫
+analyticsDB := db.NewDBFromConfig(analyticsConfig)
+analyticsGroup := app.NewModelGroup(analyticsDB, "analytics")
+analyticsGroup.AddModel(&ReportModel{})
+analyticsGroup.AutoCreateTable(true)
+```
+
+---
+
+## 認證和中間件
+
+### 路由級元資料（WithMeta）
+
+在路由上宣告，Filter 統一處理——不用在每個 handler 裡寫認證邏輯：
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    // 公開介面
+    ctx.Get("/api/login", login).WithMeta(SkipAuth())
+
+    // 需要登入
+    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
+
+    // 需要登入 + 特定權限
+    ctx.Post("/api/admin/users", createUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+```go
+// 定義元資料工廠
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+```
+
+```go
+// 一個 Filter 處理所有認證邏輯
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    meta := req.HandlerMeta()
+
+    if !meta.Has("require_auth") || meta.Has("skip_auth") {
+        return fc.Next()
+    }
+
+    token := req.Request().Header.Get("Authorization")
+    if token == "" {
+        return nil, errors.New("未登入")
+    }
+
+    // 驗證 token，檢查權限...
+    return fc.Next()
+}
+```
+
+### 全域 Filter
+
+透過 `builder.Filter()` 註冊的 Filter 對所有請求生效：
+
+```go
+// 日誌
+type LoggingFilter struct { core.IFilter }
+
+func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    start := time.Now()
+    result, err := fc.Next()
+    log.Info("請求", zap.String("path", req.FullPath()), zap.Duration("耗時", time.Since(start)))
+    return result, err
+}
+
+// CORS（內建，直接註冊即可）
+builder.Filter(&cors.Filter{})
+```
+
+### RestGroup：按路由分組應用 Filter
+
+```go
+apiGroup := core.NewRestGroupBuilder().
+    ServerConfig(web.DefaultServerConfig()).
+    ContextPath("/api/v1").
+    Build()
+
+apiGroup.AddFilter(&AuthFilter{})     // 只影響這個 Group 裡的路由
+apiGroup.AddRest(&UserController{})   // 這個 Controller 的所有路由都需要認證
+
+builder.RestGroup(apiGroup)
+```
+
+---
+
+## 常用場景
+
+### 檔案上傳
+
+```go
+ctx.Post("/upload", func(req *web.Request) (any, error) {
+    file, header, err := req.File("file")
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    dst := "./uploads/" + header.Filename
+    if err := req.SaveUploadedFile(header, dst); err != nil {
+        return nil, err
+    }
+    return map[string]string{"path": dst}, nil
+})
+```
+
+### WebSocket
+
+```go
+ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+    for {
+        msgType, msg, err := conn.ReadMessage()
+        if err != nil {
+            return err
+        }
+        conn.WriteMessage(msgType, msg)  // echo
+    }
+})
+```
+
+### Server-Sent Events
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    stream.SetHeaders()
+    stream.SendRetry(3000)
+
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+    for range ticker.C {
+        stream.Send("update", fmt.Sprintf("time: %s", time.Now()))
+    }
+    return nil
+})
+```
+
+### 靜態檔案 & SPA
+
+```go
+ctx.Static("/assets", "./public")
+ctx.Static("/", "./frontend/dist")   // SPA 建構產物
+```
 
 ```yaml
+# 或透過設定——多目錄查找，自動 404 回退：
 web:
-  # 伺服器配置
   server:
-    port: 8080                    # 服務埠，預設 19009
-    locations:                    # 靜態檔案目錄（可選）
+    locations:
       - view/dist
       - www
-    page404: 404.html             # 404 頁面（可選）
-    # HTTPS/SSL 配置（可選）
-    ssl:
-      enabled: true               # 是否啟用 HTTPS
-      hosts:                      # 域名列表（自動申請 Let's Encrypt 憑證）
-        - example.com
-        - api.example.com
-
-  # 資料庫配置
-  db:
-    type: mysql                   # 資料庫類型: mysql, postgres, sqlite
-    host: localhost
-    port: 3306
-    user: root                    # 使用者名稱（也支援 username）
-    password: your_password
-    database: your_database       # 資料庫名（也支援 dbname）
-    charset: utf8mb4
-    # 連線池設定（可選，有預設值）
-    max_open_conns: 100           # 最大開啟連線數，預設 100
-    max_idle_conns: 10            # 最大空閒連線數，預設 10
-    conn_max_lifetime: 3600       # 連線最大生命週期（秒），預設 3600
-
-  # 日誌配置
-  log:
-    level: info                   # 日誌級別: debug, info, warn, error
-    path: ./logs/app.log          # 日誌檔案路徑
-    write: false                  # 是否後台寫入模式
-    # 日誌輪轉配置（可選，有預設值）
-    max_size: 100                 # 單個日誌檔案最大大小 (MB)，預設 500
-    max_backups: 5                # 保留的舊日誌檔案最大數量，預設 3
-    max_age: 7                    # 保留舊日誌檔案的最大天數，預設 30
-    compress: true                # 是否壓縮舊日誌檔案，預設 true
-    local_time: false             # 是否使用本地時間，預設 false
-
-  # Redis 配置（可選）
-  redis:
-    addr: localhost:6379          # Redis 位址
-    password: ""                  # 密碼
-    db: 0                         # 資料庫編號
-
-# 本地快取配置（可選）
-local_cache:
-  path: ./cache                   # 快取檔案儲存路徑
-  open: true                      # 是否啟用檔案快取
-
-# 限流配置（可選）
-rate_limit:
-  limit: 600                      # 令牌填充間隔（秒）
-  burst: 5                        # 令牌桶容量
-  max_size: 1000000               # 快取最大條目數
-  expiry: 3600                    # 快取過期時間（秒）
+    page404: 404.html
 ```
 
-### 資料庫配置
+### 反向代理
 
-#### MySQL 配置
-
-```yaml
-web:
-  db:
-    type: mysql
-    host: localhost
-    port: 3306
-    user: root                    # 使用者名稱（也支援 username）
-    password: your_password
-    database: your_database       # 資料庫名（也支援 dbname）
-    charset: utf8mb4              # 可選，預設 utf8
-    max_open_conns: 100           # 可選，預設 100
-    max_idle_conns: 10            # 可選，預設 10
-    conn_max_lifetime: 3600       # 可選，預設 3600 秒
+```go
+ctx.ReverseProxy("/api/legacy", "http://127.0.0.1:8081")
 ```
 
-#### PostgreSQL 配置
+### 背景任務
 
-```yaml
-web:
-  db:
-    type: postgres                # 或 postgresql
-    host: localhost
-    port: 5432
-    user: postgres
-    password: your_password
-    database: your_database
-    sslmode: disable              # 可選: disable, require, verify-ca, verify-full
-    timezone: Asia/Shanghai       # 可選
-    max_open_conns: 100
-    max_idle_conns: 10
-    conn_max_lifetime: 3600
+```go
+type CleanupTask struct { core.IRunner }
+
+func (t *CleanupTask) Init(ctx *core.Context) error { return nil }
+
+func (t *CleanupTask) Run() error {
+    ticker := time.NewTicker(5 * time.Minute)
+    defer ticker.Stop()
+    for range ticker.C {
+        // 清理過期會話...
+    }
+    return nil
+}
+
+builder.Runner(&CleanupTask{})
 ```
 
-#### SQLite 配置
+### 參數校驗
 
-```yaml
-web:
-  db:
-    type: sqlite
-    file_path: ./data/app.db      # 資料庫檔案路徑
-    max_open_conns: 10            # 可選，預設 10
-    max_idle_conns: 5             # 可選，預設 5
-    conn_max_lifetime: 3600       # 可選，預設 3600 秒
+```go
+type CreateUserInput struct {
+    Name  string `validate:"required,min=2,max=50"`
+    Email string `validate:"required,email"`
+}
+
+func (c *Controller) Create(req *web.Request) (any, error) {
+    var input CreateUserInput
+    if err := req.BindJSON(&input); err != nil {
+        return nil, err
+    }
+
+    validator := wf.GetService[*validator.Validator](req.Context())
+    if err := validator.Validate(input); err != nil {
+        return nil, web.NewValidationError(err.Error())
+    }
+
+    // input 已校驗，繼續業務...
+}
 ```
 
-### HTTPS 配置
+### 自訂 HTTP 回應
 
-框架支援自動申請和管理 Let's Encrypt SSL 憑證，無需手動配置憑證檔案。
+```go
+// 回傳普通 struct → 自動包裝：{"code":200, "data":{...}, "msg":"ok"}
+return &User{Id: 1, Name: "alice"}, nil
 
-```yaml
-web:
-  server:
-    port: 443                     # HTTPS 預設埠
-    ssl:
-      enabled: true               # 啟用 HTTPS
-      hosts:                      # 域名列表
-        - example.com
-        - api.example.com
+// 回傳字串 → 純文字回應
+return "ok", nil
+
+// 指定狀態碼
+return web.DataCode(http.StatusCreated, &user), nil
+
+// 回傳錯誤
+return nil, errors.New("出錯了")
+
+// 回傳業務錯誤碼
+return nil, web.NewValidationError("名字不能為空")
+
+// 重新導向
+return web.Redirect("/new-url"), nil
+
+// 檔案下載
+return &web.File{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
 ```
 
-**HTTPS 配置說明：**
+---
 
-- `enabled: true` - 啟用 HTTPS 模式
-- `hosts` - 需要申請憑證的域名列表
-- 憑證會自動申請並快取到 `./certs` 目錄
-- 支援 HTTP/2 協議
-- 埠 80 會自動設定 HTTP 到 HTTPS 的重定向
+## 設定檔
 
-**注意事項：**
-
-1. 域名必須正確解析到伺服器 IP
-2. 伺服器需要能存取外網（Let's Encrypt 驗證）
-3. 建議使用 443 埠，其他埠也可用
-
-### 靜態檔案配置
+一個 YAML 覆蓋所有設定。自動從 `./config/`、`~/.<appname>/`、`/etc/<appname>/` 載入。
 
 ```yaml
 web:
   server:
     port: 8080
-    locations:                    # 靜態檔案目錄列表
-      - view/dist                 # 前端建構產物
-      - www                       # 靜態資源目錄
-    page404: 404.html             # SPA 應用 404 回退頁面
-```
+    context_path: /api            # 全域路由前綴
+    ssl:                          # Let's Encrypt 自動 HTTPS
+      enabled: true
+      hosts:
+        - example.com
 
-**靜態檔案說明：**
+  db:
+    type: mysql                   # mysql | postgres | sqlite
+    host: localhost
+    port: 3306
+    user: root
+    password: your_password
+    database: mydb
+    max_open_conns: 100
+    max_idle_conns: 10
+    conn_max_lifetime: 3600
 
-- `locations` - 靜態檔案查找目錄，按順序搜索
-- `page404` - 當請求 HTML 頁面但檔案不存在時返回的 404 頁面
-- 支援 SPA 應用的路由回退
+  log:
+    level: info                   # debug | info | warn | error
+    path: ./logs/app.log
+    max_size: 500                 # 單檔案最大 MB，觸發滾動
+    max_backups: 3
+    max_age: 30                   # 保留天數
+    compress: true
 
-### Redis 配置
-
-```yaml
-web:
   redis:
-    addr: localhost:6379          # Redis 位址
-    password: ""                  # 密碼（可選）
-    db: 0                         # 資料庫編號
-    pool_size: 10                 # 連線池大小（可選）
+    addr: localhost:6379
+    password: ""
+    db: 0
 ```
 
-### 本地快取配置
+PostgreSQL 和 SQLite：
 
 ```yaml
-local_cache:
-  path: ./cache                   # 快取檔案儲存路徑
-  open: true                      # 是否啟用檔案快取
+# PostgreSQL
+db:
+  type: postgres
+  host: localhost
+  port: 5432
+  user: postgres
+  password: ""
+  database: mydb
+  sslmode: disable
+
+# SQLite
+db:
+  type: sqlite
+  file_path: ./data.db
 ```
 
-### 限流配置
+支援 JSON、YAML、TOML 格式。
 
-```yaml
-rate_limit:
-  limit: 600                      # 令牌填充間隔（秒），每 limit 秒填充 1 個令牌
-  burst: 5                        # 令牌桶容量
-  max_size: 1000000               # 快取最大條目數
-  expiry: 3600                    # 快取過期時間（秒）
-```
+---
+
+## 技術棧
+
+預整合、生產驗證過的組件：
+
+| 層次 | 庫 | 作用 |
+|---|---|---|
+| HTTP | Gin | 路由、中介層鏈、參數綁定 |
+| ORM | GORM | SQL 驅動、遷移、join/preload |
+| 設定 | Viper | 多格式、多路徑自動載入 |
+| 日誌 | Zap | 結構化、分級、滾動 |
+| JSON | Sonic | 高效能序列化 |
+| 快取 | Otter | 本地記憶體快取 |
+| 併發 | Conc | 結構化併發池，管理服務生命週期 |
+| Redis | go-redis | 發布訂閱、快取 |
+| SQLite | modernc/sqlite | 純 Go，零 CGO |
+| 校驗 | go-playground/validator | struct tag 校驗 |
+| WebSocket | gorilla/websocket | 連線升級 + 讀寫 |
+| 定時任務 | robfig/cron | 表示式排程器 |
+
+---
 
 ## 專案結構
 
 ```
-├── web_frame.go         # 主入口 - WebFrame 工廠方法
-├── core/                # 核心抽象和 DI 容器
-│   ├── interface.go     # 核心介面（IService, IModel, IRest 等）
-│   ├── context.go       # 依賴注入上下文
-│   ├── server.go        # 管理 REST 分組和執行器的服務端實現
-│   └── db.go            # DB 封裝
-├── web/                 # 基於 Gin 的 Web 層
-│   ├── handles.go       # 路由註冊
-│   ├── request.go       # 帶輔助方法的請求抽象
-│   ├── response.go      # 響應轉換
-│   └── filter.go        # 過濾器/中間件介面
-├── db/                  # 資料庫抽象層
-│   ├── db.go            # 資料庫建立和配置解析
-│   ├── mysql.go         # MySQL 配置和連線
-│   └── sqlite.go        # SQLite 配置和連線
-├── model/               # 泛型 ORM 實現
-│   └── model.go         # 带 CRUD 操作的基礎 Model
-├── sqlite/              # SQLite 驅動
-├── redis/               # Redis 整合
-├── config/              # 配置管理
-├── log/                 # Zap 日誌
-├── component/           # 可復用組件
-│   ├── cache.go         # 快取組件
-│   ├── localcache.go    # 本地記憶體快取
-│   ├── rate_limit.go    # 限流
-│   ├── captcha.go       # 驗證碼生成
-│   ├── qrcode.go        # 二維碼生成
-│   ├── cron.go          # Cron 定時任務
-│   └── validate.go      # 輸入驗證
-├── util/                # 工具函數
-└── example/             # 範例應用
-    ├── helloworld/      # 基礎 hello world 範例
-    ├── rest/            # REST 控制器範例
-    ├── model/           # ORM 模型範例
-    ├── filter/          # 自定義 HTTP 過濾器範例
-    ├── background/      # 後台任務執行器範例
-    └── withmeta/        # 路由元數據 .WithMeta() 範例
+├── web_frame.go        # Builder、WebFrame 工廠
+├── core/               # 介面（IService, IModel, IRest, IRunner, IFilter）、DI context
+├── web/                # Request、Response、路由、Filter、SSE、WebSocket、靜態檔案
+├── model/              # Model[T]、EntryModel[T, PK]、Query[T]、Update[T]、Delete[T]
+├── db/                 # MySQL、PostgreSQL、SQLite 連線管理
+├── redis/              # Redis 客戶端封裝
+├── config/             # Viper 自動載入
+├── log/                # Zap + lumberjack 滾動
+├── component/          # cors、cache、rate-limit、captcha、qrcode、cron、validator
+├── util/               # 加密、檔案、字串工具
+└── example/            # 可執行的範例
+    ├── helloworld/     # 最小應用
+    ├── rest/           # REST Controller
+    ├── model/          # 泛型 ORM 用法
+    ├── filter/         # 認證 + 日誌 Filter
+    ├── withmeta/       # 路由元資料
+    └── background/     # 背景任務
 ```
 
-## 🛠️ 開發命令
+---
 
-### 建構和執行範例
+## 取得幫助
 
-```bash
-# 執行 hello world 範例
-go run example/helloworld/helloworld.go
+- **[使用手冊 (中文)](./docs-site/docs-zh/index.md)** — 完整使用文件
+- **[使用手冊 (英文)](./docs-site/docs-en/index.md)** — 英文文件
+- **[架構設計](./ARCHITECTURE.md)** — 設計決策和內部實現
+- **[CLAUDE.md](./CLAUDE.md)** — AI 程式助手使用指南
+- **[Go Reference](https://pkg.go.dev/github.com/chuccp/go-web-frame)** — 套件 API 文件
 
-# 執行 REST 範例
-go run example/rest/rest.go
-
-# 執行 ORM 模型範例
-go run example/model/model.go
-
-# 執行過濾器範例
-go run example/filter/filter.go
-
-# 執行後台任務範例
-go run example/background/background.go
-
-# 執行路由元數據 .WithMeta() 範例
-go run example/withmeta/withmeta.go
-
-# 建構框架（僅函式庫檔案）
-go build
-```
-
-### 測試
-
-```bash
-# 執行所有測試
-go test ./...
-
-# 執行特定套件的測試
-go test ./core
-go test ./web
-
-# 執行測試並輸出詳細資訊
-go test -v ./core
-
-# 執行特定測試案例
-go test -v ./core -run TestSpecificFunction
-```
-
-### 格式化和程式碼檢查
-
-```bash
-# 使用 gofmt 格式化所有程式碼
-gofmt -w ./...
-
-# 使用 gofumpt 格式化（如果已安裝）
-gofumpt -w ./...
-
-# 安裝 linter
-go install golang.org/x/lint/golint@latest
-
-# 執行程式碼檢查
-golint ./...
-```
-
-### 依賴管理
-
-```bash
-# 添加新依賴
-go get github.com/example/package
-
-# 更新依賴
-go get -u ./...
-
-# 整理 go.mod 和 go.sum
-go mod tidy
-```
-
-
-## 開發說明
-
-- 框架遵循 Go 約定，使用標準 Go 工具鏈
-- 所有組件都實現 `IService` 介面的 `Init(ctx)` 方法
-- 依賴注入通過上下文完成 - 使用 `wf.GetService[T](ctx)` 獲取服務
-- 連線池有合理的預設值，適合大多數應用
-- 開發和小型應用推薦使用 SQLite，生產環境推薦使用 MySQL
-
-## 文件
-
-- **[📖 使用手冊（繁體中文）](./docs-site/docs-zh/index.md)** - 完整使用手冊：安裝、路由、控制器、模型、過濾器、配置、日誌、後台任務、組件、API 參考
-- **[📖 使用手冊（英文）](./docs-site/docs-en/index.md)** - 英文版使用手冊
-- **[架構設計](./ARCHITECTURE.md)** - 內部架構和設計決策
-- **[最佳實踐](./BEST_PRACTICES.md)** - 推薦的模式和實踐
-- **[更新日誌](./CHANGELOG.md)** - 版本歷史和變更
-- **[CLAUDE.md](./CLAUDE.md)** - AI 輔助開發指南
-- [Go 參考文件](https://pkg.go.dev/github.com/chuccp/go-web-frame)
-- [範例應用](./example/)
+---
 
 ## 貢獻
 
-歡迎提交 Issue 和 Pull Request！提交 PR 前請：
+歡迎提交 PR。提交前請執行 `go test ./...`。
 
-1. 執行測試確保一切通過
-2. 保持程式碼風格與專案一致
-3. 為新功能添加適當的測試
-4. 更新相關文件
+## License
 
-## 授權
-
-MIT License - 詳見 [LICENSE](./LICENSE)
+MIT — 詳見 [LICENSE](./LICENSE)

@@ -232,7 +232,7 @@ func (b *Builder) Put(relativePath string, handlers ...web.HandlerFunc) *Builder
 
 // Any registers a route handler for all HTTP methods and returns the builder for chaining.
 func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.handles.Handle(http.MethodGet, relativePath, handlers...)
+	b.handles.Any(relativePath, handlers...)
 	return b
 }
 

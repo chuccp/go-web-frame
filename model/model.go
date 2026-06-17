@@ -73,14 +73,14 @@ func getPrimaryKeyValue[T any](entity T) interface{} {
 }
 
 func (a *Model[T]) IsExist() (bool, error) {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return false, errors.WithStackIf(err)
 	}
 	return dbConn.Migrator().HasTable(a.tableName), nil
 }
 func (a *Model[T]) CreateTable() error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -95,7 +95,7 @@ func (a *Model[T]) CreateTable() error {
 	return errors.WithStackIf(dbConn.Table(a.tableName).AutoMigrate(t))
 }
 func (a *Model[T]) DeleteTable() error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -107,13 +107,13 @@ func (a *Model[T]) GetTableName() string {
 	return a.tableName
 }
 func (a *Model[T]) Save(entry T) error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
 	return dbConn.Table(a.tableName).Save(entry)
 }
-func (a *Model[T]) getBb() (*db.DB, error) {
+func (a *Model[T]) getDB() (*db.DB, error) {
 	if a.db == nil {
 		return nil, errors.New("db is nil")
 	}
@@ -121,7 +121,7 @@ func (a *Model[T]) getBb() (*db.DB, error) {
 }
 
 func (a *Model[T]) Saves(entry []T) error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -129,7 +129,7 @@ func (a *Model[T]) Saves(entry []T) error {
 }
 
 func (a *Model[T]) SaveForMap(mapValue map[string]any) error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -137,7 +137,7 @@ func (a *Model[T]) SaveForMap(mapValue map[string]any) error {
 }
 
 func (a *Model[T]) SavesForMap(mapValues []map[string]any) error {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -146,7 +146,7 @@ func (a *Model[T]) SavesForMap(mapValues []map[string]any) error {
 
 // SaveForMapWithPk saves a record from a map and returns the generated primary key
 func (a *Model[T]) SaveForMapWithPk(mapValue map[string]any, keyName string) (any, error) {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
@@ -154,7 +154,7 @@ func (a *Model[T]) SaveForMapWithPk(mapValue map[string]any, keyName string) (an
 }
 
 func (a *Model[T]) SaveForMapWithUintPk(mapValue map[string]any, keyName string) (uint, error) {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return 0, errors.WithStackIf(err)
 	}
@@ -163,7 +163,7 @@ func (a *Model[T]) SaveForMapWithUintPk(mapValue map[string]any, keyName string)
 
 // CreateWithPk creates a record and returns the generated primary key
 func (a *Model[T]) CreateWithPk(entry T, keyName string, kind reflect.Kind) (any, error) {
-	dbConn, err := a.getBb()
+	dbConn, err := a.getDB()
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}

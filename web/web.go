@@ -98,6 +98,11 @@ func (h *Handles) Handle(httpMethod string, relativePath string, handlers ...Han
 	return h.Handles([]string{httpMethod}, relativePath, handlers...)
 }
 
+// Any registers a route handler for all HTTP methods and returns the handler info.
+func (h *Handles) Any(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+	return h.Handles(anyMethods, relativePath, handlers...)
+}
+
 // AddStaticFs registers a static file server at the given relative path.
 // Both GET and HEAD methods are supported.
 func (h *Handles) AddStaticFs(relativePath string, fs http.FileSystem) *HandlerInfo {

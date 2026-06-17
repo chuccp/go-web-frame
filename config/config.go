@@ -66,7 +66,7 @@ func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
 	return v
 }
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
-	if util.IsBlank(key) {
+	if util.IsBlank(key) || !c.v.IsSet(key) {
 		return defaultValue
 	}
 	return c.v.GetBool(key)

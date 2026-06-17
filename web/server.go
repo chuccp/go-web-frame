@@ -37,9 +37,30 @@ const MaxReadHeaderTimeout = time.Second * 30
 
 const MaxReadTimeout = time.Minute * 10
 
+// SSLCert represents a local certificate file pair for a specific host
+type SSLCert struct {
+	Host     string // 域名
+	CertFile string // 证书文件路径
+	KeyFile  string // 私钥文件路径
+}
+
 type SSLConfig struct {
 	Enabled bool
-	Hosts   []string
+	Hosts   []string  // 域名列表，用于自动申请证书（Let's Encrypt）
+	Certs   []SSLCert // 本地证书配置，配置后直接使用本地证书，不再自动申请
+}
+
+// HasLocalCert returns true if Certs has any entries with both CertFile and KeyFile
+func (s *SSLConfig) HasLocalCert() bool {
+	if s == nil {
+		return false
+	}
+	for _, c := range s.Certs {
+		if c.CertFile != "" && c.KeyFile != "" {
+			return true
+		}
+	}
+	return false
 }
 type ServerConfig struct {
 	Port int
@@ -360,6 +381,12 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 }
 
 func (httpServer *HttpServer) startTLS(ctx context.Context) error {
+	ssl := httpServer.serverConfig.SSL
+
+	// 如果配置了本地证书路径，直接使用本地证书，不自动申请
+	if ssl.HasLocalCert() {
+		return httpServer.startTLSWithLocalCert(ctx)
+	}
 
 	certManager, err := httpServer.certManager.GetCertManager()
 	if err != nil {
@@ -401,6 +428,94 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 			return errors.WithStackIf(err)
 		}
 		return nil
+	}
+	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
+}
+
+// startTLSWithLocalCert starts HTTPS using locally provided certificate files
+func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
+	ssl := httpServer.serverConfig.SSL
+
+	// 加载所有本地证书到 map，key 为对应的 host
+	certMap := make(map[string]*tls.Certificate)
+	var defaultCert *tls.Certificate
+	for _, c := range ssl.Certs {
+		if c.CertFile == "" || c.KeyFile == "" {
+			continue
+		}
+		if c.Host == "" {
+			log.Warn("Skipping local cert with empty Host", zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
+			continue
+		}
+		cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+		if err != nil {
+			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
+		}
+		host := strings.ToLower(c.Host)
+		if _, exists := certMap[host]; exists {
+			log.Warn("Duplicate host in local certificate config, overwriting", zap.String("host", host))
+		}
+		log.Info("Loaded local certificate", zap.String("host", host), zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
+		certMap[host] = &cert
+		if defaultCert == nil {
+			defaultCert = &cert
+		}
+	}
+
+	// 如果同时配置了 Hosts（自动申请），创建 autocert 作为兜底
+	var autocertManager *autocert.Manager
+	if len(ssl.Hosts) > 0 {
+		var err error
+		autocertManager, err = httpServer.certManager.GetCertManager()
+		if err != nil {
+			log.Warn("Failed to init autocert manager, only local certs available", zap.Error(err))
+		}
+	}
+
+	httpServer.httpServer = &http.Server{
+		Addr:              ":" + strconv.Itoa(httpServer.serverConfig.Port),
+		Handler:           httpServer.engine,
+		ReadHeaderTimeout: MaxReadHeaderTimeout,
+		MaxHeaderBytes:    MaxHeaderBytes,
+		ReadTimeout:       MaxReadTimeout,
+		TLSConfig: &tls.Config{
+			NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
+			MinVersion: tls.VersionTLS12,
+			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				serverName := strings.ToLower(info.ServerName)
+				// 优先使用本地证书
+				if c, ok := certMap[serverName]; ok {
+					return c, nil
+				}
+				// 尝试 autocert 兜底
+				if autocertManager != nil {
+					if c, err := autocertManager.GetCertificate(info); err == nil && c != nil {
+						return c, nil
+					}
+				}
+				// 使用默认本地证书兜底
+				if defaultCert != nil {
+					return defaultCert, nil
+				}
+				return nil, errors.Errorf("no certificate found for host: %s", serverName)
+			},
+		},
+	}
+	go func() {
+		<-ctx.Done()
+		err := httpServer.httpServer.Shutdown(ctx)
+		if err != nil {
+			log.Error("stop the service", zap.Error(err))
+		}
+	}()
+	for _, c := range ssl.Certs {
+		if c.Host == "" {
+			continue
+		}
+		log.Info("Start the service:", zap.String("address", "https://"+c.Host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
+	}
+	for _, host := range ssl.Hosts {
+		log.Info("Start the service:", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
 }

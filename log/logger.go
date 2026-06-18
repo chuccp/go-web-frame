@@ -11,17 +11,19 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Config holds the logger configuration settings.
 type Config struct {
-	Level      string // 日志级别: debug, info, warn, error
-	Path       string // 日志文件路径
-	Write      bool   // 是否为后台写入模式
-	MaxSize    int    // 单个日志文件最大大小 (MB)，默认 500
-	MaxBackups int    // 保留的旧日志文件最大数量，默认 3
-	MaxAge     int    // 保留旧日志文件的最大天数，默认 30
-	Compress   bool   // 是否压缩旧日志文件，默认 true
-	LocalTime  bool   // 是否使用本地时间，默认 false (使用 UTC)
+	Level      string // Log level: debug, info, warn, error
+	Path       string // Log file path
+	Write      bool   // Whether to enable file-based logging
+	MaxSize    int    // Max size per log file (MB), default 500
+	MaxBackups int    // Max number of old log files retained, default 3
+	MaxAge     int    // Max days to retain old log files, default 30
+	Compress   bool   // Whether to compress old log files, default true
+	LocalTime  bool   // Whether to use local time, default false (UTC)
 }
 
+// Key returns the configuration key for this logger config.
 func (c *Config) Key() string {
 	return "web.log"
 }
@@ -39,6 +41,7 @@ func defaultConfig() *Config {
 	}
 }
 
+// TimestampFormat is the time format used in log output.
 var TimestampFormat = "2006-01-02 15:04:05"
 var defaultLogger = getDefaultLogger()
 
@@ -48,7 +51,7 @@ func getEncoder() zapcore.Encoder {
 	return zapcore.NewJSONEncoder(encoderConfig)
 }
 func getFileLogWriter(cfg *Config) zapcore.Core {
-	// 应用默认值
+		// Apply default values
 	maxSize := cfg.MaxSize
 	if maxSize <= 0 {
 		maxSize = 500
@@ -110,11 +113,13 @@ func (l *logger) sync() error {
 
 var lock *sync.RWMutex = new(sync.RWMutex)
 
+// Info logs an informational message.
 func Info(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.info(msg, fields...)
 }
+// Error logs an error message.
 func Error(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -125,6 +130,7 @@ func Error(msg string, fields ...zap.Field) {
 	//}
 	defaultLogger.error(msg, fields...)
 }
+// Errors logs an error message with one or more error values.
 func Errors(msg string, errs ...error) {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -137,21 +143,26 @@ func Errors(msg string, errs ...error) {
 	//}
 	defaultLogger.error(msg, fields...)
 }
+// Debug logs a debug-level message.
 func Debug(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.debug(msg, fields...)
 }
+// Warn logs a warning message.
 func Warn(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.warn(msg, fields...)
 }
+// Fatal logs a fatal message and calls os.Exit(1).
 func Fatal(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.fatal(msg, fields...)
 }
+// Panic logs a panic message and then panics.
+// Error fields are also printed via log.Printf for stack trace visibility.
 func Panic(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -162,6 +173,8 @@ func Panic(msg string, fields ...zap.Field) {
 	}
 	defaultLogger.panic(msg, fields...)
 }
+// PanicErrors logs a panic message with error values and prints them via log.Printf.
+// Unlike zap.Panic, this only logs the message without actually panicking.
 func PanicErrors(msg string, errs ...error) {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -175,12 +188,14 @@ func PanicErrors(msg string, errs ...error) {
 	defaultLogger.panic(msg, fields...)
 
 }
+// PrintPanic prints error stack traces via log.Printf without panicking.
 func PrintPanic(errs ...error) {
 	for _, err := range errs {
 		log.Printf("%+v\n", err)
 	}
 }
 
+// Sync flushes any buffered log entries.
 func Sync() error {
 	lock.RLock()
 	defer lock.RUnlock()
@@ -194,6 +209,7 @@ func getDefaultLogger() *logger {
 		zap: l,
 	}
 }
+// InitLogger initializes or reconfigures the global logger with the given config.
 func InitLogger(logConfig *Config) {
 
 	level, err := zapcore.ParseLevel(logConfig.Level)

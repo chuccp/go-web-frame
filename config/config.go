@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// IConfig defines the interface for reading application configuration.
 type IConfig interface {
 	GetString(key string) string
 	Put(key string, value any)
@@ -26,16 +27,20 @@ type IConfig interface {
 	WriteConfig() error
 }
 
+// Config wraps a Viper configuration instance and implements IConfig.
 type Config struct {
 	v *viper.Viper
 }
 
+// GetString returns the string value for the given key.
 func (c *Config) GetString(key string) string {
 	return c.v.GetString(key)
 }
+// Put sets a configuration value.
 func (c *Config) Put(key string, value any) {
 	c.v.Set(key, value)
 }
+// GetStringOrDefault returns the string value for the given key, or defaultValue if blank.
 func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	v := c.v.GetString(key)
 	if util.IsBlank(v) {
@@ -43,21 +48,26 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	}
 	return v
 }
+// HasKey reports whether the given key exists in the configuration.
 func (c *Config) HasKey(key string) bool {
 	return c.v.IsSet(key)
 }
+// UnmarshalKey unmarshals configuration under the given key into the target struct.
 func (c *Config) UnmarshalKey(key string, v any) error {
 	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
 }
 
+// Unmarshal unmarshals the entire configuration into the target struct.
 func (c *Config) Unmarshal(v any) error {
 	return errors.WithStackIf(c.v.Unmarshal(v))
 }
 
+// GetInt returns the int value for the given key.
 func (c *Config) GetInt(key string) int {
 	return c.v.GetInt(key)
 }
 
+// GetIntOrDefault returns the int value for the given key, or defaultValue if 0.
 func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
 	v := c.v.GetInt(key)
 	if v == 0 {
@@ -65,31 +75,38 @@ func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
 	}
 	return v
 }
+// GetBoolOrDefault returns the bool value for the given key, or defaultValue if not set.
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	if util.IsBlank(key) || !c.v.IsSet(key) {
 		return defaultValue
 	}
 	return c.v.GetBool(key)
 }
+// ReplaceKey copies the value from key to newKey if key is set.
 func (c *Config) ReplaceKey(key string, newKey string) {
 	if c.v.IsSet(key) {
 		c.v.Set(newKey, c.v.Get(key))
 	}
 }
 
+// WriteConfig is a no-op for Config; use SingleFileConfig for file-backed writes.
 func (c *Config) WriteConfig() error {
 	// Config doesn't have a file to write to, this is a no-op
 	return errors.Errorf("Config doesn't have a file to write to")
 }
 
+// SingleFileConfig extends Config with a file path for write-back support.
 type SingleFileConfig struct {
 	*Config
 	path string
 }
 
+// WriteConfig writes the configuration back to the file.
 func (c *SingleFileConfig) WriteConfig() error {
 	return c.v.WriteConfig()
 }
+// LoadSingleFileConfig loads a single configuration file (YAML, JSON, TOML, INI).
+// Creates the file if it does not exist.
 func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	registry := viper.NewCodecRegistry()
 	er := registry.RegisterCodec("ini", ini.Codec{})
@@ -114,9 +131,11 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	return &SingleFileConfig{Config: &Config{v: _viper_}, path: absPath}, nil
 }
 
+// NewConfig creates a new empty Config with a fresh Viper instance.
 func NewConfig() *Config {
 	return &Config{v: viper.New()}
 }
+// LoadConfig loads and merges multiple configuration files.
 func LoadConfig(paths ...string) (*Config, error) {
 	registry := viper.NewCodecRegistry()
 	err := registry.RegisterCodec("ini", ini.Codec{})
@@ -138,6 +157,8 @@ func LoadConfig(paths ...string) (*Config, error) {
 	}
 	return &Config{v: _viper_}, nil
 }
+// LoadAutoConfig creates a new empty Config, typically used when configuration
+// is provided programmatically rather than from files.
 func LoadAutoConfig() *Config {
 	return NewConfig()
 }

@@ -585,10 +585,14 @@ web:
   server:
     port: 8080
     context_path: /api            # 全域路由前綴
-    ssl:                          # Let's Encrypt 自動 HTTPS
+    ssl:                          # HTTPS：自動憑證或本地憑證
       enabled: true
-      hosts:
+      hosts:                      # Let's Encrypt 自動申請憑證
         - example.com
+      # certs:                    # 或使用本地憑證檔案（可選）
+      #   - host: example.com
+      #     cert-file: /path/to/fullchain.pem
+      #     key-file: /path/to/privkey.pem
 
   db:
     type: mysql                   # mysql | postgres | sqlite

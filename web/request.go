@@ -306,6 +306,7 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
+// GinContext returns the underlying *gin.Context for advanced use cases.
 func (r *Request) GinContext() *gin.Context {
 	return r.c
 }

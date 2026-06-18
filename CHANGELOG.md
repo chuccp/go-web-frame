@@ -7,9 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **SSL Local Certificates**: `SSLCert` struct and `SSLConfig.Certs` field for configuring local certificate files. Supports multi-domain local certificates with SNI-based selection and autocert fallback.
 - **Context Propagation**: `WithContext(ctx)` on `Model[T]`, `EntryModel[T, PK]`, `Query[T]`, `Update[T]`, `Delete[T]` for propagating request-scoped cancellation, timeouts, and tracing to database operations.
 - `Request.Ctx()` method on `web.Request` to expose the per-request `context.Context`.
 - `DB.WithContext(ctx)` and `Table.WithContext(ctx)` in the `db` package as the foundation layer.
+
+### Fixed
+- `Builder.Any()` now correctly registers handlers for all HTTP methods (was only registering GET).
+- `Config.GetBoolOrDefault()` now returns the default value when the key is not set in config.
+- Renamed internal `getBb()` to `getDB()` in `model.Model[T]` for clarity.
 
 ### Changed
 - ORM comparison docs updated — context propagation is now a key differentiator vs GORM's built-in generics.

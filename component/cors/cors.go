@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Filter is a CORS middleware filter that handles preflight and cross-origin requests.
 type Filter struct {
 	handlerFunc gin.HandlerFunc
 }
@@ -36,6 +37,7 @@ func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any,
 
 }
 
+// NewCrosFilter creates a new CORS filter with permissive defaults.
 func NewCrosFilter() *Filter {
 	return &Filter{}
 }

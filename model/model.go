@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// Model is a generic database model that provides CRUD operations for type T.
+// It wraps GORM with type-safe query building and table management.
 type Model[T any] struct {
 	db           *db.DB
 	tableName    string
@@ -72,6 +74,7 @@ func getPrimaryKeyValue[T any](entity T) interface{} {
 	return nil
 }
 
+// IsExist reports whether the table for this model exists in the database.
 func (a *Model[T]) IsExist() (bool, error) {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -79,6 +82,7 @@ func (a *Model[T]) IsExist() (bool, error) {
 	}
 	return dbConn.Migrator().HasTable(a.tableName), nil
 }
+// CreateTable creates the database table for this model if it does not already exist.
 func (a *Model[T]) CreateTable() error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -94,6 +98,7 @@ func (a *Model[T]) CreateTable() error {
 	t := util.NewPtr(a.entry)
 	return errors.WithStackIf(dbConn.Table(a.tableName).AutoMigrate(t))
 }
+// DeleteTable drops the database table for this model.
 func (a *Model[T]) DeleteTable() error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -103,9 +108,11 @@ func (a *Model[T]) DeleteTable() error {
 	err = dbConn.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
 	return errors.WithStackIf(err)
 }
+// GetTableName returns the database table name for this model.
 func (a *Model[T]) GetTableName() string {
 	return a.tableName
 }
+// Save creates or updates a single record in the database.
 func (a *Model[T]) Save(entry T) error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -120,6 +127,7 @@ func (a *Model[T]) getDB() (*db.DB, error) {
 	return a.db, nil
 }
 
+// Saves creates multiple records in a single batch operation.
 func (a *Model[T]) Saves(entry []T) error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -128,6 +136,7 @@ func (a *Model[T]) Saves(entry []T) error {
 	return dbConn.Table(a.tableName).Create(&entry)
 }
 
+// SaveForMap creates a record from a map of column-value pairs.
 func (a *Model[T]) SaveForMap(mapValue map[string]any) error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -136,6 +145,7 @@ func (a *Model[T]) SaveForMap(mapValue map[string]any) error {
 	return dbConn.Table(a.tableName).Create(mapValue)
 }
 
+// SavesForMap creates multiple records from a slice of column-value maps.
 func (a *Model[T]) SavesForMap(mapValues []map[string]any) error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -153,6 +163,7 @@ func (a *Model[T]) SaveForMapWithPk(mapValue map[string]any, keyName string) (an
 	return dbConn.Table(a.tableName).CreateMapWithPk(mapValue, keyName)
 }
 
+// SaveForMapWithUintPk saves a record from a map and returns the generated uint primary key.
 func (a *Model[T]) SaveForMapWithUintPk(mapValue map[string]any, keyName string) (uint, error) {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -170,11 +181,13 @@ func (a *Model[T]) CreateWithPk(entry T, keyName string, kind reflect.Kind) (any
 	return dbConn.Table(a.tableName).CreateWithPk(entry, keyName, kind)
 }
 
+// Query returns a new Query builder for constructing type-safe read queries.
 func (a *Model[T]) Query() *Query[T] {
 
 	return &Query[T]{db: a.db, tableName: a.tableName, entry: a.entry}
 }
 
+// Update returns a new Update builder for constructing type-safe update operations.
 func (a *Model[T]) Update() *Update[T] {
 	return &Update[T]{
 		db:        a.db,
@@ -183,6 +196,7 @@ func (a *Model[T]) Update() *Update[T] {
 		wheres:    make([]*where, 0),
 	}
 }
+// Delete returns a new Delete builder for constructing type-safe delete operations.
 func (a *Model[T]) Delete() *Delete[T] {
 	return &Delete[T]{
 		db:        a.db,
@@ -192,19 +206,21 @@ func (a *Model[T]) Delete() *Delete[T] {
 	}
 }
 
+// NewModel creates a new Model instance for the given table name.
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 	var entryPtr T
 	entry := util.NewPtr(entryPtr)
 	return &Model[T]{db: db, tableName: tableName, entry: entry, pkColumn: getPrimaryKeyColumn[T]()}
 }
 
+// GetPkColumn returns the primary key column name for this model.
 func (a *Model[T]) GetPkColumn() string {
 	return a.pkColumn
 }
 
-// WithContext 返回携带 ctx 的模型浅拷贝（实现 core.IModel 接口）。
-// 原实例不变，并发安全。
-// 返回的模型所有数据库操作（Save、Query、Update、Delete）都会自动传播该 context。
+// WithContext returns a shallow copy of the model with the given context.
+// All database operations on the returned model will propagate the context.
+// The original instance is unchanged; safe for concurrent use.
 func (a *Model[T]) WithContext(ctx context.Context) *Model[T] {
 	if a.db == nil {
 		return &Model[T]{tableName: a.tableName, entry: a.entry, pkColumn: a.pkColumn}

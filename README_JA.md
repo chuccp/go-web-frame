@@ -585,10 +585,14 @@ web:
   server:
     port: 8080
     context_path: /api            # グローバルルートプレフィックス
-    ssl:                          # Let's Encrypt 自動 HTTPS
+    ssl:                          # HTTPS：自動証明書またはローカル証明書
       enabled: true
-      hosts:
+      hosts:                      # Let's Encrypt 自動証明書取得
         - example.com
+      # certs:                    # またはローカル証明書ファイルを使用（オプション）
+      #   - host: example.com
+      #     cert-file: /path/to/fullchain.pem
+      #     key-file: /path/to/privkey.pem
 
   db:
     type: mysql                   # mysql | postgres | sqlite

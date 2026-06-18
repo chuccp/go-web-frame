@@ -5,6 +5,7 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 )
 
+// Authentication defines the interface for authentication services.
 type Authentication[U any] interface {
 	core.IService
 	SignIn(user any, request *web.Request) (any, error)
@@ -16,8 +17,10 @@ const (
 	LoginKey = "login"
 )
 
+// NoLogin is the sentinel error returned when a user is not authenticated.
 var NoLogin = &NoLoginError{}
 
+// NoLoginError represents an unauthenticated access attempt.
 type NoLoginError struct {
 	error
 }
@@ -25,10 +28,12 @@ type NoLoginError struct {
 func (e *NoLoginError) Error() string {
 	return "no login"
 }
+// WithLogin returns a MetaOption that marks a route as requiring authentication.
 func WithLogin() web.MetaOption {
 	return web.WithKey(LoginKey)
 }
 
+// AuthenticationFilter is a filter that enforces authentication on protected routes.
 type AuthenticationFilter[U any] struct {
 	ctx            *core.Context
 	authentication Authentication[U]
@@ -64,6 +69,7 @@ func (s *AuthenticationFilter[U]) Handle(filterChain web.FilterChain, request *w
 	return filterChain.Next()
 }
 
+// User retrieves the authenticated user from the filter, cast to type T.
 func User[T any](r *AuthenticationFilter[T], request *web.Request) (T, error) {
 	u, err := r.User(request)
 	if err != nil {
@@ -74,6 +80,7 @@ func User[T any](r *AuthenticationFilter[T], request *web.Request) (T, error) {
 
 }
 
+// NewAuthenticationFilter creates a new authentication filter with the given provider.
 func NewAuthenticationFilter[T any](authentication Authentication[T]) *AuthenticationFilter[T] {
 	return &AuthenticationFilter[T]{
 		authentication: authentication,

@@ -6,33 +6,33 @@ import (
 	"github.com/chuccp/go-web-frame/web"
 )
 
-// IService 是所有需要初始化的服务的基接口
+// IService is the base interface for all framework services.
 //
-// 实现此接口的服务会自动被框架的依赖注入容器管理，并在应用启动时调用 Init 方法进行初始化。
+// Services implementing this interface are automatically managed by the DI container,
+// and Init is called during application startup.
 //
-// 使用示例：
+// Example:
 //
 //	type UserService struct {
 //	    core.IService
-//	    // 添加依赖
 //	}
 //
 //	func (s *UserService) Init(ctx *Context) error {
-//	    // 初始化逻辑
+//	    // initialization logic
 //	    return nil
 //	}
 type IService interface {
-	// Init 在应用启动时被调用，用于初始化服务
-	// ctx: 依赖注入上下文，可以从中获取其他服务
-	// 返回 error: 初始化失败时返回错误
+	// Init is called during application startup to initialize the service.
+	// ctx: dependency injection context for accessing other services.
+	// Returns error if initialization fails.
 	Init(ctx *Context) error
 }
 
-// IModel 是数据访问层的接口，提供数据库操作能力
+// IModel is the data access layer interface providing database operations.
 //
-// 实现此接口的模型会自动被注册到依赖注入容器中，并支持数据库表管理。
+// Models implementing this interface are automatically registered in the DI container.
 //
-// 使用示例：
+// Example:
 //
 //	type UserModel struct {
 //	    *model.Model[*User]
@@ -43,39 +43,29 @@ type IService interface {
 //	    return m.CreateTable()
 //	}
 type IModel interface {
-	// Init 初始化模型，绑定数据库和上下文
-	// db: 数据库连接
-	// c: 依赖注入上下文
+	// Init initializes the model with the given database and context.
 	Init(db *db.DB, c *Context) error
 
-	// IsExist 检查表是否存在
-	// 返回 (bool, error): 表是否存在，以及可能的错误
+	// IsExist reports whether the database table exists.
 	IsExist() (bool, error)
 
-	// CreateTable 创建数据库表
-	// 返回 error: 创建失败时返回错误
+	// CreateTable creates the database table if it does not exist.
 	CreateTable() error
 
-	// DeleteTable 删除数据库表
-	// 返回 error: 删除失败时返回错误
+	// DeleteTable drops the database table.
 	DeleteTable() error
 
-	// GetTableName 获取表名
-	// 返回 string: 表名
+	// GetTableName returns the database table name.
 	GetTableName() string
 
-	// ReNew 创建一个新的模型实例，用于事务处理
-	// db: 新的数据库连接
-	// c: 依赖注入上下文
-	// 返回 IModel: 新的模型实例
+	// ReNew creates a new model instance with the given database connection,
+	// useful for transaction handling.
 	ReNew(db *db.DB, c *Context) IModel
 }
 
-// IRest 是 REST 控制器的接口，继承自 IService
+// IRest is the REST controller interface, extending IService.
 //
-// 实现此接口的控制器可以方便地注册 RESTful API 路由。
-//
-// 使用示例：
+// Example:
 //
 //	type UserController struct {
 //	    core.IRest
@@ -91,14 +81,13 @@ type IRest interface {
 	IService
 }
 
-// IRunner 是后台任务的接口，继承自 IService
+// IRunner is the background task interface, extending IService.
 //
-// 实现此接口的任务会在应用启动后在后台运行，框架通过 context pool 管理生命周期。
-// Run 方法不再接收参数，生命周期由 server 的 context pool 控制。
-// 如需依赖查找，可在 Init 中缓存 *Context。
-// 适用于定时任务、消息消费者、数据同步等场景。
+// Tasks implementing this interface run in the background after application startup.
+// The lifecycle is managed by the server's context pool.
+// Suitable for scheduled tasks, message consumers, data synchronization, etc.
 //
-// 使用示例：
+// Example:
 //
 //	type BackgroundTask struct {
 //	    core.IRunner
@@ -113,26 +102,25 @@ type IRest interface {
 //	func (t *BackgroundTask) Run() error {
 //	    ticker := time.NewTicker(5 * time.Second)
 //	    defer ticker.Stop()
-//
 //	    for {
 //	        select {
 //	        case <-ticker.C:
-//	            // 执行任务，需要依赖查找时使用 t.ctx
+//	            // perform task
 //	        }
 //	    }
 //	}
 type IRunner interface {
 	IService
-	// Run 运行后台任务，生命周期由 server 的 context pool 控制
-	// 返回 error: 任务失败时返回错误
+	// Run executes the background task. Lifecycle is controlled by the server's context pool.
 	Run() error
 }
 
-// IModelGroup 是模型组的接口，用于管理多个相关的模型
+// IModelGroup is the interface for managing collections of related models.
 //
-// 模型组可以批量管理多个模型，支持自动创建表、事务管理等。
+// Model groups can batch-manage multiple models, supporting auto table creation
+// and transaction management.
 //
-// 使用示例：
+// Example:
 //
 //	userModel := &UserModel{}
 //	group := app.NewModelGroup(db, "user_group")
@@ -140,41 +128,34 @@ type IRunner interface {
 //	group.AutoCreateTable(true)
 type IModelGroup interface {
 	IService
-	// AddModel 添加模型到组中
+	// AddModel adds one or more models to the group.
 	AddModel(model ...IModel)
 
-	// GetModel 获取组中的所有模型
-	// 返回 []IModel: 模型列表
+	// GetModel returns all models in this group.
 	GetModel() []IModel
 
-	// AutoCreateTable 设置是否自动创建表
-	// autoCreateTable: true 表示自动创建表
+	// AutoCreateTable sets whether tables should be auto-created during init.
 	AutoCreateTable(autoCreateTable bool)
 
-	// SwitchDB 切换数据库连接
-	// db: 新的数据库连接
-	// context: 依赖注入上下文
-	// 返回 error: 切换失败时返回错误
+	// SwitchDB replaces the database connection and reinitializes all models.
 	SwitchDB(db *db.DB, context *Context) error
 
-	// SetDefaultDB 设置默认数据库连接
-	// db: 数据库连接
+	// SetDefaultDB sets the default database connection for this group.
 	SetDefaultDB(db *db.DB)
 
-	// Name 获取模型组名称
-	// 返回 string: 组名
+	// Name returns the model group name.
 	Name() string
 
-	// GetTransaction 获取事务管理器
-	// 返回 *model.Transaction: 事务管理器
+	// GetTransaction returns the transaction manager for this group.
 	GetTransaction() *model.Transaction
 }
 
-// IFilter 是 HTTP 过滤器/中间件的接口，继承自 IService
+// IFilter is the HTTP filter/middleware interface, extending IService.
 //
-// 实现此接口的过滤器会在请求处理链中执行，用于横切关注点如认证、日志、限流等。
+// Filters are executed in the request processing chain for cross-cutting concerns
+// such as authentication, logging, and rate limiting.
 //
-// 使用示例：
+// Example:
 //
 //	type AuthFilter struct {
 //	    core.IFilter
@@ -196,12 +177,12 @@ type IFilter interface {
 	web.Filter
 }
 
-// IConverter 是响应转换器的接口，继承自 IService
+// IConverter is the response converter interface, extending IService.
 //
-// 实现此接口的转换器负责将服务返回的数据转换为 HTTP 响应。
-// 可以自定义响应格式，如 JSON、XML、Protocol Buffers 等。
+// Converters transform service return values into HTTP responses.
+// Custom formats like JSON, XML, Protocol Buffers can be implemented.
 //
-// 使用示例：
+// Example:
 //
 //	type CustomConverter struct {
 //	    core.IConverter
@@ -213,7 +194,7 @@ type IFilter interface {
 //
 //	func (c *CustomConverter) Request(fc web.FilterChain, req *web.Request) {
 //	    result, err := fc.Next()
-//	    // 自定义响应处理
+//	    // custom response handling
 //	}
 type IConverter interface {
 	IService

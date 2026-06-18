@@ -41,6 +41,7 @@ func validatePassword(fl validator.FieldLevel) bool {
 	return true
 }
 
+// Validator provides struct field validation with custom phone and password rules.
 type Validator struct {
 	validate *validator.Validate
 }
@@ -59,6 +60,7 @@ func (v *Validator) Init(ctx *core.Context) error {
 	return nil
 }
 
+// Validate validates the given struct against registered validation rules.
 func (v *Validator) Validate(i any) error {
 	err := v.validate.Struct(i)
 	if err != nil {

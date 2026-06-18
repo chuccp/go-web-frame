@@ -28,11 +28,11 @@ var (
 	}
 )
 
-// FilterChain 是过滤器链接口，用于在过滤器之间传递控制权
+// FilterChain passes control between filters in the chain.
 //
-// 过滤器链支持责任链模式，每个过滤器可以决定是否继续执行后续过滤器。
+// Each filter can decide whether to continue executing subsequent filters.
 //
-// 使用示例：
+// Example:
 //
 //	func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 //	    if !isAuthenticated(req) {
@@ -41,17 +41,17 @@ var (
 //	    return fc.Next()
 //	}
 type FilterChain interface {
-	// Next 执行下一个过滤器或最终处理器
-	// 返回 (any, error): 处理结果和可能的错误
+	// Next executes the next filter or the final handler in the chain.
+	// Returns (any, error): the result and any error.
 	Next() (any, error)
 }
 
-// Filter 是 HTTP 过滤器接口，用于处理请求和响应
+// Filter is the HTTP filter interface for processing requests and responses.
 //
-// 过滤器可以实现认证、日志、限流、缓存等横切关注点。
-// 过滤器按添加顺序执行，每个过滤器可以决定是否继续执行后续过滤器。
+// Filters can implement cross-cutting concerns such as authentication, logging,
+// rate limiting, and caching. Filters execute in the order they are added.
 //
-// 使用示例：
+// Example:
 //
 //	type LoggingFilter struct {
 //	    core.IFilter
@@ -64,10 +64,10 @@ type FilterChain interface {
 //	    return result, err
 //	}
 type Filter interface {
-	// Handle 处理请求
-	// fc: 过滤器链，用于调用下一个过滤器
-	// req: HTTP 请求对象
-	// 返回 (any, error): 处理结果和可能的错误
+	// Handle processes the request.
+	// fc: the filter chain, used to invoke the next filter
+	// request: the HTTP request object
+	// Returns (any, error): the result and any error
 	Handle(filterChain FilterChain, request *Request) (any, error)
 }
 
@@ -116,7 +116,7 @@ func (h *Handles) AddStaticFs(relativePath string, fs http.FileSystem) *HandlerI
 // All HTTP methods are proxied to the target URL.
 func (h *Handles) AddReverseProxy(relativePath string, targetUrl string) *HandlerInfo {
 	handlerInfo := NewReverseProxyHandlerInfo(relativePath, targetUrl)
-	// 反向代理需要处理所有 HTTP 方法
+	// Reverse proxy needs to handle all HTTP methods
 	for _, method := range anyMethods {
 		h.routeTree.Set(method, handlerInfo)
 	}
@@ -306,20 +306,20 @@ type HandlerFunc func(*Request) (any, error)
 // SaveUploadedFile saves an uploaded file to the destination path.
 // It creates the destination directory if it does not exist.
 func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
-	// 打开上传的临时文件
+	// Open the temporary uploaded file
 	src, err := file.Open()
 	if err != nil {
 		return err
 	}
 	defer func() {
-		// 确保临时文件关闭，并捕获可能的错误
+		// Ensure the temp file is closed, capturing any close error
 		closeErr := src.Close()
 		if err == nil {
 			err = closeErr
 		}
 	}()
 
-	// 创建目标目录
+	// Create the destination directory
 	if err = os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
 		return err
 	}
@@ -328,25 +328,25 @@ func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
 		return err
 	}
 
-	// 创建目标文件
+	// Create the destination file
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		// 确保目标文件关闭，并捕获可能的错误
+		// Ensure the destination file is closed, capturing any close error
 		closeErr := out.Close()
 		if err == nil {
 			err = closeErr
 		}
 	}()
 
-	// 复制文件内容
+	// Copy file contents
 	if _, err = io.Copy(out, src); err != nil {
 		return err
 	}
 
-	// 强制将数据刷新到磁盘，确保数据写入完成
+	// Force flush data to disk to ensure write completion
 	if err = out.Sync(); err != nil {
 		return err
 	}

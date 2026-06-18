@@ -6,7 +6,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// DefaultWebSocketUpgrader returns a websocket.Upgrader with sensible defaults
+// DefaultWebSocketUpgrader returns a websocket.Upgrader with sensible defaults:
+// 1024-byte read/write buffers and permissive origin checking.
 func DefaultWebSocketUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -18,7 +19,8 @@ func DefaultWebSocketUpgrader() *websocket.Upgrader {
 	}
 }
 
-// WebSocketUpgraderWithOptions returns a websocket.Upgrader with custom options
+// WebSocketUpgraderWithOptions returns a websocket.Upgrader with custom buffer sizes
+// and origin checking. If checkOrigin is nil, all origins are allowed.
 func WebSocketUpgraderWithOptions(readBufferSize, writeBufferSize int, checkOrigin func(r *http.Request) bool) *websocket.Upgrader {
 	if checkOrigin == nil {
 		checkOrigin = func(r *http.Request) bool { return true }

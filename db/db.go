@@ -58,13 +58,17 @@ const (
 	SQLITE     = "sqlite"
 )
 
+// Source defines the interface for database connection sources.
 type Source interface {
 	Connection(cfg config.IConfig) (db *gorm.DB, err error)
 }
+
+// Session wraps a GORM database session for direct operations.
 type Session struct {
 	db *gorm.DB
 }
 
+// Delete deletes records matching the given conditions.
 func (s *Session) Delete(value any, conds ...any) error {
 	tx := s.db.Delete(value, conds...)
 	return tx.Error
@@ -90,12 +94,13 @@ type Table struct {
 	raw       *gorm.DB
 }
 
+// NewTable creates a fresh Table instance with the original GORM connection.
 func (t *Table) NewTable() *Table {
 	return &Table{db: t.raw.Table(t.tableName), tableName: t.tableName}
 }
 
-// WithContext 返回一个新的 Table，其内部 *gorm.DB 携带了给定的 context。
-// 同时更新 raw 引用，确保从该 Table 派生的 NewTable() 也携带 context。
+// WithContext returns a new Table whose underlying *gorm.DB carries the given context.
+// The original Table is unchanged; safe for concurrent use.
 func (t *Table) WithContext(ctx context.Context) *Table {
 	return &Table{
 		db:        t.db.WithContext(ctx),
@@ -104,24 +109,29 @@ func (t *Table) WithContext(ctx context.Context) *Table {
 	}
 }
 
+// Session creates a GORM session with the given options.
 func (t *Table) Session(g *gorm.Session) *Session {
 	return &Session{db: t.db.Session(g)}
 }
 
+// AutoMigrate runs auto migration for the given models.
 func (t *Table) AutoMigrate(v ...any) error {
 	return t.db.AutoMigrate(v...)
 }
 
+// Delete deletes records matching the conditions from the table.
 func (t *Table) Delete(value any, conds ...any) error {
 	tx := t.db.Delete(value, conds...)
 	return tx.Error
 }
 
+// Save creates or updates a record in the table.
 func (t *Table) Save(entry any) error {
 	tx := t.db.Save(entry)
 	return tx.Error
 }
 
+// Create inserts a new record into the table.
 func (t *Table) Create(value any) error {
 	return t.db.Create(value).Error
 }
@@ -254,6 +264,7 @@ func (t *Table) CreateMapWithUintPk(mapValue map[string]any, keyName string) (ui
 	}
 }
 
+// Where adds a WHERE condition to the query chain.
 func (t *Table) Where(query any, args ...any) *Table {
 	t.db = t.db.Where(query, args...)
 	return t
@@ -263,11 +274,13 @@ func (t *Table) Where(query any, args ...any) *Table {
 //		tx := t.db.Set(column, value)
 //		return &Table{db: tx}
 //	}
+// Offset sets the number of records to skip.
 func (t *Table) Offset(i int) *Table {
 	tx := t.db.Offset(i)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
+// Order adds an ORDER BY clause.
 func (t *Table) Order(query any) *Table {
 	tx := t.db.Order(query)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
@@ -287,32 +300,38 @@ func (t *Table) Joins(query string, args ...any) *Table {
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
+// Limit sets the maximum number of records to return.
 func (t *Table) Limit(size int) *Table {
 	tx := t.db.Limit(size)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
 
+// Find retrieves all matching records into dest.
 func (t *Table) Find(dest any, conds ...any) error {
 	tx := t.db.Find(dest, conds...)
 	return tx.Error
 
 }
 
+// First retrieves the first matching record into dest.
 func (t *Table) First(dest any, conds ...any) error {
 	tx := t.db.First(dest, conds...)
 	return tx.Error
 }
 
+// Count returns the number of matching records.
 func (t *Table) Count(i *int64) error {
 	tx := t.db.Count(i)
 	return tx.Error
 }
 
+// Updates applies the given values to matching records.
 func (t *Table) Updates(values any) error {
 	tx := t.db.Updates(values)
 	return tx.Error
 }
 
+// UpdateColumn updates a single column for matching records.
 func (t *Table) UpdateColumn(column string, value any) error {
 	tx := t.db.UpdateColumn(column, value)
 	return tx.Error
@@ -347,26 +366,31 @@ type DB struct {
 	db *gorm.DB
 }
 
+// New creates a fresh DB instance with the original GORM connection.
 func (d *DB) New() *DB {
 	return &DB{db: d.db}
 }
 
-// WithContext 返回一个新的 DB，其内部 *gorm.DB 携带了给定的 context。
-// 原 DB 实例不会被修改，因此跨请求并发使用是安全的。
+// WithContext returns a new DB whose underlying *gorm.DB carries the given context.
+// The original DB instance is unchanged; safe for concurrent use across requests.
 func (d *DB) WithContext(ctx context.Context) *DB {
 	return &DB{db: d.db.WithContext(ctx)}
 }
 
+// Transaction executes fc within a database transaction.
+// The transaction is committed if fc returns nil, rolled back otherwise.
 func (d *DB) Transaction(fc func(tx *DB) error) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		return fc(&DB{db: tx})
 	})
 }
 
+// Migrator returns the GORM migrator for schema management.
 func (d *DB) Migrator() gorm.Migrator {
 	return d.db.Migrator()
 }
 
+// Table returns a Table instance for the given table name.
 func (d *DB) Table(name string) *Table {
 	tx := d.db.Table(name)
 	return &Table{db: tx, tableName: name, raw: d.db}
@@ -379,17 +403,22 @@ func (e *noConfigDBError) Error() string {
 	return "no config db"
 }
 
+// NoConfigDBError is returned when no database configuration is found.
 var NoConfigDBError = &noConfigDBError{}
 
+// IConfig defines the interface for database configuration sources.
 type IConfig interface {
 	Connection() (*DB, error)
 }
+// Config holds the basic database configuration.
 type Config struct {
 	Type string
 }
 
 const ConfigKey = "web.db"
 
+// CreateDB creates a database connection based on the configuration.
+// It supports MySQL, PostgreSQL, and SQLite database types.
 func CreateDB(c config.IConfig) (*DB, error) {
 	var config2 Config
 	err := c.UnmarshalKey(ConfigKey, &config2)

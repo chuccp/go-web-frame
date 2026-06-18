@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// SQLiteConfig holds SQLite connection configuration.
 type SQLiteConfig struct {
 	FilePath string `mapstructure:"path"`
 	// Connection pool settings
@@ -17,6 +18,7 @@ type SQLiteConfig struct {
 	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"` // in seconds
 }
 
+// ConnectionSQLite creates a new SQLite database connection.
 func ConnectionSQLite(FilePath string) (db *DB, err error) {
 	return (&SQLiteConfig{FilePath: FilePath}).Connection()
 }
@@ -42,6 +44,7 @@ func (sqliteConfig *SQLiteConfig) GetConnMaxLifetime() int {
 	return sqliteConfig.ConnMaxLifetime
 }
 
+// Connection creates a SQLite database connection from this config.
 func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 	log2.Debug("sqlite", zap.String("dsn", sqliteConfig.FilePath))
 	sb, err := gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})

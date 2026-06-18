@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// MysqlConfig holds MySQL connection configuration.
 type MysqlConfig struct {
 	Dbname   string
 	Database string
@@ -27,6 +28,7 @@ type MysqlConfig struct {
 	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"` // in seconds
 }
 
+// ConnectionMysql creates a new MySQL database connection.
 func ConnectionMysql(host string, port int, username string, password string, dbname string, charset string) (db *DB, err error) {
 	var mysqlConfig = &MysqlConfig{Host: host, Port: port, Username: username, Password: password, Dbname: dbname, Charset: charset}
 	return mysqlConfig.Connection()
@@ -54,6 +56,7 @@ func (mysqlConfig *MysqlConfig) GetConnMaxLifetime() int {
 	return mysqlConfig.ConnMaxLifetime
 }
 
+// Connection creates a MySQL database connection from this config.
 func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if util.IsBlank(mysqlConfig.Username) {
 		mysqlConfig.Username = mysqlConfig.User

@@ -41,7 +41,7 @@ userModel.Update().Where("id = ?", 1).UpdateColumn("name", "new name")
 userModel.DeleteByPK(1)
 ```
 
-Also included: routing (Gin), auth filters, WebSocket, SSE, CORS, rate limiting, cron, validation, caching, Let's Encrypt HTTPS, multi-DB (MySQL / PostgreSQL / SQLite / Redis) — all wired up and configured from one YAML file.
+Also included: routing (Gin), auth filters, WebSocket, SSE, CORS, rate limiting, cron, validation, caching, HTTPS (Let's Encrypt auto-cert or local certificates), multi-DB (MySQL / PostgreSQL / SQLite / Redis) — all wired up and configured from one YAML file.
 
 ---
 
@@ -586,10 +586,14 @@ web:
   server:
     port: 8080
     context_path: /api            # all routes prefixed with /api
-    ssl:                          # Let's Encrypt auto HTTPS
+    ssl:                          # HTTPS: auto-cert or local certificates
       enabled: true
-      hosts:
+      hosts:                      # Let's Encrypt auto-cert for these domains
         - example.com
+      # certs:                    # Or use local certificate files (optional)
+      #   - host: example.com
+      #     cert-file: /path/to/fullchain.pem
+      #     key-file: /path/to/privkey.pem
 
   db:
     type: mysql                   # mysql | postgres | sqlite

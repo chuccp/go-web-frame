@@ -10,27 +10,30 @@ import (
 	"github.com/maypok86/otter/v2/stats"
 )
 
+// Config holds cache configuration settings.
 type Config struct {
-	MaxSize int // 最大缓存数量
-	Expiry  int // 缓存过期时间 单位秒
+	MaxSize int // Maximum number of cached entries
+	Expiry  int // Cache TTL in seconds
 }
 
+// Cache provides a high-performance in-memory cache backed by Otter.
 type Cache struct {
 	cache *otter.Cache[string, any]
 }
 
-// Get 获取缓存值（如果不存在，返回 nil 和 false）
+// Get returns the cached value for the given key, or (nil, false) if not found.
 func (c *Cache) Get(key string) (any, bool) {
 	// GetIfPresent 不触发加载，直接检查是否存在
 	return c.cache.GetIfPresent(key)
 }
 
-// Set 设置缓存值（无过期时间，除非全局配置了 ExpiryCalculator）
+// Set stores a value in the cache.
 func (c *Cache) Set(key string, value any) {
 	c.cache.Set(key, value)
 }
 
-// SetNX 设置缓存值（有过期时间）, 如果已存在则返回 false, 否则返回 true
+// SetNX stores a value with an expiration if the key does not already exist.
+// Returns (value, true) on success, or (existing, false) if the key exists.
 func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
 	v, ok := c.cache.SetIfAbsent(key, value)
 	if !ok {
@@ -42,20 +45,25 @@ func (c *Cache) SetNX(key string, value any, expire time.Duration) (any, bool) {
 	return value, true
 }
 
+// GetOrSet returns the cached value or computes and stores it using f.
 func (c *Cache) GetOrSet(key string, f func() any) any {
 	v, _ := c.cache.ComputeIfAbsent(key, func() (newValue any, cancel bool) {
 		return f(), false
 	})
 	return v
 }
+// ComputeIfAbsent atomically computes a value if the key is not present.
+// f should return (value, cancel); if cancel is true the operation is aborted.
 func (c *Cache) ComputeIfAbsent(key string, f func() (any, bool)) (any, bool) {
 	return c.cache.ComputeIfAbsent(key, f)
 }
 
+// Invalidate removes a key from the cache.
 func (c *Cache) Invalidate(key string) (any, bool) {
 	return c.cache.Invalidate(key)
 }
 
+// Stats returns cache performance statistics.
 func (c *Cache) Stats() stats.Stats {
 	return c.cache.Stats()
 }
@@ -90,6 +98,7 @@ func (c *Cache) destroy() error {
 	return nil
 }
 
+// SetIfAbsent stores a value only if the key does not already exist.
 func (c *Cache) SetIfAbsent(key string, value any) (any, bool) {
 	return c.cache.SetIfAbsent(key, value)
 }

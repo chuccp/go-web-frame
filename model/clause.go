@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Query is a type-safe query builder for constructing read operations on type T.
 type Query[T any] struct {
 	db        *db.DB
 	tableName string
@@ -23,7 +24,7 @@ type Query[T any] struct {
 	joins     []string
 }
 
-// 构建tx实例，惰性创建，仅在实际执行时调用
+// buildTx constructs the database transaction, lazily created on first execution.
 func (q *Query[T]) buildTx() (*db.Table, error) {
 	if q.db == nil {
 		return nil, errors.New("db is nil")
@@ -44,10 +45,12 @@ func (q *Query[T]) buildTx() (*db.Table, error) {
 	return tx, nil
 }
 
+// Where adds a WHERE condition to the query.
 func (q *Query[T]) Where(query interface{}, args ...interface{}) *Query[T] {
 	q.wheres = append(q.wheres, &where{query: query, args: args})
 	return q
 }
+// Order adds an ORDER BY clause to the query.
 func (q *Query[T]) Order(query interface{}) *Query[T] {
 	q.orders = append(q.orders, query)
 	return q
@@ -67,6 +70,7 @@ func (q *Query[T]) Joins(query string) *Query[T] {
 	q.joins = append(q.joins, query)
 	return q
 }
+// List returns up to size records matching the query conditions.
 func (q *Query[T]) List(size int) ([]T, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
@@ -77,6 +81,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 	return ts, errors.WithStackIf(err)
 
 }
+// ListPage returns a page of records matching the query conditions.
 func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
@@ -87,6 +92,7 @@ func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
 	return ts, errors.WithStackIf(err)
 
 }
+// All returns all records matching the query conditions.
 func (q *Query[T]) All() ([]T, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
@@ -96,6 +102,7 @@ func (q *Query[T]) All() ([]T, error) {
 	err = tx.Find(&ts)
 	return ts, errors.WithStackIf(err)
 }
+// One returns a single record matching the query conditions.
 func (q *Query[T]) One() (T, error) {
 	t := util.NewPtr(q.entry)
 	tx, err := q.buildTx()
@@ -111,13 +118,14 @@ func (q *Query[T]) One() (T, error) {
 	return t, errors.WithStackIf(err)
 }
 
+// Exec executes a raw SQL query with the accumulated WHERE conditions.
 func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {
 		return nil, errors.New("db is nil")
 	}
 
-	// 合并 Where 条件
+	// Merge Where conditions
 	finalSql, finalArgs := q.mergeWheres(sql, args...)
 
 	tx := q.db.Table(q.tableName)
@@ -125,17 +133,17 @@ func (q *Query[T]) Exec(sql string, args ...interface{}) ([]T, error) {
 	return ts, errors.WithStackIf(err)
 }
 
-// mergeWheres 合并 Where 条件到 SQL 和参数中
+// mergeWheres merges Where conditions into the SQL and arguments.
 func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []interface{}) {
 	finalSql := sql
 	finalArgs := args
 
 	if len(q.wheres) > 0 {
-		// 检查 SQL 是否已有 WHERE 子句
+		// Check if SQL already has a WHERE clause
 		upperSql := strings.ToUpper(sql)
 		hasWhere := whereRe.MatchString(upperSql)
 
-		// 构建 WHERE 子句
+		// Build WHERE clause
 		var whereClause strings.Builder
 		whereArgs := make([]interface{}, 0)
 
@@ -147,7 +155,7 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 			whereArgs = append(whereArgs, w.args...)
 		}
 
-		// 追加到 SQL
+		// Append to SQL
 		if hasWhere {
 			finalSql = sql + " AND " + whereClause.String()
 		} else {
@@ -159,16 +167,17 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 	return finalSql, finalArgs
 }
 
+// ExecPage executes a paginated raw SQL query with the accumulated WHERE conditions.
 func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
 
-	// 合并 Where 条件
+	// Merge Where conditions
 	finalSql, finalArgs := q.mergeWheres(sql, args...)
 
-	// 添加 ORDER BY（如果有多个排序字段）
+	// Add ORDER BY if there are ordering fields
 	if len(q.orders) > 0 {
 		orderParts := make([]string, len(q.orders))
 		for i, o := range q.orders {
@@ -177,7 +186,7 @@ func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]
 		finalSql = finalSql + " ORDER BY " + strings.Join(orderParts, ", ")
 	}
 
-	// 构建 count SQL
+	// Build count SQL
 	countSql := toCountSql(finalSql)
 	var num int64
 	tx := q.db.Table(q.tableName)
@@ -186,7 +195,7 @@ func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]
 		return nil, 0, errors.WithStackIf(err)
 	}
 
-	// 构建分页 SQL
+	// Build paginated SQL
 	pageSql := finalSql + fmt.Sprintf(" LIMIT %d OFFSET %d", page.PageSize, (page.PageNo-1)*page.PageSize)
 	tx2 := q.db.Table(q.tableName)
 	err = tx2.Raw(pageSql, finalArgs...).Scan(&ts)
@@ -196,21 +205,21 @@ func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]
 	return ts, int(num), nil
 }
 
-// toCountSql 将查询 SQL 转换为 COUNT SQL
-// 例如: SELECT * FROM users WHERE status = ? LIMIT 10 -> SELECT COUNT(*) FROM users WHERE status = ?
+// toCountSql converts a SELECT query to a COUNT query.
+// Example: SELECT * FROM users WHERE status = ? LIMIT 10 -> SELECT COUNT(*) FROM users WHERE status = ?
 func toCountSql(sql string) string {
 	upper := strings.ToUpper(sql)
-	// 找到 SELECT 和 FROM 的位置
+	// Find SELECT and FROM positions
 	selectIdx := strings.Index(upper, "SELECT")
 	fromIdx := strings.Index(upper, "FROM")
 	if selectIdx == -1 || fromIdx == -1 || fromIdx <= selectIdx {
 		return sql
 	}
 
-	// 构建基础 count SQL，确保 FROM 前有空格
+	// Build base count SQL, ensure space before FROM
 	countSql := "SELECT COUNT(*) FROM" + sql[fromIdx+4:]
 
-	// 移除 LIMIT, OFFSET, ORDER BY 子句
+	// Remove LIMIT, OFFSET, ORDER BY clauses
 	upper = strings.ToUpper(countSql)
 	keywords := []string{" LIMIT", " OFFSET", " ORDER BY"}
 	for _, kw := range keywords {
@@ -222,6 +231,7 @@ func toCountSql(sql string) string {
 	return countSql
 }
 
+// Page returns a paginated list with total count.
 func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
@@ -231,7 +241,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 	err = tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
 	if err == nil {
 		var num int64
-		// 重新构建带有相同 WHERE 条件的查询来统计总数
+		// Re-build query with same WHERE conditions to count total
 		countTx, err := q.buildTx()
 		if err != nil {
 			return nil, 0, errors.WithStackIf(err)
@@ -245,6 +255,7 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 
 }
 
+// PageForWeb returns a paginated web response suitable for API responses.
 func (q *Query[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
 	values, num, err := q.Page(page)
 	if err != nil {
@@ -253,6 +264,7 @@ func (q *Query[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
 	return web.ToPage[T](int64(num), values), nil
 }
 
+// Size returns up to size records with total count.
 func (q *Query[T]) Size(size int) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
@@ -262,7 +274,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	err = tx.Limit(size).Find(&ts)
 	if err == nil {
 		var num int64
-		// 重新构建带有相同 WHERE 条件的查询来统计总数
+		// Re-build query with same WHERE conditions to count total
 		countTx, err := q.buildTx()
 		if err != nil {
 			return nil, 0, errors.WithStackIf(err)
@@ -274,6 +286,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	}
 	return nil, 0, errors.WithStackIf(err)
 }
+// Count returns the number of records matching the query conditions.
 func (q *Query[T]) Count() (int, error) {
 	var num int64
 	tx, err := q.buildTx()
@@ -284,7 +297,7 @@ func (q *Query[T]) Count() (int, error) {
 	return int(num), errors.WithStackIf(err)
 }
 
-// WithContext 为该查询构建器设置 context，返回自身以支持链式调用。
+// WithContext sets the context for this query builder and returns itself for chaining.
 func (q *Query[T]) WithContext(ctx context.Context) *Query[T] {
 	if q.db != nil {
 		q.db = q.db.WithContext(ctx)
@@ -298,6 +311,7 @@ type where struct {
 	query interface{}
 	args  []interface{}
 }
+// Update is a type-safe update builder for constructing update operations on type T.
 type Update[T any] struct {
 	db        *db.DB
 	tableName string
@@ -305,7 +319,7 @@ type Update[T any] struct {
 	wheres    []*where
 }
 
-// 构建tx实例，惰性创建
+// buildTx constructs the database transaction, lazily created.
 func (u *Update[T]) buildTx() (*db.Table, error) {
 	if u.db == nil {
 		return nil, errors.New("db is nil")
@@ -317,11 +331,13 @@ func (u *Update[T]) buildTx() (*db.Table, error) {
 	return tx, nil
 }
 
+// Where adds a WHERE condition to the update operation.
 func (u *Update[T]) Where(query interface{}, args ...interface{}) *Update[T] {
 	u.wheres = append(u.wheres, &where{query: query, args: args})
 	return u
 }
 
+// UpdateForMap updates records matching the WHERE conditions using a column-value map.
 func (u *Update[T]) UpdateForMap(mapValue map[string]any) error {
 	tx, err := u.buildTx()
 	if err != nil {
@@ -330,6 +346,7 @@ func (u *Update[T]) UpdateForMap(mapValue map[string]any) error {
 	return tx.Updates(mapValue)
 }
 
+// UpdateColumn updates a single column for records matching the WHERE conditions.
 func (u *Update[T]) UpdateColumn(column string, value any) error {
 	tx, err := u.buildTx()
 	if err != nil {
@@ -338,6 +355,7 @@ func (u *Update[T]) UpdateColumn(column string, value any) error {
 	return tx.UpdateColumn(column, value)
 }
 
+// Update applies the entity values to records matching the WHERE conditions.
 func (u *Update[T]) Update(t T) error {
 	tx, err := u.buildTx()
 	if err != nil {
@@ -346,6 +364,7 @@ func (u *Update[T]) Update(t T) error {
 	return tx.Updates(t)
 }
 
+// Set begins a chain of column-value updates.
 func (u *Update[T]) Set(s string, value any) *UpdateSet {
 	tx, err := u.buildTx()
 	if err != nil {
@@ -355,7 +374,7 @@ func (u *Update[T]) Set(s string, value any) *UpdateSet {
 	return &UpdateSet{tx: tx, set: setMap}
 }
 
-// WithContext 为该更新构建器设置 context，返回自身以支持链式调用。
+// WithContext sets the context for this update builder and returns itself for chaining.
 func (u *Update[T]) WithContext(ctx context.Context) *Update[T] {
 	if u.db != nil {
 		u.db = u.db.WithContext(ctx)
@@ -363,12 +382,14 @@ func (u *Update[T]) WithContext(ctx context.Context) *Update[T] {
 	return u
 }
 
+// UpdateSet accumulates column-value pairs for a batch update.
 type UpdateSet struct {
 	tx  *db.Table
 	set map[string]any
 	err error
 }
 
+// Set adds a column-value pair to the update set.
 func (w *UpdateSet) Set(s string, value any) *UpdateSet {
 	if w.err != nil {
 		return w
@@ -376,6 +397,7 @@ func (w *UpdateSet) Set(s string, value any) *UpdateSet {
 	w.set[s] = value
 	return w
 }
+// Exec executes the accumulated updates.
 func (w *UpdateSet) Exec() error {
 	if w.err != nil {
 		return w.err
@@ -383,6 +405,7 @@ func (w *UpdateSet) Exec() error {
 	return w.tx.Updates(w.set)
 }
 
+// Delete is a type-safe delete builder for constructing delete operations on type T.
 type Delete[T any] struct {
 	db        *db.DB
 	tableName string
@@ -390,7 +413,7 @@ type Delete[T any] struct {
 	wheres    []*where
 }
 
-// 构建tx实例，惰性创建
+// buildTx constructs the database transaction, lazily created.
 func (d *Delete[T]) buildTx() (*db.Table, error) {
 	if d.db == nil {
 		return nil, errors.New("db is nil")
@@ -402,11 +425,13 @@ func (d *Delete[T]) buildTx() (*db.Table, error) {
 	return tx, nil
 }
 
+// Where adds a WHERE condition to the delete operation.
 func (d *Delete[T]) Where(query interface{}, args ...interface{}) *Delete[T] {
 	d.wheres = append(d.wheres, &where{query: query, args: args})
 	return d
 }
 
+// Delete executes the delete operation for records matching the WHERE conditions.
 func (d *Delete[T]) Delete() error {
 	tx, err := d.buildTx()
 	if err != nil {
@@ -415,7 +440,7 @@ func (d *Delete[T]) Delete() error {
 	return tx.Delete(d.model)
 }
 
-// WithContext 为该删除构建器设置 context，返回自身以支持链式调用。
+// WithContext sets the context for this delete builder and returns itself for chaining.
 func (d *Delete[T]) WithContext(ctx context.Context) *Delete[T] {
 	if d.db != nil {
 		d.db = d.db.WithContext(ctx)

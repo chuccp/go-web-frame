@@ -37,17 +37,25 @@ const MaxReadHeaderTimeout = time.Second * 30
 
 const MaxReadTimeout = time.Minute * 10
 
-// SSLCert represents a local certificate file pair for a specific host
+// SSLCert represents a local certificate file pair for a specific host.
+// Configure Host, CertFile, and KeyFile to use a local TLS certificate
+// instead of Let's Encrypt auto-certification.
 type SSLCert struct {
-	Host     string // 域名
-	CertFile string // 证书文件路径
-	KeyFile  string // 私钥文件路径
+	Host     string // Domain name for this certificate
+	CertFile string // Path to the certificate file (PEM format)
+	KeyFile  string // Path to the private key file (PEM format)
 }
 
+// SSLConfig holds the HTTPS/TLS configuration for the server.
+// It supports two modes:
+//   - Auto-cert: configure Hosts for Let's Encrypt automatic certificate management
+//   - Local cert: configure Certs with pre-obtained certificate files
+//
+// Both modes can be combined. Local certs take priority over auto-certs
 type SSLConfig struct {
-	Enabled bool
-	Hosts   []string  // 域名列表，用于自动申请证书（Let's Encrypt）
-	Certs   []SSLCert // 本地证书配置，配置后直接使用本地证书，不再自动申请
+	Enabled bool       // Whether HTTPS is enabled
+	Hosts   []string   // Domain names for Let's Encrypt auto-certification
+	Certs   []SSLCert  // Local certificate entries for pre-obtained certificates
 }
 
 // HasLocalCert returns true if Certs has any entries with both CertFile and KeyFile
@@ -62,21 +70,24 @@ func (s *SSLConfig) HasLocalCert() bool {
 	}
 	return false
 }
+// ServerConfig holds the HTTP server configuration.
 type ServerConfig struct {
-	Port int
-	//TODO  ContextPath 类似tomcat 的 ContextPath api都要带的前缀
-	ContextPath string
-	Locations   []string
-	Page404     string
-	SSL         *SSLConfig
+	Port        int        // Listen port (default: 19009)
+	ContextPath string     // Route prefix applied to all routes (e.g., "/api")
+	Locations   []string   // Static file directories to serve
+	Page404     string     // Fallback page for 404 responses (useful for SPA)
+	SSL         *SSLConfig // HTTPS/TLS configuration
 }
 
 const ServerConfigKey = "web.server"
 
+// SSLEnabled reports whether HTTPS is configured and enabled.
 func (s *ServerConfig) SSLEnabled() bool {
 	return s.SSL != nil && s.SSL.Enabled
 }
 
+// DefaultServerConfig returns a ServerConfig with sensible defaults.
+// Default port is 19009, SSL disabled.
 func DefaultServerConfig() *ServerConfig {
 
 	return &ServerConfig{
@@ -87,6 +98,8 @@ func DefaultServerConfig() *ServerConfig {
 	}
 }
 
+// HttpServer manages an HTTP server instance with Gin engine,
+// route handling, static file serving, and TLS support.
 type HttpServer struct {
 	httpServer     *http.Server
 	engine         *gin.Engine
@@ -98,9 +111,9 @@ type HttpServer struct {
 
 func defaultEngine() *gin.Engine {
 	engine := gin.Default()
-	// 信任所有代理，从 X-Forwarded-For 获取真实 IP
+	// Trust all proxies to resolve real IP from X-Forwarded-For
 	engine.SetTrustedProxies([]string{"0.0.0.0/0"})
-	// 启用从客户端 IP 头获取真实 IP
+	// Enable resolving real IP from client IP header
 	engine.ForwardedByClientIP = true
 	//config := cors.DefaultConfig()
 	//config.AllowAllOrigins = false
@@ -112,6 +125,7 @@ func defaultEngine() *gin.Engine {
 	return engine
 }
 
+// NewHttpServer creates a new HttpServer with the given server config and certificate manager.
 func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpServer {
 	engine := defaultEngine()
 	return &HttpServer{
@@ -122,10 +136,12 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 		handlerConfigs: make([]*HandlerConfig, 0),
 	}
 }
+// Port returns the configured listen port.
 func (httpServer *HttpServer) Port() int {
 	return httpServer.serverConfig.Port
 }
 
+// Engine returns the underlying Gin engine.
 func (httpServer *HttpServer) Engine() *gin.Engine {
 	return httpServer.engine
 }
@@ -155,10 +171,13 @@ func joinContextPath(contextPath string, relativePath string) string {
 
 	return contextPath + relativePath
 }
+// AddHandle registers a HandlerConfig to be processed when Handle is called.
 func (httpServer *HttpServer) AddHandle(handlerConfig *HandlerConfig) {
 	httpServer.handlerConfigs = append(httpServer.handlerConfigs, handlerConfig)
 }
 
+// Handle processes all registered HandlerConfigs, binding filters and routes
+// to the Gin engine. Must be called after all handlers are added via AddHandle.
 func (httpServer *HttpServer) Handle() {
 	allFilters := make([]Filter, 0)
 	for _, handlerConfig := range httpServer.handlerConfigs {
@@ -176,10 +195,10 @@ func (httpServer *HttpServer) Handle() {
 	})
 
 	for _, handlerConfig := range httpServer.handlerConfigs {
-		// 处理 API 路由
+		// Process API routes
 		for httpMethod, routeInfo := range handlerConfig.handles.RouteTree() {
 			for _, handlerInfo := range routeInfo {
-				// 设置 contextPath 到 HandlerMeta
+				// Set contextPath on HandlerMeta
 				fullPath := joinContextPath(handlerConfig.contextPath, handlerInfo.path)
 				handlerInfo.fullPath = fullPath
 				if handlerInfo.IsWebSocket() {
@@ -290,6 +309,7 @@ func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath
 		})
 	}
 }
+// ToGinHandlerFunc converts framework HandlerFunc values to Gin handler functions.
 func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
 	for i, handler := range handlers {
@@ -308,6 +328,8 @@ func (httpServer *HttpServer) toGinHandlerFunc(handlerConfig *HandlerConfig, han
 	return handlerFunc
 }
 
+// Run starts the HTTP server and blocks until the context is cancelled.
+// It handles static file serving, TLS configuration, and graceful shutdown.
 func (httpServer *HttpServer) Run(ctx context.Context) error {
 	log.Info("Start the service：", zap.Any("serverConfig", httpServer.serverConfig))
 	serverConfig := httpServer.serverConfig
@@ -383,7 +405,7 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 	ssl := httpServer.serverConfig.SSL
 
-	// 如果配置了本地证书路径，直接使用本地证书，不自动申请
+	// If local certificate files are configured, use them directly without auto-certification
 	if ssl.HasLocalCert() {
 		return httpServer.startTLSWithLocalCert(ctx)
 	}
@@ -432,11 +454,13 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
 }
 
-// startTLSWithLocalCert starts HTTPS using locally provided certificate files
+// startTLSWithLocalCert starts HTTPS using locally provided certificate files.
+// It loads all configured local certificates into a map keyed by host name,
+// and optionally falls back to Let's Encrypt autocert for unconfigured hosts.
 func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	ssl := httpServer.serverConfig.SSL
 
-	// 加载所有本地证书到 map，key 为对应的 host
+	// Load all local certificates into a map, keyed by host
 	certMap := make(map[string]*tls.Certificate)
 	var defaultCert *tls.Certificate
 	for _, c := range ssl.Certs {
@@ -462,7 +486,7 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 		}
 	}
 
-	// 如果同时配置了 Hosts（自动申请），创建 autocert 作为兜底
+	// If Hosts (auto-cert) are also configured, create autocert manager as fallback
 	var autocertManager *autocert.Manager
 	if len(ssl.Hosts) > 0 {
 		var err error
@@ -483,17 +507,17 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 			MinVersion: tls.VersionTLS12,
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				serverName := strings.ToLower(info.ServerName)
-				// 优先使用本地证书
+				// Prefer local certificate match
 				if c, ok := certMap[serverName]; ok {
 					return c, nil
 				}
-				// 尝试 autocert 兜底
+				// Try autocert fallback
 				if autocertManager != nil {
 					if c, err := autocertManager.GetCertificate(info); err == nil && c != nil {
 						return c, nil
 					}
 				}
-				// 使用默认本地证书兜底
+				// Fall back to the first local certificate as default
 				if defaultCert != nil {
 					return defaultCert, nil
 				}
@@ -520,6 +544,7 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
 }
 
+// Close immediately closes the underlying HTTP server.
 func (httpServer *HttpServer) Close() error {
 	if httpServer.httpServer == nil {
 		return nil
@@ -527,6 +552,8 @@ func (httpServer *HttpServer) Close() error {
 	return httpServer.httpServer.Close()
 }
 
+// CertManager manages TLS certificates, supporting both Let's Encrypt
+// auto-certification and local certificate files.
 type CertManager struct {
 	certManager *autocert.Manager
 	hosts       []string
@@ -534,6 +561,7 @@ type CertManager struct {
 	lock        *sync.RWMutex
 }
 
+// NewCertManager creates a new CertManager with empty host and port lists.
 func NewCertManager() *CertManager {
 	return &CertManager{
 		hosts: []string{},
@@ -541,9 +569,12 @@ func NewCertManager() *CertManager {
 		lock:  new(sync.RWMutex),
 	}
 }
+// HasTLS reports whether any hosts have been registered for TLS.
 func (cm *CertManager) HasTLS() bool {
 	return len(cm.hosts) > 0
 }
+// AddHost registers a domain for Let's Encrypt auto-certification.
+// The host is normalized to lowercase and validated as a domain name.
 func (cm *CertManager) AddHost(host string) {
 	if strings.Contains(host, ":") {
 		host = host[:strings.Index(host, ":")]
@@ -556,6 +587,7 @@ func (cm *CertManager) AddHost(host string) {
 		cm.hosts = append(cm.hosts, host)
 	}
 }
+// AddPort registers a port number to track which ports the server listens on.
 func (cm *CertManager) AddPort(port int) {
 	if port > 0 {
 		if util.ArrayIntContains(cm.port, port) {
@@ -564,6 +596,8 @@ func (cm *CertManager) AddPort(port int) {
 		cm.port = append(cm.port, port)
 	}
 }
+// GetCertManager returns the autocert.Manager, creating one if needed.
+// Certificates are cached in the "certs" directory.
 func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
@@ -580,15 +614,17 @@ func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
 	}
 	m := &autocert.Manager{
 		Prompt: autocert.AcceptTOS,
-		// 缓存证书的路径
+		// Path to cache certificates
 		Cache: autocert.DirCache(certsPath),
-		// 需要自动获取证书的域名
+		// Domains requiring automatic certificate acquisition
 		HostPolicy: autocert.HostWhitelist(cm.hosts...),
 	}
 	cm.certManager = m
 	return m, nil
 }
 
+// GetPEM retrieves the PEM-encoded certificate chain and private key for the given host.
+// It supports RSA, ECDSA, and Ed25519 private key types.
 func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err error) {
 	manager, err := cm.GetCertManager()
 	if err != nil {
@@ -603,7 +639,7 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 		return nil, nil, errors.New("no certificate found")
 	}
 
-	// 1. 證書鏈（leaf + intermediates，通常不包含 root）
+	// 1. Certificate chain (leaf + intermediates, typically excluding root)
 	var certBuf bytes.Buffer
 	for i, der := range tlsCert.Certificate {
 		err = pem.Encode(&certBuf, &pem.Block{
@@ -679,6 +715,8 @@ func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err e
 	}
 }
 
+// Run starts auxiliary HTTP servers on ports 80 and/or 443 for Let's Encrypt
+// ACME HTTP-01 challenge handling, if those ports are not already in use.
 func (cm *CertManager) Run(ctx context.Context) error {
 
 	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {

@@ -11,13 +11,15 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// Config holds rate limiter configuration.
 type Config struct {
-	Limit   int // 每秒限制
-	Burst   int // 最大令牌数
-	MaxSize int // 最大缓存数量
-	Expiry  int // 缓存过期时间 单位秒
+	Limit   int // Requests per second
+	Burst   int // Maximum burst size
+	MaxSize int // Maximum number of cached limiters
+	Expiry  int // Limiter cache TTL in seconds
 }
 
+// RateLimit provides per-key rate limiting using a token bucket algorithm.
 type RateLimit struct {
 	cache         *otter.Cache[string, *rate.Limiter]
 	limiterLoader otter.Loader[string, *rate.Limiter]
@@ -25,7 +27,7 @@ type RateLimit struct {
 	config        *Config
 }
 
-// Allow 瞬间检查是否允许（不阻塞，直接返回 false 拒绝）
+// Allow checks if a request for the given key is permitted.
 func (r *RateLimit) Allow(key string) bool {
 	limiter, err := r.cache.Get(r.ctx, key, r.limiterLoader)
 	if err != nil {
@@ -33,6 +35,7 @@ func (r *RateLimit) Allow(key string) bool {
 	}
 	return limiter.Allow()
 }
+// AllowSBurst checks if a request is permitted with a custom burst size.
 func (r *RateLimit) AllowSBurst(key string, burst int) bool {
 	limiter, err := r.cache.Get(r.ctx, key, r._limiterLoader(burst))
 	if err != nil {
@@ -41,7 +44,7 @@ func (r *RateLimit) AllowSBurst(key string, burst int) bool {
 	return limiter.Allow()
 }
 
-// Wait 阻塞等待直到允许通过（推荐用于严格限流）
+// Wait blocks until a request for the given key is permitted.
 func (r *RateLimit) Wait(key string) error {
 	limiter, err := r.cache.Get(r.ctx, key, r.limiterLoader)
 	if err != nil {
@@ -90,7 +93,7 @@ func (r *RateLimit) Init(ctx *core.Context) error {
 	return nil
 }
 
-// Stats o可选：获取缓存统计（命中率、驱逐数等）
+// Stats returns rate limiter cache statistics.
 func (r *RateLimit) Stats() stats.Stats {
 	return r.cache.Stats()
 }

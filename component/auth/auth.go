@@ -8,7 +8,7 @@ import (
 // Authentication defines the interface for authentication services.
 type Authentication[U any] interface {
 	core.IService
-	SignIn(user any, request *web.Request) (any, error)
+	SignIn(value any, request *web.Request) (any, error)
 	SignOut(request *web.Request) (any, error)
 	User(request *web.Request) (U, error)
 }

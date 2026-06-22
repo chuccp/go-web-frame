@@ -306,7 +306,9 @@ func (r *Request) Response() Response {
 	return r.response
 }
 
-// GinContext returns the underlying *gin.Context for advanced use cases.
+// GinContext returns the underlying *gin.Context.
+// Not recommended for use — prefer the Request helper methods.
+// Only reach for this when you need to reuse libraries or middleware from the gin ecosystem.
 func (r *Request) GinContext() *gin.Context {
 	return r.c
 }

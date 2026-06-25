@@ -34,18 +34,13 @@ func beforeUpdateCallback(db *gorm.DB) {
 	processZeroTime(db)
 }
 
-// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to nil.
+// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to current time.
 func processZeroTime(db *gorm.DB) {
-	if db.Statement.Schema == nil {
-		return
-	}
-
 	dest := db.Statement.Dest
 	if dest == nil {
 		return
 	}
 
-	// Handle pointer to struct
 	val := reflect.ValueOf(dest)
 	if val.Kind() == reflect.Ptr {
 		if val.IsNil() {
@@ -54,12 +49,46 @@ func processZeroTime(db *gorm.DB) {
 		val = val.Elem()
 	}
 
-	// Only process struct types
-	if val.Kind() != reflect.Struct {
+	// Handle map[string]interface{} (used in UpdateForMap)
+	if val.Kind() == reflect.Map {
+		processMapZeroTime(db, val)
 		return
 	}
 
-	// Use GORM's schema to iterate over fields
+	// Handle struct (used in Save/Create/Update with struct)
+	if val.Kind() == reflect.Struct && db.Statement.Schema != nil {
+		processStructZeroTime(db, val)
+	}
+}
+
+// processMapZeroTime handles zero time values in map[string]interface{} destinations.
+func processMapZeroTime(db *gorm.DB, val reflect.Value) {
+	now := time.Now()
+
+	// Get the original map
+	origMap, ok := db.Statement.Dest.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// Check and update zero time values
+	hasChanges := false
+	for key, value := range origMap {
+		t, isTime := value.(time.Time)
+		if isTime && t.IsZero() {
+			origMap[key] = now
+			hasChanges = true
+		}
+	}
+
+	// If we made changes, reassign the map to the statement
+	if hasChanges {
+		db.Statement.Dest = origMap
+	}
+}
+
+// processStructZeroTime handles zero time values in struct destinations using GORM schema.
+func processStructZeroTime(db *gorm.DB, val reflect.Value) {
 	for _, field := range db.Statement.Schema.Fields {
 		if field.FieldType != reflect.TypeOf(time.Time{}) {
 			continue

@@ -8,8 +8,8 @@ import (
 )
 
 // ZeroTimePlugin is a GORM plugin that automatically converts zero time.Time values
-// to NULL before Create and Update operations. This prevents MySQL strict mode from
-// rejecting '0000-00-00' datetime values.
+// to the current time before Create and Update operations. This prevents MySQL strict
+// mode from rejecting '0000-00-00' datetime values.
 type ZeroTimePlugin struct{}
 
 // Name returns the plugin name for GORM registration.
@@ -34,7 +34,7 @@ func beforeUpdateCallback(db *gorm.DB) {
 	processZeroTime(db)
 }
 
-// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to nil.
+// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to current time.
 func processZeroTime(db *gorm.DB) {
 	dest := db.Statement.Dest
 	if dest == nil {
@@ -63,6 +63,8 @@ func processZeroTime(db *gorm.DB) {
 
 // processMapZeroTime handles zero time values in map[string]interface{} destinations.
 func processMapZeroTime(db *gorm.DB, val reflect.Value) {
+	now := time.Now()
+
 	// Get the original map
 	origMap, ok := db.Statement.Dest.(map[string]interface{})
 	if !ok {
@@ -74,7 +76,7 @@ func processMapZeroTime(db *gorm.DB, val reflect.Value) {
 	for key, value := range origMap {
 		t, isTime := value.(time.Time)
 		if isTime && t.IsZero() {
-			origMap[key] = nil
+			origMap[key] = now
 			hasChanges = true
 		}
 	}
@@ -102,9 +104,9 @@ func processStructZeroTime(db *gorm.DB, val reflect.Value) {
 			continue
 		}
 
-		// If zero time, set to nil
+		// If zero time, set to current time
 		if t.IsZero() {
-			db.Statement.SetColumn(field.Name, nil)
+			db.Statement.SetColumn(field.Name, time.Now())
 		}
 	}
 }

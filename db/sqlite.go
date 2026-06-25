@@ -51,6 +51,9 @@ func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
+	if err := sb.Use(&ZeroTimePlugin{}); err != nil {
+		return nil, errors.WithStackIf(err)
+	}
 	if err := ApplyConnectionPool(sb, sqliteConfig); err != nil {
 		return nil, err
 	}

@@ -76,6 +76,9 @@ func (mysqlConfig *MysqlConfig) Connection() (db *DB, err error) {
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
+	if err := db_.Use(&ZeroTimePlugin{}); err != nil {
+		return nil, errors.WithStackIf(err)
+	}
 	if err := ApplyConnectionPool(db_, mysqlConfig); err != nil {
 		return nil, err
 	}

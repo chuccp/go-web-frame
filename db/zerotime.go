@@ -34,7 +34,7 @@ func beforeUpdateCallback(db *gorm.DB) {
 	processZeroTime(db)
 }
 
-// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to current time.
+// processZeroTime scans the statement's Dest for time.Time fields and sets zero values to nil.
 func processZeroTime(db *gorm.DB) {
 	dest := db.Statement.Dest
 	if dest == nil {
@@ -63,8 +63,6 @@ func processZeroTime(db *gorm.DB) {
 
 // processMapZeroTime handles zero time values in map[string]interface{} destinations.
 func processMapZeroTime(db *gorm.DB, val reflect.Value) {
-	now := time.Now()
-
 	// Get the original map
 	origMap, ok := db.Statement.Dest.(map[string]interface{})
 	if !ok {
@@ -76,7 +74,7 @@ func processMapZeroTime(db *gorm.DB, val reflect.Value) {
 	for key, value := range origMap {
 		t, isTime := value.(time.Time)
 		if isTime && t.IsZero() {
-			origMap[key] = now
+			origMap[key] = nil
 			hasChanges = true
 		}
 	}
@@ -104,9 +102,9 @@ func processStructZeroTime(db *gorm.DB, val reflect.Value) {
 			continue
 		}
 
-		// If zero time, set to current time
+		// If zero time, set to nil
 		if t.IsZero() {
-			db.Statement.SetColumn(field.Name, time.Now())
+			db.Statement.SetColumn(field.Name, nil)
 		}
 	}
 }

@@ -74,6 +74,57 @@ func WithRoundedSquareShape() standard.ImageOption {
 
 }
 
+type ShapeCircle struct {
+	Color color.Color
+}
+
+func (s *ShapeCircle) Draw(ctx *standard.DrawContext) {
+	w, h := ctx.Edge()
+	fw0, fh0 := float64(w), float64(h)
+	x0, y0 := ctx.UpperLeft()
+
+	if s.Color != nil {
+		if IsWhite(ctx.Color()) {
+			ctx.SetColor(ctx.Color())
+		} else {
+			ctx.SetColor(s.Color)
+		}
+	} else {
+		ctx.SetColor(ctx.Color())
+	}
+
+	radius := fw0 / 2
+	if fh0/2 < radius {
+		radius = fh0 / 2
+	}
+	cx := float64(x0) + fw0/2
+	cy := float64(y0) + fh0/2
+	ctx.DrawCircle(cx, cy, radius-1)
+	ctx.Fill()
+}
+
+func (s *ShapeCircle) DrawFinder(ctx *standard.DrawContext) {
+	w, h := ctx.Edge()
+	fw0, fh0 := float64(w), float64(h)
+	x0, y0 := ctx.UpperLeft()
+
+	if s.Color != nil {
+		if IsWhite(ctx.Color()) {
+			ctx.SetColor(ctx.Color())
+		} else {
+			ctx.SetColor(s.Color)
+		}
+	} else {
+		ctx.SetColor(ctx.Color())
+	}
+	ctx.DrawRectangle(x0, y0, fw0, fh0)
+	ctx.Fill()
+}
+
+func WithCircleShape() standard.ImageOption {
+	return standard.WithCustomShape(&ShapeCircle{})
+}
+
 type BufferWriteCloser struct {
 	b *buffer.Buffer
 }

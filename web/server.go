@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -44,6 +45,78 @@ type SSLCert struct {
 	Host     string // Domain name for this certificate
 	CertFile string // Path to the certificate file (PEM format)
 	KeyFile  string // Path to the private key file (PEM format)
+}
+
+// certCheckInterval is the minimum interval between file stat checks for
+// certificate changes. Under high traffic, every TLS handshake would
+// otherwise stat the cert files, causing unnecessary I/O.
+const certCheckInterval = 5 * time.Minute
+
+// certEntry holds a dynamically reloadable local certificate.
+// It tracks file modification times and reloads the certificate
+// automatically when the cert or key file changes on disk.
+// File checks are throttled to at most once per certCheckInterval.
+type certEntry struct {
+	host      string
+	certFile  string
+	keyFile   string
+	cert      *tls.Certificate
+	certMod   time.Time
+	keyMod    time.Time
+	nextCheck time.Time
+	mu        sync.RWMutex
+}
+
+// get returns the current certificate, reloading from disk if either
+// the cert file or key file has been modified since the last load.
+// File stat calls are throttled to at most once per certCheckInterval.
+func (e *certEntry) get() (*tls.Certificate, error) {
+	// Fast path: within cooldown period, return cached cert immediately
+	e.mu.RLock()
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		c := e.cert
+		e.mu.RUnlock()
+		return c, nil
+	}
+	e.mu.RUnlock()
+
+	// Outside cooldown — stat files to check for changes
+	certStat, err := os.Stat(e.certFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "stat cert file %s", e.certFile)
+	}
+	keyStat, err := os.Stat(e.keyFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "stat key file %s", e.keyFile)
+	}
+
+	// Acquire write lock to update state
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Double-check cooldown (another goroutine may have just checked)
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		return e.cert, nil
+	}
+
+	// Files unchanged — extend cooldown, return cached cert
+	if e.cert != nil && certStat.ModTime().Equal(e.certMod) && keyStat.ModTime().Equal(e.keyMod) {
+		e.nextCheck = time.Now().Add(certCheckInterval)
+		return e.cert, nil
+	}
+
+	// Files changed — reload the certificate
+	cert, err := tls.LoadX509KeyPair(e.certFile, e.keyFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reload certificate host=%s cert=%s key=%s", e.host, e.certFile, e.keyFile)
+	}
+	e.cert = &cert
+	e.certMod = certStat.ModTime()
+	e.keyMod = keyStat.ModTime()
+	e.nextCheck = time.Now().Add(certCheckInterval)
+
+	log.Info("Certificate reloaded from disk", zap.String("host", e.host), zap.String("cert", e.certFile))
+	return e.cert, nil
 }
 
 // SSLConfig holds the HTTPS/TLS configuration for the server.
@@ -460,9 +533,9 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	ssl := httpServer.serverConfig.SSL
 
-	// Load all local certificates into a map, keyed by host
-	certMap := make(map[string]*tls.Certificate)
-	var defaultCert *tls.Certificate
+	// Build certEntry map keyed by host for on-demand reloading
+	certMap := make(map[string]*certEntry)
+	var defaultEntry *certEntry
 	for _, c := range ssl.Certs {
 		if c.CertFile == "" || c.KeyFile == "" {
 			continue
@@ -471,18 +544,23 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 			log.Warn("Skipping local cert with empty Host", zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
 			continue
 		}
-		cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
-		}
 		host := strings.ToLower(c.Host)
 		if _, exists := certMap[host]; exists {
 			log.Warn("Duplicate host in local certificate config, overwriting", zap.String("host", host))
 		}
+		entry := &certEntry{
+			host:     host,
+			certFile: c.CertFile,
+			keyFile:  c.KeyFile,
+		}
+		// Load the certificate eagerly on startup to fail fast on errors
+		if _, err := entry.get(); err != nil {
+			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
+		}
 		log.Info("Loaded local certificate", zap.String("host", host), zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
-		certMap[host] = &cert
-		if defaultCert == nil {
-			defaultCert = &cert
+		certMap[host] = entry
+		if defaultEntry == nil {
+			defaultEntry = entry
 		}
 	}
 
@@ -507,9 +585,9 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 			MinVersion: tls.VersionTLS12,
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				serverName := strings.ToLower(info.ServerName)
-				// Prefer local certificate match
-				if c, ok := certMap[serverName]; ok {
-					return c, nil
+				// Prefer local certificate match (reloads automatically if files changed)
+				if entry, ok := certMap[serverName]; ok {
+					return entry.get()
 				}
 				// Try autocert fallback
 				if autocertManager != nil {
@@ -517,9 +595,9 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 						return c, nil
 					}
 				}
-				// Fall back to the first local certificate as default
-				if defaultCert != nil {
-					return defaultCert, nil
+				// Fall back to the first local certificate as default (reloads automatically if files changed)
+				if defaultEntry != nil {
+					return defaultEntry.get()
 				}
 				return nil, errors.Errorf("no certificate found for host: %s", serverName)
 			},

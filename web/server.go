@@ -37,7 +37,6 @@ type SSLCert struct {
 	KeyFile  string // Path to the private key file (PEM format)
 }
 
-
 // SSLConfig holds the HTTPS/TLS configuration for the server.
 // It supports two modes:
 //   - Auto-cert: configure Hosts for Let's Encrypt automatic certificate management
@@ -45,9 +44,9 @@ type SSLCert struct {
 //
 // Both modes can be combined. Local certs take priority over auto-certs
 type SSLConfig struct {
-	Enabled bool       // Whether HTTPS is enabled
-	Hosts   []string   // Domain names for Let's Encrypt auto-certification
-	Certs   []SSLCert  // Local certificate entries for pre-obtained certificates
+	Enabled bool      // Whether HTTPS is enabled
+	Hosts   []string  // Domain names for Let's Encrypt auto-certification
+	Certs   []SSLCert // Local certificate entries for pre-obtained certificates
 }
 
 // HasLocalCert returns true if Certs has any entries with both CertFile and KeyFile
@@ -62,6 +61,7 @@ func (s *SSLConfig) HasLocalCert() bool {
 	}
 	return false
 }
+
 // ServerConfig holds the HTTP server configuration.
 type ServerConfig struct {
 	Port        int        // Listen port (default: 19009)
@@ -128,6 +128,7 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 		handlerConfigs: make([]*HandlerConfig, 0),
 	}
 }
+
 // Port returns the configured listen port.
 func (httpServer *HttpServer) Port() int {
 	return httpServer.serverConfig.Port
@@ -163,6 +164,7 @@ func joinContextPath(contextPath string, relativePath string) string {
 
 	return contextPath + relativePath
 }
+
 // AddHandle registers a HandlerConfig to be processed when Handle is called.
 func (httpServer *HttpServer) AddHandle(handlerConfig *HandlerConfig) {
 	httpServer.handlerConfigs = append(httpServer.handlerConfigs, handlerConfig)
@@ -301,6 +303,7 @@ func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath
 		})
 	}
 }
+
 // ToGinHandlerFunc converts framework HandlerFunc values to Gin handler functions.
 func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
@@ -548,4 +551,3 @@ func (httpServer *HttpServer) Close() error {
 	}
 	return httpServer.httpServer.Close()
 }
-

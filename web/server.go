@@ -1,15 +1,8 @@
 package web
 
 import (
-	"bytes"
 	"context"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -17,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"emperror.dev/errors"
@@ -25,7 +17,6 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	//"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/http2"
@@ -53,9 +44,9 @@ type SSLCert struct {
 //
 // Both modes can be combined. Local certs take priority over auto-certs
 type SSLConfig struct {
-	Enabled bool       // Whether HTTPS is enabled
-	Hosts   []string   // Domain names for Let's Encrypt auto-certification
-	Certs   []SSLCert  // Local certificate entries for pre-obtained certificates
+	Enabled bool      // Whether HTTPS is enabled
+	Hosts   []string  // Domain names for Let's Encrypt auto-certification
+	Certs   []SSLCert // Local certificate entries for pre-obtained certificates
 }
 
 // HasLocalCert returns true if Certs has any entries with both CertFile and KeyFile
@@ -70,6 +61,7 @@ func (s *SSLConfig) HasLocalCert() bool {
 	}
 	return false
 }
+
 // ServerConfig holds the HTTP server configuration.
 type ServerConfig struct {
 	Port        int        // Listen port (default: 19009)
@@ -136,6 +128,7 @@ func NewHttpServer(serverConfig *ServerConfig, certManager *CertManager) *HttpSe
 		handlerConfigs: make([]*HandlerConfig, 0),
 	}
 }
+
 // Port returns the configured listen port.
 func (httpServer *HttpServer) Port() int {
 	return httpServer.serverConfig.Port
@@ -171,6 +164,7 @@ func joinContextPath(contextPath string, relativePath string) string {
 
 	return contextPath + relativePath
 }
+
 // AddHandle registers a HandlerConfig to be processed when Handle is called.
 func (httpServer *HttpServer) AddHandle(handlerConfig *HandlerConfig) {
 	httpServer.handlerConfigs = append(httpServer.handlerConfigs, handlerConfig)
@@ -309,6 +303,7 @@ func (httpServer *HttpServer) handleReverseProxy(httpMethod string, relativePath
 		})
 	}
 }
+
 // ToGinHandlerFunc converts framework HandlerFunc values to Gin handler functions.
 func (httpServer *HttpServer) ToGinHandlerFunc(handlerConfig *HandlerConfig, handlers ...HandlerFunc) []gin.HandlerFunc {
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
@@ -460,9 +455,9 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	ssl := httpServer.serverConfig.SSL
 
-	// Load all local certificates into a map, keyed by host
-	certMap := make(map[string]*tls.Certificate)
-	var defaultCert *tls.Certificate
+	// Build certEntry map keyed by host for on-demand reloading
+	certMap := make(map[string]*certEntry)
+	var defaultEntry *certEntry
 	for _, c := range ssl.Certs {
 		if c.CertFile == "" || c.KeyFile == "" {
 			continue
@@ -471,18 +466,23 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 			log.Warn("Skipping local cert with empty Host", zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
 			continue
 		}
-		cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
-		}
 		host := strings.ToLower(c.Host)
 		if _, exists := certMap[host]; exists {
 			log.Warn("Duplicate host in local certificate config, overwriting", zap.String("host", host))
 		}
+		entry := &certEntry{
+			host:     host,
+			certFile: c.CertFile,
+			keyFile:  c.KeyFile,
+		}
+		// Load the certificate eagerly on startup to fail fast on errors
+		if _, err := entry.get(); err != nil {
+			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
+		}
 		log.Info("Loaded local certificate", zap.String("host", host), zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
-		certMap[host] = &cert
-		if defaultCert == nil {
-			defaultCert = &cert
+		certMap[host] = entry
+		if defaultEntry == nil {
+			defaultEntry = entry
 		}
 	}
 
@@ -507,9 +507,9 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 			MinVersion: tls.VersionTLS12,
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				serverName := strings.ToLower(info.ServerName)
-				// Prefer local certificate match
-				if c, ok := certMap[serverName]; ok {
-					return c, nil
+				// Prefer local certificate match (reloads automatically if files changed)
+				if entry, ok := certMap[serverName]; ok {
+					return entry.get()
 				}
 				// Try autocert fallback
 				if autocertManager != nil {
@@ -517,9 +517,9 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 						return c, nil
 					}
 				}
-				// Fall back to the first local certificate as default
-				if defaultCert != nil {
-					return defaultCert, nil
+				// Fall back to the first local certificate as default (reloads automatically if files changed)
+				if defaultEntry != nil {
+					return defaultEntry.get()
 				}
 				return nil, errors.Errorf("no certificate found for host: %s", serverName)
 			},
@@ -550,233 +550,4 @@ func (httpServer *HttpServer) Close() error {
 		return nil
 	}
 	return httpServer.httpServer.Close()
-}
-
-// CertManager manages TLS certificates, supporting both Let's Encrypt
-// auto-certification and local certificate files.
-type CertManager struct {
-	certManager *autocert.Manager
-	hosts       []string
-	port        []int
-	lock        *sync.RWMutex
-}
-
-// NewCertManager creates a new CertManager with empty host and port lists.
-func NewCertManager() *CertManager {
-	return &CertManager{
-		hosts: []string{},
-		port:  []int{},
-		lock:  new(sync.RWMutex),
-	}
-}
-// HasTLS reports whether any hosts have been registered for TLS.
-func (cm *CertManager) HasTLS() bool {
-	return len(cm.hosts) > 0
-}
-// AddHost registers a domain for Let's Encrypt auto-certification.
-// The host is normalized to lowercase and validated as a domain name.
-func (cm *CertManager) AddHost(host string) {
-	if strings.Contains(host, ":") {
-		host = host[:strings.Index(host, ":")]
-	}
-	host = strings.ToLower(strings.TrimSpace(host))
-	if util.IsDomain(host) {
-		if util.EqualsAnyIgnoreCase(host, cm.hosts...) {
-			return
-		}
-		cm.hosts = append(cm.hosts, host)
-	}
-}
-// AddPort registers a port number to track which ports the server listens on.
-func (cm *CertManager) AddPort(port int) {
-	if port > 0 {
-		if util.ArrayIntContains(cm.port, port) {
-			return
-		}
-		cm.port = append(cm.port, port)
-	}
-}
-// GetCertManager returns the autocert.Manager, creating one if needed.
-// Certificates are cached in the "certs" directory.
-func (cm *CertManager) GetCertManager() (*autocert.Manager, error) {
-	cm.lock.Lock()
-	defer cm.lock.Unlock()
-	if len(cm.hosts) == 0 {
-		return &autocert.Manager{}, nil
-	}
-	if cm.certManager != nil {
-		return cm.certManager, nil
-	}
-	certsPath := "certs"
-	err := util.CreateDirIfNoExists(certsPath)
-	if err != nil {
-		return nil, err
-	}
-	m := &autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		// Path to cache certificates
-		Cache: autocert.DirCache(certsPath),
-		// Domains requiring automatic certificate acquisition
-		HostPolicy: autocert.HostWhitelist(cm.hosts...),
-	}
-	cm.certManager = m
-	return m, nil
-}
-
-// GetPEM retrieves the PEM-encoded certificate chain and private key for the given host.
-// It supports RSA, ECDSA, and Ed25519 private key types.
-func (cm *CertManager) GetPEM(host string) (certPEM []byte, keyPEM []byte, err error) {
-	manager, err := cm.GetCertManager()
-	if err != nil {
-		return nil, nil, errors.WithStackIf(err)
-	}
-	hello := &tls.ClientHelloInfo{ServerName: host}
-	tlsCert, err := manager.GetCertificate(hello)
-	if err != nil {
-		return nil, nil, errors.WithStackIf(err)
-	}
-	if tlsCert == nil {
-		return nil, nil, errors.New("no certificate found")
-	}
-
-	// 1. Certificate chain (leaf + intermediates, typically excluding root)
-	var certBuf bytes.Buffer
-	for i, der := range tlsCert.Certificate {
-		err = pem.Encode(&certBuf, &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: der,
-		})
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to encode certificate #%d", i)
-		}
-	}
-	certPEM = certBuf.Bytes()
-	if tlsCert.PrivateKey == nil {
-		return certPEM, nil, nil
-	}
-
-	var derBytes []byte
-
-	switch pk := tlsCert.PrivateKey.(type) {
-	case *rsa.PrivateKey:
-		derBytes = x509.MarshalPKCS1PrivateKey(pk)
-		pemType := "RSA PRIVATE KEY"
-
-		keyBuf := new(bytes.Buffer)
-		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to encode RSA private key")
-		}
-		return certPEM, keyBuf.Bytes(), nil
-
-	case *ecdsa.PrivateKey:
-		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
-		if err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to marshal ECDSA private key to PKCS#8")
-		}
-		pemType := "PRIVATE KEY"
-
-		keyBuf := new(bytes.Buffer)
-		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to encode ECDSA private key")
-		}
-		return certPEM, keyBuf.Bytes(), nil
-
-	case ed25519.PrivateKey:
-		derBytes, err = x509.MarshalPKCS8PrivateKey(pk)
-		if err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to marshal Ed25519 private key to PKCS#8")
-		}
-		pemType := "PRIVATE KEY"
-
-		keyBuf := new(bytes.Buffer)
-		if err := pem.Encode(keyBuf, &pem.Block{Type: pemType, Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to encode Ed25519 private key")
-		}
-		return certPEM, keyBuf.Bytes(), nil
-
-	case crypto.Signer, interface{ MarshalPKCS8PrivateKey() ([]byte, error) }:
-		if marshaler, ok := pk.(interface{ MarshalPKCS8PrivateKey() ([]byte, error) }); ok {
-			derBytes, err = marshaler.MarshalPKCS8PrivateKey()
-			if err != nil {
-				return certPEM, nil, errors.Wrap(err, "MarshalPKCS8PrivateKey failed")
-			}
-		} else {
-			return certPEM, nil, errors.New("private key implements crypto.Signer but no marshal method")
-		}
-
-		keyBuf := new(bytes.Buffer)
-		if err := pem.Encode(keyBuf, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes}); err != nil {
-			return certPEM, nil, errors.Wrap(err, "failed to encode private key")
-		}
-		return certPEM, keyBuf.Bytes(), nil
-
-	default:
-		return certPEM, nil, errors.Errorf("unsupported private key type: %T", pk)
-	}
-}
-
-// Run starts auxiliary HTTP servers on ports 80 and/or 443 for Let's Encrypt
-// ACME HTTP-01 challenge handling, if those ports are not already in use.
-func (cm *CertManager) Run(ctx context.Context) error {
-
-	if len(cm.hosts) > 0 && (!util.ArrayIntContains(cm.port, 80) || !util.ArrayIntContains(cm.port, 443)) {
-		var wg = pool.New()
-		errorsPool := wg.WithContext(ctx).WithFirstError()
-		if !util.ArrayIntContains(cm.port, 80) {
-			errorsPool.Go(func(ctx context.Context) error {
-				manager, err := cm.GetCertManager()
-				if err != nil {
-					log.Errors("Failed to obtain certificate management：", err)
-					return err
-				}
-				server := http.Server{
-					Addr:    ":80",
-					Handler: manager.HTTPHandler(nil),
-				}
-
-				go func() {
-					<-ctx.Done()
-					err = server.Shutdown(ctx)
-					if err != nil {
-						log.Errors("Shutdown service on port 80", err)
-					}
-				}()
-				err = server.ListenAndServe()
-				if err != nil {
-					log.Errors("Failed to start the certificate service on port 80", err)
-				}
-				return err
-
-			})
-		}
-		if !util.ArrayIntContains(cm.port, 443) {
-
-			errorsPool.Go(func(ctx context.Context) error {
-
-				manager, err := cm.GetCertManager()
-				if err != nil {
-					log.Errors("证书获取管理失败：", err)
-					return err
-				}
-				server := http.Server{
-					Addr:    ":443",
-					Handler: manager.HTTPHandler(nil),
-				}
-				go func() {
-					<-ctx.Done()
-					err = server.Shutdown(ctx)
-					if err != nil {
-						log.Errors("Shutdown service on port 80", err)
-					}
-				}()
-				err = server.ListenAndServe()
-				if err != nil {
-					log.Errors("Failed to start the certificate service on port 443", err)
-				}
-				return err
-			})
-		}
-		return errors.WithStackIf(errorsPool.Wait())
-	}
-	return nil
 }

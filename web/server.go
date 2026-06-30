@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -455,37 +456,49 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 }
 
 // startTLSWithLocalCert starts HTTPS using locally provided certificate files.
-// It loads all configured local certificates into a map keyed by host name,
-// and optionally falls back to Let's Encrypt autocert for unconfigured hosts.
+// It loads all configured local certificates and automatically extracts domain names
+// from the certificate's Subject Alternative Names (SANs) for matching.
+// If a host is specified in config, it's used as an additional alias.
 func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	ssl := httpServer.serverConfig.SSL
 
-	// Build certEntry map keyed by host for on-demand reloading
+	// Build certEntry map keyed by domain names extracted from certificates
 	certMap := make(map[string]*certEntry)
 	var defaultEntry *certEntry
 	for _, c := range ssl.Certs {
 		if c.CertFile == "" || c.KeyFile == "" {
 			continue
 		}
-		if c.Host == "" {
-			log.Warn("Skipping local cert with empty Host", zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
-			continue
-		}
-		host := strings.ToLower(c.Host)
-		if _, exists := certMap[host]; exists {
-			log.Warn("Duplicate host in local certificate config, overwriting", zap.String("host", host))
-		}
 		entry := &certEntry{
-			host:     host,
+			host:     c.Host,
 			certFile: c.CertFile,
 			keyFile:  c.KeyFile,
 		}
 		// Load the certificate eagerly on startup to fail fast on errors
-		if _, err := entry.get(); err != nil {
-			return errors.Wrapf(err, "failed to load certificate: host=%s, cert=%s, key=%s", c.Host, c.CertFile, c.KeyFile)
+		cert, err := entry.get()
+		if err != nil {
+			return errors.Wrapf(err, "failed to load certificate: cert=%s, key=%s", c.CertFile, c.KeyFile)
 		}
-		log.Info("Loaded local certificate", zap.String("host", host), zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
-		certMap[host] = entry
+		log.Info("Loaded local certificate", zap.String("cert", c.CertFile), zap.String("key", c.KeyFile))
+
+		// Extract domain names from certificate's SANs and Subject
+		domains := extractDomainsFromCert(cert)
+		for _, domain := range domains {
+			domain = strings.ToLower(domain)
+			if _, exists := certMap[domain]; exists {
+				log.Warn("Duplicate domain in certificate config, overwriting", zap.String("domain", domain))
+			}
+			certMap[domain] = entry
+			log.Debug("Mapped domain to certificate", zap.String("domain", domain), zap.String("cert", c.CertFile))
+		}
+
+		// If host is specified in config, add it as an alias
+		if c.Host != "" {
+			host := strings.ToLower(c.Host)
+			certMap[host] = entry
+			log.Debug("Mapped config host to certificate", zap.String("host", host), zap.String("cert", c.CertFile))
+		}
+
 		if defaultEntry == nil {
 			defaultEntry = entry
 		}
@@ -515,6 +528,15 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 				// Prefer local certificate match (reloads automatically if files changed)
 				if entry, ok := certMap[serverName]; ok {
 					return entry.get()
+				}
+				// Try wildcard match for local certificates
+				// e.g., serverName="aaa.example.com" should match host="*.example.com"
+				parts := strings.SplitN(serverName, ".", 2)
+				if len(parts) == 2 {
+					wildcardHost := "*." + parts[1]
+					if entry, ok := certMap[wildcardHost]; ok {
+						return entry.get()
+					}
 				}
 				// Try autocert fallback
 				if autocertManager != nil {
@@ -557,4 +579,41 @@ func (httpServer *HttpServer) Close() error {
 		return nil
 	}
 	return httpServer.httpServer.Close()
+}
+
+// extractDomainsFromCert extracts all domain names from a certificate's
+// Subject Alternative Names (SANs) and Common Name (CN).
+func extractDomainsFromCert(cert *tls.Certificate) []string {
+	domains := make([]string, 0)
+
+	// Parse the X.509 certificate
+	if len(cert.Certificate) == 0 {
+		return domains
+	}
+
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		log.Warn("Failed to parse certificate for domain extraction", zap.Error(err))
+		return domains
+	}
+
+	// Extract from Subject Alternative Names (SANs)
+	domains = append(domains, x509Cert.DNSNames...)
+
+	// Extract from Common Name (CN) if not already in SANs
+	if x509Cert.Subject.CommonName != "" {
+		cn := x509Cert.Subject.CommonName
+		found := false
+		for _, d := range domains {
+			if d == cn {
+				found = true
+				break
+			}
+		}
+		if !found {
+			domains = append(domains, cn)
+		}
+	}
+
+	return domains
 }

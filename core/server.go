@@ -39,6 +39,7 @@ func (server *Server) getHttpServer(serverConfig *web.ServerConfig) *web.HttpSer
 	server.httpServers[serverConfig.Port] = httpServer
 	return httpServer
 }
+
 // Init initializes all runners, filters, converters, and REST controllers.
 // It also registers route handlers on the HTTP servers.
 func (server *Server) Init(ctx *Context) error {
@@ -80,14 +81,13 @@ func (server *Server) Init(ctx *Context) error {
 	}
 	return nil
 }
+
 // Run starts all HTTP servers and background runners concurrently.
 // It uses a goroutine pool with the server's context for lifecycle management.
 // Returns when any component fails or the context is cancelled.
 func (server *Server) Run() error {
 	var wg = pool.New()
-	wg.WithMaxGoroutines(len(server.httpServers) + len(server.runners))
 	errorsPool := wg.WithContext(server.ctx).WithFirstError()
-
 	for _, runner := range server.runners {
 		r := runner
 		errorsPool.Go(func(poolCtx context.Context) error {
@@ -108,12 +108,16 @@ func (server *Server) Run() error {
 	for _, httpServer := range server.httpServers {
 		httpServer.Handle()
 		errorsPool.Go(func(ctx context.Context) error {
-			return errors.WithStackIf(httpServer.Run(ctx))
+			err := httpServer.Run(ctx)
+			log.Error("httpServer", zap.Error(err))
+			return err
 		})
 	}
-
-	return errors.WithStackIf(errorsPool.Wait())
+	err := errorsPool.Wait()
+	log.Error("server Run", zap.Error(err))
+	return errors.WithStackIf(err)
 }
+
 // NewServer creates a new Server with the given REST groups and runners.
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{

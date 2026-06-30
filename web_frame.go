@@ -171,7 +171,9 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
-	return errors.WithStackIf(server.Run())
+	err = server.Run()
+	log.Error("Start the WebFrame", zap.Error(err))
+	return errors.WithStackIf(err)
 }
 
 // Builder provides a fluent API for constructing a WebFrame application.

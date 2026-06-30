@@ -394,7 +394,9 @@ func (httpServer *HttpServer) Run(ctx context.Context) error {
 	}()
 
 	log.Info("Start the service：", zap.String("address", "http://127.0.0.1:"+strconv.Itoa(httpServer.serverConfig.Port)))
-	return errors.WithStackIf(httpServer.httpServer.ListenAndServe())
+	err := httpServer.httpServer.ListenAndServe()
+	log.Error("start the service", zap.Error(err))
+	return errors.WithStackIf(err)
 }
 
 func (httpServer *HttpServer) startTLS(ctx context.Context) error {
@@ -442,11 +444,14 @@ func (httpServer *HttpServer) startTLS(ctx context.Context) error {
 		listener := certManager.Listener()
 		err := httpServer.httpServer.Serve(listener)
 		if err != nil {
+			log.Error("start the service", zap.Error(err))
 			return errors.WithStackIf(err)
 		}
 		return nil
 	}
-	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
+	err = httpServer.httpServer.ListenAndServeTLS("", "")
+	log.Error("start the service", zap.Error(err))
+	return errors.WithStackIf(err)
 }
 
 // startTLSWithLocalCert starts HTTPS using locally provided certificate files.
@@ -541,7 +546,9 @@ func (httpServer *HttpServer) startTLSWithLocalCert(ctx context.Context) error {
 	for _, host := range ssl.Hosts {
 		log.Info("Start the service:", zap.String("address", "https://"+host+":"+strconv.Itoa(httpServer.serverConfig.Port)))
 	}
-	return errors.WithStackIf(httpServer.httpServer.ListenAndServeTLS("", ""))
+	err := httpServer.httpServer.ListenAndServeTLS("", "")
+	log.Error("Start the service", zap.Error(err))
+	return errors.WithStackIf(err)
 }
 
 // Close immediately closes the underlying HTTP server.

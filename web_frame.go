@@ -139,7 +139,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			Build()
 		w.restGroups = append(w.restGroups, restGroup)
 	}
-	server := core.NewServer(w.restGroups, w.runners)
+	server := core.NewServer(w.restGroups, coreContext.GetRunners())
 	err := server.Init(coreContext)
 	if err != nil {
 		return nil, nil, errors.WithStackIf(err)

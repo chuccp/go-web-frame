@@ -136,10 +136,15 @@ func (c *Context) GetModelGroup(name string) IModelGroup {
 func (c *Context) AddService(services ...IService) {
 	c.rLock.Lock()
 	defer c.rLock.Unlock()
+
 	for _, s := range services {
 		name := util.GetStructFullQualifiedName(s)
 		c.serviceMap[name] = s
 		c.allServiceMap[name] = s
+		// If the service also implements IRunner, register it in the runner map as well.
+		if runner, ok := s.(IRunner); ok {
+			c.runnerMap[name] = runner
+		}
 	}
 }
 
@@ -267,6 +272,17 @@ func (c *Context) handle(httpMethod string, relativePath string, handlers ...web
 // GetConfig returns the configuration object associated with this context.
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config
+}
+
+// GetRunners returns all registered runners in the context.
+func (c *Context) GetRunners() []IRunner {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	runners := make([]IRunner, 0, len(c.runnerMap))
+	for _, r := range c.runnerMap {
+		runners = append(runners, r)
+	}
+	return runners
 }
 
 var (

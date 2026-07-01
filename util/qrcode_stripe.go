@@ -18,7 +18,7 @@ type StripeQRCode struct {
 func NewStripeQRCode() *StripeQRCode {
 	return &StripeQRCode{
 		moduleSize: 10,
-		dotRadius:  3.8,
+		dotRadius:  4.8,
 		bgColor:    color.RGBA{R: 255, G: 255, B: 255, A: 255},
 		darkColor:  color.RGBA{R: 0, G: 0, B: 0, A: 255},
 	}
@@ -26,7 +26,13 @@ func NewStripeQRCode() *StripeQRCode {
 
 func (s *StripeQRCode) WithModuleSize(size int) *StripeQRCode {
 	s.moduleSize = size
-	s.dotRadius = float64(size) * 0.38
+	s.dotRadius = float64(size) * 0.46
+	return s
+}
+
+// SetDotRadius 直接设置圆半径
+func (s *StripeQRCode) SetDotRadius(r float64) *StripeQRCode {
+	s.dotRadius = r
 	return s
 }
 func (s *StripeQRCode) WithColors(bg, dark, _ color.RGBA) *StripeQRCode {

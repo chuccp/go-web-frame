@@ -76,15 +76,18 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	ctx.SetColor(s.darkColor)
 	ctx.DrawCircle(cx, cy, r)
 
-	if hasH {
-		if nei&standard.NRight != 0 && col%3 != 2 {
-			ctx.DrawRectangle(cx, cy-r, mod, r*2)
-		}
-	} else if hasV {
-		cross := nei&(standard.NBotLeft|standard.NBotRight) != 0
-		if nei&standard.NBot != 0 && row%3 != 2 && !cross {
-			ctx.DrawRectangle(cx-r, cy, r*2, mod)
-		}
+	// 横条：有右邻，且（是 run 起点 或 不在 %3 组尾）
+	drawH := hasH && nei&standard.NRight != 0 &&
+		(nei&standard.NLeft == 0 || col%3 != 2)
+	// 竖条：纯竖（无横邻），有下邻，且非横穿，且（run起点 或 不在%3组尾）
+	drawV := !hasH && hasV && nei&standard.NBot != 0 &&
+		nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
+		(nei&standard.NTop == 0 || row%3 != 2)
+
+	if drawH {
+		ctx.DrawRectangle(cx, cy-r, mod, r*2)
+	} else if drawV {
+		ctx.DrawRectangle(cx-r, cy, r*2, mod)
 	}
 
 	ctx.Fill()

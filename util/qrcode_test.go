@@ -50,7 +50,7 @@ func TestStripeQRCode_GenerateFile(t *testing.T) {
 }
 
 func TestStripeQRCode_ISHapeAPI(t *testing.T) {
-	// 通过 GenerateQrcode + WithStripeShape（走 IShape 接口）
+	// 通过 GenerateQrcode + WithStripeShape（走 IShape，无预扫描回退）
 	buf := CreateBufferWriteCloser()
 	err := GenerateQrcode("https://github.com/chuccp/go-web-frame", buf, WithStripeShape())
 	if err != nil {
@@ -58,7 +58,6 @@ func TestStripeQRCode_ISHapeAPI(t *testing.T) {
 	}
 	t.Logf("IShape 接口 → %d bytes", len(buf.Bytes()))
 
-	// 自定义颜色
 	buf2 := CreateBufferWriteCloser()
 	err = GenerateQrcode("Hello IShape!", buf2, WithCustomStripeShape(color.RGBA{R: 0, G: 100, B: 80, A: 255}))
 	if err != nil {

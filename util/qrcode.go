@@ -4,13 +4,16 @@ import (
 	"image/color"
 	"io"
 
-	"github.com/yeqown/go-qrcode/v2"
+	qrcode "github.com/yeqown/go-qrcode/v2"
 	"github.com/yeqown/go-qrcode/writer/standard"
 	"go.uber.org/zap/buffer"
 )
 
-func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard.ImageOption) error {
+// ============================================================
+// 通用二维码生成
+// ============================================================
 
+func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard.ImageOption) error {
 	qrc, err := qrcode.New(content)
 	if err != nil {
 		return err
@@ -22,6 +25,10 @@ func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard
 	return nil
 }
 
+// ============================================================
+// ShapeRoundedSquare: 圆角方块风格
+// ============================================================
+
 type ShapeRoundedSquare struct {
 	Color color.Color
 }
@@ -30,8 +37,8 @@ var rgbaWhite = color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
 func IsWhite(c color.Color) bool {
 	return color.White == c || color.Transparent == c || rgbaWhite == c
-
 }
+
 func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
 	w, h := ctx.Edge()
 	fw0, fh0 := float64(w), float64(h)
@@ -71,8 +78,11 @@ func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
 
 func WithRoundedSquareShape() standard.ImageOption {
 	return standard.WithCustomShape(&ShapeRoundedSquare{})
-
 }
+
+// ============================================================
+// ShapeCircle: 圆形风格
+// ============================================================
 
 type ShapeCircle struct {
 	Color color.Color
@@ -125,6 +135,10 @@ func WithCircleShape() standard.ImageOption {
 	return standard.WithCustomShape(&ShapeCircle{})
 }
 
+// ============================================================
+// BufferWriteCloser: 写入 buffer.Buffer 的便捷 Writer
+// ============================================================
+
 type BufferWriteCloser struct {
 	b *buffer.Buffer
 }
@@ -144,4 +158,9 @@ func CreateBufferWriteCloser() *BufferWriteCloser {
 	return &BufferWriteCloser{
 		b: new(buffer.Buffer),
 	}
+}
+
+// GenerateStripeQRCode 便捷函数：用默认样式直接生成条纹二维码文件
+func GenerateStripeQRCode(content, filePath string) error {
+	return NewStripeQRCode().GenerateFile(content, filePath)
 }

@@ -37,3 +37,4 @@ go.work.sum
 /example/config/tmp
 /.claude
 /docs-site/site
+*.png

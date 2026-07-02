@@ -177,6 +177,10 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 				if nei&standard.NBot == 0 {
 					continue
 				}
+				// 仅连 2 个：上方或下方已有竖条则不补
+				if dirAt(c, r) == 2 || dirAt(c, r-2) == 2 {
+					continue
+				}
 				if dirAt(c-1, r-1) == 1 { // 左邻画横
 					continue
 				}

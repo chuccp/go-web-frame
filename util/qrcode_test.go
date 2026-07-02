@@ -89,7 +89,7 @@ func TestOriginQRCodeStyles(t *testing.T) {
 // TestPreviewQRStyles 模拟预览接口生成图片，保存文件供人工检查。
 // 对应: /admin/api/qrcode/style/preview-qr?color=%23000000&style=XXX
 func TestPreviewQRStyles(t *testing.T) {
-	content := "http://localhost:8082"
+	content := "https://www.usercao.com"
 
 	makeOpts := func(shapeOpt standard.ImageOption) []standard.ImageOption {
 		opts := []standard.ImageOption{

@@ -67,7 +67,7 @@ func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
 
 func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
 	s.ensureDim(ctx)
-	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
+	drawFinderWhole(ctx, ctx.Color(), color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
 }
 
 func (s *ShapeRoundedSquare) ensureDim(ctx *standard.DrawContext) {
@@ -125,7 +125,7 @@ func (s *ShapeCircle) Draw(ctx *standard.DrawContext) {
 
 func (s *ShapeCircle) DrawFinder(ctx *standard.DrawContext) {
 	s.ensureDim(ctx)
-	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
+	drawFinderWhole(ctx, ctx.Color(), color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
 }
 
 func (s *ShapeCircle) ensureDim(ctx *standard.DrawContext) {

@@ -240,22 +240,12 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	ctx.Fill()
 }
 
-// DrawFinder 实现 IShape 接口
 func (s *StripeQRCode) DrawFinder(ctx *standard.DrawContext) {
-	w, h := ctx.Edge()
-	fw0, fh0 := float64(w), float64(h)
-	x0, y0 := ctx.UpperLeft()
-	if s.darkColor != (color.RGBA{}) {
-		if IsWhite(ctx.Color()) {
-			ctx.SetColor(ctx.Color())
-		} else {
-			ctx.SetColor(s.darkColor)
-		}
-	} else {
-		ctx.SetColor(ctx.Color())
+	dim := 25
+	if s.dirs != nil {
+		dim = len(s.dirs)
 	}
-	ctx.DrawRectangle(x0, y0, fw0, fh0)
-	ctx.Fill()
+	drawFinderWhole(ctx, s.darkColor, s.bgColor, dim)
 }
 
 func WithStripeShape() standard.ImageOption {

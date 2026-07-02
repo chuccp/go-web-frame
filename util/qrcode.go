@@ -59,21 +59,7 @@ func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
 }
 
 func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
-	w, h := ctx.Edge()
-	fw0, fh0 := float64(w), float64(h)
-	x0, y0 := ctx.UpperLeft()
-
-	if s.Color != nil {
-		if IsWhite(ctx.Color()) {
-			ctx.SetColor(ctx.Color())
-		} else {
-			ctx.SetColor(s.Color)
-		}
-	} else {
-		ctx.SetColor(ctx.Color())
-	}
-	ctx.DrawRectangle(x0, y0, fw0, fh0)
-	ctx.Fill()
+	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 25)
 }
 
 func WithRoundedSquareShape() standard.ImageOption {
@@ -114,20 +100,57 @@ func (s *ShapeCircle) Draw(ctx *standard.DrawContext) {
 }
 
 func (s *ShapeCircle) DrawFinder(ctx *standard.DrawContext) {
-	w, h := ctx.Edge()
-	fw0, fh0 := float64(w), float64(h)
+	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 25)
+}
+
+// drawFinderWhole 7×7 定位图案整体绘制。dim 为矩阵维度，用于确定各定位图案的左上角坐标。
+func drawFinderWhole(ctx *standard.DrawContext, dark, bg color.Color, dim int) {
+	if dark == nil {
+		dark = color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	}
+	if bg == nil {
+		bg = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	w, _ := ctx.Edge()
+	fw := float64(w)
 	x0, y0 := ctx.UpperLeft()
 
-	if s.Color != nil {
-		if IsWhite(ctx.Color()) {
-			ctx.SetColor(ctx.Color())
-		} else {
-			ctx.SetColor(s.Color)
-		}
+	col := int(x0) / w
+	row := int(y0) / w
+	mr := row - 2 // 矩阵坐标
+	mc := col - 2
+
+	// 确定本格所属定位图案的左上角矩阵坐标
+	var fx, fy int
+	if mr < 7 && mc < 7 {
+		fx, fy = 0, 0 // 左上
+	} else if mr < 7 && mc >= dim-7 {
+		fx, fy = dim - 7, 0 // 右上
+	} else if mr >= dim-7 && mc < 7 {
+		fx, fy = 0, dim - 7 // 左下
 	} else {
-		ctx.SetColor(ctx.Color())
+		return // 非定位图案角格
 	}
-	ctx.DrawRectangle(x0, y0, fw0, fh0)
+
+	// 仅该定位图案的左上角格触发绘制
+	if mr != fy || mc != fx {
+		return
+	}
+
+	fx0 := x0 - float64(mc-fx)*fw
+	fy0 := y0 - float64(mr-fy)*fw
+	fsize := fw * 7
+
+	ctx.SetColor(dark)
+	ctx.DrawRoundedRectangle(fx0, fy0, fsize, fsize, fw)
+	ctx.Fill()
+
+	ctx.SetColor(bg)
+	ctx.DrawRoundedRectangle(fx0+fw, fy0+fw, fw*5, fw*5, fw)
+	ctx.Fill()
+
+	ctx.SetColor(dark)
+	ctx.DrawRoundedRectangle(fx0+fw*2, fy0+fw*2, fw*3, fw*3, fw)
 	ctx.Fill()
 }
 

@@ -13,7 +13,23 @@ type StripeQRCode struct {
 	dotRadius  float64
 	bgColor    color.RGBA
 	darkColor  color.RGBA
+
+	// 预扫描方向矩阵：0=圆 1=横 2=竖，索引 [row][col]
+	dirs [][]int
 }
+
+// stripeWriter 第一遍：原始前三步；第二遍：用 dirs 精确连独立圆点。
+type stripeWriter struct {
+	inner *standard.Writer
+	shape *StripeQRCode
+}
+
+func (w *stripeWriter) Write(mat qrcode.Matrix) error {
+	w.shape.preScan(mat)
+	return w.inner.Write(mat)
+}
+
+func (w *stripeWriter) Close() error { return w.inner.Close() }
 
 func NewStripeQRCode() *StripeQRCode {
 	return &StripeQRCode{
@@ -30,11 +46,11 @@ func (s *StripeQRCode) WithModuleSize(size int) *StripeQRCode {
 	return s
 }
 
-// SetDotRadius 直接设置圆半径
 func (s *StripeQRCode) SetDotRadius(r float64) *StripeQRCode {
 	s.dotRadius = r
 	return s
 }
+
 func (s *StripeQRCode) WithColors(bg, dark, _ color.RGBA) *StripeQRCode {
 	s.bgColor = bg
 	s.darkColor = dark
@@ -46,14 +62,108 @@ func (s *StripeQRCode) GenerateFile(content, filePath string) error {
 	if err != nil {
 		return err
 	}
-	w, err := standard.New(filePath, standard.WithCustomShape(s))
+	inner, err := standard.New(filePath, standard.WithCustomShape(s))
 	if err != nil {
 		return err
 	}
-	return qr.Save(w)
+	return qr.Save(&stripeWriter{inner: inner, shape: s})
 }
 
-// Draw 实现 IShape 接口
+// preScan 第一遍：原始前三步（col%3 对齐：padding=40,blockWidth=10 → (c+1)%3）。
+// 第二遍：精确连接独立圆点。
+func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
+	w, h := mat.Width(), mat.Height()
+	dark := make([][]bool, h)
+	for r := 0; r < h; r++ {
+		dark[r] = make([]bool, w)
+	}
+	mat.Iterate(qrcode.IterDirection_ROW, func(x, y int, v qrcode.QRValue) {
+		dark[y][x] = v.IsSet()
+	})
+
+	dirs := make([][]int, h)
+	for r := 0; r < h; r++ {
+		dirs[r] = make([]int, w)
+	}
+
+	neiOf := func(c, r int) uint16 {
+		var n uint16
+		if r > 0 && c > 0 && dark[r-1][c-1] { n |= standard.NTopLeft }
+		if r > 0 && dark[r-1][c]           { n |= standard.NTop }
+		if r > 0 && c < w-1 && dark[r-1][c+1] { n |= standard.NTopRight }
+		if c > 0 && dark[r][c-1]           { n |= standard.NLeft }
+		if c < w-1 && dark[r][c+1]         { n |= standard.NRight }
+		if r < h-1 && c > 0 && dark[r+1][c-1] { n |= standard.NBotLeft }
+		if r < h-1 && dark[r+1][c]         { n |= standard.NBot }
+		if r < h-1 && c < w-1 && dark[r+1][c+1] { n |= standard.NBotRight }
+		return n
+	}
+
+	// 偏移：padding=40, blockWidth=20 → col = 2+c, col%3 = (c+2)%3
+	c3 := func(c int) int { return (c + 2) % 3 }
+	r3 := func(r int) int { return (r + 2) % 3 }
+
+	// 第一遍：原始三步 —— 逻辑与 Draw 完全一致（仅 c3/r3 坐标对齐）
+	for r := 0; r < h; r++ {
+		for c := 0; c < w; c++ {
+			if !dark[r][c] {
+				continue
+			}
+			nei := neiOf(c, r)
+			hasH := nei&(standard.NLeft|standard.NRight) != 0
+			hasV := nei&(standard.NTop|standard.NBot) != 0
+
+			drawH := hasH && nei&standard.NRight != 0 &&
+				(nei&standard.NLeft == 0 || c3(c) != 2)
+			drawV := !hasH && hasV && nei&standard.NBot != 0 &&
+				nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
+				(nei&standard.NTop == 0 || r3(r) != 2)
+
+			if drawH {
+				dirs[r][c] = 1
+			} else if drawV {
+				dirs[r][c] = 2
+			}
+		}
+	}
+
+	dirAt := func(c, r int) int {
+		if c >= 0 && c < w && r >= 0 && r < h {
+			return dirs[r][c]
+		}
+		return 0
+	}
+
+	// 第二遍：第四步 —— 精确连接独立圆点（本格画圆、下方有暗格）
+	for r := 0; r < h; r++ {
+		for c := 0; c < w; c++ {
+			if !dark[r][c] || dirs[r][c] != 0 {
+				continue
+			}
+			nei := neiOf(c, r)
+			if nei&standard.NBot == 0 {
+				continue
+			}
+			// 左邻画横伸入本格 → 与本格竖条重叠
+			if dirAt(c-1, r) == 1 {
+				continue
+			}
+			// 下方格画横 → 本格竖条伸入下方格产生 T 形
+			if dirAt(c, r+1) == 1 {
+				continue
+			}
+			// 左下画横进入下方格 → T 形
+			if dirAt(c-1, r+1) == 1 {
+				continue
+			}
+			dirs[r][c] = 2
+		}
+	}
+
+	s.dirs = dirs
+}
+
+// Draw 实现 IShape 接口 —— 有预扫描 dirs 时查表，否则走逐格逻辑。
 func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	if IsWhite(ctx.Color()) {
 		return
@@ -76,27 +186,34 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	ctx.SetColor(s.darkColor)
 	ctx.DrawCircle(cx, cy, r)
 
-	// 第一步：横条
-	drawH := hasH && nei&standard.NRight != 0 &&
-		(nei&standard.NLeft == 0 || col%3 != 2)
+	var dir int
+	// dirs 存矩阵坐标 [mr][mc]；图像坐标 (row,col) = 2 + (mr,mc)
+	mr := row - 2
+	mc := col - 2
+	if s.dirs != nil && mr >= 0 && mr < len(s.dirs) && mc >= 0 && mc < len(s.dirs[mr]) {
+		dir = s.dirs[mr][mc]
+	} else {
+		drawH := hasH && nei&standard.NRight != 0 &&
+			(nei&standard.NLeft == 0 || col%3 != 2)
+		drawV := !hasH && hasV && nei&standard.NBot != 0 &&
+			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
+			(nei&standard.NTop == 0 || row%3 != 2)
 
-	// 第二步：竖条（原始：无横邻 + 无对角 + %3）
-	drawV := !hasH && hasV && nei&standard.NBot != 0 &&
-		nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-		(nei&standard.NTop == 0 || row%3 != 2)
+		if drawH {
+			dir = 1
+		} else if drawV {
+			dir = 2
+		} else if nei&standard.NLeft == 0 &&
+			nei&standard.NBot != 0 &&
+			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
+			(nei&standard.NTop == 0 || row%3 != 2) {
+			dir = 2
+		}
+	}
 
-	// 第三步：相交（横竖都要 → 横赢），相接（NLeft → 竖让位）
-	// （已由 !hasH 和 if/else 结构处理）
-
-	if drawH {
+	if dir == 1 {
 		ctx.DrawRectangle(cx, cy-r, mod, r*2)
-	} else if drawV {
-		ctx.DrawRectangle(cx-r, cy, r*2, mod)
-	} else if nei&standard.NLeft == 0 &&
-		nei&standard.NBot != 0 &&
-		nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-		(nei&standard.NTop == 0 || row%3 != 2) {
-		// 第四步：独立圆点连接——本格只画圆，下方有暗色格，无任何横条冲突
+	} else if dir == 2 {
 		ctx.DrawRectangle(cx-r, cy, r*2, mod)
 	}
 

@@ -120,16 +120,23 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 			hasH := nei&(standard.NLeft|standard.NRight) != 0
 			hasV := nei&(standard.NTop|standard.NBot) != 0
 
-			// 前三步
-			drawH := hasH && nei&standard.NRight != 0 &&
+			// 第一步：横条
+			wantH := hasH && nei&standard.NRight != 0 &&
 				(nei&standard.NLeft == 0 || c3(c) != 2)
-			drawV := !hasH && hasV && nei&standard.NBot != 0 &&
+			// 第二步：竖条（ld!=1 精确替代 !hasH）
+			wantV := hasV && nei&standard.NBot != 0 &&
+				dirAt(c-1, r) != 1 &&
 				nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
 				(nei&standard.NTop == 0 || r3(r) != 2)
 
-			if drawH {
+			// 第三步：相交 → 竖赢保持均匀
+			if wantH && wantV {
+				wantH = false
+			}
+
+			if wantH {
 				dirs[r][c] = 1
-			} else if drawV {
+			} else if wantV {
 				dirs[r][c] = 2
 			}
 		}

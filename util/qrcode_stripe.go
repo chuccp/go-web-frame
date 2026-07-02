@@ -232,7 +232,7 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	hasH := nei&(standard.NLeft|standard.NRight) != 0
 	hasV := nei&(standard.NTop|standard.NBot) != 0
 
-	ctx.SetColor(s.darkColor)
+	ctx.SetColor(ctx.Color())
 	ctx.DrawCircle(cx, cy, dotR)
 
 	var dir int
@@ -268,7 +268,7 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 
 func (s *StripeQRCode) DrawFinder(ctx *standard.DrawContext) {
 	s.ensureBorderMod(ctx)
-	drawFinderWhole(ctx, s.darkColor, s.bgColor, s.dim, s.borderMod)
+	drawFinderWhole(ctx, ctx.Color(), s.bgColor, s.dim, s.borderMod)
 }
 
 func (s *StripeQRCode) ensureBorderMod(ctx *standard.DrawContext) {

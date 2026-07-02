@@ -4,6 +4,8 @@ import (
 	"image/color"
 	"os"
 	"testing"
+
+	"github.com/yeqown/go-qrcode/writer/standard"
 )
 
 func TestColor(t *testing.T) {
@@ -82,4 +84,44 @@ func TestOriginQRCodeStyles(t *testing.T) {
 		t.Fatalf("圆形失败: %v", err)
 	}
 	t.Logf("圆形 → %d bytes", len(buf2.Bytes()))
+}
+
+// TestPreviewQRStyles 模拟预览接口生成图片，保存文件供人工检查。
+// 对应: /admin/api/qrcode/style/preview-qr?color=%23000000&style=XXX
+func TestPreviewQRStyles(t *testing.T) {
+	content := "http://localhost:8082"
+
+	makeOpts := func(shapeOpt standard.ImageOption) []standard.ImageOption {
+		opts := []standard.ImageOption{
+			shapeOpt,
+			standard.WithBorderWidth(4),
+			standard.WithBgTransparent(),
+			standard.WithBuiltinImageEncoder(standard.PNG_FORMAT),
+		}
+		return opts
+	}
+
+	tests := []struct {
+		name    string
+		shape   standard.ImageOption
+		outFile string
+	}{
+		{"circle", WithCircleShape(), "test_preview_circle.png"},
+		{"rounded_square", WithRoundedSquareShape(), "test_preview_rounded_square.png"},
+		{"stripe", WithStripeShape(), "test_preview_stripe.png"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := CreateBufferWriteCloser()
+			err := GenerateQrcode(content, buf, makeOpts(tt.shape)...)
+			if err != nil {
+				t.Fatalf("%s 生成失败: %v", tt.name, err)
+			}
+			if err := os.WriteFile(tt.outFile, buf.Bytes(), 0644); err != nil {
+				t.Fatalf("写文件失败: %v", err)
+			}
+			t.Logf("%s → %s (%d bytes)", tt.name, tt.outFile, len(buf.Bytes()))
+		})
+	}
 }

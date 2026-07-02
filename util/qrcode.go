@@ -30,13 +30,15 @@ func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard
 // ============================================================
 
 type ShapeRoundedSquare struct {
-	Color color.Color
+	Color     color.Color
+	dim       int
+	borderMod int
 }
 
-var rgbaWhite = color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})
-
 func IsWhite(c color.Color) bool {
-	return color.White == c || color.Transparent == c || rgbaWhite == c
+	r, g, b, a := c.RGBA()
+	// alpha 为 0 视为空白（透明），RGB 全满为纯白
+	return a == 0 || (r == 0xffff && g == 0xffff && b == 0xffff)
 }
 
 func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
@@ -59,7 +61,22 @@ func (s *ShapeRoundedSquare) Draw(ctx *standard.DrawContext) {
 }
 
 func (s *ShapeRoundedSquare) DrawFinder(ctx *standard.DrawContext) {
-	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 25)
+	s.ensureDim(ctx)
+	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
+}
+
+func (s *ShapeRoundedSquare) ensureDim(ctx *standard.DrawContext) {
+	if s.dim > 0 {
+		return
+	}
+	w, _ := ctx.Edge()
+	x0, _ := ctx.UpperLeft()
+	s.borderMod = int(x0) / w
+	imgW := ctx.Width()
+	s.dim = (imgW - 2*s.borderMod*w) / w
+	if s.dim <= 0 {
+		s.dim = 25
+	}
 }
 
 func WithRoundedSquareShape() standard.ImageOption {
@@ -71,7 +88,9 @@ func WithRoundedSquareShape() standard.ImageOption {
 // ============================================================
 
 type ShapeCircle struct {
-	Color color.Color
+	Color     color.Color
+	dim       int
+	borderMod int
 }
 
 func (s *ShapeCircle) Draw(ctx *standard.DrawContext) {
@@ -100,11 +119,26 @@ func (s *ShapeCircle) Draw(ctx *standard.DrawContext) {
 }
 
 func (s *ShapeCircle) DrawFinder(ctx *standard.DrawContext) {
-	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 25)
+	s.ensureDim(ctx)
+	drawFinderWhole(ctx, s.Color, color.RGBA{R: 255, G: 255, B: 255, A: 255}, s.dim, s.borderMod)
 }
 
-// drawFinderWhole 7×7 定位图案整体绘制。dim 为矩阵维度，用于确定各定位图案的左上角坐标。
-func drawFinderWhole(ctx *standard.DrawContext, dark, bg color.Color, dim int) {
+func (s *ShapeCircle) ensureDim(ctx *standard.DrawContext) {
+	if s.dim > 0 {
+		return
+	}
+	w, _ := ctx.Edge()
+	x0, _ := ctx.UpperLeft()
+	s.borderMod = int(x0) / w
+	imgW := ctx.Width()
+	s.dim = (imgW - 2*s.borderMod*w) / w
+	if s.dim <= 0 {
+		s.dim = 25
+	}
+}
+
+// drawFinderWhole 7×7 定位图案整体绘制。dim 为矩阵维度，borderMod 为边框模块数，用于确定各定位图案的左上角坐标。
+func drawFinderWhole(ctx *standard.DrawContext, dark, bg color.Color, dim, borderMod int) {
 	if dark == nil {
 		dark = color.RGBA{R: 0, G: 0, B: 0, A: 255}
 	}
@@ -117,8 +151,8 @@ func drawFinderWhole(ctx *standard.DrawContext, dark, bg color.Color, dim int) {
 
 	col := int(x0) / w
 	row := int(y0) / w
-	mr := row - 2 // 矩阵坐标
-	mc := col - 2
+	mr := row - borderMod // 矩阵坐标
+	mc := col - borderMod
 
 	// 确定本格所属定位图案的左上角矩阵坐标
 	var fx, fy int

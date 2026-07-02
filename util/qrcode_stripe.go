@@ -9,13 +9,17 @@ import (
 
 // StripeQRCode 条纹胶囊风格二维码
 type StripeQRCode struct {
-	moduleSize int
-	dotRadius  float64
-	bgColor    color.RGBA
-	darkColor  color.RGBA
+	dotRadius float64 // 圆点半径覆盖值，≤0 则根据实际模块宽度自适应
+	bgColor   color.RGBA
+	darkColor color.RGBA
 
 	// 预扫描方向矩阵：0=圆 1=横 2=竖，索引 [row][col]
 	dirs [][]int
+
+	// 尺寸信息，由 preScan 或首次 DrawFinder 计算
+	dim       int
+	borderMod int
+	dimReady  bool
 }
 
 // stripeWriter 第一遍：原始前三步；第二遍：用 dirs 精确连独立圆点。
@@ -33,15 +37,12 @@ func (w *stripeWriter) Close() error { return w.inner.Close() }
 
 func NewStripeQRCode() *StripeQRCode {
 	return &StripeQRCode{
-		moduleSize: 10,
-		dotRadius:  4.8,
-		bgColor:    color.RGBA{R: 255, G: 255, B: 255, A: 255},
-		darkColor:  color.RGBA{R: 0, G: 0, B: 0, A: 255},
+		bgColor:   color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		darkColor: color.RGBA{R: 0, G: 0, B: 0, A: 255},
 	}
 }
 
 func (s *StripeQRCode) WithModuleSize(size int) *StripeQRCode {
-	s.moduleSize = size
 	s.dotRadius = float64(size) * 0.46
 	return s
 }
@@ -73,6 +74,7 @@ func (s *StripeQRCode) GenerateFile(content, filePath string) error {
 // 第二遍：精确连接独立圆点。
 func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 	w, h := mat.Width(), mat.Height()
+	s.dim = w
 	dark := make([][]bool, h)
 	for r := 0; r < h; r++ {
 		dark[r] = make([]bool, w)
@@ -88,14 +90,30 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 
 	neiOf := func(c, r int) uint16 {
 		var n uint16
-		if r > 0 && c > 0 && dark[r-1][c-1] { n |= standard.NTopLeft }
-		if r > 0 && dark[r-1][c]           { n |= standard.NTop }
-		if r > 0 && c < w-1 && dark[r-1][c+1] { n |= standard.NTopRight }
-		if c > 0 && dark[r][c-1]           { n |= standard.NLeft }
-		if c < w-1 && dark[r][c+1]         { n |= standard.NRight }
-		if r < h-1 && c > 0 && dark[r+1][c-1] { n |= standard.NBotLeft }
-		if r < h-1 && dark[r+1][c]         { n |= standard.NBot }
-		if r < h-1 && c < w-1 && dark[r+1][c+1] { n |= standard.NBotRight }
+		if r > 0 && c > 0 && dark[r-1][c-1] {
+			n |= standard.NTopLeft
+		}
+		if r > 0 && dark[r-1][c] {
+			n |= standard.NTop
+		}
+		if r > 0 && c < w-1 && dark[r-1][c+1] {
+			n |= standard.NTopRight
+		}
+		if c > 0 && dark[r][c-1] {
+			n |= standard.NLeft
+		}
+		if c < w-1 && dark[r][c+1] {
+			n |= standard.NRight
+		}
+		if r < h-1 && c > 0 && dark[r+1][c-1] {
+			n |= standard.NBotLeft
+		}
+		if r < h-1 && dark[r+1][c] {
+			n |= standard.NBot
+		}
+		if r < h-1 && c < w-1 && dark[r+1][c+1] {
+			n |= standard.NBotRight
+		}
 		return n
 	}
 
@@ -120,14 +138,13 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 			hasH := nei&(standard.NLeft|standard.NRight) != 0
 			hasV := nei&(standard.NTop|standard.NBot) != 0
 
-			// 第一步：横条
-			wantH := hasH && nei&standard.NRight != 0 &&
-				(nei&standard.NLeft == 0 || c3(c) != 2)
-			// 第二步：竖条（ld!=1 精确替代 !hasH）
+			// 第一步：横条（最多连 3 个）
+			wantH := hasH && nei&standard.NRight != 0 && c3(c) != 2
+			// 第二步：竖条（最多连 3 个）
 			wantV := hasV && nei&standard.NBot != 0 &&
 				dirAt(c-1, r) != 1 &&
 				nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-				(nei&standard.NTop == 0 || r3(r) != 2)
+				r3(r) != 2
 
 			// 第三步：相交 → 竖赢保持均匀
 			if wantH && wantV {
@@ -191,33 +208,42 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	w, _ := ctx.Edge()
 	x0, y0 := ctx.UpperLeft()
 	fw := float64(w)
-	cx := float64(x0) + fw/2
-	cy := float64(y0) + fw/2
-	r := s.dotRadius
-	mod := float64(w)
+	cx := x0 + fw/2
+	cy := y0 + fw/2
+	// dotRadius 自适应：圆点视觉偏大，取 24%；条纹胶囊取 28%
+	dotR := s.dotRadius
+	stripeR := s.dotRadius
+	if s.dotRadius <= 0 {
+		dotR = fw * 0.28
+		stripeR = fw * 0.32
+	}
+	mod := fw
 	nei := ctx.Neighbours()
 
 	col := int(x0) / w
 	row := int(y0) / w
 
+	// 确保 borderMod 已计算（GenerateFile 路径下 preScan 不会设置它）
+	s.ensureBorderMod(ctx)
+
+	mc := col - s.borderMod // 矩阵坐标
+	mr := row - s.borderMod
+
 	hasH := nei&(standard.NLeft|standard.NRight) != 0
 	hasV := nei&(standard.NTop|standard.NBot) != 0
 
 	ctx.SetColor(s.darkColor)
-	ctx.DrawCircle(cx, cy, r)
+	ctx.DrawCircle(cx, cy, dotR)
 
 	var dir int
-	// dirs 存矩阵坐标 [mr][mc]；图像坐标 (row,col) = 2 + (mr,mc)
-	mr := row - 2
-	mc := col - 2
 	if s.dirs != nil && mr >= 0 && mr < len(s.dirs) && mc >= 0 && mc < len(s.dirs[mr]) {
 		dir = s.dirs[mr][mc]
 	} else {
-		drawH := hasH && nei&standard.NRight != 0 &&
-			(nei&standard.NLeft == 0 || col%3 != 2)
+		// fallback 对齐公式与 preScan 保持一致：(c+2)%3 != 2，其中 c 为矩阵坐标
+		drawH := hasH && nei&standard.NRight != 0 && (mc+2)%3 != 2
 		drawV := !hasH && hasV && nei&standard.NBot != 0 &&
 			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-			(nei&standard.NTop == 0 || row%3 != 2)
+			(mr+2)%3 != 2
 
 		if drawH {
 			dir = 1
@@ -226,26 +252,46 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 		} else if nei&standard.NLeft == 0 &&
 			nei&standard.NBot != 0 &&
 			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-			(nei&standard.NTop == 0 || row%3 != 2) {
+			(mr+2)%3 != 2 {
 			dir = 2
 		}
 	}
 
 	if dir == 1 {
-		ctx.DrawRectangle(cx, cy-r, mod, r*2)
+		ctx.DrawRectangle(cx, cy-stripeR, mod, stripeR*2)
 	} else if dir == 2 {
-		ctx.DrawRectangle(cx-r, cy, r*2, mod)
+		ctx.DrawRectangle(cx-stripeR, cy, stripeR*2, mod)
 	}
 
 	ctx.Fill()
 }
 
 func (s *StripeQRCode) DrawFinder(ctx *standard.DrawContext) {
-	dim := 25
-	if s.dirs != nil {
-		dim = len(s.dirs)
+	s.ensureBorderMod(ctx)
+	drawFinderWhole(ctx, s.darkColor, s.bgColor, s.dim, s.borderMod)
+}
+
+func (s *StripeQRCode) ensureBorderMod(ctx *standard.DrawContext) {
+	if s.dimReady {
+		return
 	}
-	drawFinderWhole(ctx, s.darkColor, s.bgColor, dim)
+	w, _ := ctx.Edge()
+	imgW := ctx.Width()
+
+	if s.dim <= 0 {
+		// IShape API 路径：首个调用必为 DrawFinder（矩阵 (0,0) 是定位格），
+		// 此时 x0/w 精确等于 border 模块数，用于推算 dim
+		x0, _ := ctx.UpperLeft()
+		s.borderMod = int(x0) / w
+		s.dim = (imgW - 2*s.borderMod*w) / w
+		if s.dim <= 0 {
+			s.dim = 25
+		}
+	} else {
+		// GenerateFile 路径：preScan 已设置 dim，用位置无关公式反推 borderMod
+		s.borderMod = (imgW - s.dim*w) / (2 * w)
+	}
+	s.dimReady = true
 }
 
 func WithStripeShape() standard.ImageOption {

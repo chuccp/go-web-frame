@@ -37,7 +37,7 @@ func TestStripeQRCode_GenerateFile(t *testing.T) {
 		t.Fatalf("红色条纹生成失败: %v", err)
 	}
 	t.Logf("生成: test_stripe_red.png")
-	defer os.Remove("test_stripe_red.png")
+	//defer os.Remove("test_stripe_red.png")
 
 	// 3) 蓝色小模块 + 短内容
 	s2 := NewStripeQRCode().WithModuleSize(8)
@@ -46,7 +46,7 @@ func TestStripeQRCode_GenerateFile(t *testing.T) {
 		t.Fatalf("蓝色条纹生成失败: %v", err)
 	}
 	t.Logf("生成: test_stripe_blue.png")
-	defer os.Remove("test_stripe_blue.png")
+	//defer os.Remove("test_stripe_blue.png")
 }
 
 func TestStripeQRCode_ISHapeAPI(t *testing.T) {

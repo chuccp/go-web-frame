@@ -76,17 +76,27 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	ctx.SetColor(s.darkColor)
 	ctx.DrawCircle(cx, cy, r)
 
-	// 横条：有右邻，且（是 run 起点 或 不在 %3 组尾）
+	// 第一步：横条
 	drawH := hasH && nei&standard.NRight != 0 &&
 		(nei&standard.NLeft == 0 || col%3 != 2)
-	// 竖条：纯竖（无横邻），有下邻，且非横穿，且（run起点 或 不在%3组尾）
+
+	// 第二步：竖条（原始：无横邻 + 无对角 + %3）
 	drawV := !hasH && hasV && nei&standard.NBot != 0 &&
 		nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
 		(nei&standard.NTop == 0 || row%3 != 2)
 
+	// 第三步：相交（横竖都要 → 横赢），相接（NLeft → 竖让位）
+	// （已由 !hasH 和 if/else 结构处理）
+
 	if drawH {
 		ctx.DrawRectangle(cx, cy-r, mod, r*2)
 	} else if drawV {
+		ctx.DrawRectangle(cx-r, cy, r*2, mod)
+	} else if nei&standard.NLeft == 0 &&
+		nei&standard.NBot != 0 &&
+		nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
+		(nei&standard.NTop == 0 || row%3 != 2) {
+		// 第四步：独立圆点连接——本格只画圆，下方有暗色格，无任何横条冲突
 		ctx.DrawRectangle(cx-r, cy, r*2, mod)
 	}
 

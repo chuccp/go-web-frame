@@ -138,13 +138,22 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 			hasH := nei&(standard.NLeft|standard.NRight) != 0
 			hasV := nei&(standard.NTop|standard.NBot) != 0
 
-			// 第一步：横条（最多连 3 个）
-			wantH := hasH && nei&standard.NRight != 0 && c3(c) != 2
-			// 第二步：竖条（最多连 3 个）
+			// 第一步：横条（无左邻时旁路，但若会造出 4 连则不旁路）
+			bypassH := nei&standard.NLeft == 0
+			if bypassH && c+3 < w && dark[r][c+1] && dark[r][c+2] && dark[r][c+3] {
+				bypassH = false // 旁路会造出 4 连，关闭
+			}
+			wantH := hasH && nei&standard.NRight != 0 &&
+				(bypassH || c3(c) != 2)
+			// 第二步：竖条（无上邻时旁路，但若会造出 4 连则不旁路）
+			bypassV := nei&standard.NTop == 0
+			if bypassV && r+3 < h && dark[r+1][c] && dark[r+2][c] && dark[r+3][c] {
+				bypassV = false
+			}
 			wantV := hasV && nei&standard.NBot != 0 &&
 				dirAt(c-1, r) != 1 &&
 				nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
-				r3(r) != 2
+				(bypassV || r3(r) != 2)
 
 			// 第三步：相交 → 竖赢保持均匀
 			if wantH && wantV {
@@ -239,18 +248,23 @@ func (s *StripeQRCode) Draw(ctx *standard.DrawContext) {
 	if s.dirs != nil && mr >= 0 && mr < len(s.dirs) && mc >= 0 && mc < len(s.dirs[mr]) {
 		dir = s.dirs[mr][mc]
 	} else {
-		// fallback 对齐公式与 preScan 保持一致：(c+2)%3 != 2，其中 c 为矩阵坐标
+		// fallback 与 preScan 对齐公式一致：(c+2)%3 != 2，每组最多连 3
 		drawH := hasH && nei&standard.NRight != 0 && (mc+2)%3 != 2
-		drawV := !hasH && hasV && nei&standard.NBot != 0 &&
+		// 模拟 dirAt(c-1,r)!=1：仅当左邻在横链中间时才阻断竖条
+		leftWouldDrawH := nei&standard.NLeft != 0 && nei&standard.NRight != 0 && (mc+1)%3 != 2
+		drawV := hasV && nei&standard.NBot != 0 &&
+			!leftWouldDrawH &&
 			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
 			(mr+2)%3 != 2
 
+		if drawH && drawV {
+			drawH = false // 竖条赢
+		}
 		if drawH {
 			dir = 1
 		} else if drawV {
 			dir = 2
-		} else if nei&standard.NLeft == 0 &&
-			nei&standard.NBot != 0 &&
+		} else if nei&standard.NBot != 0 &&
 			nei&(standard.NBotLeft|standard.NBotRight) == 0 &&
 			(mr+2)%3 != 2 {
 			dir = 2
@@ -294,16 +308,28 @@ func (s *StripeQRCode) ensureBorderMod(ctx *standard.DrawContext) {
 	s.dimReady = true
 }
 
+// activeStripe 由 WithStripeShape 设置，GenerateQrcode 消费后清空
+var activeStripe *StripeQRCode
+
 func WithStripeShape() standard.ImageOption {
-	return standard.WithCustomShape(NewStripeQRCode())
+	s := NewStripeQRCode()
+	activeStripe = s
+	return standard.WithCustomShape(s)
+}
+
+// takeStripe 取出并清空 activeStripe
+func takeStripe() *StripeQRCode {
+	s := activeStripe
+	activeStripe = nil
+	return s
 }
 
 func WithCustomStripeShape(dark color.RGBA) standard.ImageOption {
-	return standard.WithCustomShape(
-		NewStripeQRCode().WithColors(
-			color.RGBA{R: 255, G: 255, B: 255, A: 255},
-			dark,
-			color.RGBA{},
-		),
+	s := NewStripeQRCode().WithColors(
+		color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		dark,
+		color.RGBA{},
 	)
+	activeStripe = s
+	return standard.WithCustomShape(s)
 }

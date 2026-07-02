@@ -18,7 +18,12 @@ func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard
 	if err != nil {
 		return err
 	}
-	err = qrc.Save(standard.NewWithWriter(writeCloser, opts...))
+	w := standard.NewWithWriter(writeCloser, opts...)
+	if s := takeStripe(); s != nil {
+		err = qrc.Save(&stripeWriter{inner: w, shape: s})
+	} else {
+		err = qrc.Save(w)
+	}
 	if err != nil {
 		return err
 	}

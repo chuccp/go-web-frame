@@ -103,7 +103,14 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 	c3 := func(c int) int { return (c + 2) % 3 }
 	r3 := func(r int) int { return (r + 2) % 3 }
 
-	// 第一遍：原始三步 —— 逻辑与 Draw 完全一致（仅 c3/r3 坐标对齐）
+	dirAt := func(c, r int) int {
+		if c >= 0 && c < w && r >= 0 && r < h {
+			return dirs[r][c]
+		}
+		return 0
+	}
+
+	// 单遍：当前行算前三步，延迟一行算第四步（下方格方向已出）
 	for r := 0; r < h; r++ {
 		for c := 0; c < w; c++ {
 			if !dark[r][c] {
@@ -113,6 +120,7 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 			hasH := nei&(standard.NLeft|standard.NRight) != 0
 			hasV := nei&(standard.NTop|standard.NBot) != 0
 
+			// 前三步
 			drawH := hasH && nei&standard.NRight != 0 &&
 				(nei&standard.NLeft == 0 || c3(c) != 2)
 			drawV := !hasH && hasV && nei&standard.NBot != 0 &&
@@ -125,39 +133,44 @@ func (s *StripeQRCode) preScan(mat qrcode.Matrix) {
 				dirs[r][c] = 2
 			}
 		}
-	}
 
-	dirAt := func(c, r int) int {
-		if c >= 0 && c < w && r >= 0 && r < h {
-			return dirs[r][c]
+		// 第四步（延迟一行：处理 r-1 行，此时 r 行 dirs 已出）
+		if r > 0 {
+			for c := 0; c < w; c++ {
+				if !dark[r-1][c] || dirs[r-1][c] != 0 {
+					continue
+				}
+				nei := neiOf(c, r-1)
+				if nei&standard.NBot == 0 {
+					continue
+				}
+				if dirAt(c-1, r-1) == 1 { // 左邻画横
+					continue
+				}
+				if dirAt(c, r) == 1 { // 下方格画横（本次已算）
+					continue
+				}
+				if dirAt(c-1, r) == 1 { // 左下画横（本次已算）
+					continue
+				}
+				dirs[r-1][c] = 2
+			}
 		}
-		return 0
 	}
-
-	// 第二遍：第四步 —— 精确连接独立圆点（本格画圆、下方有暗格）
-	for r := 0; r < h; r++ {
-		for c := 0; c < w; c++ {
-			if !dark[r][c] || dirs[r][c] != 0 {
-				continue
-			}
-			nei := neiOf(c, r)
-			if nei&standard.NBot == 0 {
-				continue
-			}
-			// 左邻画横伸入本格 → 与本格竖条重叠
-			if dirAt(c-1, r) == 1 {
-				continue
-			}
-			// 下方格画横 → 本格竖条伸入下方格产生 T 形
-			if dirAt(c, r+1) == 1 {
-				continue
-			}
-			// 左下画横进入下方格 → T 形
-			if dirAt(c-1, r+1) == 1 {
-				continue
-			}
-			dirs[r][c] = 2
+	// 末行第四步（无下一行）
+	last := h - 1
+	for c := 0; c < w; c++ {
+		if !dark[last][c] || dirs[last][c] != 0 {
+			continue
 		}
+		nei := neiOf(c, last)
+		if nei&standard.NBot == 0 {
+			continue
+		}
+		if dirAt(c-1, last) == 1 {
+			continue
+		}
+		dirs[last][c] = 2
 	}
 
 	s.dirs = dirs

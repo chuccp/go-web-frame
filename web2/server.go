@@ -17,7 +17,7 @@ type Servers struct {
 	ctx        context.Context
 }
 
-func NewServer() *Servers {
+func NewServers() *Servers {
 	return NewServerWithContext(context.Background())
 }
 func NewServerWithContext(ctx context.Context) *Servers {
@@ -35,6 +35,7 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 	tslServer := &Server{
 		serverConfig: serverConfig,
 		ctx:          ctx,
+		engine:       defaultEngine(),
 	}
 	servers.tslServers = append(servers.tslServers, tslServer)
 	return tslServer, nil
@@ -67,6 +68,7 @@ type Server struct {
 	serverConfig *ServerConfig
 	routeTree    routeTree
 	ctx          context.Context
+	engine       *gin.Engine
 }
 
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
@@ -81,16 +83,35 @@ func (server *Server) Handlers(httpMethods []string, relativePath string, handle
 		server.routeTree.add(httpMethod, handlerInfo)
 	}
 	return handlerInfo
-}
-func (server *Server) listen() error {
-	var engine2 http.Handler = defaultEngine()
 
+}
+
+func (server *Server) initRoute() {
+	server.routeTree.each(func(httpMethod string, handler []*HandlerInfo) {
+		for _, info := range handler {
+			if info.IsHandler() {
+
+			}
+		}
+	})
+}
+
+func (server *Server) addHandler(httpMethods []string, relativePath string, handlers ...HandlerFunc) {
+
+	for _, httpMethod := range httpMethods {
+		server.engine.Handle(httpMethod, relativePath, handlers)
+	}
+
+}
+
+func (server *Server) listen() error {
+	server.initRoute()
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {
 			return server.ctx
 		},
 		Addr:              ":" + strconv.Itoa(server.serverConfig.Port),
-		Handler:           engine2,
+		Handler:           server.engine,
 		ReadHeaderTimeout: MaxReadHeaderTimeout,
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,

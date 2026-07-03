@@ -42,10 +42,18 @@ func NewHandlerInfo(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
 	return &HandlerInfo{relativePath: relativePath, handlers: handlers}
 }
 
-type RouteInfo []*HandlerInfo
+func (hi *HandlerInfo) IsHandler() bool {
+	return len(hi.handlers) > 0
+}
 
-type routeTree map[string]RouteInfo
+type routeTree map[string][]*HandlerInfo
 
-func (t routeTree) add(httpMethods string, handler *HandlerInfo) {
+func (rt routeTree) add(httpMethod string, handler *HandlerInfo) {
+	rt[httpMethod] = append(rt[httpMethod], handler)
+}
 
+func (rt routeTree) each(f func(httpMethod string, handler []*HandlerInfo)) {
+	for key, infos := range rt {
+		f(key, infos)
+	}
 }

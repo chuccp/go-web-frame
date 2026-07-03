@@ -312,20 +312,9 @@ func (s *StripeQRCode) ensureBorderMod(ctx *standard.DrawContext) {
 	s.dimReady = true
 }
 
-// activeStripe 由 WithStripeShape 设置，GenerateQrcode 消费后清空
-var activeStripe *StripeQRCode
-
 func WithStripeShape() standard.ImageOption {
 	s := NewStripeQRCode()
-	activeStripe = s
 	return standard.WithCustomShape(s)
-}
-
-// takeStripe 取出并清空 activeStripe
-func takeStripe() *StripeQRCode {
-	s := activeStripe
-	activeStripe = nil
-	return s
 }
 
 func WithCustomStripeShape(dark color.RGBA) standard.ImageOption {
@@ -334,6 +323,5 @@ func WithCustomStripeShape(dark color.RGBA) standard.ImageOption {
 		dark,
 		color.RGBA{},
 	)
-	activeStripe = s
 	return standard.WithCustomShape(s)
 }

@@ -19,7 +19,7 @@ func GenerateQrcode(content string, writeCloser io.WriteCloser, opts ...standard
 		return err
 	}
 	w := standard.NewWithWriter(writeCloser, opts...)
-	if s := takeStripe(); s != nil {
+	if s := NewStripeQRCode(); s != nil {
 		err = qrc.Save(&stripeWriter{inner: w, shape: s})
 	} else {
 		err = qrc.Save(w)
@@ -164,9 +164,9 @@ func drawFinderWhole(ctx *standard.DrawContext, dark, bg color.Color, dim, borde
 	if mr < 7 && mc < 7 {
 		fx, fy = 0, 0 // 左上
 	} else if mr < 7 && mc >= dim-7 {
-		fx, fy = dim - 7, 0 // 右上
+		fx, fy = dim-7, 0 // 右上
 	} else if mr >= dim-7 && mc < 7 {
-		fx, fy = 0, dim - 7 // 左下
+		fx, fy = 0, dim-7 // 左下
 	} else {
 		return // 非定位图案角格
 	}

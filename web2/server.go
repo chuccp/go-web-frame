@@ -97,11 +97,27 @@ func (server *Server) initRoute() {
 }
 
 func (server *Server) addHandler(httpMethods []string, relativePath string, handlers ...HandlerFunc) {
-
 	for _, httpMethod := range httpMethods {
-		server.engine.Handle(httpMethod, relativePath, handlers)
+		server.engine.Handle(httpMethod, relativePath, server.toGinHandlerFunc(handlers...))
 	}
+}
 
+//	func (server *Server) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerFunc {
+//		var handlerFunc = make([]gin.HandlerFunc, len(handlers))
+//		//for i, handler := range handlers {
+//		//	handlerFunc[i] = httpServer.toGinHandlerFunc(handlerConfig, handler)
+//		//}
+//		return handlerFunc
+//	}
+func (server *Server) toGinHandlerFunc(handler ...HandlerFunc) gin.HandlerFunc {
+	handlerFunc := func(ctx *gin.Context) {
+		//resp := newResponse(ctx)
+		//handlerMeta := handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath())
+		//request := newRequest(ctx, resp, handlerMeta, handlerConfig)
+		//mock := newMockFilterChain(request, handlerConfig.converter, handlerConfig.filters, &lastFilter{handler})
+		//mock.Converter()
+	}
+	return handlerFunc
 }
 
 func (server *Server) listen() error {

@@ -283,7 +283,9 @@ func (cs *CertServer) startTLSChallengeServer(ctx context.Context) error {
 	}
 	return nil
 }
-
+func (cs *CertServer) hasAutoCert() bool {
+	return len(cs.autoHosts) > 0
+}
 func (cs *CertServer) Start() error {
 	if err := cs.initCert(); err != nil {
 		return fmt.Errorf("certificate initialization failed: %w", err)
@@ -291,7 +293,7 @@ func (cs *CertServer) Start() error {
 
 	errorPool := pool.New().WithContext(cs.ctx).WithFirstError()
 
-	if len(cs.autoHosts) > 0 {
+	if cs.hasAutoCert() {
 		if _, ok := cs.serversMap[80]; !ok {
 			errorPool.Go(func(ctx context.Context) error {
 				return cs.startHTTPChallengeServer(ctx)
@@ -322,7 +324,7 @@ func (cs *CertServer) startServer(server *Server) error {
 func (cs *CertServer) listen(server *Server) error {
 	var engine http.Handler = server.engine
 
-	if len(cs.autoHosts) > 0 {
+	if cs.hasAutoCert() {
 		if server.serverConfig.Port == 80 {
 			engine = cs.autoCertManager.HTTPHandler(engine)
 		}
@@ -342,7 +344,7 @@ func (cs *CertServer) listen(server *Server) error {
 
 func (cs *CertServer) listenTLS(server *Server) error {
 	var engine http.Handler = server.engine
-	if len(cs.autoHosts) > 0 {
+	if cs.hasAutoCert() {
 		if server.serverConfig.Port == 443 {
 			engine = cs.autoCertManager.HTTPHandler(engine)
 		}

@@ -2,15 +2,11 @@ package web2
 
 import (
 	"context"
-	"net"
 	"net/http"
-	"strconv"
-	"time"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/gin-gonic/gin"
-	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 )
 
@@ -56,18 +52,9 @@ func defaultEngine() *gin.Engine {
 }
 
 func (servers *Servers) Start() error {
-	errorsPool := pool.New().WithContext(servers.ctx).WithFirstError()
-	for _, server := range servers.servers {
-		errorsPool.Go(func(ctx context.Context) error {
-			return server.listen()
-		})
-	}
-	return errorsPool.Wait()
+	certServer := newCertServer(servers.ctx, "./auto_cert", servers.servers)
+	return certServer.Start()
 }
-
-const MaxHeaderBytes = 8192
-const MaxReadHeaderTimeout = time.Second * 30
-const MaxReadTimeout = time.Minute * 10
 
 type Server struct {
 	serverConfig *ServerConfig
@@ -128,19 +115,4 @@ func (server *Server) toSingleGinHandlerFunc(relativePath string, handlerMeta *H
 		mock.next()
 	}
 	return handlerFunc
-}
-
-func (server *Server) listen() error {
-	server.initRoute()
-	httpServer := &http.Server{
-		BaseContext: func(listener net.Listener) context.Context {
-			return server.ctx
-		},
-		Addr:              ":" + strconv.Itoa(server.serverConfig.Port),
-		Handler:           server.engine,
-		ReadHeaderTimeout: MaxReadHeaderTimeout,
-		MaxHeaderBytes:    MaxHeaderBytes,
-		ReadTimeout:       MaxReadTimeout,
-	}
-	return httpServer.ListenAndServe()
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chuccp/go-web-frame/log"
@@ -22,9 +23,61 @@ const MaxHeaderBytes = 8192
 const MaxReadHeaderTimeout = time.Second * 30
 const MaxReadTimeout = time.Minute * 10
 
-type localCert struct {
-	cert    *tls.Certificate
-	domains []string
+const certCheckInterval = 5 * time.Minute
+
+type certEntry struct {
+	host      string
+	certFile  string
+	keyFile   string
+	domains   []string
+	cert      *tls.Certificate
+	certMod   time.Time
+	keyMod    time.Time
+	nextCheck time.Time
+	mu        sync.RWMutex
+}
+
+func (e *certEntry) get() (*tls.Certificate, error) {
+	e.mu.RLock()
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		c := e.cert
+		e.mu.RUnlock()
+		return c, nil
+	}
+	e.mu.RUnlock()
+
+	certStat, err := os.Stat(e.certFile)
+	if err != nil {
+		return nil, fmt.Errorf("stat cert file %s: %w", e.certFile, err)
+	}
+	keyStat, err := os.Stat(e.keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("stat key file %s: %w", e.keyFile, err)
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		return e.cert, nil
+	}
+
+	if e.cert != nil && certStat.ModTime().Equal(e.certMod) && keyStat.ModTime().Equal(e.keyMod) {
+		e.nextCheck = time.Now().Add(certCheckInterval)
+		return e.cert, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(e.certFile, e.keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("reload certificate host=%s cert=%s key=%s: %w", e.host, e.certFile, e.keyFile, err)
+	}
+	e.cert = &cert
+	e.certMod = certStat.ModTime()
+	e.keyMod = keyStat.ModTime()
+	e.nextCheck = time.Now().Add(certCheckInterval)
+
+	log.Info("certificate reloaded from disk", zap.String("host", e.host), zap.String("cert", e.certFile))
+	return e.cert, nil
 }
 
 type CertServer struct {
@@ -32,20 +85,23 @@ type CertServer struct {
 	serversMap      map[int]*Server
 	autoCertManager *autocert.Manager
 	autoHosts       []string
-	localCerts      []*localCert
-	certMap         map[string]*tls.Certificate
+	certEntries     []*certEntry
+	certMap         map[string]*certEntry
+	wildcardCache   map[string]*certEntry
+	mu              sync.RWMutex
 	certsPath       string
 	ctx             context.Context
 }
 
 func newCertServer(ctx context.Context, certsPath string, servers []*Server) *CertServer {
 	cs := &CertServer{
-		servers:    servers,
-		serversMap: make(map[int]*Server),
-		localCerts: make([]*localCert, 0),
-		certMap:    make(map[string]*tls.Certificate),
-		certsPath:  certsPath,
-		ctx:        ctx,
+		servers:       servers,
+		serversMap:    make(map[int]*Server),
+		certEntries:   make([]*certEntry, 0),
+		certMap:       make(map[string]*certEntry),
+		wildcardCache: make(map[string]*certEntry),
+		certsPath:     certsPath,
+		ctx:           ctx,
 	}
 	for _, server := range servers {
 		cs.serversMap[server.serverConfig.Port] = server
@@ -53,7 +109,7 @@ func newCertServer(ctx context.Context, certsPath string, servers []*Server) *Ce
 	return cs
 }
 
-func (cs *CertServer) parseCert(certFile, keyFile string) (*localCert, error) {
+func (cs *CertServer) parseCert(certFile, keyFile string) (*certEntry, error) {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read certificate file %s: %w", certFile, err)
@@ -73,16 +129,21 @@ func (cs *CertServer) parseCert(certFile, keyFile string) (*localCert, error) {
 		return nil, fmt.Errorf("no domain names found in certificate %s", certFile)
 	}
 
-	return &localCert{
-		cert:    &tlsCert,
-		domains: domains,
-	}, nil
+	entry := &certEntry{
+		certFile: certFile,
+		keyFile:  keyFile,
+		domains:  domains,
+		cert:     &tlsCert,
+	}
+	entry.nextCheck = time.Now().Add(certCheckInterval)
+	return entry, nil
 }
 
-func (cs *CertServer) addLocalCert(lc *localCert) {
-	cs.localCerts = append(cs.localCerts, lc)
-	for _, domain := range lc.domains {
-		cs.certMap[strings.ToLower(domain)] = lc.cert
+func (cs *CertServer) addCertEntry(entry *certEntry) {
+	cs.certEntries = append(cs.certEntries, entry)
+	for _, domain := range entry.domains {
+		key := strings.ToLower(domain)
+		cs.certMap[key] = entry
 		log.Debug("registered local certificate for domain", zap.String("domain", domain))
 	}
 }
@@ -110,12 +171,22 @@ func extractDomains(tlsCert *tls.Certificate) []string {
 func (cs *CertServer) GetCertificate(host string) (*tls.Certificate, error) {
 	host = strings.ToLower(host)
 
-	if cert, ok := cs.certMap[host]; ok {
-		return cert, nil
+	if entry, ok := cs.certMap[host]; ok {
+		return entry.get()
 	}
 
-	if cert := cs.matchWildcard(host); cert != nil {
-		return cert, nil
+	cs.mu.RLock()
+	if entry, ok := cs.wildcardCache[host]; ok {
+		cs.mu.RUnlock()
+		return entry.get()
+	}
+	cs.mu.RUnlock()
+
+	if entry := cs.matchWildcard(host); entry != nil {
+		cs.mu.Lock()
+		cs.wildcardCache[host] = entry
+		cs.mu.Unlock()
+		return entry.get()
 	}
 
 	if cs.autoCertManager == nil {
@@ -124,15 +195,15 @@ func (cs *CertServer) GetCertificate(host string) (*tls.Certificate, error) {
 	return cs.autoCertManager.GetCertificate(&tls.ClientHelloInfo{ServerName: host})
 }
 
-func (cs *CertServer) matchWildcard(host string) *tls.Certificate {
-	for _, lc := range cs.localCerts {
-		for _, domain := range lc.domains {
+func (cs *CertServer) matchWildcard(host string) *certEntry {
+	for _, entry := range cs.certEntries {
+		for _, domain := range entry.domains {
 			if strings.HasPrefix(domain, "*.") {
 				suffix := domain[1:]
 				if strings.HasSuffix(host, suffix) {
 					prefix := strings.TrimSuffix(host, suffix)
 					if !strings.Contains(prefix, ".") {
-						return lc.cert
+						return entry
 					}
 				}
 			}
@@ -147,11 +218,11 @@ func (cs *CertServer) initCert() error {
 		if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
 			if len(server.serverConfig.SSL.Certs) > 0 {
 				for _, certCfg := range server.serverConfig.SSL.Certs {
-					lc, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
+					entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
 					if err != nil {
 						return fmt.Errorf("server port %d: %w", server.serverConfig.Port, err)
 					}
-					cs.addLocalCert(lc)
+					cs.addCertEntry(entry)
 				}
 				continue
 			}
@@ -172,6 +243,7 @@ func (cs *CertServer) initCert() error {
 
 	return nil
 }
+
 func (cs *CertServer) startHTTPChallengeServer(ctx context.Context) error {
 	server := &http.Server{
 		Addr:    ":80",
@@ -228,29 +300,22 @@ func (cs *CertServer) Start() error {
 		}
 	}
 	for _, server := range cs.servers {
-		errorPool.Go(func(ctx context.Context) error {
-			return cs.startServer(ctx, server)
+		errorPool.Go(func(_ context.Context) error {
+			return cs.startServer(server)
 		})
 	}
 	return errorPool.Wait()
 }
-func (cs *CertServer) startServer(ctx context.Context, server *Server) error {
+
+func (cs *CertServer) startServer(server *Server) error {
 	server.initRoute()
 	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
-		err := cs.listenTLS(ctx, server)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := cs.listen(ctx, server)
-		if err != nil {
-			return err
-		}
+		return cs.listenTLS(server)
 	}
-	return nil
+	return cs.listen(server)
 }
 
-func (cs *CertServer) listen(ctx context.Context, server *Server) error {
+func (cs *CertServer) listen(server *Server) error {
 	var engine http.Handler = server.engine
 
 	if len(cs.autoHosts) > 0 {
@@ -271,7 +336,7 @@ func (cs *CertServer) listen(ctx context.Context, server *Server) error {
 	return httpServer.ListenAndServe()
 }
 
-func (cs *CertServer) listenTLS(ctx context.Context, server *Server) error {
+func (cs *CertServer) listenTLS(server *Server) error {
 	var engine http.Handler = server.engine
 	if len(cs.autoHosts) > 0 {
 		if server.serverConfig.Port == 443 {

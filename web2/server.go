@@ -66,7 +66,7 @@ type Server struct {
 }
 
 func (server *Server) isAuto() bool {
-	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
+	if server.isTls() {
 		if len(server.serverConfig.SSL.Certs) <= 0 {
 			if len(server.serverConfig.SSL.Hosts) > 0 {
 				return true

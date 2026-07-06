@@ -216,8 +216,8 @@ func (cs *CertServer) matchWildcard(host string) *certEntry {
 func (cs *CertServer) initCert() error {
 	hosts := make([]string, 0)
 	for _, server := range cs.servers {
-		if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
-			if len(server.serverConfig.SSL.Certs) > 0 {
+		if server.isTls() {
+			if !server.isAuto() {
 				for _, certCfg := range server.serverConfig.SSL.Certs {
 					entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
 					if err != nil {
@@ -226,10 +226,12 @@ func (cs *CertServer) initCert() error {
 					cs.addCertEntry(entry)
 				}
 				continue
+			} else {
+				if len(server.serverConfig.SSL.Hosts) > 0 {
+					hosts = append(hosts, server.serverConfig.SSL.Hosts...)
+				}
 			}
-			if len(server.serverConfig.SSL.Hosts) > 0 {
-				hosts = append(hosts, server.serverConfig.SSL.Hosts...)
-			}
+
 		}
 	}
 	cs.autoHosts = hosts

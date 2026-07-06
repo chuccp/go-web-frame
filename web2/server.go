@@ -15,8 +15,8 @@ import (
 )
 
 type Servers struct {
-	tslServers []*Server
-	ctx        context.Context
+	servers []*Server
+	ctx     context.Context
 }
 
 func NewServers() *Servers {
@@ -25,25 +25,25 @@ func NewServers() *Servers {
 }
 func NewServerWithContext(ctx context.Context) *Servers {
 	return &Servers{
-		ctx:        ctx,
-		tslServers: make([]*Server, 0),
+		ctx:     ctx,
+		servers: make([]*Server, 0),
 	}
 }
 func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx context.Context) (*Server, error) {
-	for _, server := range servers.tslServers {
+	for _, server := range servers.servers {
 		if server.serverConfig.Port == serverConfig.Port {
 			return nil, errors.New("port already in use")
 		}
 	}
-	tslServer := &Server{
+	server := &Server{
 		serverConfig: serverConfig,
 		ctx:          ctx,
 		engine:       defaultEngine(),
 		routeTree:    newRouteTree(),
 		filters:      make([]Filter, 0),
 	}
-	servers.tslServers = append(servers.tslServers, tslServer)
-	return tslServer, nil
+	servers.servers = append(servers.servers, server)
+	return server, nil
 }
 func (servers *Servers) CreateServer(serverConfig *ServerConfig) (*Server, error) {
 	return servers.CreateServerWithContext(serverConfig, servers.ctx)
@@ -57,7 +57,7 @@ func defaultEngine() *gin.Engine {
 
 func (servers *Servers) Start() error {
 	errorsPool := pool.New().WithContext(servers.ctx).WithFirstError()
-	for _, server := range servers.tslServers {
+	for _, server := range servers.servers {
 		errorsPool.Go(func(ctx context.Context) error {
 			return server.listen()
 		})

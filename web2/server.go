@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"emperror.dev/errors"
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc/pool"
+	"go.uber.org/zap"
 )
 
 type Servers struct {
@@ -18,6 +20,7 @@ type Servers struct {
 }
 
 func NewServers() *Servers {
+	gin.SetMode(gin.ReleaseMode)
 	return NewServerWithContext(context.Background())
 }
 func NewServerWithContext(ctx context.Context) *Servers {
@@ -36,6 +39,8 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 		serverConfig: serverConfig,
 		ctx:          ctx,
 		engine:       defaultEngine(),
+		routeTree:    newRouteTree(),
+		filters:      make([]Filter, 0),
 	}
 	servers.tslServers = append(servers.tslServers, tslServer)
 	return tslServer, nil
@@ -66,9 +71,18 @@ const MaxReadTimeout = time.Minute * 10
 
 type Server struct {
 	serverConfig *ServerConfig
-	routeTree    routeTree
+	routeTree    *routeTree
 	ctx          context.Context
 	engine       *gin.Engine
+	converter    Converter
+	filters      []Filter
+}
+
+func (server *Server) AddFilter(filter Filter) {
+	server.filters = append(server.filters, filter)
+}
+func (server *Server) SetConverter(converter Converter) {
+	server.converter = converter
 }
 
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
@@ -87,35 +101,31 @@ func (server *Server) Handlers(httpMethods []string, relativePath string, handle
 }
 
 func (server *Server) initRoute() {
-	server.routeTree.each(func(httpMethod string, handler []*HandlerInfo) {
-		for _, info := range handler {
-			if info.IsHandler() {
-
-			}
+	server.routeTree.each(func(httpMethod string, handlerInfos []*HandlerInfo) {
+		for _, handlerInfo := range handlerInfos {
+			server.addHandler(httpMethod, handlerInfo)
 		}
 	})
 }
 
-func (server *Server) addHandler(httpMethods []string, relativePath string, handlers ...HandlerFunc) {
-	for _, httpMethod := range httpMethods {
-		server.engine.Handle(httpMethod, relativePath, server.toGinHandlerFunc(handlers...))
-	}
+func (server *Server) addHandler(httpMethod string, handlerInfo *HandlerInfo) {
+	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", handlerInfo.relativePath), zap.Any("handlers", Of(handlerInfo).GetFuncName()))
+	server.engine.Handle(httpMethod, handlerInfo.relativePath, server.toGinHandlerFunc(handlerInfo)...)
 }
 
-//	func (server *Server) ToGinHandlerFunc(handlers ...HandlerFunc) []gin.HandlerFunc {
-//		var handlerFunc = make([]gin.HandlerFunc, len(handlers))
-//		//for i, handler := range handlers {
-//		//	handlerFunc[i] = httpServer.toGinHandlerFunc(handlerConfig, handler)
-//		//}
-//		return handlerFunc
-//	}
-func (server *Server) toGinHandlerFunc(handler ...HandlerFunc) gin.HandlerFunc {
+func (server *Server) toGinHandlerFunc(handlerInfo *HandlerInfo) []gin.HandlerFunc {
+	handlers := handlerInfo.handlers
+	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
+	for i, handler := range handlers {
+		handlerFunc[i] = server.toSingleGinHandlerFunc(handlerInfo.relativePath, handlerInfo.handlerMeta, handler)
+	}
+	return handlerFunc
+}
+func (server *Server) toSingleGinHandlerFunc(relativePath string, handlerMeta *HandlerMeta, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
-		//resp := newResponse(ctx)
-		//handlerMeta := handlerConfig.HandlerMeta(ctx.Request.Method, ctx.FullPath())
-		//request := newRequest(ctx, resp, handlerMeta, handlerConfig)
-		//mock := newMockFilterChain(request, handlerConfig.converter, handlerConfig.filters, &lastFilter{handler})
-		//mock.Converter()
+		req := request(ctx)
+		mock := newMockFilterChain(req, server.converter, server.filters, handler)
+		mock.next()
 	}
 	return handlerFunc
 }

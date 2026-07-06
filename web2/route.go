@@ -46,14 +46,26 @@ func (hi *HandlerInfo) IsHandler() bool {
 	return len(hi.handlers) > 0
 }
 
-type routeTree map[string][]*HandlerInfo
-
-func (rt routeTree) add(httpMethod string, handler *HandlerInfo) {
-	rt[httpMethod] = append(rt[httpMethod], handler)
+type routeTree struct {
+	routeTreeMap map[string][]*HandlerInfo
 }
 
-func (rt routeTree) each(f func(httpMethod string, handler []*HandlerInfo)) {
-	for key, infos := range rt {
+func newRouteTree() *routeTree {
+	return &routeTree{
+		routeTreeMap: make(map[string][]*HandlerInfo),
+	}
+}
+
+func (rt *routeTree) add(httpMethod string, handler *HandlerInfo) {
+	if rt.routeTreeMap[httpMethod] == nil {
+		rt.routeTreeMap[httpMethod] = []*HandlerInfo{handler}
+	} else {
+		rt.routeTreeMap[httpMethod] = append(rt.routeTreeMap[httpMethod], handler)
+	}
+}
+
+func (rt *routeTree) each(f func(httpMethod string, handler []*HandlerInfo)) {
+	for key, infos := range rt.routeTreeMap {
 		f(key, infos)
 	}
 }

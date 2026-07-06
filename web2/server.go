@@ -65,6 +65,23 @@ type Server struct {
 	filters      []Filter
 }
 
+func (server *Server) isAuto() bool {
+	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
+		if len(server.serverConfig.SSL.Certs) <= 0 {
+			if len(server.serverConfig.SSL.Hosts) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+func (server *Server) isTls() bool {
+	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
+		return true
+	}
+	return false
+}
+
 func (server *Server) AddFilter(filter Filter) {
 	server.filters = append(server.filters, filter)
 }

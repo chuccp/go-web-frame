@@ -311,7 +311,7 @@ func (cs *CertServer) Start() error {
 
 func (cs *CertServer) startServer(server *Server) error {
 	server.initRoute()
-	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
+	if server.isTls() {
 		return cs.listenTLS(server)
 	}
 	return cs.listen(server)
@@ -351,6 +351,9 @@ func (cs *CertServer) listenTLS(server *Server) error {
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return cs.GetCertificate(info.ServerName)
 		},
+	}
+	if server.isAuto() {
+		tlsConfig.GetCertificate = cs.autoCertManager.GetCertificate
 	}
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {

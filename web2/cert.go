@@ -17,6 +17,7 @@ import (
 	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/net/http2"
 )
 
 const MaxHeaderBytes = 8192
@@ -263,6 +264,7 @@ func (cs *CertServer) startHTTPChallengeServer(ctx context.Context) error {
 func (cs *CertServer) startTLSChallengeServer(ctx context.Context) error {
 	tlsConfig := cs.autoCertManager.TLSConfig()
 	tlsConfig.MinVersion = tls.VersionTLS12
+	tlsConfig.NextProtos = []string{http2.NextProtoTLS, "http/1.1"}
 
 	server := &http.Server{
 		Addr:      ":443",
@@ -345,6 +347,7 @@ func (cs *CertServer) listenTLS(server *Server) error {
 	}
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
+		NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return cs.GetCertificate(info.ServerName)
 		},

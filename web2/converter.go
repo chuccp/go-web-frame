@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"emperror.dev/errors"
-
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"go.uber.org/zap"
@@ -39,6 +37,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.Message(request, t)
 			case *FileResponse:
 				c.FileResponse(request, t)
+			case *FileSystemResponse:
+				c.FileSystemResponse(request, t)
 			case *os.File:
 				c.RawFile(request, t)
 			case string:
@@ -53,10 +53,9 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 	}
 }
 func (c *DefaultConverter) Message(request *Request, value *Message) {
-	resp := request.response
 	if value.Code == http.StatusMovedPermanently {
-		resp.Redirect(http.StatusMovedPermanently, value.Data.(string))
-		resp.Abort()
+		request.response.Redirect(http.StatusMovedPermanently, value.Data.(string))
+		request.response.Abort()
 		return
 	}
 	request.response.JSON(value.Code, value.Data)
@@ -75,30 +74,20 @@ func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 	}
 	request.response.FileAttachment(value.Path, value.FileName)
 }
+func (c *DefaultConverter) FileSystemResponse(request *Request, value *FileSystemResponse) {
+	request.GinContext().FileFromFS(value.Filepath, value.FS)
+}
+
 func (c *DefaultConverter) RawFile(request *Request, value *os.File) {
 	defer value.Close()
-	fileInfo, err := value.Stat()
-	if err != nil {
-		c.Error(request, value, err)
-		return
-	}
-	if fileInfo.IsDir() {
-		c.Error(request, value, errors.New("cannot serve a directory as file"))
-		return
-	}
 	filename := filepath.Base(value.Name())
 	request.response.FileAttachment(value.Name(), filename)
 }
 func (c *DefaultConverter) String(request *Request, value string) {
-	_, err := request.response.WriteString(value)
-	if err != nil {
-		return
-	}
+	request.response.WriteString(value)
 }
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
-	resp := request.response
-	err = resp.AbortWithError(err)
-	if err != nil {
-		log.Error("emptyConverter AbortWithError", zap.Error(err))
+	if abortErr := request.response.AbortWithError(err); abortErr != nil {
+		log.Error("emptyConverter AbortWithError", zap.Error(abortErr))
 	}
 }

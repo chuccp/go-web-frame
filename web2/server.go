@@ -98,8 +98,15 @@ func (server *Server) Post(relativePath string, handlers ...HandlerFunc) *Route 
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
 }
+
+func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Route {
+	return server.Get(relativePath+"/*filepath", func(r *Request) (any, error) {
+		return &FileSystemResponse{Filepath: r.Param("filepath"), FS: fs}, nil
+	})
+}
+
 func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
-	route := newRoute(relativePath, httpMethods, handlers...)
+	route := newHandlerRoute(relativePath, httpMethods, handlers...)
 	server.routes = append(server.routes, route)
 	return route
 }

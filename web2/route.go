@@ -44,12 +44,8 @@ type Route struct {
 	httpMethods  []string
 }
 
-func newRoute(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
+func newHandlerRoute(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
 	return &Route{relativePath: relativePath, handlers: handlers, httpMethods: httpMethods}
-}
-
-func (r *Route) IsHandler() bool {
-	return len(r.handlers) > 0
 }
 
 // LastFuncName returns the fully-qualified function name of the last handler in the route.

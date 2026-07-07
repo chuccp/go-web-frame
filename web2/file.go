@@ -1,6 +1,7 @@
 package web2
 
 import (
+	"net/http"
 	"path/filepath"
 	"strings"
 )
@@ -39,4 +40,9 @@ func CreateFileResponseWithName(path string, fileName string) *FileResponse {
 		FileName: fileName,
 		Suffix:   suffix,
 	}
+}
+
+type FileSystemResponse struct {
+	Filepath string
+	FS       http.FileSystem
 }

@@ -11,10 +11,10 @@ type ServerConfig struct {
 type SSLConfig struct {
 	Enabled bool      // Whether HTTPS is enabled
 	Hosts   []string  // Domain names for Let's Encrypt auto-certification
-	Certs   []SSLCert // Local certificate entries for pre-obtained certificates
+	Certs   []SSLCertificate // Local certificate entries for pre-obtained certificates
 }
 
-type SSLCert struct {
+type SSLCertificate struct {
 	CertFile string // Path to the certificate file (PEM format)
 	KeyFile  string // Path to the private key file (PEM format)
 }

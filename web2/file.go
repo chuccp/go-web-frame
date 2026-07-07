@@ -8,20 +8,20 @@ import (
 // File represents a downloadable file response.
 // Path is the file system path, FileName is the download name,
 // and Suffix is an optional suffix appended to the filename.
-type File struct {
+type FileResponse struct {
 	Path     string // File system path to the file
 	FileName string // Name shown to the client on download
 	Suffix   string // Optional suffix appended to the filename
 }
 
 // CreateFile creates a File from a path, auto-extracting the filename and suffix.
-func CreateFile(path string) *File {
+func CreateFileResponse(path string) *FileResponse {
 	fileName := filepath.Base(path)
 	suffix := ""
 	if idx := strings.LastIndex(fileName, "."); idx != -1 {
 		suffix = fileName[idx+1:]
 	}
-	return &File{
+	return &FileResponse{
 		Path:     path,
 		FileName: fileName,
 		Suffix:   suffix,
@@ -29,12 +29,12 @@ func CreateFile(path string) *File {
 }
 
 // CreateFileWithName creates a File from a path with a custom download filename.
-func CreateFileWithName(path string, fileName string) *File {
+func CreateFileResponseWithName(path string, fileName string) *FileResponse {
 	suffix := ""
 	if idx := strings.LastIndex(fileName, "."); idx != -1 {
 		suffix = fileName[idx+1:]
 	}
-	return &File{
+	return &FileResponse{
 		Path:     path,
 		FileName: fileName,
 		Suffix:   suffix,

@@ -1,5 +1,26 @@
 package web2
 
+import (
+	"reflect"
+	"runtime"
+)
+
+// HandlerChain is a chain of handler functions.
+type HandlerChain []HandlerFunc
+
+// GetFuncName returns the name of the last handler function in the chain.
+func (c HandlerChain) GetFuncName() string {
+	return runtime.FuncForPC(reflect.ValueOf(c.Last()).Pointer()).Name()
+}
+
+// Last returns the last handler in the chain, or nil if the chain is empty.
+func (c HandlerChain) Last() HandlerFunc {
+	if length := len(c); length > 0 {
+		return c[length-1]
+	}
+	return nil
+}
+
 type FilterChain interface {
 	// Next executes the next filter or the final handler in the chain.
 	// Returns (any, error): the result and any error.
@@ -13,7 +34,7 @@ type Filter interface {
 	Handle(filterChain FilterChain, request *Request) (any, error)
 }
 
-type mockFilterChain struct {
+type filterChain struct {
 	index     int
 	request   *Request
 	filters   []Filter
@@ -21,8 +42,8 @@ type mockFilterChain struct {
 	handler   HandlerFunc
 }
 
-func newMockFilterChain(request *Request, converter Converter, filters []Filter, handler HandlerFunc) *mockFilterChain {
-	return &mockFilterChain{
+func newFilterChain(request *Request, converter Converter, filters []Filter, handler HandlerFunc) *filterChain {
+	return &filterChain{
 		filters:   filters,
 		index:     -1,
 		request:   request,
@@ -31,7 +52,7 @@ func newMockFilterChain(request *Request, converter Converter, filters []Filter,
 	}
 }
 
-func (c *mockFilterChain) Next() (any, error) {
+func (c *filterChain) Next() (any, error) {
 	if c.index < len(c.filters)-1 {
 		c.index++
 		return c.filters[c.index].Handle(c, c.request)
@@ -39,7 +60,7 @@ func (c *mockFilterChain) Next() (any, error) {
 	return c.handler(c.request)
 }
 
-func (c *mockFilterChain) next() {
+func (c *filterChain) next() {
 	if c.converter != nil {
 		c.converter.Request(c, c.request)
 	} else {

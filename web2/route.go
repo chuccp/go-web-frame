@@ -1,71 +1,108 @@
 package web2
 
-import "github.com/spf13/cast"
-
-type KV map[string]any
-
-// GetString returns the value for key as a string.
-func (o KV) GetString(key string) string {
-	return cast.ToString((o)[key])
-}
-
-// GetInt returns the value for key as an int.
-func (o KV) GetInt(key string) int {
-	return cast.ToInt((o)[key])
-}
-
-// GetIntForDefault returns the value for key as an int, or defaultValue if the result is 0.
-func (o KV) GetIntForDefault(key string, defaultValue int) int {
-	if v := o.GetInt(key); v != 0 {
-		return v
-	}
-	return defaultValue
-}
-
-// Add sets the value for key in the JsonObject.
-func (o KV) Add(key string, value any) {
-	(o)[key] = value
-}
+import (
+	"reflect"
+	"runtime"
+)
 
 type HandlerMeta struct {
 	data        KV
 	contextPath string
 }
 
-type HandlerInfo struct {
+// Add sets a key-value pair in the handler metadata.
+func (hm *HandlerMeta) Add(key string, value any) {
+	hm.data.Add(key, value)
+}
+
+// Has reports whether the given key exists in the handler metadata.
+func (hm *HandlerMeta) Has(key string) bool {
+	_, ok := hm.data[key]
+	return ok
+}
+
+// Get returns the value for the given key, or nil if not found.
+func (hm *HandlerMeta) Get(key string) any {
+	v, ok := hm.data[key]
+	if ok {
+		return v
+	}
+	return nil
+}
+
+// NewHandlerMeta creates a new empty HandlerMeta.
+func NewHandlerMeta() *HandlerMeta {
+	return &HandlerMeta{
+		data: make(KV),
+	}
+}
+
+type Route struct {
 	relativePath string
 	handlerMeta  *HandlerMeta
 	handlers     []HandlerFunc
+	httpMethods  []string
 }
 
-func NewHandlerInfo(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	return &HandlerInfo{relativePath: relativePath, handlers: handlers}
+func newRoute(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
+	return &Route{relativePath: relativePath, handlers: handlers, httpMethods: httpMethods}
 }
 
-func (hi *HandlerInfo) IsHandler() bool {
-	return len(hi.handlers) > 0
+func (r *Route) IsHandler() bool {
+	return len(r.handlers) > 0
 }
 
-type routeTree struct {
-	routeTreeMap map[string][]*HandlerInfo
-}
-
-func newRouteTree() *routeTree {
-	return &routeTree{
-		routeTreeMap: make(map[string][]*HandlerInfo),
+// LastFuncName returns the fully-qualified function name of the last handler in the route.
+// Used for debug logging; returns empty string if the route has no handlers.
+func (r *Route) LastFuncName() string {
+	if len(r.handlers) == 0 {
+		return ""
 	}
+	last := r.handlers[len(r.handlers)-1]
+	return runtime.FuncForPC(reflect.ValueOf(last).Pointer()).Name()
 }
 
-func (rt *routeTree) add(httpMethod string, handler *HandlerInfo) {
-	if rt.routeTreeMap[httpMethod] == nil {
-		rt.routeTreeMap[httpMethod] = []*HandlerInfo{handler}
-	} else {
-		rt.routeTreeMap[httpMethod] = append(rt.routeTreeMap[httpMethod], handler)
+// WithMeta applies the given MetaOption values to the route's metadata.
+// If handlerMeta is nil, a new one is created automatically.
+func (r *Route) WithMeta(mo ...MetaOption) *Route {
+	if r.handlerMeta == nil {
+		r.handlerMeta = NewHandlerMeta()
 	}
+	for _, o := range mo {
+		o.apply(r.handlerMeta)
+	}
+	return r
 }
 
-func (rt *routeTree) each(f func(httpMethod string, handler []*HandlerInfo)) {
-	for key, infos := range rt.routeTreeMap {
-		f(key, infos)
-	}
+// MetaOption is an option that can be applied to a HandlerMeta.
+type MetaOption interface {
+	apply(o *HandlerMeta)
+}
+
+type funcOption struct {
+	f func(oo *HandlerMeta)
+}
+
+func (fo *funcOption) apply(oo *HandlerMeta) {
+	fo.f(oo)
+}
+
+func newFunMetaOption(f func(o *HandlerMeta)) *funcOption {
+	return &funcOption{f: f}
+}
+
+// WithKey creates a MetaOption that sets the given keys to true in the handler metadata.
+func WithKey(keys ...string) MetaOption {
+	return newFunMetaOption(func(oo *HandlerMeta) {
+		for _, key := range keys {
+			oo.Add(key, true)
+		}
+	})
+}
+
+// WithValue creates a MetaOption that sets a key-value pair in the handler metadata.
+func WithValue(key string, value any) MetaOption {
+	return newFunMetaOption(func(oo *HandlerMeta) {
+		oo.Add(key, value)
+	})
 }

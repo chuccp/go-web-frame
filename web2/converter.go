@@ -23,7 +23,7 @@ type Converter interface {
 var defaultConverter = &DefaultConverter{}
 
 // DefaultConverter is the built-in converter that handles Message, string,
-// *File, *os.File, and arbitrary values (converted to JSON).
+// *FileResponse, *os.File, and arbitrary values (converted to JSON).
 type DefaultConverter struct {
 }
 
@@ -36,8 +36,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 			switch t := value.(type) {
 			case *Message:
 				c.Message(request, t)
-			case *File:
-				c.File(request, t)
+			case *FileResponse:
+				c.FileResponse(request, t)
 			case *os.File:
 				c.RawFile(request, t)
 			case string:
@@ -60,7 +60,7 @@ func (c *DefaultConverter) Message(request *Request, value *Message) {
 	}
 	request.response.JSON(value.Code, value.Data)
 }
-func (c *DefaultConverter) File(request *Request, value *File) {
+func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 
 	if len(value.FileName) == 0 {
 		_, filename := path.Split(value.Path)

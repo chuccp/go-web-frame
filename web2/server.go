@@ -35,7 +35,7 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 		serverConfig: serverConfig,
 		ctx:          ctx,
 		engine:       defaultEngine(),
-		routeTree:    newRouteTree(),
+		routes:       make([]*Route, 0),
 		filters:      make([]Filter, 0),
 	}
 	servers.servers = append(servers.servers, server)
@@ -52,13 +52,13 @@ func defaultEngine() *gin.Engine {
 }
 
 func (servers *Servers) Start() error {
-	certServer := newCertServer(servers.ctx, "./auto_cert", servers.servers)
+	certServer := newServerRunner(servers.ctx, "./auto_cert", servers.servers)
 	return certServer.Start()
 }
 
 type Server struct {
 	serverConfig *ServerConfig
-	routeTree    *routeTree
+	routes       []*Route
 	ctx          context.Context
 	engine       *gin.Engine
 	converter    Converter
@@ -89,46 +89,43 @@ func (server *Server) SetConverter(converter Converter) {
 	server.converter = converter
 }
 
-func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodGet, relativePath, handlers...)
 }
-func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
+func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
 }
-func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *HandlerInfo {
-	handlerInfo := NewHandlerInfo(relativePath, handlers...)
-	for _, httpMethod := range httpMethods {
-		server.routeTree.add(httpMethod, handlerInfo)
-	}
-	return handlerInfo
-
+func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
+	route := newRoute(relativePath, httpMethods, handlers...)
+	server.routes = append(server.routes, route)
+	return route
 }
 
 func (server *Server) initRoute() {
-	server.routeTree.each(func(httpMethod string, handlerInfos []*HandlerInfo) {
-		for _, handlerInfo := range handlerInfos {
-			server.addHandler(httpMethod, handlerInfo)
+	for _, route := range server.routes {
+		for _, httpMethod := range route.httpMethods {
+			server.addHandler(httpMethod, route)
 		}
-	})
+	}
 }
 
-func (server *Server) addHandler(httpMethod string, handlerInfo *HandlerInfo) {
-	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", handlerInfo.relativePath), zap.Any("handlers", Of(handlerInfo).GetFuncName()))
-	server.engine.Handle(httpMethod, handlerInfo.relativePath, server.toGinHandlerFunc(handlerInfo)...)
+func (server *Server) addHandler(httpMethod string, route *Route) {
+	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", route.relativePath), zap.Any("handlers", route.LastFuncName()))
+	server.engine.Handle(httpMethod, route.relativePath, server.toGinHandlerFunc(route)...)
 }
 
-func (server *Server) toGinHandlerFunc(handlerInfo *HandlerInfo) []gin.HandlerFunc {
-	handlers := handlerInfo.handlers
+func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
+	handlers := route.handlers
 	var handlerFunc = make([]gin.HandlerFunc, len(handlers))
 	for i, handler := range handlers {
-		handlerFunc[i] = server.toSingleGinHandlerFunc(handlerInfo.relativePath, handlerInfo.handlerMeta, handler)
+		handlerFunc[i] = server.toSingleGinHandlerFunc(route, handler)
 	}
 	return handlerFunc
 }
-func (server *Server) toSingleGinHandlerFunc(relativePath string, handlerMeta *HandlerMeta, handler HandlerFunc) gin.HandlerFunc {
+func (server *Server) toSingleGinHandlerFunc(route *Route, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
-		req := request(ctx)
-		mock := newMockFilterChain(req, server.converter, server.filters, handler)
+		req := request(ctx, route)
+		mock := newFilterChain(req, server.converter, server.filters, handler)
 		mock.next()
 	}
 	return handlerFunc

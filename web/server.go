@@ -63,7 +63,7 @@ func (servers *Servers) GetServers() []*Server {
 }
 
 func defaultEngine() *gin.Engine {
-	engine := gin.Default()
+	engine := gin.New()
 	engine.ForwardedByClientIP = true
 	return engine
 }

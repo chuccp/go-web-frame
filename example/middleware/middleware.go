@@ -9,7 +9,6 @@ import (
 
 	wf "github.com/chuccp/go-web-frame"
 	config2 "github.com/chuccp/go-web-frame/config"
-	"github.com/chuccp/go-web-frame/component/ratelimit"
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
@@ -129,9 +128,10 @@ func (f *MemoryCacheFilter) Handle(fc web.FilterChain, req *web.Request) (any, e
 }
 
 // 3. 限流中间件
+// 使用方式: 安装 github.com/chuccp/go-web-frame/component/ratelimit
+// 然后在 Init 中通过 core.GetService 获取 ratelimit.RateLimit 实例
 type RateLimitFilter struct {
 	core.IFilter
-	rateLimiter *ratelimit.RateLimit
 }
 
 func NewRateLimitFilter() *RateLimitFilter {
@@ -139,31 +139,14 @@ func NewRateLimitFilter() *RateLimitFilter {
 }
 
 func (f *RateLimitFilter) Init(ctx *core.Context) error {
-	f.rateLimiter = core.GetService[*ratelimit.RateLimit](ctx)
-	if f.rateLimiter == nil {
-		log.Info("Rate limit filter not found, using default rate limit")
-		return nil
-	}
 	log.Info("Rate limit filter initialized")
 	return nil
 }
 
 func (f *RateLimitFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-	if f.rateLimiter == nil {
-		// 如果没有配置限流器，直接放行
-		return fc.Next()
-	}
-
 	// 使用客户端 IP 作为限流键
-	clientIP := req.ClientIP()
-
-	// 检查是否超过限流
-	allowed := f.rateLimiter.Allow(clientIP)
-	if !allowed {
-		log.Warn("Rate limit exceeded", zap.String("ip", clientIP))
-		return nil, errors.New("rate limit exceeded, please try again later")
-	}
-
+	// 实际项目中，通过 core.GetService[*ratelimit.RateLimit](ctx) 获取限流器
+	// allowed := rateLimiter.Allow(req.ClientIP())
 	return fc.Next()
 }
 
@@ -335,7 +318,8 @@ func main() {
 	builder := wf.NewBuilder(config2.LoadAutoConfig())
 
 	// 添加组件（用于限流中间件）
-	builder.Service(&ratelimit.RateLimit{})
+	// 需要安装: go get github.com/chuccp/go-web-frame/component/ratelimit
+	// 然后: builder.Service(&ratelimit.RateLimit{})
 
 	// 添加中间件（顺序很重要）
 	// 1. 恢复中间件 - 最先执行，捕获 panic

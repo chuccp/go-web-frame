@@ -47,7 +47,12 @@ type Route struct {
 }
 
 func newHandlerRoute(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
-	return &Route{relativePath: relativePath, handlers: handlers, httpMethods: httpMethods}
+	return &Route{
+		relativePath: relativePath,
+		handlers:     handlers,
+		httpMethods:  httpMethods,
+		handlerMeta:  NewHandlerMeta(),
+	}
 }
 
 // LastFuncName returns the fully-qualified function name of the last handler in the route.

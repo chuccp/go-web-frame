@@ -3,9 +3,12 @@ package web2
 import (
 	"context"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -137,8 +140,41 @@ func (server *Server) initRoute() {
 			server.addHandler(httpMethod, route)
 		}
 	}
+	server.noRoute()
 }
-
+func (server *Server) noRoute() {
+	if len(server.serverConfig.Locations) > 0 {
+		var memFileSystem = DefaultMemFileSystem(server.serverConfig.Locations)
+		server.engine.NoRoute(func(context *gin.Context) {
+			_path_ := context.Request.URL.Path
+			info, err := memFileSystem.Stat(_path_)
+			if info != nil && err == nil {
+				if info.IsDir() {
+					indexPage := filepath.Join(_path_, "index.html")
+					exists, err := memFileSystem.Exists(indexPage)
+					if exists && err == nil {
+						context.FileFromFS(_path_, memFileSystem)
+						return
+					}
+				} else {
+					context.FileFromFS(_path_, memFileSystem)
+					return
+				}
+			}
+			accepted := context.Request.Header.Get("Accept")
+			if strings.Contains(accepted, "html") && !util.IsImagePath(_path_) {
+				exists, err := memFileSystem.Exists(server.serverConfig.Page404)
+				if err != nil {
+					log.Error("File not found", zap.String("file", server.serverConfig.Page404))
+					return
+				}
+				if exists {
+					context.FileFromFS(server.serverConfig.Page404, memFileSystem)
+				}
+			}
+		})
+	}
+}
 func (server *Server) addHandler(httpMethod string, route *Route) {
 	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", route.relativePath), zap.Any("handlers", route.LastFuncName()))
 	server.engine.Handle(httpMethod, route.relativePath, server.toGinHandlerFunc(route)...)

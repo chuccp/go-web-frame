@@ -85,7 +85,7 @@ func (server *Server) isAuto() bool {
 	return false
 }
 func (server *Server) isTls() bool {
-	if server.serverConfig.SSL != nil && server.serverConfig.SSL.Enabled {
+	if server.serverConfig.SSLEnabled() {
 		return true
 	}
 	return false

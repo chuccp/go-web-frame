@@ -1,70 +1,80 @@
 package web
 
-import (
-	"fmt"
-	"net/http"
-)
+import "net/http"
 
+// Message is the standard response format for the framework.
 type Message struct {
-	Code int `json:"code"`
-	Data any `json:"data"`
+	Code int    `json:"code"`
+	Data any    `json:"data"`
+	Msg  string `json:"msg"`
+	Type string `json:"type"`
 }
 
-// IsOK reports whether the message represents a successful response (code 200).
-func (m *Message) IsOK() bool {
-	return m.Code == http.StatusOK
+// IsOK reports whether the message code indicates success (200).
+func (msg *Message) IsOK() bool {
+	return msg.Code == 200
+}
+
+// Ok creates a success response with an optional message.
+func Ok(msg ...string) *Message {
+	if len(msg) > 0 {
+		return &Message{Code: 200, Msg: msg[0]}
+	}
+	return &Message{Code: 200, Msg: "ok"}
 }
 
 // Data creates a success response with the given data.
 func Data(data any) *Message {
-	return &Message{Code: http.StatusOK, Data: data}
+	return &Message{Code: 200, Msg: "ok", Data: data}
 }
 
-// DataCode creates a response with the given code and data.
+// DataType creates a success response with a custom type and data.
+func DataType(t string, data any) *Message {
+	return &Message{Type: t, Code: 200, Msg: "ok", Data: data}
+}
+
+// DataCode creates a response with a custom status code and data.
 func DataCode(code int, data any) *Message {
-	return &Message{Code: code, Data: data}
+	return &Message{Code: code, Msg: "ok", Data: data}
 }
 
-// Errors creates an error response. If msg is provided, it is used as the error detail;
-// otherwise err.Error() is used.
-func Errors(data any, msg ...error) *Message {
-	m := &Message{Code: http.StatusInternalServerError, Data: data}
-	if len(msg) > 0 && msg[0] != nil {
-		m.Data = fmt.Sprintf("%v", msg[0])
-	}
-	return m
-}
-
-// ErrorMessage creates an error response with the given message string.
+// ErrorMessage creates an error response with code 500 and the given message.
 func ErrorMessage(msg ...string) *Message {
-	m := &Message{Code: http.StatusInternalServerError}
+	m := "error"
 	if len(msg) > 0 {
-		m.Data = msg[0]
+		m = msg[0]
 	}
-	return m
+	return &Message{Code: 500, Msg: m}
 }
 
-// Error creates an error response from an error value.
+// Error creates an error response with code 500 from the given error.
 func Error(err ...error) *Message {
-	m := &Message{Code: http.StatusInternalServerError}
-	if len(err) > 0 && err[0] != nil {
-		m.Data = err[0].Error()
+	m := "error"
+	if len(err) > 0 {
+		m = err[0].Error()
 	}
-	return m
+	return &Message{Code: 500, Msg: m}
 }
 
-// Redirect creates a redirect response.
+// Errors creates an error response with code 500, data, and an optional error message.
+func Errors(data any, msg ...error) *Message {
+	m := "error"
+	if len(msg) > 0 {
+		m = msg[0].Error()
+	}
+	return &Message{Code: 500, Msg: m, Data: data}
+}
+
+// Unauthorized creates a response with code 401, data, and an optional error message.
+func Unauthorized(data any, msg ...error) *Message {
+	m := "error"
+	if len(msg) > 0 {
+		m = msg[0].Error()
+	}
+	return &Message{Code: 401, Msg: m, Data: data}
+}
+
+// Redirect creates a redirect response with the given URL.
 func Redirect(url string) *Message {
-	return &Message{
-		Code: http.StatusMovedPermanently,
-		Data: url,
-	}
-}
-
-// Unauthorized creates a 401 response.
-func Unauthorized(data any) *Message {
-	return &Message{
-		Code: http.StatusUnauthorized,
-		Data: data,
-	}
+	return &Message{Code: http.StatusMovedPermanently, Msg: "redirect", Data: url}
 }

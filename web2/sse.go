@@ -3,8 +3,9 @@ package web2
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
+
+	"github.com/sourcegraph/conc/panics"
 )
 
 // SSEHandler is the function signature for SSE stream handlers.
@@ -39,8 +40,9 @@ func (s *SSEStream) Send(event string, data string) error {
 	}
 
 	w := s.request.response
-	fmt.Fprintf(w, "event: %s\n", event)
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data); err != nil {
+		return err
+	}
 	w.Flush()
 	return nil
 }
@@ -54,7 +56,10 @@ func (s *SSEStream) SendMessage(data string) error {
 	}
 
 	w := s.request.response
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	_, err := fmt.Fprintf(w, "data: %s\n\n", data)
+	if err != nil {
+		return err
+	}
 	w.Flush()
 	return nil
 }
@@ -68,9 +73,9 @@ func (s *SSEStream) SendWithID(id string, event string, data string) error {
 	}
 
 	w := s.request.response
-	fmt.Fprintf(w, "id: %s\n", id)
-	fmt.Fprintf(w, "event: %s\n", event)
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, event, data); err != nil {
+		return err
+	}
 	w.Flush()
 	return nil
 }
@@ -84,7 +89,9 @@ func (s *SSEStream) SendRetry(retryMs int) error {
 	}
 
 	w := s.request.response
-	fmt.Fprintf(w, "retry: %d\n\n", retryMs)
+	if _, err := fmt.Fprintf(w, "retry: %d\n\n", retryMs); err != nil {
+		return err
+	}
 	w.Flush()
 	return nil
 }
@@ -121,26 +128,23 @@ func (s *SSEStream) Heartbeat() error {
 	}
 
 	w := s.request.response
-	fmt.Fprintf(w, ": heartbeat\n\n")
+	if _, err := fmt.Fprintf(w, ": heartbeat\n\n"); err != nil {
+		return err
+	}
 	w.Flush()
 	return nil
 }
 
 // StartHeartbeat starts a periodic heartbeat goroutine.
-// Returns a stop function that blocks until the goroutine has exited.
-func (s *SSEStream) StartHeartbeat(interval time.Duration) func() {
-	stop := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+// The goroutine exits automatically when the stream is closed or the request disconnects.
+func (s *SSEStream) StartHeartbeat(interval time.Duration) {
+
+	go panics.Try(func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-s.ctx.Done():
-				return
-			case <-stop:
 				return
 			case <-ticker.C:
 				if err := s.Heartbeat(); err != nil {
@@ -148,9 +152,6 @@ func (s *SSEStream) StartHeartbeat(interval time.Duration) func() {
 				}
 			}
 		}
-	}()
-	return func() {
-		close(stop)
-		wg.Wait()
-	}
+	})
+
 }

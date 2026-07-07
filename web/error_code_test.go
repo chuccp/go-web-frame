@@ -27,20 +27,18 @@ func TestErrorCode_ToMessage(t *testing.T) {
 	err := NewErrorCode(CodeNotFound, "user not found")
 	msg := err.ToMessage()
 	assert.Equal(t, CodeNotFound, msg.Code)
-	assert.Equal(t, "user not found", msg.Msg)
 	assert.Equal(t, err, msg.Data)
 }
 
 func TestNewBadRequest(t *testing.T) {
 	msg := NewBadRequest("bad request")
 	assert.Equal(t, CodeBadRequest, msg.Code)
-	assert.Equal(t, "bad request", msg.Msg)
+	assert.Equal(t, "bad request", msg.Data)
 }
 
 func TestNewBadRequestWithDetail(t *testing.T) {
 	msg := NewBadRequestWithDetail("bad request", "detail info")
 	assert.Equal(t, CodeBadRequest, msg.Code)
-	assert.Equal(t, "bad request", msg.Msg)
 	err, ok := msg.Data.(*ErrorCode)
 	assert.True(t, ok)
 	assert.Equal(t, "detail info", err.Detail)

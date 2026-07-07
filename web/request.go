@@ -2,54 +2,62 @@ package web
 
 import (
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/go-viper/mapstructure/v2"
-
 	"github.com/gin-gonic/gin"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/cast"
 )
 
-// JsonObject is a convenience type for working with JSON objects as maps.
-type JsonObject map[string]any
+// GetNotSupportJson is the error message returned when a GET request
+// attempts to bind JSON parameters.
+const GetNotSupportJson = "JSON parameters are not supported in GET requests"
 
-// GetString returns the value for key as a string.
-func (o JsonObject) GetString(key string) string {
-	return cast.ToString((o)[key])
+// Page represents pagination parameters for list queries.
+type Page struct {
+	PageNo   int // Current page number, 1-based
+	PageSize int // Number of items per page
+	LastId   int // Last seen ID for cursor-based pagination
 }
 
-// GetInt returns the value for key as an int.
-func (o JsonObject) GetInt(key string) int {
-	return cast.ToInt((o)[key])
+// PageAble is a paginated response wrapper containing total count and item list.
+type PageAble[T any] struct {
+	Total int64 `json:"total"` // Total number of items
+	List  []T   `json:"list"`  // Items on the current page
 }
 
-// GetIntForDefault returns the value for key as an int, or defaultValue if the result is 0.
-func (o JsonObject) GetIntForDefault(key string, defaultValue int) int {
-	if v := o.GetInt(key); v != 0 {
-		return v
+// ToPage creates a new PageAble from the given total count and item list.
+func ToPage[T any](total int64, list []T) *PageAble[T] {
+	return &PageAble[T]{
+		Total: total,
+		List:  list,
 	}
-	return defaultValue
 }
 
-// Add sets the value for key in the JsonObject.
-func (o JsonObject) Add(key string, value any) {
-	(o)[key] = value
-}
+// JSONObject is a convenience type for working with JSON objects as maps.
+// It is an alias for KV, inheriting all helper methods (GetString, GetInt, etc.).
+type JSONObject = KV
+
+// HandlerFunc is the function signature for request handlers.
+type HandlerFunc func(*Request) (any, error)
 
 // Request wraps the HTTP request with helper methods for accessing
 // parameters, query strings, JSON body, headers, and client info.
 type Request struct {
-	c             *gin.Context
-	cookie        *Cookie
-	jsonBody      *JsonObject
-	handlerMeta   *HandlerMeta
-	response      Response
-	handlerConfig *HandlerConfig
+	c            *gin.Context
+	cookie       *Cookie
+	jsonBody     *JSONObject
+	handlerMeta  *HandlerMeta
+	response     Response
+	serverConfig *ServerConfig
 }
 
 // HandlerMeta returns the metadata attached to the matched route handler.
@@ -57,19 +65,17 @@ func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
 }
 
-// Ctx 返回当前 HTTP 请求的 context.Context。
-// 该 context 在请求完成时自动 cancel，无需用户管理其生命周期。
-// 用于将请求级取消、超时和 trace 传播到数据库操作。
+// Ctx returns the context.Context for the current HTTP request.
+// The context is automatically cancelled when the request completes.
+// Use this to propagate request-scoped cancellation, timeouts, and
+// tracing to database operations.
 func (r *Request) Ctx() context.Context {
 	return r.c.Request.Context()
 }
 
 // ContextPath returns the configured context path prefix (e.g. "/api/v1").
 func (r *Request) ContextPath() string {
-	if r.handlerConfig == nil {
-		return ""
-	}
-	return r.handlerConfig.contextPath
+	return r.serverConfig.ContextPath
 }
 
 // FullPath returns the full matched route path.
@@ -133,8 +139,8 @@ func (r *Request) ParamInt(key string) int {
 
 // ParamIntForDefault returns the path parameter value as an int, or defaultValue if 0.
 func (r *Request) ParamIntForDefault(key string, defaultValue int) int {
-	if cast.ToInt(r.Param(key)) != 0 {
-		return cast.ToInt(r.Param(key))
+	if v := cast.ToInt(r.Param(key)); v != 0 {
+		return v
 	}
 	return defaultValue
 }
@@ -144,21 +150,16 @@ func (r *Request) ParamUint(key string) uint {
 	return cast.ToUint(r.Param(key))
 }
 
-// Cookie returns the cookie helper for this request.
-func (r *Request) Cookie() *Cookie {
-	return r.cookie
-}
-
-// Json parses the request body as JSON and returns it as a JsonObject.
+// Json parses the request body as JSON and returns it as a JSONObject.
 // The result is cached on subsequent calls.
-func (r *Request) Json() (*JsonObject, error) {
+func (r *Request) Json() (*JSONObject, error) {
 	if r.IsGet() {
 		return nil, errors.New(GetNotSupportJson)
 	}
 	if r.jsonBody != nil {
 		return r.jsonBody, nil
 	}
-	var jsonObject JsonObject
+	var jsonObject JSONObject
 	err := r.c.BindJSON(&jsonObject)
 	if err != nil {
 		return nil, err
@@ -301,6 +302,11 @@ func (r *Request) Request() *http.Request {
 	return r.c.Request
 }
 
+// Cookie returns the cookie helper for this request.
+func (r *Request) Cookie() *Cookie {
+	return r.cookie
+}
+
 // Response returns the Response writer for this request.
 func (r *Request) Response() Response {
 	return r.response
@@ -313,18 +319,60 @@ func (r *Request) GinContext() *gin.Context {
 	return r.c
 }
 
-func newRequest(c *gin.Context, response Response, handlerMeta *HandlerMeta, handlerConfig *HandlerConfig) *Request {
-	return &Request{c: c, cookie: NewCookie(c), response: response, handlerMeta: handlerMeta, handlerConfig: handlerConfig}
+func request(ctx *gin.Context, route *Route, serverConfig *ServerConfig) *Request {
+	return &Request{
+		c:            ctx,
+		cookie:       NewCookie(ctx),
+		handlerMeta:  route.handlerMeta,
+		response:     newResponse(ctx),
+		serverConfig: serverConfig,
+	}
 }
 
 // NewRequestForTest creates a Request for testing purposes.
-// This is exported only for use in tests outside the web package.
-func NewRequestForTest(c *gin.Context, response Response, handlerMeta *HandlerMeta) *Request {
-	handlerConfig := &HandlerConfig{
-		converter:   nil,
-		handles:     NewHandles(),
-		filters:     nil,
-		contextPath: "",
+func NewRequestForTest(ctx *gin.Context, resp Response, meta *HandlerMeta) *Request {
+	return &Request{
+		c:          ctx,
+		cookie:     NewCookie(ctx),
+		handlerMeta: meta,
+		response:   resp,
 	}
-	return newRequest(c, response, handlerMeta, handlerConfig)
+}
+
+// SaveUploadedFile saves an uploaded file to the destination path.
+// It creates the destination directory if it does not exist.
+func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := src.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	if err = os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
+		return err
+	}
+	if err = os.Chmod(filepath.Dir(dst), 0775); err != nil {
+		return err
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := out.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	if _, err = io.Copy(out, src); err != nil {
+		return err
+	}
+	return out.Sync()
 }

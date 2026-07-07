@@ -13,6 +13,6 @@ func LoadAutoConfig() *config2.Config {
 	return config2.LoadAutoConfig()
 }
 
-func defaultRestGroup(serverConfig *web.ServerConfig, handles *web.Handles) *core.RestGroup {
-	return core.NewRestGroupBuilder().ServerConfig(serverConfig).Handles(handles).Build()
+func defaultRestGroup(serverConfig *web.ServerConfig) *core.RestGroup {
+	return core.NewRestGroupBuilder().ServerConfig(serverConfig).Build()
 }

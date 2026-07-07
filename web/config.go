@@ -1,4 +1,7 @@
-package web2
+package web
+
+// ServerConfigKey is the configuration key for server settings.
+const ServerConfigKey = "web.server"
 
 type ServerConfig struct {
 	Port        int        // Listen port (default: 19009)
@@ -24,4 +27,9 @@ func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Port: 19009,
 	}
+}
+
+// SSLEnabled reports whether HTTPS is enabled in this configuration.
+func (sc *ServerConfig) SSLEnabled() bool {
+	return sc.SSL != nil && sc.SSL.Enabled
 }

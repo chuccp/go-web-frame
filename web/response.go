@@ -6,8 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Response is the interface for writing HTTP responses.
-// It extends gin.ResponseWriter with framework-specific methods.
 type Response interface {
 	gin.ResponseWriter
 	// SetAttachmentFileName sets the Content-Disposition header for file downloads.
@@ -22,14 +20,21 @@ type Response interface {
 	FileAttachment(path string, name string)
 	// WriteStatus writes only the HTTP status code.
 	WriteStatus(code int)
-	// Message writes a Message as a JSON response.
-	Message(t *Message)
-	// AbortWithMessage writes a Message and aborts the handler chain.
-	AbortWithMessage(t *Message)
 	// AbortWithStatusJSON writes a JSON response with the given status and aborts.
 	AbortWithStatusJSON(i int, value any)
 	// AbortWithError writes an error response and returns the error.
 	AbortWithError(err error) error
+	// Message writes a Message as JSON response.
+	Message(t *Message)
+	// AbortWithMessage writes a Message and aborts the handler chain.
+	AbortWithMessage(t *Message)
+}
+
+func newResponse(ctx *gin.Context) *response {
+	return &response{
+		ResponseWriter: ctx.Writer,
+		ctx:            ctx,
+	}
 }
 
 type response struct {
@@ -50,27 +55,8 @@ func (r *response) AbortWithStatusJSON(i int, value any) {
 	r.ctx.AbortWithStatusJSON(i, value)
 }
 
-func (r *response) Message(t *Message) {
-	if t.Code == http.StatusMovedPermanently {
-		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
-		r.ctx.Abort()
-		return
-	}
-	r.ctx.JSON(t.Code, t)
-}
-
 func (r *response) IsAborted() bool {
 	return r.ctx.IsAborted()
-}
-
-func (r *response) AbortWithMessage(t *Message) {
-	if t.Code == http.StatusMovedPermanently {
-		r.ctx.Redirect(http.StatusMovedPermanently, t.Data.(string))
-		r.ctx.Abort()
-		return
-	}
-	r.ctx.JSON(t.Code, t)
-	r.ctx.Abort()
 }
 
 func (r *response) SetAttachmentFileName(fileName string) {
@@ -93,11 +79,12 @@ func (r *response) FileAttachment(path string, name string) {
 	r.ctx.FileAttachment(path, name)
 }
 
-func newResponse(ctx *gin.Context) *response {
-	return &response{
-		ResponseWriter: ctx.Writer,
-		ctx:            ctx,
-	}
+func (r *response) Message(t *Message) {
+	r.ctx.JSON(http.StatusOK, t)
+}
+
+func (r *response) AbortWithMessage(t *Message) {
+	r.ctx.AbortWithStatusJSON(http.StatusOK, t)
 }
 
 // ResponseWriteCloser wraps a Response to implement io.WriteCloser.

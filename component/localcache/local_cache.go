@@ -81,7 +81,7 @@ func (l *LocalCache) SaveBase64FileForPath(base64file string, savePath string, s
 	return path.Join(filename[0:2], filename), nil
 }
 
-func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
+func (l *LocalCache) GetFileForSuffix(suffix string, f func(value ...any) ([]byte, error), value ...any) (*web.FileResponse, error) {
 	file, err := l.GetFile(f, value...)
 	if err == nil {
 		file.Suffix = suffix
@@ -148,10 +148,10 @@ func (l *LocalCache) GetFileResponseWrite(response web.Response, f func(fileResp
 	return nil
 }
 
-func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*web.File, error) {
+func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any) (*web.FileResponse, error) {
 	filepath := l.GetPath(value...)
 	if util.ExistsFile(filepath) {
-		return &web.File{Path: filepath}, nil
+		return &web.FileResponse{Path: filepath}, nil
 	}
 	data, err := f(value...)
 	if err != nil {
@@ -171,7 +171,7 @@ func (l *LocalCache) GetFile(f func(value ...any) ([]byte, error), value ...any)
 	if err != nil {
 		return nil, err
 	}
-	return &web.File{Path: filepath}, nil
+	return &web.FileResponse{Path: filepath}, nil
 }
 
 type FileResponseWriteCloser struct {

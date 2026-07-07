@@ -18,7 +18,6 @@ type RestGroup struct {
 	filters      []IFilter
 	serverConfig *web.ServerConfig
 	ContextPath  string
-	handles      *web.Handles
 }
 
 // Port returns the HTTP server port for this REST group.
@@ -49,7 +48,7 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 		rg.port = restGroup.port
 	}
 	if rg.port == restGroup.port {
-		if rg.serverConfig == nil || (!rg.serverConfig.SSLEnabled()) {
+		if rg.serverConfig == nil || !rg.serverConfig.SSLEnabled() {
 			rg.serverConfig = restGroup.serverConfig
 		}
 	}
@@ -57,14 +56,13 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 
-func restGroup(serverConfig *web.ServerConfig, converter IConverter, handles *web.Handles) *RestGroup {
+func restGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup {
 	return &RestGroup{
 		rests:        make([]IRest, 0),
 		port:         serverConfig.Port,
 		serverConfig: serverConfig,
 		converter:    converter,
 		filters:      make([]IFilter, 0),
-		handles:      handles,
 	}
 }
 
@@ -104,7 +102,7 @@ func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *
 					resp.Abort()
 					return
 				}
-			case *web.File:
+			case *web.FileResponse:
 				if len(t.FileName) == 0 {
 					_, filename := path.Split(t.Path)
 					t.FileName = filename
@@ -129,7 +127,6 @@ func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *
 type RestGroupBuilder struct {
 	converter    IConverter
 	serverConfig *web.ServerConfig
-	handles      *web.Handles
 	rests        []IRest
 	filters      []IFilter
 	port         int
@@ -160,9 +157,9 @@ func (b *RestGroupBuilder) ContextPath(contextPath string) *RestGroupBuilder {
 	return b
 }
 
-// Handles sets the route handles for this REST group.
-func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {
-	b.handles = handles
+// Handles is kept for backward compatibility but is now a no-op.
+// Routes are registered directly on the server during Init.
+func (b *RestGroupBuilder) Handles(handles any) *RestGroupBuilder {
 	return b
 }
 
@@ -186,16 +183,13 @@ func (b *RestGroupBuilder) Build() *RestGroup {
 	if b.port != 0 {
 		b.serverConfig.Port = b.port
 	}
-	if b.handles == nil {
-		b.handles = web.NewHandles()
-	}
 	if b.converter == nil {
 		b.converter = &DefaultConverter{}
 	}
 	if b.contextPath != "" {
 		b.serverConfig.ContextPath = b.contextPath
 	}
-	group := restGroup(b.serverConfig, b.converter, b.handles)
+	group := restGroup(b.serverConfig, b.converter)
 	group.AddRest(b.rests...)
 	group.AddFilter(b.filters...)
 	return group

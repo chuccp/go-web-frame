@@ -10,7 +10,6 @@ import (
 	"github.com/chuccp/go-web-frame/core"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -20,12 +19,12 @@ type WebSocketController struct {
 
 func (c *WebSocketController) Init(ctx *core.Context) error {
 	// WebSocket endpoint - echo server
-	ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+	ctx.WebSocket("/ws", func(ws *web.WebSocketStream) error {
 		log.Info("WebSocket client connected")
 		defer log.Info("WebSocket client disconnected")
 
 		for {
-			messageType, message, err := conn.ReadMessage()
+			typ, message, err := ws.Read(ws.Context())
 			if err != nil {
 				return err
 			}
@@ -33,27 +32,15 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 			log.Info("WebSocket received", zap.String("message", string(message)))
 
 			// Echo back
-			err = conn.WriteMessage(messageType, message)
+			err = ws.Write(ws.Context(), typ, message)
 			if err != nil {
 				return err
 			}
 		}
 	})
 
-	// WebSocket endpoint with custom upgrader
-	ctx.WebSocket("/ws/chat", func(conn *websocket.Conn) error {
-		// Set read limit
-		conn.SetReadLimit(512)
-
-		// Set read deadline
-		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-
-		// Set pong handler to reset read deadline
-		conn.SetPongHandler(func(string) error {
-			_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-			return nil
-		})
-
+	// WebSocket endpoint with custom settings
+	ctx.WebSocket("/ws/chat", func(ws *web.WebSocketStream) error {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
@@ -63,7 +50,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 		go func() {
 			defer close(done)
 			for {
-				_, message, err := conn.ReadMessage()
+				_, message, err := ws.Read(ws.Context())
 				if err != nil {
 					return
 				}
@@ -78,8 +65,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 			case <-done:
 				return nil
 			case <-ticker.C:
-				_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				if err := ws.Ping(ws.Context()); err != nil {
 					return err
 				}
 			}
@@ -100,8 +86,7 @@ func (c *SSEController) Init(ctx *core.Context) error {
 		defer log.Info("SSE client disconnected from time stream")
 
 		// Start heartbeat to keep connection alive
-		stopHeartbeat := stream.StartHeartbeat(15 * time.Second)
-		defer stopHeartbeat()
+		stream.StartHeartbeat(15 * time.Second)
 
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()

@@ -17,6 +17,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func newTestServer() *web.Server {
+	servers := web.NewServers()
+	s, _ := servers.CreateServer(web.DefaultServerConfig())
+	return s
+}
+
 // TestResponse wraps the gin.ResponseWriter from test context to implement web.Response
 type TestResponse struct {
 	gin.ResponseWriter
@@ -77,7 +83,7 @@ func TestBuilder_Build(t *testing.T) {
 
 	// Assert
 	assert.NotNil(t, app)
-	assert.NotNil(t, app.handles)
+	assert.NotNil(t, app.rests)
 	assert.Equal(t, config, app.config)
 }
 
@@ -101,7 +107,7 @@ func TestBuilder_RouteMethods(t *testing.T) {
 
 	// Assert
 	assert.NotNil(t, app)
-	assert.NotNil(t, app.handles)
+	assert.NotNil(t, app.rests)
 }
 
 func TestBuilder_AllMethods(t *testing.T) {
@@ -221,7 +227,7 @@ func TestWebFrame_Test_WithError(t *testing.T) {
 func TestGetService(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+	ctx := core.NewContext(newTestServer(), config, context.Background())
 	service := &MockService{}
 	ctx.AddService(service)
 
@@ -235,7 +241,7 @@ func TestGetService(t *testing.T) {
 func TestGetModel(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+	ctx := core.NewContext(newTestServer(), config, context.Background())
 	model := &MockModel{}
 	ctx.AddModel(model)
 
@@ -249,7 +255,7 @@ func TestGetModel(t *testing.T) {
 func TestGetComponentViaService(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+	ctx := core.NewContext(newTestServer(), config, context.Background())
 	component := &MockComponent{}
 	ctx.AddService(component)
 
@@ -263,7 +269,7 @@ func TestGetComponentViaService(t *testing.T) {
 func TestGetRunner(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+	ctx := core.NewContext(newTestServer(), config, context.Background())
 	runner := &MockRunner{}
 	ctx.AddRunner(runner)
 
@@ -277,7 +283,7 @@ func TestGetRunner(t *testing.T) {
 // func TestGetFilter(t *testing.T) {
 // 	// Arrange
 // 	config := config2.NewConfig()
-// 	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+// 	ctx := core.NewContext(newTestServer(), config, context.Background())
 // 	filter := &MockFilter{}
 // 	ctx.AddService(filter)
 
@@ -293,7 +299,7 @@ func TestUnmarshalKeyConfig(t *testing.T) {
 	config := config2.NewConfig()
 	config.Put("test.key", "value")
 	config.Put("test.port", 8080)
-	ctx := core.NewContext(web.NewHandles(), config, context.Background())
+	ctx := core.NewContext(newTestServer(), config, context.Background())
 
 	// Act - test unmarshaling into a struct
 	type TestConfig struct {
@@ -311,7 +317,7 @@ func TestUnmarshalKeyConfig(t *testing.T) {
 func TestDefaultConverter_Request_JSON(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	err := converter.Init(ctx)
 	assert.NoError(t, err)
 
@@ -344,7 +350,7 @@ func TestDefaultConverter_Request_JSON(t *testing.T) {
 func TestDefaultConverter_Request_String(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	converter.Init(ctx)
 
 	w := httptest.NewRecorder()
@@ -370,7 +376,7 @@ func TestDefaultConverter_Request_String(t *testing.T) {
 func TestDefaultConverter_Request_Error(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	_ = converter.Init(ctx)
 
 	w := httptest.NewRecorder()
@@ -396,7 +402,7 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 func TestDefaultConverter_Request_File(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	_ = converter.Init(ctx)
 
 	// Create a temp file for testing
@@ -414,7 +420,7 @@ func TestDefaultConverter_Request_File(t *testing.T) {
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
-		return &web.File{Path: tmpFile.Name(), FileName: "test.txt"}, nil
+		return &web.FileResponse{Path: tmpFile.Name(), FileName: "test.txt"}, nil
 	}
 	filterChain := &MockFilterChain{nextFunc: next}
 
@@ -428,7 +434,7 @@ func TestDefaultConverter_Request_File(t *testing.T) {
 func TestDefaultConverter_Request_OsFile(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	_ = converter.Init(ctx)
 
 	// Create a temp file for testing
@@ -458,7 +464,7 @@ func TestDefaultConverter_Request_OsFile(t *testing.T) {
 func TestDefaultConverter_Request_Message(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	_ = converter.Init(ctx)
 
 	w := httptest.NewRecorder()
@@ -488,7 +494,7 @@ func TestDefaultConverter_Request_Message(t *testing.T) {
 func TestDefaultConverter_Request_Redirect(t *testing.T) {
 	// Arrange
 	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(web.NewHandles(), config2.NewConfig(), context.Background())
+	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
 	_ = converter.Init(ctx)
 
 	w := httptest.NewRecorder()

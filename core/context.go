@@ -12,7 +12,6 @@ import (
 	"github.com/chuccp/go-web-frame/model"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
-	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/conc/panics"
 	"go.uber.org/zap"
 )
@@ -28,14 +27,13 @@ type Context struct {
 	serviceMap    map[string]IService
 	runnerMap     map[string]IRunner
 	modelGroup    map[string]IModelGroup
-	handles       *web.Handles
+	server        *web.Server
 	filters       []IFilter
-	certManager   *web.CertManager
 	allServiceMap map[string]IService
 }
 
-// NewContext creates a new Context with the given handles, config, and parent context.
-func NewContext(handles *web.Handles, config config2.IConfig, ctx context.Context) *Context {
+// NewContext creates a new Context with the given server, config, and parent context.
+func NewContext(server *web.Server, config config2.IConfig, ctx context.Context) *Context {
 	context := &Context{
 		Context:       ctx,
 		config:        config,
@@ -46,20 +44,19 @@ func NewContext(handles *web.Handles, config config2.IConfig, ctx context.Contex
 		runnerMap:     make(map[string]IRunner),
 		modelGroup:    make(map[string]IModelGroup),
 		filters:       make([]IFilter, 0),
-		certManager:   web.NewCertManager(),
-		handles:       handles,
+		server:        server,
 	}
 	return context
 }
 
-// CertManager returns the TLS certificate manager for this context.
-func (c *Context) CertManager() *web.CertManager {
-	return c.certManager
+// Server returns the web2 server for this context.
+func (c *Context) Server() *web.Server {
+	return c.server
 }
 
-// Copy creates a shallow copy of the Context with new handles and filters,
+// Copy creates a shallow copy of the Context with a new server and filters,
 // sharing all maps and locks with the original for concurrent access.
-func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
+func (c *Context) Copy(server *web.Server, filters []IFilter) *Context {
 	context2 := &Context{
 		Context:       c.Context,
 		config:        c.config,
@@ -69,9 +66,8 @@ func (c *Context) Copy(handles *web.Handles, filters []IFilter) *Context {
 		allServiceMap: c.allServiceMap,
 		runnerMap:     c.runnerMap,
 		modelGroup:    c.modelGroup,
-		handles:       handles,
+		server:        server,
 		filters:       filters,
-		certManager:   c.certManager,
 	}
 	return context2
 }
@@ -196,58 +192,54 @@ func (c *Context) GetFilter(f func(m IFilter) bool) IFilter {
 	return nil
 }
 
-// Get registers a GET route handler and returns the handler info.
-func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handle(http.MethodGet, relativePath, handlers...)
+// Get registers a GET route handler and returns the route.
+func (c *Context) Get(relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Get(relativePath, handlers...)
 }
 
-// Static registers a static file serving route and returns the handler info.
-func (c *Context) Static(relativePath string, filepath string) *web.HandlerInfo {
+// Static registers a static file serving route and returns the route.
+func (c *Context) Static(relativePath string, filepath string) *web.Route {
 	return c.StaticFs(relativePath, http.Dir(filepath))
 }
 
-// ReverseProxy registers a reverse proxy to the target URL and returns the handler info.
-func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.HandlerInfo {
-	return c.handles.AddReverseProxy(relativePath, targetUrl)
+// ReverseProxy registers a reverse proxy to the target URL and returns the route.
+func (c *Context) ReverseProxy(relativePath string, targetUrl string) *web.Route {
+	return c.server.AddReverseProxy(relativePath, targetUrl)
 }
 
-// StaticFs registers a static file serving route with a custom http.FileSystem.
-func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.HandlerInfo {
-	return c.handles.AddStaticFs(relativePath, fs)
+// StaticFs registers a static file serving route with a custom http.FileSystem and returns the route.
+func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.Route {
+	return c.server.AddStaticFs(relativePath, fs)
 }
 
-// WebSocket registers a WebSocket endpoint and returns the handler info.
-func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler, upgrader ...*websocket.Upgrader) *web.HandlerInfo {
-	var up *websocket.Upgrader
-	if len(upgrader) > 0 {
-		up = upgrader[0]
-	}
-	return c.handles.AddWebSocket(relativePath, handler, up)
+// WebSocket registers a WebSocket endpoint and returns the route.
+func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler) *web.Route {
+	return c.server.AddWebSocket(relativePath, handler)
 }
 
-// SSE registers a Server-Sent Events endpoint and returns the handler info.
-func (c *Context) SSE(relativePath string, handler web.SSEHandler) *web.HandlerInfo {
-	return c.handles.AddSSE(relativePath, handler)
+// SSE registers a Server-Sent Events endpoint and returns the route.
+func (c *Context) SSE(relativePath string, handler web.SSEHandler) *web.Route {
+	return c.server.AddSSE(relativePath, handler)
 }
 
-// Post registers a POST route handler and returns the handler info.
-func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handle(http.MethodPost, relativePath, handlers...)
+// Post registers a POST route handler and returns the route.
+func (c *Context) Post(relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Post(relativePath, handlers...)
 }
 
-// Delete registers a DELETE route handler and returns the handler info.
-func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handle(http.MethodDelete, relativePath, handlers...)
+// Delete registers a DELETE route handler and returns the route.
+func (c *Context) Delete(relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Delete(relativePath, handlers...)
 }
 
-// Put registers a PUT route handler and returns the handler info.
-func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handle(http.MethodPut, relativePath, handlers...)
+// Put registers a PUT route handler and returns the route.
+func (c *Context) Put(relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Put(relativePath, handlers...)
 }
 
-// Any registers a route handler for all HTTP methods and returns the handler info.
-func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handles.Handles(anyMethods, relativePath, handlers...)
+// Any registers a route handler for all HTTP methods and returns the route.
+func (c *Context) Any(relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Any(relativePath, handlers...)
 }
 
 // Go runs the given function in a goroutine with panic recovery.
@@ -265,8 +257,13 @@ func (c *Context) Go(f func(c *Context)) {
 	}()
 }
 
-func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.HandlerInfo {
-	return c.handles.Handles([]string{httpMethod}, relativePath, handlers...)
+func (c *Context) handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.server.Handle(httpMethod, relativePath, handlers...)
+}
+
+// Handle registers a route handler for the given HTTP method and returns the route.
+func (c *Context) Handle(httpMethod string, relativePath string, handlers ...web.HandlerFunc) *web.Route {
+	return c.handle(httpMethod, relativePath, handlers...)
 }
 
 // GetConfig returns the configuration object associated with this context.
@@ -285,14 +282,6 @@ func (c *Context) GetRunners() []IRunner {
 	return runners
 }
 
-var (
-	// anyMethods for RouterGroup Any method
-	anyMethods = []string{
-		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch,
-		http.MethodHead, http.MethodOptions, http.MethodDelete, http.MethodConnect,
-		http.MethodTrace,
-	}
-)
 
 // GetService retrieves a service of the specified type from the context.
 // Panics if the service is not registered.

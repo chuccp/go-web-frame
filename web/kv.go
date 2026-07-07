@@ -1,4 +1,4 @@
-package web2
+package web
 
 import "github.com/spf13/cast"
 

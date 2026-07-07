@@ -24,11 +24,12 @@ type Query[T any] struct {
 }
 
 // buildTx constructs the database transaction, lazily created on first execution.
-func (q *Query[T]) buildTx() (*db.Table, error) {
-	if q.db == nil {
+// buildTxWith builds a query using the given DB connection (e.g. within a transaction).
+func (q *Query[T]) buildTxWith(d *db.DB) (*db.Table, error) {
+	if d == nil {
 		return nil, errors.New("db is nil")
 	}
-	tx := q.db.Table(q.tableName)
+	tx := d.Table(q.tableName)
 	for _, w := range q.wheres {
 		tx = tx.Where(w.query, w.args...)
 	}
@@ -42,6 +43,11 @@ func (q *Query[T]) buildTx() (*db.Table, error) {
 		tx = tx.Joins(j)
 	}
 	return tx, nil
+}
+
+// buildTx builds a query using the Query's DB connection.
+func (q *Query[T]) buildTx() (*db.Table, error) {
+	return q.buildTxWith(q.db)
 }
 
 // Where adds a WHERE condition to the query.
@@ -214,27 +220,31 @@ func toCountSql(sql string) string {
 }
 
 // Page returns a paginated list with total count.
+// Both queries run in a single transaction for consistency.
 func (q *Query[T]) Page(page *util.Page) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
-	tx, err := q.buildTx()
+	var num int64
+
+	err := q.db.Transaction(func(txDB *db.DB) error {
+		// Data query
+		dataTx, err := q.buildTxWith(txDB)
+		if err != nil {
+			return err
+		}
+		if err := dataTx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts); err != nil {
+			return err
+		}
+		// Count query (same transaction snapshot)
+		countTx, err := q.buildTxWith(txDB)
+		if err != nil {
+			return err
+		}
+		return countTx.Count(&num)
+	})
 	if err != nil {
 		return nil, 0, errors.WithStackIf(err)
 	}
-	err = tx.Offset((page.PageNo - 1) * page.PageSize).Limit(page.PageSize).Find(&ts)
-	if err == nil {
-		var num int64
-		// Re-build query with same WHERE conditions to count total
-		countTx, err := q.buildTx()
-		if err != nil {
-			return nil, 0, errors.WithStackIf(err)
-		}
-		err = countTx.Count(&num)
-		if err == nil {
-			return ts, int(num), nil
-		}
-	}
-	return nil, 0, errors.WithStackIf(err)
-
+	return ts, int(num), nil
 }
 
 // PageForWeb returns a paginated web response suitable for API responses.

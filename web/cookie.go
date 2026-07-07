@@ -65,6 +65,8 @@ func (c *Cookie) Set(key string, value string, opts ...CookieOption) {
 	for _, opt := range opts {
 		opt(cookie)
 	}
+	//c.c.SetCookie(key, value, 3600*24*365, "/", "", false, false)
+	//c.c.SetCookie(key, value, 3600*24*365, "/", domain, false, false)
 	http.SetCookie(c.c.Writer, cookie)
 }
 

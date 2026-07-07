@@ -4,6 +4,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/sourcegraph/conc/panics"
@@ -20,9 +21,10 @@ type SSEResponse struct {
 
 // SSEStream represents a Server-Sent Events stream backed by a web2 Request.
 type SSEStream struct {
-	cancel  context.CancelFunc
-	request *Request
-	ctx     context.Context
+	cancel    context.CancelFunc
+	request   *Request
+	ctx       context.Context
+	bgWorkers sync.WaitGroup
 }
 
 // NewSSEStream creates a new SSE stream from a web2 Request.
@@ -118,9 +120,10 @@ func (s *SSEStream) SetHeader(key string, value string) {
 	w.Header().Set(key, value)
 }
 
-// Close closes the SSE stream, signaling all goroutines to stop.
+// Close closes the SSE stream and waits for all background goroutines to exit.
 func (s *SSEStream) Close() {
 	s.cancel()
+	s.bgWorkers.Wait()
 }
 
 // Done returns a channel that is closed when the stream is closed.
@@ -152,8 +155,11 @@ func (s *SSEStream) StartHeartbeat(interval time.Duration) {
 
 // StartHeartbeatWithContext starts a periodic heartbeat goroutine with an external context.
 // The goroutine exits when ctx is cancelled, the stream is closed, or the request disconnects.
+// Close() blocks until the heartbeat goroutine has fully exited.
 func (s *SSEStream) StartHeartbeatWithContext(ctx context.Context, interval time.Duration) {
+	s.bgWorkers.Add(1)
 	go panics.Try(func() {
+		defer s.bgWorkers.Done()
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {

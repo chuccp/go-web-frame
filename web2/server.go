@@ -143,37 +143,42 @@ func (server *Server) initRoute() {
 	server.noRoute()
 }
 func (server *Server) noRoute() {
-	if len(server.serverConfig.Locations) > 0 {
-		var memFileSystem = DefaultMemFileSystem(server.serverConfig.Locations)
-		server.engine.NoRoute(func(context *gin.Context) {
-			_path_ := context.Request.URL.Path
-			info, err := memFileSystem.Stat(_path_)
-			if info != nil && err == nil {
-				if info.IsDir() {
-					indexPage := filepath.Join(_path_, "index.html")
-					exists, err := memFileSystem.Exists(indexPage)
-					if exists && err == nil {
-						context.FileFromFS(_path_, memFileSystem)
-						return
-					}
-				} else {
-					context.FileFromFS(_path_, memFileSystem)
-					return
-				}
-			}
-			accepted := context.Request.Header.Get("Accept")
-			if strings.Contains(accepted, "html") && !util.IsImagePath(_path_) {
-				exists, err := memFileSystem.Exists(server.serverConfig.Page404)
-				if err != nil {
-					log.Error("File not found", zap.String("file", server.serverConfig.Page404))
-					return
-				}
-				if exists {
-					context.FileFromFS(server.serverConfig.Page404, memFileSystem)
-				}
-			}
-		})
+	if len(server.serverConfig.Locations) == 0 {
+		return
 	}
+	fs := DefaultMemFileSystem(server.serverConfig.Locations)
+	server.engine.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if server.tryServeFile(c, fs, path) {
+			return
+		}
+		// SPA fallback: 非图片请求返回 404 页面
+		accept := c.Request.Header.Get("Accept")
+		if strings.Contains(accept, "html") && !util.IsImagePath(path) {
+			if exists, _ := fs.Exists(server.serverConfig.Page404); exists {
+				c.FileFromFS(server.serverConfig.Page404, fs)
+			}
+		}
+	})
+}
+
+// tryServeFile 尝试从 memfs 提供静态文件，成功返回 true
+func (server *Server) tryServeFile(c *gin.Context, fs *MemFileSystem, path string) bool {
+	info, err := fs.Stat(path)
+	if err != nil || info == nil {
+		return false
+	}
+	if !info.IsDir() {
+		c.FileFromFS(path, fs)
+		return true
+	}
+	// 目录：有 index.html 时才提供目录服务（http.FileServer 会自动 serve index.html）
+	index := filepath.Join(path, "index.html")
+	if exists, _ := fs.Exists(index); exists {
+		c.FileFromFS(path, fs)
+		return true
+	}
+	return false
 }
 func (server *Server) addHandler(httpMethod string, route *Route) {
 	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", route.relativePath), zap.Any("handlers", route.LastFuncName()))

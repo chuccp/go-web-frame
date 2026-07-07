@@ -54,6 +54,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.String(request, t)
 			case error:
 				c.Error(request, value, err)
+			default:
+				request.response.JSON(http.StatusOK, Data(value))
 			}
 		}
 	} else {
@@ -73,7 +75,7 @@ func (c *DefaultConverter) Message(request *Request, value *Message) {
 		request.response.Abort()
 		return
 	}
-	request.response.JSON(value.Code, value.Data)
+	request.response.JSON(value.Code, value)
 }
 // FileResponse sends a file attachment response to the client.
 func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {

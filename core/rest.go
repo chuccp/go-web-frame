@@ -1,12 +1,6 @@
 package core
 
 import (
-	"net/http"
-	"os"
-	"path"
-	"strings"
-
-	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/web"
 )
 
@@ -66,61 +60,23 @@ func restGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup 
 	}
 }
 
-// DefaultConverter is the built-in response converter that handles JSON, strings, files, redirects, and messages.
+// DefaultConverter wraps web.DefaultConverter to satisfy the IConverter interface.
+// All response handling logic lives in web.DefaultConverter; this type only
+// provides the Init method required by IConverter (IService).
 type DefaultConverter struct {
-	ctx *Context
+	inner *web.DefaultConverter
 }
 
-// Init initializes the converter with the given context.
-func (receiver *DefaultConverter) Init(ctx *Context) error {
-	receiver.ctx = ctx
+// Init initializes the converter. The built-in converter is stateless; this
+// method exists to satisfy the IConverter (IService) interface.
+func (c *DefaultConverter) Init(_ *Context) error {
+	c.inner = &web.DefaultConverter{}
 	return nil
 }
 
-// Request processes the filter chain result and writes the appropriate HTTP response.
-// It supports JSON, plain text, file download, redirect, and message response types.
-func (receiver *DefaultConverter) Request(filterChain web.FilterChain, request *web.Request) {
-	value, err := filterChain.Next()
-	resp := request.Response()
-	if err != nil {
-		err0 := web.Errors(value, err)
-		resp.JSON(err0.Code, err0)
-		resp.Abort()
-	} else {
-		if value != nil {
-			switch t := value.(type) {
-			case *web.Message:
-				if t.Code == http.StatusMovedPermanently {
-					resp.Redirect(http.StatusMovedPermanently, t.Data.(string))
-					resp.Abort()
-					return
-				}
-				resp.JSON(t.Code, value)
-			case string:
-				_, err2 := resp.Write([]byte(t))
-				if err2 != nil {
-					resp.Abort()
-					return
-				}
-			case *web.FileResponse:
-				if len(t.FileName) == 0 {
-					_, filename := path.Split(t.Path)
-					t.FileName = filename
-				}
-				if util.IsNotBlank(t.Suffix) && !strings.HasSuffix(t.FileName, t.Suffix) {
-					if !strings.HasPrefix(t.Suffix, ".") {
-						t.Suffix = "." + t.Suffix
-					}
-					t.FileName = t.FileName + t.Suffix
-				}
-				resp.FileAttachment(t.Path, t.FileName)
-			case *os.File:
-				resp.FileAttachment(t.Name(), t.Name())
-			default:
-				resp.JSON(200, web.Data(value))
-			}
-		}
-	}
+// Request delegates to web.DefaultConverter.
+func (c *DefaultConverter) Request(filterChain web.FilterChain, request *web.Request) {
+	c.inner.Request(filterChain, request)
 }
 
 // RestGroupBuilder provides a fluent API for constructing RestGroup configurations.

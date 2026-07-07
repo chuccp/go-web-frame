@@ -26,6 +26,7 @@ func newTestServer() *web.Server {
 // TestResponse wraps the gin.ResponseWriter from test context to implement web.Response
 type TestResponse struct {
 	gin.ResponseWriter
+	ctx *gin.Context
 }
 
 func (r *TestResponse) SetAttachmentFileName(fileName string) {
@@ -70,7 +71,7 @@ func (r *TestResponse) AbortWithStatusJSON(i int, value any) {
 }
 
 func (r *TestResponse) AbortWithError(err error) error {
-	return err
+	return r.ctx.AbortWithError(http.StatusInternalServerError, err)
 }
 
 func TestBuilder_Build(t *testing.T) {
@@ -326,7 +327,7 @@ func TestDefaultConverter_Request_JSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	// Act
@@ -357,7 +358,7 @@ func TestDefaultConverter_Request_String(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
@@ -383,7 +384,7 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
@@ -395,8 +396,9 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 	converter.Request(filterChain, webReq)
 
 	// Assert
-	// Should return error as JSON with error code
-	assert.NotEqual(t, http.StatusOK, w.Code)
+	// web.DefaultConverter calls AbortWithError for errors.
+	// AbortWithError writes 500 status on the gin context's internal writer.
+	assert.Equal(t, http.StatusInternalServerError, c.Writer.Status())
 }
 
 func TestDefaultConverter_Request_File(t *testing.T) {
@@ -416,7 +418,7 @@ func TestDefaultConverter_Request_File(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
@@ -447,7 +449,7 @@ func TestDefaultConverter_Request_OsFile(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
@@ -471,7 +473,7 @@ func TestDefaultConverter_Request_Message(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {
@@ -501,7 +503,7 @@ func TestDefaultConverter_Request_Redirect(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	mockResp := &TestResponse{c.Writer}
+	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
 	webReq := web.NewRequestForTest(c, mockResp, nil)
 
 	next := func() (any, error) {

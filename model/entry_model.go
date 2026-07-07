@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/chuccp/go-web-frame/db"
-	"github.com/chuccp/go-web-frame/web"
+	"github.com/chuccp/go-web-frame/util"
 )
 
 // PKConstraint defines the set of types that can be used as primary keys.
@@ -128,19 +128,19 @@ func (a *EntryModel[T, PK]) NewEntryModel(db *db.DB) *EntryModel[T, PK] {
 	return &EntryModel[T, PK]{NewModel[T](db, a.tableName)}
 }
 // Page returns a paginated list of records ordered by primary key descending.
-func (a *EntryModel[T, PK]) Page(page *web.Page) ([]T, int, error) {
+func (a *EntryModel[T, PK]) Page(page *util.Page) ([]T, int, error) {
 	q := a.Query()
 	pkCol := a.GetPkColumn()
 	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)
 }
 // PageForWeb returns a paginated response suitable for web API responses.
-func (a *EntryModel[T, PK]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
+func (a *EntryModel[T, PK]) PageForWeb(page *util.Page) (*util.PageAble[T], error) {
 	q := a.Query()
 	pkCol := a.GetPkColumn()
 	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).PageForWeb(page)
 }
 // QueryPage returns a paginated list matching the given query condition.
-func (a *EntryModel[T, PK]) QueryPage(page *web.Page, query interface{}, args ...interface{}) ([]T, int, error) {
+func (a *EntryModel[T, PK]) QueryPage(page *util.Page, query interface{}, args ...interface{}) ([]T, int, error) {
 	q := a.Query()
 	pkCol := a.GetPkColumn()
 	return q.Where(query, args...).Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)

@@ -9,7 +9,6 @@ import (
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/chuccp/go-web-frame/web"
 	"gorm.io/gorm"
 )
 
@@ -82,7 +81,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 
 }
 // ListPage returns a page of records matching the query conditions.
-func (q *Query[T]) ListPage(page *web.Page) ([]T, error) {
+func (q *Query[T]) ListPage(page *util.Page) ([]T, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
 	if err != nil {
@@ -168,7 +167,7 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 }
 
 // ExecPage executes a paginated raw SQL query with the accumulated WHERE conditions.
-func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]T, int, error) {
+func (q *Query[T]) ExecPage(page *util.Page, sql string, args ...interface{}) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
@@ -215,7 +214,7 @@ func toCountSql(sql string) string {
 }
 
 // Page returns a paginated list with total count.
-func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
+func (q *Query[T]) Page(page *util.Page) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
 	if err != nil {
@@ -239,12 +238,12 @@ func (q *Query[T]) Page(page *web.Page) ([]T, int, error) {
 }
 
 // PageForWeb returns a paginated web response suitable for API responses.
-func (q *Query[T]) PageForWeb(page *web.Page) (*web.PageAble[T], error) {
+func (q *Query[T]) PageForWeb(page *util.Page) (*util.PageAble[T], error) {
 	values, num, err := q.Page(page)
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
-	return web.ToPage[T](int64(num), values), nil
+	return util.ToPage[T](int64(num), values), nil
 }
 
 // Size returns up to size records with total count.

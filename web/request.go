@@ -23,24 +23,17 @@ import (
 const GetNotSupportJson = "JSON parameters are not supported in GET requests"
 
 // Page represents pagination parameters for list queries.
-type Page struct {
-	PageNo   int // Current page number, 1-based
-	PageSize int // Number of items per page
-	LastId   int // Last seen ID for cursor-based pagination
-}
+// Alias for util.Page to keep backward compatibility.
+type Page = util.Page
 
 // PageAble is a paginated response wrapper containing total count and item list.
-type PageAble[T any] struct {
-	Total int64 `json:"total"` // Total number of items
-	List  []T   `json:"list"`  // Items on the current page
-}
+// Alias for util.PageAble to keep backward compatibility.
+type PageAble[T any] = util.PageAble[T]
 
 // ToPage creates a new PageAble from the given total count and item list.
+// Delegates to util.ToPage for backward compatibility.
 func ToPage[T any](total int64, list []T) *PageAble[T] {
-	return &PageAble[T]{
-		Total: total,
-		List:  list,
-	}
+	return util.ToPage[T](total, list)
 }
 
 // JSONObject is a convenience type for working with JSON objects as maps.

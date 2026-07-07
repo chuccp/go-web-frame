@@ -205,30 +205,13 @@ func (q *Query[T]) ExecPage(page *web.Page, sql string, args ...interface{}) ([]
 	return ts, int(num), nil
 }
 
-// toCountSql converts a SELECT query to a COUNT query.
-// Example: SELECT * FROM users WHERE status = ? LIMIT 10 -> SELECT COUNT(*) FROM users WHERE status = ?
+// toCountSql converts a SELECT query to a COUNT query using a subquery.
+// Works correctly with DISTINCT, subqueries, CTEs, and complex SQL.
+// Example: SELECT DISTINCT name FROM users WHERE status = ? ORDER BY id LIMIT 10
+//
+//	-> SELECT COUNT(*) FROM (SELECT DISTINCT name FROM users WHERE status = ?) AS _t
 func toCountSql(sql string) string {
-	upper := strings.ToUpper(sql)
-	// Find SELECT and FROM positions
-	selectIdx := strings.Index(upper, "SELECT")
-	fromIdx := strings.Index(upper, "FROM")
-	if selectIdx == -1 || fromIdx == -1 || fromIdx <= selectIdx {
-		return sql
-	}
-
-	// Build base count SQL, ensure space before FROM
-	countSql := "SELECT COUNT(*) FROM" + sql[fromIdx+4:]
-
-	// Remove LIMIT, OFFSET, ORDER BY clauses
-	upper = strings.ToUpper(countSql)
-	keywords := []string{" LIMIT", " OFFSET", " ORDER BY"}
-	for _, kw := range keywords {
-		if idx := strings.Index(upper, kw); idx != -1 {
-			countSql = countSql[:idx]
-			upper = strings.ToUpper(countSql)
-		}
-	}
-	return countSql
+	return "SELECT COUNT(*) FROM (" + sql + ") AS _t"
 }
 
 // Page returns a paginated list with total count.

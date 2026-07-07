@@ -98,6 +98,13 @@ func (server *Server) SetConverter(converter Converter) {
 	server.converter = converter
 }
 
+// AddHandles transfers all routes from the given Handles into this Server.
+func (server *Server) AddHandles(handles *Handles) {
+	for _, route := range handles.routes {
+		server.routes = append(server.routes, route)
+	}
+}
+
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodGet, relativePath, handlers...)
 }

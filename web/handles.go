@@ -90,10 +90,3 @@ func (h *Handles) AddStaticFs(relativePath string, fs http.FileSystem) *Route {
 		return &FileSystemResponse{Filepath: r.Param("filepath"), FS: fs}, nil
 	})
 }
-
-// AddHandles transfers all routes from the given Handles into this Server.
-func (server *Server) AddHandles(handles *Handles) {
-	for _, route := range handles.routes {
-		server.routes = append(server.routes, route)
-	}
-}

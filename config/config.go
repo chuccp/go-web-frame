@@ -67,13 +67,12 @@ func (c *Config) GetInt(key string) int {
 	return c.v.GetInt(key)
 }
 
-// GetIntOrDefault returns the int value for the given key, or defaultValue if 0.
+// GetIntOrDefault returns the int value for the given key, or defaultValue if not set.
 func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
-	v := c.v.GetInt(key)
-	if v == 0 {
+	if !c.v.IsSet(key) {
 		return defaultValue
 	}
-	return v
+	return c.v.GetInt(key)
 }
 // GetBoolOrDefault returns the bool value for the given key, or defaultValue if not set.
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {

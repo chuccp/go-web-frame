@@ -16,10 +16,10 @@ func (o KV) GetInt(key string) int {
 	return cast.ToInt((o)[key])
 }
 
-// GetIntForDefault returns the value for key as an int, or defaultValue if the result is 0.
+// GetIntForDefault returns the value for key as an int, or defaultValue if the key is not present.
 func (o KV) GetIntForDefault(key string, defaultValue int) int {
-	if v := o.GetInt(key); v != 0 {
-		return v
+	if _, ok := (o)[key]; ok {
+		return o.GetInt(key)
 	}
 	return defaultValue
 }

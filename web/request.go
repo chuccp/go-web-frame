@@ -138,10 +138,10 @@ func (r *Request) ParamInt(key string) int {
 	return cast.ToInt(r.Param(key))
 }
 
-// ParamIntForDefault returns the path parameter value as an int, or defaultValue if 0.
+// ParamIntForDefault returns the path parameter value as an int, or defaultValue if the param is empty.
 func (r *Request) ParamIntForDefault(key string, defaultValue int) int {
-	if v := cast.ToInt(r.Param(key)); v != 0 {
-		return v
+	if s := r.Param(key); s != "" {
+		return cast.ToInt(s)
 	}
 	return defaultValue
 }
@@ -233,10 +233,10 @@ func (r *Request) GetIntFormParam(key string) int {
 	return cast.ToInt(r.GetFormParam(key))
 }
 
-// GetIntFormParamOrDefault returns a form parameter value as an int, or defaultValue if 0.
+// GetIntFormParamOrDefault returns a form parameter value as an int, or defaultValue if the param is not set.
 func (r *Request) GetIntFormParamOrDefault(key string, defaultValue int) int {
-	if value := r.GetIntFormParam(key); value != 0 {
-		return value
+	if s := r.GetFormParam(key); s != "" {
+		return cast.ToInt(s)
 	}
 	return defaultValue
 }
@@ -276,10 +276,14 @@ func (r *Request) GetJsonIntValue(key string) (int, error) {
 	return jsonObject.GetInt(key), nil
 }
 
-// GetJsonIntValueOrDefault returns an int value from the JSON body, or defaultValue if 0.
+// GetJsonIntValueOrDefault returns an int value from the JSON body, or defaultValue if the key is not present.
 func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
-	if value, _ := r.GetJsonIntValue(key); value != 0 {
-		return value
+	jsonObject, err := r.Json()
+	if err != nil {
+		return defaultValue
+	}
+	if _, ok := (*jsonObject)[key]; ok {
+		return jsonObject.GetInt(key)
 	}
 	return defaultValue
 }

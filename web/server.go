@@ -85,6 +85,7 @@ type Server struct {
 }
 
 func DefaultServer() *Server {
+	gin.SetMode(gin.ReleaseMode)
 	server := &Server{
 		serverConfig: DefaultServerConfig(),
 		ctx:          context.Background(),

@@ -99,6 +99,14 @@ func (server *Server) Handle(httpMethod string, relativePath string, handlers ..
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
 }
 
+func (server *Server) AddSSE(relativePath string, handler SSEHandler) *Route {
+	return server.Get(relativePath, func(r *Request) (any, error) {
+		stream := NewSSEStream(r)
+		stream.setHeaders()
+		return nil, handler(stream)
+	})
+}
+
 func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Route {
 	return server.Get(relativePath+"/*filepath", func(r *Request) (any, error) {
 		return &FileSystemResponse{Filepath: r.Param("filepath"), FS: fs}, nil

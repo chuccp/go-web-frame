@@ -92,6 +92,9 @@ func (server *Server) SetConverter(converter Converter) {
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodGet, relativePath, handlers...)
 }
+func (server *Server) Post(relativePath string, handlers ...HandlerFunc) *Route {
+	return server.Handle(http.MethodPost, relativePath, handlers...)
+}
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
 }

@@ -3,12 +3,12 @@ package web2
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
@@ -45,11 +45,11 @@ func (e *certEntry) get() (*tls.Certificate, error) {
 
 	certStat, err := os.Stat(e.certFile)
 	if err != nil {
-		return nil, fmt.Errorf("stat cert file %s: %w", e.certFile, err)
+		return nil, errors.Wrapf(err, "stat cert file %s", e.certFile)
 	}
 	keyStat, err := os.Stat(e.keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("stat key file %s: %w", e.keyFile, err)
+		return nil, errors.Wrapf(err, "stat key file %s", e.keyFile)
 	}
 
 	e.mu.Lock()
@@ -66,7 +66,7 @@ func (e *certEntry) get() (*tls.Certificate, error) {
 
 	cert, err := tls.LoadX509KeyPair(e.certFile, e.keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("reload certificate host=%s cert=%s key=%s: %w", e.host, e.certFile, e.keyFile, err)
+		return nil, errors.Wrapf(err, "reload certificate host=%s cert=%s key=%s", e.host, e.certFile, e.keyFile)
 	}
 	e.cert = &cert
 	e.certMod = certStat.ModTime()
@@ -106,7 +106,7 @@ func (cs *certStore) init(servers []*Server) error {
 				for _, certCfg := range server.serverConfig.SSL.Certs {
 					entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
 					if err != nil {
-						return fmt.Errorf("server port %d: %w", server.serverConfig.Port, err)
+						return errors.Wrapf(err, "server port %d", server.serverConfig.Port)
 					}
 					cs.addCertEntry(entry)
 				}
@@ -134,21 +134,21 @@ func (cs *certStore) init(servers []*Server) error {
 func (cs *certStore) parseCert(certFile, keyFile string) (*certEntry, error) {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate file %s: %w", certFile, err)
+		return nil, errors.Wrapf(err, "failed to read certificate file %s", certFile)
 	}
 	keyPEM, err := os.ReadFile(keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read key file %s: %w", keyFile, err)
+		return nil, errors.Wrapf(err, "failed to read key file %s", keyFile)
 	}
 
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate/key pair (%s, %s): %w", certFile, keyFile, err)
+		return nil, errors.Wrapf(err, "failed to parse certificate/key pair (%s, %s)", certFile, keyFile)
 	}
 
 	domains := extractDomains(&tlsCert)
 	if len(domains) == 0 {
-		return nil, fmt.Errorf("no domain names found in certificate %s", certFile)
+		return nil, errors.Errorf("no domain names found in certificate %s", certFile)
 	}
 
 	entry := &certEntry{

@@ -1,12 +1,13 @@
 package web2
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"emperror.dev/errors"
 
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"

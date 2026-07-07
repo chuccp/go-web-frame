@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/sourcegraph/conc/pool"
 	"go.uber.org/zap"
@@ -90,7 +91,7 @@ func (sr *ServerRunner) listen(server *Server) error {
 		ReadTimeout:       MaxReadTimeout,
 	}
 	log.Info("server listening", zap.String("url", "http://localhost"+addr))
-	return httpServer.ListenAndServe()
+	return errors.WithStackIf(httpServer.ListenAndServe())
 }
 
 func (sr *ServerRunner) listenTLS(server *Server) error {
@@ -123,7 +124,7 @@ func (sr *ServerRunner) listenTLS(server *Server) error {
 		ReadTimeout:       MaxReadTimeout,
 	}
 	sr.logTLSListen(server, addr)
-	return httpServer.ListenAndServeTLS("", "")
+	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
 }
 
 func (sr *ServerRunner) logTLSListen(server *Server, addr string) {
@@ -152,7 +153,7 @@ func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 		},
 	}
 	log.Info("starting ACME HTTP-01 challenge server on :80")
-	if err := server.ListenAndServe(); err != nil {
+	if err := errors.WithStackIf(server.ListenAndServe()); err != nil {
 		log.Error("ACME HTTP-01 challenge server error", zap.Error(err))
 		return err
 	}
@@ -173,7 +174,7 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 		},
 	}
 	log.Info("starting ACME TLS-ALPN-01 challenge + auto-cert HTTPS server on :443")
-	if err := server.ListenAndServeTLS("", ""); err != nil {
+	if err := errors.WithStackIf(server.ListenAndServeTLS("", "")); err != nil {
 		log.Error("ACME TLS challenge server error", zap.Error(err))
 		return err
 	}

@@ -50,19 +50,17 @@ func (c *Cookie) Get(key string) string {
 }
 
 // Set sets a cookie with optional custom attributes.
-// Defaults: MaxAge=1 year, Path="/", HttpOnly=true, SameSite=Lax.
+// Defaults (no options): MaxAge=1 year, Path="/", HttpOnly=false, Secure=false (backward compatible).
 //
-//	cookie.Set("token", value)                              // defaults
+//	cookie.Set("token", value)                              // backward compatible defaults
 //	cookie.Set("token", value, WithSecure(true))            // HTTPS only
-//	cookie.Set("token", value, WithSecure(true), WithSameSite(http.SameSiteStrictMode))
+//	cookie.Set("token", value, WithHttpOnly(true), WithSameSite(http.SameSiteLaxMode))
 func (c *Cookie) Set(key string, value string, opts ...CookieOption) {
 	cookie := &http.Cookie{
-		Name:     key,
-		Value:    value,
-		MaxAge:   3600 * 24 * 365,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		Name:   key,
+		Value:  value,
+		MaxAge: 3600 * 24 * 365,
+		Path:   "/",
 	}
 	for _, opt := range opts {
 		opt(cookie)
@@ -95,7 +93,7 @@ func (c *Cookie) ForeverDomain(domain string, key string, value string, opts ...
 
 // Delete removes a cookie by setting its expiration to the past.
 func (c *Cookie) Delete(key string) {
-	c.Set(key, "", func(c *http.Cookie) { c.MaxAge = -1 })
+	c.Set(key, "", func(c *http.Cookie) { c.MaxAge = -1 }, WithHttpOnly(true))
 }
 
 // Expire removes a cookie by setting its expiration to the past.

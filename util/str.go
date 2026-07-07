@@ -19,6 +19,12 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Pre-compiled regex patterns (regexp.Regexp is safe for concurrent use).
+var (
+	wildcardRe          = regexp.MustCompile(`\*[a-zA-Z]+`)
+	removePunctuationRe = regexp.MustCompile(`[\p{P}\s@#$%^&*]`)
+)
+
 func MD5(data []byte) string {
 	hash := md5.New()
 	hash.Write(data)
@@ -131,11 +137,9 @@ func StringToUintIds(ids string) []uint {
 }
 
 func IsMatchPath(path, smath string) bool {
-	math := ReplaceAllRegex(smath, "\\*[a-zA-Z]+", ".*")
+	math := wildcardRe.ReplaceAllString(smath, ".*")
 	re := regexp.MustCompile("^" + math)
-	fa := re.MatchString(path)
-	return fa
-
+	return re.MatchString(path)
 }
 func ReplaceAllRegex(path, regex, math string) string {
 	re := regexp.MustCompile(regex)
@@ -202,11 +206,7 @@ func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 
 // RemovePunctuation 移除字符串中的标点符号和特殊符号（保留中文、英文、数字）
 func RemovePunctuation(s string) string {
-	// \p{P} 匹配 Unicode 标点符号类别
-	// \s 匹配空白字符
-	// 添加常见的特殊符号：@#$%^&*等
-	re := regexp.MustCompile(`[\p{P}\s@#$%^&*]`)
-	return re.ReplaceAllString(s, "")
+	return removePunctuationRe.ReplaceAllString(s, "")
 }
 
 // EqualsAnyIgnorePunctuation 比较字符串是否相等（忽略标点符号）

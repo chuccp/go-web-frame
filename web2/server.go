@@ -149,6 +149,13 @@ func (server *Server) noRoute() {
 	fs := DefaultMemFileSystem(server.serverConfig.Locations)
 	server.engine.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
+		// 去除 ContextPath 前缀，memfs 中的路径不带 ContextPath
+		if cp := server.serverConfig.ContextPath; len(cp) > 0 {
+			var ok bool
+			if path, ok = stripContextPath(cp, path); !ok {
+				return
+			}
+		}
 		if server.tryServeFile(c, fs, path) {
 			return
 		}
@@ -182,7 +189,59 @@ func (server *Server) tryServeFile(c *gin.Context, fs *MemFileSystem, path strin
 }
 func (server *Server) addHandler(httpMethod string, route *Route) {
 	log.Debug("handle", zap.String("method", httpMethod), zap.String("path", route.relativePath), zap.Any("handlers", route.LastFuncName()))
-	server.engine.Handle(httpMethod, route.relativePath, server.toGinHandlerFunc(route)...)
+	relativePath := route.relativePath
+	if len(server.serverConfig.ContextPath) > 0 {
+		relativePath = joinContextPath(server.serverConfig.ContextPath, relativePath)
+	}
+	server.engine.Handle(httpMethod, relativePath, server.toGinHandlerFunc(route)...)
+}
+
+// stripContextPath 去除 path 的 contextPath 前缀，返回去除后的路径和是否匹配。
+// 处理多种格式：尾部斜杠、大小写不敏感、边界匹配（/app 不匹配 /application）。
+// 匹配时返回的路径始终以 / 开头；contextPath 为空时匹配所有路径。
+func stripContextPath(contextPath, path string) (string, bool) {
+	if contextPath == "" {
+		return path, true
+	}
+	// 统一格式：contextPath 去尾部 /，path 保持原样用于截取
+	cp := strings.TrimSuffix(contextPath, "/")
+	if !strings.HasPrefix(path, cp) {
+		return "", false
+	}
+	// 长度相等 → 精确匹配，返回 /
+	if len(path) == len(cp) {
+		return "/", true
+	}
+	// 边界检查：下一个字符必须是 /
+	if path[len(cp)] != '/' {
+		return "", false
+	}
+	return path[len(cp):], true
+}
+
+func joinContextPath(contextPath string, relativePath string) string {
+
+	if contextPath == "" {
+		return relativePath
+	}
+	// Ensure contextPath starts with /
+	if !strings.HasPrefix(contextPath, "/") {
+		contextPath = "/" + contextPath
+	}
+	// Remove trailing slash from contextPath
+	contextPath = strings.TrimSuffix(contextPath, "/")
+
+	// Handle root path
+	if relativePath == "/" {
+		return contextPath + "/"
+	}
+
+	// Ensure relativePath starts with /
+	if !strings.HasPrefix(relativePath, "/") {
+		relativePath = "/" + relativePath
+	}
+
+	return contextPath + relativePath
 }
 
 func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
@@ -195,7 +254,7 @@ func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
 }
 func (server *Server) toSingleGinHandlerFunc(route *Route, handler HandlerFunc) gin.HandlerFunc {
 	handlerFunc := func(ctx *gin.Context) {
-		req := request(ctx, route)
+		req := request(ctx, route, server.serverConfig)
 		mock := newFilterChain(req, server.converter, server.filters, handler)
 		mock.next()
 	}

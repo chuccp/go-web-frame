@@ -1,7 +1,6 @@
 package web2
 
 import (
-	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
@@ -27,18 +26,12 @@ func reverseProxy(request *Request, target string) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-	baseDirector := proxy.Director
 	path := request.FullPath()
-	proxy.Director = func(r *http.Request) {
-		originalPath := r.URL.Path
-		baseDirector(r)
-		requestPath := originalPath
-		if !strings.HasPrefix(path, "/") && strings.HasPrefix(originalPath, path) {
-			requestPath = strings.TrimPrefix(originalPath, path)
+	proxy.Rewrite = func(pr *httputil.ProxyRequest) {
+		pr.SetXForwarded()
+		if strings.HasPrefix(pr.In.URL.Path, path) {
+			pr.Out.URL.Path = util.JoinUrl(targetURL.Path, strings.TrimPrefix(pr.In.URL.Path, path))
 		}
-		r.URL.Path = util.JoinUrl(targetURL.Path, requestPath)
-		r.URL.RawPath = r.URL.EscapedPath()
-		r.Host = targetURL.Host
 	}
 
 	proxy.ServeHTTP(request.GinContext().Writer, request.Request())

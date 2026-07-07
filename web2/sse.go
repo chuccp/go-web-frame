@@ -11,6 +11,12 @@ import (
 // SSEHandler is the function signature for SSE stream handlers.
 type SSEHandler func(stream *SSEStream) error
 
+// SSEResponse is a handler return value that signals the converter
+// to set up an SSE stream and invoke the handler.
+type SSEResponse struct {
+	Handler SSEHandler
+}
+
 // SSEStream represents a Server-Sent Events stream backed by a web2 Request.
 type SSEStream struct {
 	cancel  context.CancelFunc

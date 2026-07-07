@@ -101,9 +101,13 @@ func (server *Server) Handle(httpMethod string, relativePath string, handlers ..
 
 func (server *Server) AddSSE(relativePath string, handler SSEHandler) *Route {
 	return server.Get(relativePath, func(r *Request) (any, error) {
-		stream := NewSSEStream(r)
-		stream.setHeaders()
-		return nil, handler(stream)
+		return &SSEResponse{Handler: handler}, nil
+	})
+}
+
+func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler) *Route {
+	return server.Get(relativePath, func(r *Request) (any, error) {
+		return &WSResponse{Handler: handler}, nil
 	})
 }
 

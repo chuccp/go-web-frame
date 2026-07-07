@@ -9,6 +9,7 @@ import (
 
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/coder/websocket"
 	"go.uber.org/zap"
 )
 
@@ -39,6 +40,10 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.FileResponse(request, t)
 			case *FileSystemResponse:
 				c.FileSystemResponse(request, t)
+			case *SSEResponse:
+				c.SSEResponse(request, t)
+			case *WSResponse:
+				c.WSResponse(request, t)
 			case *os.File:
 				c.RawFile(request, t)
 			case string:
@@ -48,6 +53,7 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 			}
 		}
 	} else {
+		log.Debug("converter: handler error", zap.Error(err))
 		c.Error(request, value, err)
 		return
 	}
@@ -61,7 +67,6 @@ func (c *DefaultConverter) Message(request *Request, value *Message) {
 	request.response.JSON(value.Code, value.Data)
 }
 func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
-
 	if len(value.FileName) == 0 {
 		_, filename := path.Split(value.Path)
 		value.FileName = filename
@@ -77,14 +82,41 @@ func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 func (c *DefaultConverter) FileSystemResponse(request *Request, value *FileSystemResponse) {
 	request.GinContext().FileFromFS(value.Filepath, value.FS)
 }
-
+func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
+	stream := NewSSEStream(request)
+	stream.setHeaders()
+	if err := value.Handler(stream); err != nil {
+		log.Debug("converter: SSE handler error", zap.Error(err))
+	}
+}
+func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
+	conn, err := websocket.Accept(request.GinContext().Writer, request.Request(), nil)
+	if err != nil {
+		log.Debug("converter: WebSocket accept error", zap.Error(err))
+		if abortErr := request.response.AbortWithError(err); abortErr != nil {
+		log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
+	}
+		return
+	}
+	stream := newWebSocketStream(request, conn)
+	defer stream.Close()
+	if err := value.Handler(stream); err != nil {
+		log.Debug("converter: WebSocket handler error", zap.Error(err))
+	}
+}
 func (c *DefaultConverter) RawFile(request *Request, value *os.File) {
-	defer value.Close()
+	defer func() {
+		if err := value.Close(); err != nil {
+			log.Debug("converter: RawFile close error", zap.Error(err))
+		}
+	}()
 	filename := filepath.Base(value.Name())
 	request.response.FileAttachment(value.Name(), filename)
 }
 func (c *DefaultConverter) String(request *Request, value string) {
-	request.response.WriteString(value)
+	if _, err := request.response.WriteString(value); err != nil {
+		log.Debug("converter: WriteString error", zap.Error(err))
+	}
 }
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
 	if abortErr := request.response.AbortWithError(err); abortErr != nil {

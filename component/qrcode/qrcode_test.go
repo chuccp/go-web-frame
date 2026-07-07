@@ -1,4 +1,4 @@
-package util
+package qrcode
 
 import (
 	"image/color"

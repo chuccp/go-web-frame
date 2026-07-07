@@ -98,7 +98,7 @@ func (a *Model[T]) CreateTable() error {
 	t := util.NewPtr(a.entry)
 	return errors.WithStackIf(dbConn.Table(a.tableName).AutoMigrate(t))
 }
-// DeleteTable drops the database table for this model.
+// DeleteTable deletes all rows from the table (does not drop the table structure).
 func (a *Model[T]) DeleteTable() error {
 	dbConn, err := a.getDB()
 	if err != nil {
@@ -107,6 +107,15 @@ func (a *Model[T]) DeleteTable() error {
 	t := util.NewPtr(a.entry)
 	err = dbConn.Table(a.tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(t)
 	return errors.WithStackIf(err)
+}
+
+// DropTable drops the database table for this model, removing the table structure and all data.
+func (a *Model[T]) DropTable() error {
+	dbConn, err := a.getDB()
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	return errors.WithStackIf(dbConn.Migrator().DropTable(a.tableName))
 }
 // GetTableName returns the database table name for this model.
 func (a *Model[T]) GetTableName() string {

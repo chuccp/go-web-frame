@@ -2,6 +2,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -64,7 +65,11 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 // Message writes a Message response, handling redirect and JSON cases.
 func (c *DefaultConverter) Message(request *Request, value *Message) {
 	if value.Code == http.StatusMovedPermanently {
-		request.response.Redirect(http.StatusMovedPermanently, value.Data.(string))
+		url, ok := value.Data.(string)
+		if !ok {
+			url = fmt.Sprintf("%v", value.Data)
+		}
+		request.response.Redirect(http.StatusMovedPermanently, url)
 		request.response.Abort()
 		return
 	}

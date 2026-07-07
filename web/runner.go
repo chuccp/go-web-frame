@@ -148,8 +148,11 @@ func (sr *ServerRunner) logTLSListen(server *Server, addr string) {
 
 func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 	server := &http.Server{
-		Addr:    ":80",
-		Handler: sr.certs.autoCertManager.HTTPHandler(nil),
+		Addr:              ":80",
+		Handler:           sr.certs.autoCertManager.HTTPHandler(nil),
+		ReadHeaderTimeout: MaxReadHeaderTimeout,
+		MaxHeaderBytes:    MaxHeaderBytes,
+		ReadTimeout:       MaxReadTimeout,
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx
 		},
@@ -168,9 +171,12 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 	tlsConfig.NextProtos = []string{http2.NextProtoTLS, "http/1.1"}
 
 	server := &http.Server{
-		Addr:      ":443",
-		TLSConfig: tlsConfig,
-		Handler:   sr.certs.autoCertManager.HTTPHandler(nil),
+		Addr:              ":443",
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: MaxReadHeaderTimeout,
+		MaxHeaderBytes:    MaxHeaderBytes,
+		ReadTimeout:       MaxReadTimeout,
+		Handler:           sr.certs.autoCertManager.HTTPHandler(nil),
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx
 		},

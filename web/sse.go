@@ -36,6 +36,7 @@ func NewSSEStream(r *Request) *SSEStream {
 		cancel:  cancel,
 	}
 }
+
 // Request returns the underlying web2 Request.
 func (s *SSEStream) Request() *Request {
 	return s.request
@@ -112,8 +113,9 @@ func (s *SSEStream) SetHeaders() {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	//w.Header().Set("Access-Control-Allow-Origin", "*")
 }
+
 // SetHeader sets a custom header on the SSE response.
 func (s *SSEStream) SetHeader(key string, value string) {
 	w := s.request.response

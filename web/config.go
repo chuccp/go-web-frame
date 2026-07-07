@@ -4,12 +4,16 @@ package web
 // ServerConfigKey is the configuration key for server settings.
 const ServerConfigKey = "web.server"
 
+// DefaultMaxBodySize is the default maximum request body size (10 MB).
+const DefaultMaxBodySize int64 = 10 << 20
+
 // ServerConfig holds the HTTP server configuration including port, context path, and TLS.
 type ServerConfig struct {
 	Port        int        // Listen port (default: 19009)
 	ContextPath string     // Route prefix applied to all routes (e.g., "/api")
 	Locations   []string   // Static file directories to serve
 	Page404     string     // Fallback page for 404 responses (useful for SPA)
+	MaxBodySize int64      // Maximum request body size in bytes (0 = default 10 MB, -1 = unlimited)
 	SSL         *SSLConfig // HTTPS/TLS configuration
 }
 

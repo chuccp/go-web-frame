@@ -52,8 +52,11 @@ type IModel interface {
 	// CreateTable creates the database table if it does not exist.
 	CreateTable() error
 
-	// DeleteTable drops the database table.
+	// DeleteTable deletes all rows from the table (does not drop the table structure).
 	DeleteTable() error
+
+	// DropTable drops the database table, removing the table structure and all data.
+	DropTable() error
 
 	// GetTableName returns the database table name.
 	GetTableName() string

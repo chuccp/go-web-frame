@@ -194,6 +194,10 @@ func (m *testModel) DeleteTable() error {
 	return nil
 }
 
+func (m *testModel) DropTable() error {
+	return nil
+}
+
 func (m *testModel) GetTableName() string {
 	return "test_model"
 }

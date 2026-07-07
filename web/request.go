@@ -153,6 +153,7 @@ func (r *Request) ParamUint(key string) uint {
 
 // Json parses the request body as JSON and returns it as a JSONObject.
 // The result is cached on subsequent calls.
+// The body size is limited by ServerConfig.MaxBodySize (default 10 MB).
 func (r *Request) Json() (*JSONObject, error) {
 	if r.IsGet() {
 		return nil, errors.New(GetNotSupportJson)
@@ -160,6 +161,7 @@ func (r *Request) Json() (*JSONObject, error) {
 	if r.jsonBody != nil {
 		return r.jsonBody, nil
 	}
+	r.limitBody()
 	var jsonObject JSONObject
 	err := r.c.BindJSON(&jsonObject)
 	if err != nil {
@@ -167,6 +169,29 @@ func (r *Request) Json() (*JSONObject, error) {
 	}
 	r.jsonBody = &jsonObject
 	return &jsonObject, nil
+}
+
+// limitBody wraps the request body with MaxBytesReader if MaxBodySize is configured.
+func (r *Request) limitBody() {
+	maxSize := r.maxBodySize()
+	if maxSize > 0 {
+		r.c.Request.Body = http.MaxBytesReader(r.c.Writer, r.c.Request.Body, maxSize)
+	}
+}
+
+// maxBodySize returns the effective max body size from serverConfig.
+// 0 (default) → DefaultMaxBodySize (10 MB), -1 → unlimited, >0 → custom limit.
+func (r *Request) maxBodySize() int64 {
+	if r.serverConfig == nil {
+		return DefaultMaxBodySize
+	}
+	if r.serverConfig.MaxBodySize < 0 {
+		return 0 // unlimited
+	}
+	if r.serverConfig.MaxBodySize == 0 {
+		return DefaultMaxBodySize
+	}
+	return r.serverConfig.MaxBodySize
 }
 
 // JsonPage extracts pagination parameters (pageNo, pageSize, lastId) from the JSON body.

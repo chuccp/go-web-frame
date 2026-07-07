@@ -27,11 +27,19 @@ func reverseProxy(request *Request, target string) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-	path := request.FullPath()
+	// NewSingleHostReverseProxy sets Director; clear it so we can use Rewrite instead.
+	proxy.Director = nil
+	// FullPath() returns the route pattern (e.g. "/api/*path").
+	// Strip the wildcard suffix so we can match actual request paths.
+	routePath := strings.TrimSuffix(request.FullPath(), "/*path")
 	proxy.Rewrite = func(pr *httputil.ProxyRequest) {
 		pr.SetXForwarded()
-		if strings.HasPrefix(pr.In.URL.Path, path) {
-			pr.Out.URL.Path = util.JoinUrl(targetURL.Path, strings.TrimPrefix(pr.In.URL.Path, path))
+		pr.Out.URL.Scheme = targetURL.Scheme
+		pr.Out.URL.Host = targetURL.Host
+		inPath := pr.In.URL.Path
+		if strings.HasPrefix(inPath, routePath) {
+			remainder := strings.TrimPrefix(inPath, routePath)
+			pr.Out.URL.Path = util.JoinUrl(targetURL.Path, remainder)
 		}
 	}
 	proxy.ServeHTTP(request.response, request.Request())

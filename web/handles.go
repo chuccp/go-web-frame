@@ -1,7 +1,10 @@
 // Package web: route collection that can be transferred to a Server.
 package web
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // Handles collects route definitions before they are registered on a Server.
 // Use NewHandles() to create, then register routes via Get/Post/etc,
@@ -79,8 +82,11 @@ func (h *Handles) AddWebSocket(relativePath string, handler WebSocketHandler) *R
 }
 
 // AddReverseProxy registers a reverse proxy to the target URL for all HTTP methods.
+// The relativePath should be a prefix (e.g. "/api"); a wildcard is appended automatically
+// so that "/api/hello" matches in addition to "/api".
 func (h *Handles) AddReverseProxy(relativePath string, target string) *Route {
-	return h.Handlers(allMethods, relativePath, func(r *Request) (any, error) {
+	proxyPath := strings.TrimSuffix(relativePath, "/") + "/*path"
+	return h.Handlers(allMethods, proxyPath, func(r *Request) (any, error) {
 		return &ReverseProxyResponse{Target: target}, nil
 	})
 }

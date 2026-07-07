@@ -84,6 +84,21 @@ type Server struct {
 	filters      []Filter
 }
 
+func DefaultServer() *Server {
+	server := &Server{
+		serverConfig: DefaultServerConfig(),
+		ctx:          context.Background(),
+		engine:       defaultEngine(),
+		routes:       make([]*Route, 0),
+		filters:      make([]Filter, 0),
+	}
+	return server
+}
+func (server *Server) GetHandler() http.Handler {
+	server.initRoute()
+	return server.engine
+}
+
 // Port returns the configured listen port for this server.
 func (server *Server) Port() int {
 	return server.serverConfig.Port
@@ -173,9 +188,12 @@ func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler
 
 var allMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions, http.MethodConnect, http.MethodTrace}
 
-// AddReverseProxy registers a reverse proxy route on this server.
+// AddReverseProxy registers a reverse proxy route on this server for all HTTP methods.
+// The relativePath should be a prefix (e.g. "/api"); a wildcard is appended automatically
+// so that "/api/hello" matches in addition to "/api".
 func (server *Server) AddReverseProxy(relativePath string, target string) *Route {
-	return server.Handlers(allMethods, relativePath, func(r *Request) (any, error) {
+	proxyPath := strings.TrimSuffix(relativePath, "/") + "/*path"
+	return server.Handlers(allMethods, proxyPath, func(r *Request) (any, error) {
 		return &ReverseProxyResponse{Target: target}, nil
 	})
 }

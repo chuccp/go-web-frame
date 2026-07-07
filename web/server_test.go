@@ -1,25 +1,29 @@
 package web
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
 func TestTslServer(t *testing.T) {
 
-	var servers = NewServers()
-
-	server, err := servers.CreateServer(&ServerConfig{Port: 1256})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.Get("/", func(request *Request) (any, error) {
+	server := DefaultServer()
+	server.Get("/", func(r *Request) (any, error) {
 		return "hello", nil
 	})
 
-	err = servers.Start()
+	ts := httptest.NewServer(server.GetHandler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	t.Log(string(body))
 
 }

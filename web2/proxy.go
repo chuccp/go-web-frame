@@ -33,6 +33,5 @@ func reverseProxy(request *Request, target string) {
 			pr.Out.URL.Path = util.JoinUrl(targetURL.Path, strings.TrimPrefix(pr.In.URL.Path, path))
 		}
 	}
-
-	proxy.ServeHTTP(request.GinContext().Writer, request.Request())
+	proxy.ServeHTTP(request.response, request.Request())
 }

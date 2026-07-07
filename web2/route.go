@@ -6,8 +6,7 @@ import (
 )
 
 type HandlerMeta struct {
-	data        KV
-	contextPath string
+	data KV
 }
 
 // Add sets a key-value pair in the handler metadata.

@@ -35,11 +35,12 @@ type HandlerFunc func(*Request) (any, error)
 // Request wraps the HTTP request with helper methods for accessing
 // parameters, query strings, JSON body, headers, and client info.
 type Request struct {
-	c           *gin.Context
-	cookie      *Cookie
-	jsonBody    *JSONObject
-	handlerMeta *HandlerMeta
-	response    Response
+	c            *gin.Context
+	cookie       *Cookie
+	jsonBody     *JSONObject
+	handlerMeta  *HandlerMeta
+	response     Response
+	serverConfig *ServerConfig
 }
 
 // HandlerMeta returns the metadata attached to the matched route handler.
@@ -57,10 +58,7 @@ func (r *Request) Ctx() context.Context {
 
 // ContextPath returns the configured context path prefix (e.g. "/api/v1").
 func (r *Request) ContextPath() string {
-	if r.handlerMeta == nil {
-		return ""
-	}
-	return r.handlerMeta.contextPath
+	return r.serverConfig.ContextPath
 }
 
 // FullPath returns the full matched route path.
@@ -304,11 +302,12 @@ func (r *Request) GinContext() *gin.Context {
 	return r.c
 }
 
-func request(ctx *gin.Context, route *Route) *Request {
+func request(ctx *gin.Context, route *Route, serverConfig *ServerConfig) *Request {
 	return &Request{
-		c:           ctx,
-		cookie:      NewCookie(ctx),
-		handlerMeta: route.handlerMeta,
-		response:    newResponse(ctx),
+		c:            ctx,
+		cookie:       NewCookie(ctx),
+		handlerMeta:  route.handlerMeta,
+		response:     newResponse(ctx),
+		serverConfig: serverConfig,
 	}
 }

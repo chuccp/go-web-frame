@@ -25,6 +25,7 @@ func NewServers() *Servers {
 	gin.SetMode(gin.ReleaseMode)
 	return NewServerWithContext(context.Background())
 }
+
 // NewServerWithContext creates a new Servers instance with the given context.
 func NewServerWithContext(ctx context.Context) *Servers {
 	return &Servers{
@@ -32,6 +33,7 @@ func NewServerWithContext(ctx context.Context) *Servers {
 		servers: make([]*Server, 0),
 	}
 }
+
 // CreateServerWithContext creates a new Server with the given config and context, checking for port conflicts.
 func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx context.Context) (*Server, error) {
 	for _, server := range servers.servers {
@@ -49,10 +51,12 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 	servers.servers = append(servers.servers, server)
 	return server, nil
 }
+
 // CreateServer creates a new Server with the given config using the Servers' context.
 func (servers *Servers) CreateServer(serverConfig *ServerConfig) (*Server, error) {
 	return servers.CreateServerWithContext(serverConfig, servers.ctx)
 }
+
 // GetServers returns all managed Server instances.
 func (servers *Servers) GetServers() []*Server {
 	return servers.servers
@@ -105,6 +109,7 @@ func (server *Server) isTls() bool {
 func (server *Server) AddFilter(filter Filter) {
 	server.filters = append(server.filters, filter)
 }
+
 // SetConverter sets a custom converter that transforms handler results to HTTP responses.
 func (server *Server) SetConverter(converter Converter) {
 	server.converter = converter
@@ -121,26 +126,32 @@ func (server *Server) AddHandles(handles *Handles) {
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodGet, relativePath, handlers...)
 }
+
 // Post registers a POST route handler on this server.
 func (server *Server) Post(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPost, relativePath, handlers...)
 }
+
 // Delete registers a DELETE route handler on this server.
 func (server *Server) Delete(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodDelete, relativePath, handlers...)
 }
+
 // Put registers a PUT route handler on this server.
 func (server *Server) Put(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPut, relativePath, handlers...)
 }
+
 // Patch registers a PATCH route handler on this server.
 func (server *Server) Patch(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPatch, relativePath, handlers...)
 }
+
 // Any registers a route handler for all HTTP methods on this server.
 func (server *Server) Any(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers(allMethods, relativePath, handlers...)
 }
+
 // Handle registers a handler for a single HTTP method on this server.
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
@@ -178,7 +189,7 @@ func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Rout
 
 // Handlers registers a handler for multiple HTTP methods on this server.
 func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
-	route := newHandlerRoute(relativePath, httpMethods, handlers...)
+	route := route(relativePath, httpMethods, handlers...)
 	server.routes = append(server.routes, route)
 	return route
 }

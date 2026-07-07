@@ -59,7 +59,7 @@ func (h *Handles) Handle(httpMethod string, relativePath string, handlers ...Han
 
 // Handlers registers a handler for multiple HTTP methods.
 func (h *Handles) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
-	route := newHandlerRoute(relativePath, httpMethods, handlers...)
+	route := route(relativePath, httpMethods, handlers...)
 	h.routes = append(h.routes, route)
 	return route
 }

@@ -46,7 +46,7 @@ type Route struct {
 	httpMethods  []string
 }
 
-func newHandlerRoute(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
+func route(relativePath string, httpMethods []string, handlers ...HandlerFunc) *Route {
 	return &Route{
 		relativePath: relativePath,
 		handlers:     handlers,

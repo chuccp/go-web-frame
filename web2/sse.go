@@ -103,7 +103,7 @@ func (s *SSEStream) SendRetry(retryMs int) error {
 }
 
 // SetHeaders writes the standard SSE headers on the response.
-func (s *SSEStream) setHeaders() {
+func (s *SSEStream) SetHeaders() {
 	w := s.request.response
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -144,12 +144,19 @@ func (s *SSEStream) Heartbeat() error {
 // StartHeartbeat starts a periodic heartbeat goroutine.
 // The goroutine exits automatically when the stream is closed or the request disconnects.
 func (s *SSEStream) StartHeartbeat(interval time.Duration) {
+	s.StartHeartbeatWithContext(s.ctx, interval)
+}
 
+// StartHeartbeatWithContext starts a periodic heartbeat goroutine with an external context.
+// The goroutine exits when ctx is cancelled, the stream is closed, or the request disconnects.
+func (s *SSEStream) StartHeartbeatWithContext(ctx context.Context, interval time.Duration) {
 	go panics.Try(func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-s.ctx.Done():
 				return
 			case <-ticker.C:
@@ -159,5 +166,4 @@ func (s *SSEStream) StartHeartbeat(interval time.Duration) {
 			}
 		}
 	})
-
 }

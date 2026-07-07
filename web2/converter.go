@@ -86,7 +86,7 @@ func (c *DefaultConverter) FileSystemResponse(request *Request, value *FileSyste
 }
 func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
 	stream := NewSSEStream(request)
-	stream.setHeaders()
+	stream.SetHeaders()
 	if err := value.Handler(stream); err != nil {
 		log.Debug("converter: SSE handler error", zap.Error(err))
 	}

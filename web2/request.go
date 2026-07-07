@@ -2,9 +2,12 @@ package web2
 
 import (
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"emperror.dev/errors"
@@ -23,6 +26,20 @@ type Page struct {
 	PageNo   int // Current page number, 1-based
 	PageSize int // Number of items per page
 	LastId   int // Last seen ID for cursor-based pagination
+}
+
+// PageAble is a paginated response wrapper containing total count and item list.
+type PageAble[T any] struct {
+	Total int64 `json:"total"` // Total number of items
+	List  []T   `json:"list"`  // Items on the current page
+}
+
+// ToPage creates a new PageAble from the given total count and item list.
+func ToPage[T any](total int64, list []T) *PageAble[T] {
+	return &PageAble[T]{
+		Total: total,
+		List:  list,
+	}
 }
 
 // JSONObject is a convenience type for working with JSON objects as maps.
@@ -310,4 +327,42 @@ func request(ctx *gin.Context, route *Route, serverConfig *ServerConfig) *Reques
 		response:     newResponse(ctx),
 		serverConfig: serverConfig,
 	}
+}
+
+// SaveUploadedFile saves an uploaded file to the destination path.
+// It creates the destination directory if it does not exist.
+func SaveUploadedFile(file *multipart.FileHeader, dst string) error {
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := src.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	if err = os.MkdirAll(filepath.Dir(dst), 0775); err != nil {
+		return err
+	}
+	if err = os.Chmod(filepath.Dir(dst), 0775); err != nil {
+		return err
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := out.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	if _, err = io.Copy(out, src); err != nil {
+		return err
+	}
+	return out.Sync()
 }

@@ -18,3 +18,10 @@ type SSLCertificate struct {
 	CertFile string // Path to the certificate file (PEM format)
 	KeyFile  string // Path to the private key file (PEM format)
 }
+
+// DefaultServerConfig returns a ServerConfig with default values.
+func DefaultServerConfig() *ServerConfig {
+	return &ServerConfig{
+		Port: 19009,
+	}
+}

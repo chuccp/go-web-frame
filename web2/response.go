@@ -24,6 +24,10 @@ type Response interface {
 	AbortWithStatusJSON(i int, value any)
 	// AbortWithError writes an error response and returns the error.
 	AbortWithError(err error) error
+	// Message writes a Message as JSON response.
+	Message(t *Message)
+	// AbortWithMessage writes a Message and aborts the handler chain.
+	AbortWithMessage(t *Message)
 }
 
 func newResponse(ctx *gin.Context) *response {
@@ -73,6 +77,14 @@ func (r *response) Redirect(code int, location string) {
 
 func (r *response) FileAttachment(path string, name string) {
 	r.ctx.FileAttachment(path, name)
+}
+
+func (r *response) Message(t *Message) {
+	r.ctx.JSON(http.StatusOK, t)
+}
+
+func (r *response) AbortWithMessage(t *Message) {
+	r.ctx.AbortWithStatusJSON(http.StatusOK, t)
 }
 
 // ResponseWriteCloser wraps a Response to implement io.WriteCloser.

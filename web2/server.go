@@ -111,6 +111,14 @@ func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler
 	})
 }
 
+var allMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions, http.MethodConnect, http.MethodTrace}
+
+func (server *Server) AddReverseProxy(relativePath string, target string) *Route {
+	return server.Handlers(allMethods, relativePath, func(r *Request) (any, error) {
+		return &ReverseProxyResponse{Target: target}, nil
+	})
+}
+
 func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Route {
 	return server.Get(relativePath+"/*filepath", func(r *Request) (any, error) {
 		return &FileSystemResponse{Filepath: r.Param("filepath"), FS: fs}, nil

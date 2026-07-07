@@ -44,6 +44,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.SSEResponse(request, t)
 			case *WSResponse:
 				c.WSResponse(request, t)
+			case *ReverseProxyResponse:
+				c.ReverseProxyResponse(request, t)
 			case *os.File:
 				c.RawFile(request, t)
 			case string:
@@ -104,6 +106,10 @@ func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
 		log.Debug("converter: WebSocket handler error", zap.Error(err))
 	}
 }
+func (c *DefaultConverter) ReverseProxyResponse(request *Request, value *ReverseProxyResponse) {
+	reverseProxy(request, value.Target)
+}
+
 func (c *DefaultConverter) RawFile(request *Request, value *os.File) {
 	defer func() {
 		if err := value.Close(); err != nil {

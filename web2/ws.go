@@ -99,5 +99,8 @@ func (ws *WebSocketStream) Ping(ctx context.Context) error {
 // Close closes the WebSocket connection and cancels the stream context.
 func (ws *WebSocketStream) Close() {
 	ws.cancel()
-	ws.conn.Close(websocket.StatusNormalClosure, "")
+	err := ws.conn.Close(websocket.StatusNormalClosure, "")
+	if err != nil {
+		return
+	}
 }

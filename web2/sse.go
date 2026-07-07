@@ -26,6 +26,9 @@ func NewSSEStream(r *Request) *SSEStream {
 		cancel:  cancel,
 	}
 }
+func (s *SSEStream) Request() *Request {
+	return s.request
+}
 
 // Send sends an SSE event with the given event name and data.
 func (s *SSEStream) Send(event string, data string) error {

@@ -331,10 +331,9 @@ func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
 	return handlerFunc
 }
 func (server *Server) toSingleGinHandlerFunc(route *Route, handler HandlerFunc) gin.HandlerFunc {
-	handlerFunc := func(ctx *gin.Context) {
+	return func(ctx *gin.Context) {
 		req := request(ctx, route, server.serverConfig)
 		mock := newFilterChain(req, server.converter, server.filters, handler)
 		mock.next()
 	}
-	return handlerFunc
 }

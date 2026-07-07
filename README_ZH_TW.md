@@ -457,13 +457,14 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        typ, msg, err := stream.Read(stream.Context())
         if err != nil {
             return err
         }
-        conn.WriteMessage(msgType, msg)  // echo
+        stream.Write(stream.Context(), typ, msg)  // echo
     }
 })
 ```
@@ -472,7 +473,7 @@ ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
 
 ```go
 ctx.SSE("/events", func(stream *web.SSEStream) error {
-    stream.SetHeaders()
+    defer stream.Close()
     stream.SendRetry(3000)
 
     ticker := time.NewTicker(time.Second)
@@ -658,7 +659,7 @@ db:
 | Redis | go-redis | 發布訂閱、快取 |
 | SQLite | modernc/sqlite | 純 Go，零 CGO |
 | 校驗 | go-playground/validator | struct tag 校驗 |
-| WebSocket | gorilla/websocket | 連線升級 + 讀寫 |
+| WebSocket | coder/websocket | 連線升級 + 讀寫 |
 | 定時任務 | robfig/cron | 表示式排程器 |
 
 ---

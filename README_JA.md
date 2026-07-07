@@ -457,13 +457,14 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        typ, msg, err := stream.Read(stream.Context())
         if err != nil {
             return err
         }
-        conn.WriteMessage(msgType, msg)  // エコー
+        stream.Write(stream.Context(), typ, msg)  // エコー
     }
 })
 ```
@@ -472,7 +473,7 @@ ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
 
 ```go
 ctx.SSE("/events", func(stream *web.SSEStream) error {
-    stream.SetHeaders()
+    defer stream.Close()
     stream.SendRetry(3000)
 
     ticker := time.NewTicker(time.Second)
@@ -658,7 +659,7 @@ JSON、YAML、TOML 形式に対応。
 | Redis | go-redis | Pub/Sub、キャッシング |
 | SQLite | modernc/sqlite | Pure Go、CGO 不要 |
 | バリデーション | go-playground/validator | struct タグバリデーション |
-| WebSocket | gorilla/websocket | アップグレード + 読み書き |
+| WebSocket | coder/websocket | アップグレード + 読み書き |
 | Cron | robfig/cron | 式ベースのスケジューラ |
 
 ---

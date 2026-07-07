@@ -71,9 +71,15 @@ ctx.ReverseProxy("/api", "http://backend:8081")
 ## WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
-    // handle WebSocket
-    return nil
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
+    for {
+        typ, data, err := stream.Read(stream.Context())
+        if err != nil {
+            return nil
+        }
+        stream.Write(stream.Context(), typ, data) // echo
+    }
 })
 ```
 
@@ -81,7 +87,7 @@ ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
 
 ```go
 ctx.SSE("/events", func(stream *web.SSEStream) error {
-    stream.SetHeaders()
+    defer stream.Close()
     stream.Send("update", "data")
     return nil
 })

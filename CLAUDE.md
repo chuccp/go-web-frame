@@ -99,6 +99,9 @@ Built on Gin, provides:
 - Routing with HTTP method support (GET, POST, PUT, DELETE, etc.)
 - Filter/middleware support
 - Conversion between service responses and HTTP responses
+- WebSocket support via `AddWebSocket` / `ctx.WebSocket` (uses `coder/websocket`)
+- SSE (Server-Sent Events) via `AddSSE` / `ctx.SSE`
+- Reverse proxy via `AddReverseProxy` / `ctx.ReverseProxy`
 
 #### 3. Data Access
 - `./db`: Database abstraction layer supporting multiple databases (MySQL, SQLite) using GORM
@@ -497,6 +500,81 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 
 // Register filter:
 // app.AddFilter(&AuthFilter{})
+```
+
+### 8b. WebSocket
+
+Register WebSocket endpoints using `AddWebSocket` or `ctx.WebSocket`. The handler receives a `*web.WebSocketStream` (backed by `coder/websocket`):
+
+```go
+// In a controller's Init:
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
+    for {
+        typ, data, err := stream.Read(stream.Context())
+        if err != nil {
+            return nil // client disconnected
+        }
+        // Echo back
+        stream.Write(stream.Context(), typ, data)
+    }
+})
+
+// Or via Server/Builder:
+server.AddWebSocket("/ws", handler)
+```
+
+Key methods on `WebSocketStream`:
+- `Read(ctx) (MessageType, []byte, error)` — read any message type
+- `Write(ctx, typ, data)` / `WriteText(ctx, data)` / `WriteBinary(ctx, data)` — write messages
+- `WriteString(ctx, s)` — write text from string
+- `ReadText(ctx) ([]byte, error)` — read text, error if not text
+- `Ping(ctx)` — send ping frame
+- `Close()` — close connection with normal closure
+- `Done() <-chan struct{}` — channel closed when stream is done
+
+### 8c. Server-Sent Events (SSE)
+
+Register SSE endpoints using `AddSSE` or `ctx.SSE`. The handler receives a `*web.SSEStream`:
+
+```go
+ctx.SSE("/events", func(stream *web.SSEStream) error {
+    defer stream.Close()
+
+    // Start periodic heartbeat (auto-stops on Close)
+    stream.StartHeartbeat(30 * time.Second)
+
+    for i := 0; i < 10; i++ {
+        stream.Send("tick", fmt.Sprintf("%d", i))
+        time.Sleep(time.Second)
+    }
+    return nil
+})
+```
+
+Key methods on `SSEStream`:
+- `Send(event, data)` — send named event
+- `SendMessage(data)` — send data without event name
+- `SendWithID(id, event, data)` — send event with ID (for reconnection)
+- `SendRetry(ms)` — set client reconnection interval
+- `Heartbeat()` — send a heartbeat comment
+- `StartHeartbeat(interval)` — start periodic heartbeat goroutine
+- `Close()` — close stream (waits for background goroutines)
+- `Done() <-chan struct{}` — channel closed when stream is done
+- `SetHeader(key, value)` — set custom response header
+
+Note: `SetHeaders()` (Content-Type, Cache-Control, etc.) is called automatically by the converter.
+
+### 8d. Reverse Proxy
+
+Forward requests to a backend service using `AddReverseProxy` or `ctx.ReverseProxy`. Sub-paths are matched automatically:
+
+```go
+// Forward /api/* to http://backend:8080
+ctx.ReverseProxy("/api", "http://backend:8080")
+
+// /api/users → http://backend:8080/users
+// /api/orders/123 → http://backend:8080/orders/123
 ```
 
 ### 9. Background Runner

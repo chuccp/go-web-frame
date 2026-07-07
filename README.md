@@ -458,13 +458,14 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        typ, msg, err := stream.Read(stream.Context())
         if err != nil {
             return err
         }
-        conn.WriteMessage(msgType, msg)  // echo
+        stream.Write(stream.Context(), typ, msg)  // echo
     }
 })
 ```
@@ -473,7 +474,7 @@ ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
 
 ```go
 ctx.SSE("/events", func(stream *web.SSEStream) error {
-    stream.SetHeaders()
+    defer stream.Close()
     stream.SendRetry(3000)  // reconnect after 3s
 
     ticker := time.NewTicker(time.Second)
@@ -659,7 +660,7 @@ Pre-integrated, production-proven components:
 | Redis | go-redis | Pub/sub, caching |
 | SQLite | modernc/sqlite | Pure Go, zero CGO |
 | Validation | go-playground/validator | Struct tag validation |
-| WebSocket | gorilla/websocket | Upgrade + read/write |
+| WebSocket | coder/websocket | Upgrade + read/write |
 | Cron | robfig/cron | Expression-based scheduler |
 
 ---

@@ -457,13 +457,14 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
+ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    defer stream.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        typ, msg, err := stream.Read(stream.Context())
         if err != nil {
             return err
         }
-        conn.WriteMessage(msgType, msg)  // echo
+        stream.Write(stream.Context(), typ, msg)  // echo
     }
 })
 ```
@@ -472,7 +473,7 @@ ctx.WebSocket("/ws", func(conn *websocket.Conn) error {
 
 ```go
 ctx.SSE("/events", func(stream *web.SSEStream) error {
-    stream.SetHeaders()
+    defer stream.Close()
     stream.SendRetry(3000)
 
     ticker := time.NewTicker(time.Second)
@@ -658,7 +659,7 @@ db:
 | Redis | go-redis | 发布订阅、缓存 |
 | SQLite | modernc/sqlite | 纯 Go，零 CGO |
 | 校验 | go-playground/validator | struct tag 校验 |
-| WebSocket | gorilla/websocket | 连接升级 + 读写 |
+| WebSocket | coder/websocket | 连接升级 + 读写 |
 | 定时任务 | robfig/cron | 表达式调度器 |
 
 ---

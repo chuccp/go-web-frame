@@ -219,8 +219,15 @@ func (c *MyController) Init(ctx *core.Context) error {
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.WebSocket("/ws", func(conn *websocket.Conn, req *web.Request) {
-        // WebSocket 处理逻辑
+    ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+        defer stream.Close()
+        for {
+            typ, data, err := stream.Read(stream.Context())
+            if err != nil {
+                return nil
+            }
+            stream.Write(stream.Context(), typ, data)
+        }
     })
     return nil
 }
@@ -231,9 +238,8 @@ func (c *MyController) Init(ctx *core.Context) error {
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
     ctx.SSE("/events", func(stream *web.SSEStream) error {
-        stream.SetHeaders()
+        defer stream.Close()
         stream.Send("message", "Hello")
-        stream.Close()
         return nil
     })
     return nil

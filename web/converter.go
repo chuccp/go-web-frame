@@ -61,6 +61,7 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 		return
 	}
 }
+// Message writes a Message response, handling redirect and JSON cases.
 func (c *DefaultConverter) Message(request *Request, value *Message) {
 	if value.Code == http.StatusMovedPermanently {
 		request.response.Redirect(http.StatusMovedPermanently, value.Data.(string))
@@ -69,6 +70,7 @@ func (c *DefaultConverter) Message(request *Request, value *Message) {
 	}
 	request.response.JSON(value.Code, value.Data)
 }
+// FileResponse sends a file attachment response to the client.
 func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 	if len(value.FileName) == 0 {
 		_, filename := path.Split(value.Path)
@@ -82,9 +84,11 @@ func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 	}
 	request.response.FileAttachment(value.Path, value.FileName)
 }
+// FileSystemResponse serves a file from an http.FileSystem.
 func (c *DefaultConverter) FileSystemResponse(request *Request, value *FileSystemResponse) {
 	request.GinContext().FileFromFS(value.Filepath, value.FS)
 }
+// SSEResponse sets up an SSE stream and invokes the handler.
 func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
 	stream := NewSSEStream(request)
 	stream.SetHeaders()
@@ -92,6 +96,7 @@ func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
 		log.Debug("converter: SSE handler error", zap.Error(err))
 	}
 }
+// WSResponse accepts a WebSocket upgrade and invokes the handler.
 func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
 	conn, err := websocket.Accept(request.GinContext().Writer, request.Request(), nil)
 	if err != nil {
@@ -107,10 +112,12 @@ func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
 		log.Debug("converter: WebSocket handler error", zap.Error(err))
 	}
 }
+// ReverseProxyResponse forwards the request to the target URL as a reverse proxy.
 func (c *DefaultConverter) ReverseProxyResponse(request *Request, value *ReverseProxyResponse) {
 	reverseProxy(request, value.Target)
 }
 
+// RawFile sends an os.File as an attachment response.
 func (c *DefaultConverter) RawFile(request *Request, value *os.File) {
 	defer func() {
 		if err := value.Close(); err != nil {
@@ -120,11 +127,13 @@ func (c *DefaultConverter) RawFile(request *Request, value *os.File) {
 	filename := filepath.Base(value.Name())
 	request.response.FileAttachment(value.Name(), filename)
 }
+// String writes a plain text string to the response.
 func (c *DefaultConverter) String(request *Request, value string) {
 	if _, err := request.response.WriteString(value); err != nil {
 		log.Debug("converter: WriteString error", zap.Error(err))
 	}
 }
+// Error writes an error response and aborts the request.
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
 	if abortErr := request.response.AbortWithError(err); abortErr != nil {
 		log.Error("emptyConverter AbortWithError", zap.Error(abortErr))

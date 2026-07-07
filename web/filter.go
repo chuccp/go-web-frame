@@ -22,11 +22,13 @@ func (c HandlerChain) Last() HandlerFunc {
 	return nil
 }
 
+// FilterChain is a chain of filters and the final handler, invoked via Next.
 type FilterChain interface {
 	// Next executes the next filter or the final handler in the chain.
 	// Returns (any, error): the result and any error.
 	Next() (any, error)
 }
+// Filter is a middleware that intercepts requests before and after the handler.
 type Filter interface {
 	// Handle processes the request.
 	// fc: the filter chain, used to invoke the next filter

@@ -17,6 +17,7 @@ import (
 
 // ---- ServerRunner ----
 
+// ServerRunner manages HTTP and TLS listeners with auto-certification support.
 type ServerRunner struct {
 	servers    []*Server
 	serversMap map[int]*Server

@@ -15,8 +15,13 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
+// MaxHeaderBytes is the maximum size of request headers in bytes.
 const MaxHeaderBytes = 8192
+
+// MaxReadHeaderTimeout is the maximum duration for reading request headers.
 const MaxReadHeaderTimeout = time.Second * 30
+
+// MaxReadTimeout is the maximum duration for reading the entire request.
 const MaxReadTimeout = time.Minute * 10
 
 const certCheckInterval = 5 * time.Minute

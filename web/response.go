@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Response is the interface for writing HTTP responses with JSON, files, and redirects.
 type Response interface {
 	gin.ResponseWriter
 	// SetAttachmentFileName sets the Content-Disposition header for file downloads.

@@ -3,6 +3,7 @@ package web
 
 import "github.com/spf13/cast"
 
+// KV is a string-keyed map with type-safe accessor methods.
 type KV map[string]any
 
 // GetString returns the value for key as a string.

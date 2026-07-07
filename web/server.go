@@ -14,21 +14,25 @@ import (
 	"go.uber.org/zap"
 )
 
+// Servers manages multiple HTTP servers that can be started together.
 type Servers struct {
 	servers []*Server
 	ctx     context.Context
 }
 
+// NewServers creates a new Servers instance with release mode and background context.
 func NewServers() *Servers {
 	gin.SetMode(gin.ReleaseMode)
 	return NewServerWithContext(context.Background())
 }
+// NewServerWithContext creates a new Servers instance with the given context.
 func NewServerWithContext(ctx context.Context) *Servers {
 	return &Servers{
 		ctx:     ctx,
 		servers: make([]*Server, 0),
 	}
 }
+// CreateServerWithContext creates a new Server with the given config and context, checking for port conflicts.
 func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx context.Context) (*Server, error) {
 	for _, server := range servers.servers {
 		if server.serverConfig.Port == serverConfig.Port {
@@ -45,9 +49,11 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 	servers.servers = append(servers.servers, server)
 	return server, nil
 }
+// CreateServer creates a new Server with the given config using the Servers' context.
 func (servers *Servers) CreateServer(serverConfig *ServerConfig) (*Server, error) {
 	return servers.CreateServerWithContext(serverConfig, servers.ctx)
 }
+// GetServers returns all managed Server instances.
 func (servers *Servers) GetServers() []*Server {
 	return servers.servers
 }
@@ -58,11 +64,13 @@ func defaultEngine() *gin.Engine {
 	return engine
 }
 
+// Start starts all managed servers with TLS and auto-cert support.
 func (servers *Servers) Start() error {
 	certServer := newServerRunner(servers.ctx, "./auto_cert", servers.servers)
 	return certServer.Start()
 }
 
+// Server is an HTTP server with routing, filters, and static file support.
 type Server struct {
 	serverConfig *ServerConfig
 	routes       []*Route
@@ -72,6 +80,7 @@ type Server struct {
 	filters      []Filter
 }
 
+// Port returns the configured listen port for this server.
 func (server *Server) Port() int {
 	return server.serverConfig.Port
 }
@@ -92,9 +101,11 @@ func (server *Server) isTls() bool {
 	return false
 }
 
+// AddFilter appends a filter (middleware) to the server's filter chain.
 func (server *Server) AddFilter(filter Filter) {
 	server.filters = append(server.filters, filter)
 }
+// SetConverter sets a custom converter that transforms handler results to HTTP responses.
 func (server *Server) SetConverter(converter Converter) {
 	server.converter = converter
 }
@@ -106,34 +117,43 @@ func (server *Server) AddHandles(handles *Handles) {
 	}
 }
 
+// Get registers a GET route handler on this server.
 func (server *Server) Get(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodGet, relativePath, handlers...)
 }
+// Post registers a POST route handler on this server.
 func (server *Server) Post(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPost, relativePath, handlers...)
 }
+// Delete registers a DELETE route handler on this server.
 func (server *Server) Delete(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodDelete, relativePath, handlers...)
 }
+// Put registers a PUT route handler on this server.
 func (server *Server) Put(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPut, relativePath, handlers...)
 }
+// Patch registers a PATCH route handler on this server.
 func (server *Server) Patch(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handle(http.MethodPatch, relativePath, handlers...)
 }
+// Any registers a route handler for all HTTP methods on this server.
 func (server *Server) Any(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers(allMethods, relativePath, handlers...)
 }
+// Handle registers a handler for a single HTTP method on this server.
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
 }
 
+// AddSSE registers a Server-Sent Events endpoint on this server.
 func (server *Server) AddSSE(relativePath string, handler SSEHandler) *Route {
 	return server.Get(relativePath, func(r *Request) (any, error) {
 		return &SSEResponse{Handler: handler}, nil
 	})
 }
 
+// AddWebSocket registers a WebSocket endpoint on this server.
 func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler) *Route {
 	return server.Get(relativePath, func(r *Request) (any, error) {
 		return &WSResponse{Handler: handler}, nil
@@ -142,18 +162,21 @@ func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler
 
 var allMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions, http.MethodConnect, http.MethodTrace}
 
+// AddReverseProxy registers a reverse proxy route on this server.
 func (server *Server) AddReverseProxy(relativePath string, target string) *Route {
 	return server.Handlers(allMethods, relativePath, func(r *Request) (any, error) {
 		return &ReverseProxyResponse{Target: target}, nil
 	})
 }
 
+// AddStaticFs registers a static file server at the given path on this server.
 func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Route {
 	return server.Get(relativePath+"/*filepath", func(r *Request) (any, error) {
 		return &FileSystemResponse{Filepath: r.Param("filepath"), FS: fs}, nil
 	})
 }
 
+// Handlers registers a handler for multiple HTTP methods on this server.
 func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
 	route := newHandlerRoute(relativePath, httpMethods, handlers...)
 	server.routes = append(server.routes, route)

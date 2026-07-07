@@ -6,6 +6,7 @@ import (
 	"runtime"
 )
 
+// HandlerMeta holds key-value metadata attached to a route handler.
 type HandlerMeta struct {
 	data KV
 }
@@ -37,6 +38,7 @@ func NewHandlerMeta() *HandlerMeta {
 	}
 }
 
+// Route represents an HTTP route with its path, methods, and handlers.
 type Route struct {
 	relativePath string
 	handlerMeta  *HandlerMeta

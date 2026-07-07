@@ -43,6 +43,7 @@ func CreateFileResponseWithName(path string, fileName string) *FileResponse {
 	}
 }
 
+// FileSystemResponse serves a file from an embedded or in-memory http.FileSystem.
 type FileSystemResponse struct {
 	Filepath string
 	FS       http.FileSystem

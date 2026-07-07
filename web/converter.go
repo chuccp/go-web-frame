@@ -1,3 +1,4 @@
+// Package web: response converter that transforms handler results to HTTP responses.
 package web
 
 import (

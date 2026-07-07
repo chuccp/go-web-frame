@@ -1,3 +1,4 @@
+// Package web: in-memory filesystem for serving static files.
 package web
 
 import (

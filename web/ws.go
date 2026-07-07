@@ -1,3 +1,4 @@
+// Package web: WebSocket stream support.
 package web
 
 import (

@@ -1,3 +1,4 @@
+// Package web: Server-Sent Events stream support.
 package web
 
 import (

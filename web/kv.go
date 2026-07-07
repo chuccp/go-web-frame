@@ -1,3 +1,4 @@
+// Package web: key-value map type with type-safe accessors.
 package web
 
 import "github.com/spf13/cast"

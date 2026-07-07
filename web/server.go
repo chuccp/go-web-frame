@@ -1,3 +1,4 @@
+// Package web: HTTP server with routing, filters, and static file support.
 package web
 
 import (

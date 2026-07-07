@@ -1,3 +1,4 @@
+// Package web: route definition, handler metadata, and meta options.
 package web
 
 import (

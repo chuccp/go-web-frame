@@ -1,3 +1,4 @@
+// Package web: server runner that manages HTTP/TLS listeners and auto-cert.
 package web
 
 import (

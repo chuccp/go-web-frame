@@ -1,3 +1,4 @@
+// Package web: reverse proxy handler.
 package web
 
 import (

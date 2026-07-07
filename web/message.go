@@ -1,3 +1,4 @@
+// Package web: standard response message format with code, data, msg, and type.
 package web
 
 import "net/http"

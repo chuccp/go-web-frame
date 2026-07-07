@@ -1,3 +1,4 @@
+// Package web: TLS certificate store and auto-certification.
 package web
 
 import (

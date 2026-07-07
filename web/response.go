@@ -1,3 +1,4 @@
+// Package web: HTTP response interface for writing JSON, files, redirects.
 package web
 
 import (

@@ -1,3 +1,4 @@
+// Package web: route collection that can be transferred to a Server.
 package web
 
 import "net/http"

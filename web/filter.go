@@ -1,3 +1,4 @@
+// Package web: filter chain for request processing middleware.
 package web
 
 import (

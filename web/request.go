@@ -1,3 +1,4 @@
+// Package web: HTTP request wrapper with helper methods for params, query, JSON binding.
 package web
 
 import (

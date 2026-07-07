@@ -1,3 +1,4 @@
+// Package web: file download and static file system response types.
 package web
 
 import (

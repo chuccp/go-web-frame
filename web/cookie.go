@@ -1,3 +1,4 @@
+// Package web: cookie helper for reading and writing HTTP cookies.
 package web
 
 import (

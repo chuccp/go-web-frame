@@ -1,3 +1,4 @@
+// Package web: error code constants and structured error types.
 package web
 
 // Error code constants

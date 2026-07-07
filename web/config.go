@@ -1,3 +1,4 @@
+// Package web: server configuration types and defaults.
 package web
 
 // ServerConfigKey is the configuration key for server settings.

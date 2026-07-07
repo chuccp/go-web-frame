@@ -689,6 +689,55 @@ Pre-integrated, production-proven components:
 
 ---
 
+## Optional Modules
+
+Heavy dependencies are split into independent sub-modules. Install only what you need:
+
+```bash
+# Core framework (no captcha/qrcode/cron/otter)
+go get github.com/chuccp/go-web-frame
+
+# Optional — install as needed
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.1
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.1
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.1
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.1
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.1
+```
+
+### Publishing Sub-Modules
+
+Each sub-module is versioned independently using tag prefixes:
+
+```bash
+# 1. Publish the main module
+git tag v1.0.1
+git push origin v1.0.1
+
+# 2. Update each sub-module's dependency on the main module
+for mod in captcha schedule qrcode cache ratelimit; do
+  cd component/$mod
+  go get github.com/chuccp/go-web-frame@v1.0.1
+  go mod edit -dropreplace github.com/chuccp/go-web-frame
+  go mod tidy
+  cd ../..
+done
+
+# 3. Tag each sub-module (format: component/<name>/vX.Y.Z)
+git tag component/captcha/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/qrcode/v1.0.1
+git tag component/cache/v1.0.1
+git tag component/ratelimit/v1.0.1
+
+# 4. Push all tags
+git push origin --tags
+```
+
+Go's module proxy resolves `component/captcha/v1.0.1` to the `component/captcha/` directory automatically.
+
+---
+
 ## Getting Help
 
 - **[User Guide (English)](./docs-site/docs-en/index.md)** — Full documentation

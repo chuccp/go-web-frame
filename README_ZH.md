@@ -688,6 +688,55 @@ db:
 
 ---
 
+## 可选模块
+
+重型依赖拆分为独立子模块，按需安装：
+
+```bash
+# 核心框架（不含 captcha/qrcode/cron/otter）
+go get github.com/chuccp/go-web-frame
+
+# 按需安装
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.1
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.1
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.1
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.1
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.1
+```
+
+### 发布子模块
+
+每个子模块通过 tag 前缀独立版本管理：
+
+```bash
+# 1. 发布主模块
+git tag v1.0.1
+git push origin v1.0.1
+
+# 2. 更新各子模块对主模块的依赖
+for mod in captcha schedule qrcode cache ratelimit; do
+  cd component/$mod
+  go get github.com/chuccp/go-web-frame@v1.0.1
+  go mod edit -dropreplace github.com/chuccp/go-web-frame
+  go mod tidy
+  cd ../..
+done
+
+# 3. 为每个子模块打 tag（格式：component/<name>/vX.Y.Z）
+git tag component/captcha/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/qrcode/v1.0.1
+git tag component/cache/v1.0.1
+git tag component/ratelimit/v1.0.1
+
+# 4. 推送所有 tag
+git push origin --tags
+```
+
+Go proxy 会根据 `component/captcha/v1.0.1` tag 前缀自动找到对应目录的 `go.mod`。
+
+---
+
 ## 获取帮助
 
 - **[使用手册 (中文)](./docs-site/docs-zh/index.md)** — 完整使用文档

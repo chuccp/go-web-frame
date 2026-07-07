@@ -2,7 +2,6 @@ package wf
 
 import (
 	"context"
-	"net/http"
 
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -65,6 +64,7 @@ type WebFrame struct {
 	rests      []core.IRest
 	runners    []core.IRunner
 	filters    []core.IFilter
+	handles    *web.Handles
 }
 
 // Start initializes and runs the web application with a background context.
@@ -93,6 +93,9 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	if err != nil {
 		return nil, nil, errors.WithStackIf(err)
 	}
+
+	// 将 Builder 注册的路由转移到默认 Server
+	defaultServer.AddHandles(w.handles)
 
 	coreContext := core.NewContext(defaultServer, w.config, ctx)
 	coreContext.AddService(w.services...)
@@ -132,7 +135,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		}
 	}
 
-	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 {
+	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
 		var serverConfig = web.DefaultServerConfig()
 		err := w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
 		if err != nil {
@@ -194,6 +197,7 @@ type Builder struct {
 	rests      []core.IRest
 	runners    []core.IRunner
 	filters    []core.IFilter
+	handles    *web.Handles
 }
 
 // NewBuilder creates a new Builder with the given configuration for constructing a WebFrame.
@@ -207,6 +211,7 @@ func NewBuilder(config config2.IConfig) *Builder {
 		rests:      make([]core.IRest, 0),
 		runners:    make([]core.IRunner, 0),
 		filters:    make([]core.IFilter, 0),
+		handles:    web.NewHandles(),
 		config:     config,
 	}
 	return builder
@@ -214,49 +219,32 @@ func NewBuilder(config config2.IConfig) *Builder {
 
 // Get registers a GET route handler and returns the builder for chaining.
 func (b *Builder) Get(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.rests = append(b.rests, &routeRest{method: http.MethodGet, path: relativePath, handlers: handlers})
+	b.handles.Get(relativePath, handlers...)
 	return b
 }
 
 // Post registers a POST route handler and returns the builder for chaining.
 func (b *Builder) Post(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.rests = append(b.rests, &routeRest{method: http.MethodPost, path: relativePath, handlers: handlers})
+	b.handles.Post(relativePath, handlers...)
 	return b
 }
 
 // Delete registers a DELETE route handler and returns the builder for chaining.
 func (b *Builder) Delete(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.rests = append(b.rests, &routeRest{method: http.MethodDelete, path: relativePath, handlers: handlers})
+	b.handles.Delete(relativePath, handlers...)
 	return b
 }
 
 // Put registers a PUT route handler and returns the builder for chaining.
 func (b *Builder) Put(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.rests = append(b.rests, &routeRest{method: http.MethodPut, path: relativePath, handlers: handlers})
+	b.handles.Put(relativePath, handlers...)
 	return b
 }
 
 // Any registers a route handler for all HTTP methods and returns the builder for chaining.
 func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder {
-	b.rests = append(b.rests, &routeRest{method: "*", path: relativePath, handlers: handlers})
+	b.handles.Any(relativePath, handlers...)
 	return b
-}
-
-// routeRest is a lightweight IRest that registers a single route during Init.
-type routeRest struct {
-	core.IRest
-	method   string
-	path     string
-	handlers []web.HandlerFunc
-}
-
-func (r *routeRest) Init(ctx *core.Context) error {
-	if r.method == "*" {
-		ctx.Any(r.path, r.handlers...)
-	} else {
-		ctx.Handle(r.method, r.path, r.handlers...)
-	}
-	return nil
 }
 
 // Rest registers one or more REST controllers and returns the builder for chaining.
@@ -312,6 +300,7 @@ func (b *Builder) Build() *WebFrame {
 		rests:      b.rests,
 		runners:    b.runners,
 		filters:    b.filters,
+		handles:    b.handles,
 		config:     b.config,
 	}
 	return w

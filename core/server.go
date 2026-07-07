@@ -55,11 +55,13 @@ func (server *Server) Init(ctx *Context) error {
 		if webServer == nil {
 			return errors.New("failed to create server for port")
 		}
-		webServer.SetConverter(restGroup.converter)
 		restContext := ctx.Copy(webServer, restGroup.filters)
-		err := restGroup.converter.Init(restContext)
-		if err != nil {
-			return errors.WithStackIf(err)
+		if restGroup.converter != nil {
+			webServer.SetConverter(restGroup.converter)
+			err := restGroup.converter.Init(restContext)
+			if err != nil {
+				return errors.WithStackIf(err)
+			}
 		}
 		for _, filter := range restGroup.filters {
 			log.Debug("Init", zap.String("filter", util.GetStructFullQualifiedName(filter)))

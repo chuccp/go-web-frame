@@ -60,25 +60,6 @@ func restGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup 
 	}
 }
 
-// DefaultConverter wraps web.DefaultConverter to satisfy the IConverter interface.
-// All response handling logic lives in web.DefaultConverter; this type only
-// provides the Init method required by IConverter (IService).
-type DefaultConverter struct {
-	inner *web.DefaultConverter
-}
-
-// Init initializes the converter. The built-in converter is stateless; this
-// method exists to satisfy the IConverter (IService) interface.
-func (c *DefaultConverter) Init(_ *Context) error {
-	c.inner = &web.DefaultConverter{}
-	return nil
-}
-
-// Request delegates to web.DefaultConverter.
-func (c *DefaultConverter) Request(filterChain web.FilterChain, request *web.Request) {
-	c.inner.Request(filterChain, request)
-}
-
 // RestGroupBuilder provides a fluent API for constructing RestGroup configurations.
 type RestGroupBuilder struct {
 	converter    IConverter
@@ -139,9 +120,7 @@ func (b *RestGroupBuilder) Build() *RestGroup {
 	if b.port != 0 {
 		b.serverConfig.Port = b.port
 	}
-	if b.converter == nil {
-		b.converter = &DefaultConverter{}
-	}
+	// converter defaults to nil; web/filter.go falls back to web.DefaultConverter
 	if b.contextPath != "" {
 		b.serverConfig.ContextPath = b.contextPath
 	}

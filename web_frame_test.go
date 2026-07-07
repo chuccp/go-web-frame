@@ -317,10 +317,7 @@ func TestUnmarshalKeyConfig(t *testing.T) {
 
 func TestDefaultConverter_Request_JSON(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	err := converter.Init(ctx)
-	assert.NoError(t, err)
+	converter := &web.DefaultConverter{}
 
 	// Create test request with gin test context
 	w := httptest.NewRecorder()
@@ -341,7 +338,7 @@ func TestDefaultConverter_Request_JSON(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response web.Message
-	err = json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	data, ok := response.Data.(map[string]any)
 	assert.True(t, ok)
@@ -350,9 +347,7 @@ func TestDefaultConverter_Request_JSON(t *testing.T) {
 
 func TestDefaultConverter_Request_String(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -376,9 +371,7 @@ func TestDefaultConverter_Request_String(t *testing.T) {
 
 func TestDefaultConverter_Request_Error(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	_ = converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -403,9 +396,7 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 
 func TestDefaultConverter_Request_File(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	_ = converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	// Create a temp file for testing
 	tmpFile, err := os.CreateTemp("", "test*.txt")
@@ -435,9 +426,7 @@ func TestDefaultConverter_Request_File(t *testing.T) {
 
 func TestDefaultConverter_Request_OsFile(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	_ = converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	// Create a temp file for testing
 	tmpFile, err := os.CreateTemp("", "test*.txt")
@@ -465,9 +454,7 @@ func TestDefaultConverter_Request_OsFile(t *testing.T) {
 
 func TestDefaultConverter_Request_Message(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	_ = converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -495,9 +482,7 @@ func TestDefaultConverter_Request_Message(t *testing.T) {
 
 func TestDefaultConverter_Request_Redirect(t *testing.T) {
 	// Arrange
-	converter := &core.DefaultConverter{}
-	ctx := core.NewContext(newTestServer(), config2.NewConfig(), context.Background())
-	_ = converter.Init(ctx)
+	converter := &web.DefaultConverter{}
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

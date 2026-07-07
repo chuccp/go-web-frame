@@ -333,11 +333,11 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	if !ok {
 		log.PanicErrors("GetModel error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
 	}
-	if ok {
-		t, _ = t.ReNew(db, c).(T)
-		return t
+	renewed, ok := t.ReNew(db, c).(T)
+	if !ok {
+		log.PanicErrors("ReNew model type mismatch", errors.New(util.GetStructFullQualifiedName(t)+" ReNew returned wrong type"))
 	}
-	return t
+	return renewed
 }
 
 // GetRunner retrieves a runner of the specified type from the context.

@@ -3,11 +3,15 @@ package config
 import (
 	"bytes"
 	"path/filepath"
+	"reflect"
+	"strings"
+	"unicode"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/go-viper/encoding/ini"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -57,13 +61,100 @@ func (c *Config) HasKey(key string) bool {
 }
 
 // UnmarshalKey unmarshals configuration under the given key into the target struct.
+// Supports both camelCase and snake_case keys in config files.
 func (c *Config) UnmarshalKey(key string, v any) error {
-	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
+	return errors.WithStackIf(c.v.UnmarshalKey(key, v, decoderOpt))
 }
 
 // Unmarshal unmarshals the entire configuration into the target struct.
+// Supports both camelCase and snake_case keys in config files.
 func (c *Config) Unmarshal(v any) error {
-	return errors.WithStackIf(c.v.Unmarshal(v))
+	return errors.WithStackIf(c.v.Unmarshal(v, decoderOpt))
+}
+
+// decoderOpt is a viper decoder option that normalizes map keys to support
+// both camelCase and snake_case config keys transparently.
+var decoderOpt = viper.DecodeHook(normalizeKeysHook)
+
+// normalizeKeysHook is a mapstructure decode hook that, for every map→struct
+// decode, duplicates each map key into both camelCase and snake_case forms.
+// This allows config files to use either naming convention without struct tags.
+var normalizeKeysHook = mapstructure.DecodeHookFunc(
+	func(from, to reflect.Type, data any) (any, error) {
+		if from.Kind() == reflect.Map && to.Kind() == reflect.Struct {
+			if m, ok := data.(map[string]any); ok {
+				return addKeyVariants(m), nil
+			}
+		}
+		return data, nil
+	},
+)
+
+// addKeyVariants returns a new map where each key also has a counterpart in the
+// other naming convention: snake_case ↔ camelCase. Nested maps are processed
+// recursively. If both forms already exist, the original is kept.
+func addKeyVariants(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m)*2)
+	for k, v := range m {
+		out[k] = v
+		if sub, ok := v.(map[string]any); ok {
+			v = addKeyVariants(sub)
+			out[k] = v
+		}
+		alt := alternateKey(k)
+		if alt != k {
+			if _, exists := out[alt]; !exists {
+				out[alt] = v
+			}
+		}
+	}
+	return out
+}
+
+// alternateKey converts a snake_case key to camelCase or vice versa.
+func alternateKey(s string) string {
+	if strings.Contains(s, "_") {
+		return snakeToCamel(s)
+	}
+	return camelToSnake(s)
+}
+
+func snakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	if len(parts) == 1 {
+		return s
+	}
+	var b strings.Builder
+	for i, p := range parts {
+		if p == "" {
+			continue
+		}
+		if i == 0 {
+			b.WriteString(strings.ToLower(p))
+		} else {
+			runes := []rune(strings.ToLower(p))
+			if len(runes) > 0 {
+				runes[0] = unicode.ToUpper(runes[0])
+			}
+			b.WriteString(string(runes))
+		}
+	}
+	return b.String()
+}
+
+func camelToSnake(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteRune(unicode.ToLower(r))
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // GetInt returns the int value for the given key.

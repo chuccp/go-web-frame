@@ -19,21 +19,57 @@ const (
 	CodeTokenInvalid     = 1004
 )
 
+// Pre-defined ErrorCode instances. Use with errors.Is/As or pass to Error().
+var (
+	ErrBadRequest         = NewErrorCode(CodeBadRequest, "bad request")
+	ErrUnauthorized       = NewErrorCode(CodeUnauthorized, "unauthorized")
+	ErrForbidden          = NewErrorCode(CodeForbidden, "forbidden")
+	ErrNotFound           = NewErrorCode(CodeNotFound, "not found")
+	ErrMethodNotAllowed   = NewErrorCode(CodeMethodNotAllowed, "method not allowed")
+	ErrTooManyRequests    = NewErrorCode(CodeTooManyRequests, "too many requests")
+	ErrInternalError      = NewErrorCode(CodeInternalError, "internal server error")
+	ErrServiceUnavailable = NewErrorCode(CodeServiceUnavailable, "service unavailable")
+	ErrValidationFailed   = NewErrorCode(CodeValidationFailed, "validation failed")
+	ErrDuplicateEntry     = NewErrorCode(CodeDuplicateEntry, "duplicate entry")
+	ErrTokenExpired       = NewErrorCode(CodeTokenExpired, "token expired")
+	ErrTokenInvalid       = NewErrorCode(CodeTokenInvalid, "token invalid")
+)
+
 // ErrorCode is a structured error that can be used as Message.Data.
 type ErrorCode struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Detail  string `json:"detail,omitempty"`
+	Err     error  `json:"-"`
 }
 
 // Error implements the error interface.
 func (e *ErrorCode) Error() string {
-	return e.Message
+	if e.Detail != "" {
+		return e.Detail
+	}
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	if e.Message != "" {
+		return e.Message
+	}
+	return ""
 }
 
 // NewErrorCode creates a new ErrorCode with the given code and message.
 func NewErrorCode(code int, msg string) *ErrorCode {
 	return &ErrorCode{Code: code, Message: msg}
+}
+
+// NewErrorCodeWithError creates a new ErrorCode with the given code and wraps the original error.
+func NewErrorCodeWithError(code int, err error) *ErrorCode {
+	return &ErrorCode{Code: code, Err: err}
+}
+
+// Unwrap returns the wrapped error, supporting errors.Is/As chains.
+func (e *ErrorCode) Unwrap() error {
+	return e.Err
 }
 
 // WithDetail attaches additional detail information to the ErrorCode.
@@ -42,75 +78,50 @@ func (e *ErrorCode) WithDetail(detail string) *ErrorCode {
 	return e
 }
 
-// ToMessage converts ErrorCode to *Message.
-func (e *ErrorCode) ToMessage() *Message {
-	return &Message{
-		Code: e.Code,
-		Data: e,
-	}
+// WithError wraps the original error into the ErrorCode.
+func (e *ErrorCode) WithError(err error) *ErrorCode {
+	e.Err = err
+	return e
 }
 
-// NewBadRequest creates a 400 Bad Request response message.
-func NewBadRequest(msg string) *Message {
-	return &Message{Code: CodeBadRequest, Data: msg}
-}
+// NewBadRequest returns a new 400 Bad Request error (copy of ErrBadRequest).
+func NewBadRequest() *ErrorCode { return ErrBadRequest.clone() }
 
-// NewBadRequestWithDetail creates a 400 Bad Request response with additional detail.
-func NewBadRequestWithDetail(msg, detail string) *Message {
-	return &Message{Code: CodeBadRequest, Data: NewErrorCode(CodeBadRequest, msg).WithDetail(detail)}
-}
+// NewUnauthorized returns a new 401 Unauthorized error (copy of ErrUnauthorized).
+func NewUnauthorized() *ErrorCode { return ErrUnauthorized.clone() }
 
-// NewUnauthorized creates a 401 Unauthorized response message.
-func NewUnauthorized(msg string) *Message {
-	return &Message{Code: CodeUnauthorized, Data: msg}
-}
+// NewForbidden returns a new 403 Forbidden error (copy of ErrForbidden).
+func NewForbidden() *ErrorCode { return ErrForbidden.clone() }
 
-// NewForbidden creates a 403 Forbidden response message.
-func NewForbidden(msg string) *Message {
-	return &Message{Code: CodeForbidden, Data: msg}
-}
+// NewNotFound returns a new 404 Not Found error (copy of ErrNotFound).
+func NewNotFound() *ErrorCode { return ErrNotFound.clone() }
 
-// NewNotFound creates a 404 Not Found response message.
-func NewNotFound(msg string) *Message {
-	return &Message{Code: CodeNotFound, Data: msg}
-}
+// NewMethodNotAllowed returns a new 405 Method Not Allowed error (copy of ErrMethodNotAllowed).
+func NewMethodNotAllowed() *ErrorCode { return ErrMethodNotAllowed.clone() }
 
-// NewMethodNotAllowed creates a 405 Method Not Allowed response message.
-func NewMethodNotAllowed(msg string) *Message {
-	return &Message{Code: CodeMethodNotAllowed, Data: msg}
-}
+// NewTooManyRequests returns a new 429 Too Many Requests error (copy of ErrTooManyRequests).
+func NewTooManyRequests() *ErrorCode { return ErrTooManyRequests.clone() }
 
-// NewTooManyRequests creates a 429 Too Many Requests response message.
-func NewTooManyRequests(msg string) *Message {
-	return &Message{Code: CodeTooManyRequests, Data: msg}
-}
+// NewInternalError returns a new 500 Internal Server Error error (copy of ErrInternalError).
+func NewInternalError() *ErrorCode { return ErrInternalError.clone() }
 
-// NewInternalError creates a 500 Internal Server Error response message.
-func NewInternalError(msg string) *Message {
-	return &Message{Code: CodeInternalError, Data: msg}
-}
+// NewServiceUnavailable returns a new 503 Service Unavailable error (copy of ErrServiceUnavailable).
+func NewServiceUnavailable() *ErrorCode { return ErrServiceUnavailable.clone() }
 
-// NewServiceUnavailable creates a 503 Service Unavailable response message.
-func NewServiceUnavailable(msg string) *Message {
-	return &Message{Code: CodeServiceUnavailable, Data: msg}
-}
+// NewValidationError returns a new 1001 Validation Failed error (copy of ErrValidationFailed).
+func NewValidationError() *ErrorCode { return ErrValidationFailed.clone() }
 
-// NewValidationError creates a 1001 Validation Failed response message.
-func NewValidationError(msg string) *Message {
-	return &Message{Code: CodeValidationFailed, Data: msg}
-}
+// NewDuplicateEntry returns a new 1002 Duplicate Entry error (copy of ErrDuplicateEntry).
+func NewDuplicateEntry() *ErrorCode { return ErrDuplicateEntry.clone() }
 
-// NewDuplicateEntry creates a 1002 Duplicate Entry response message.
-func NewDuplicateEntry(msg string) *Message {
-	return &Message{Code: CodeDuplicateEntry, Data: msg}
-}
+// NewTokenExpired returns a new 1003 Token Expired error (copy of ErrTokenExpired).
+func NewTokenExpired() *ErrorCode { return ErrTokenExpired.clone() }
 
-// NewTokenExpired creates a 1003 Token Expired response message.
-func NewTokenExpired(msg string) *Message {
-	return &Message{Code: CodeTokenExpired, Data: msg}
-}
+// NewTokenInvalid returns a new 1004 Token Invalid error (copy of ErrTokenInvalid).
+func NewTokenInvalid() *ErrorCode { return ErrTokenInvalid.clone() }
 
-// NewTokenInvalid creates a 1004 Token Invalid response message.
-func NewTokenInvalid(msg string) *Message {
-	return &Message{Code: CodeTokenInvalid, Data: msg}
+// clone returns a shallow copy of the ErrorCode.
+func (e *ErrorCode) clone() *ErrorCode {
+	cp := *e
+	return &cp
 }

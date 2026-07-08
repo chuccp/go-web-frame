@@ -2,6 +2,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,6 +39,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 			switch t := value.(type) {
 			case *Message:
 				c.Message(request, t)
+			case *ErrorCode:
+				c.Error(request, nil, t)
 			case *FileResponse:
 				c.FileResponse(request, t)
 			case *FileSystemResponse:
@@ -53,7 +56,7 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 			case string:
 				c.String(request, t)
 			case error:
-				c.Error(request, value, err)
+				c.Error(request, value, t)
 			default:
 				request.response.JSON(http.StatusOK, Data(value))
 			}
@@ -150,8 +153,43 @@ func (c *DefaultConverter) String(request *Request, value string) {
 }
 
 // Error writes an error response and aborts the request.
+// It recognizes *ErrorCode, *Message, os sentinel errors, and maps them to appropriate HTTP status codes.
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
-	if abortErr := request.response.AbortWithError(err); abortErr != nil {
-		log.Error("emptyConverter AbortWithError", zap.Error(abortErr))
+	code, msg := c.classifyError(value, err)
+	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: msg})
+}
+
+// classifyError maps an error to an HTTP status code and message string.
+func (c *DefaultConverter) classifyError(value any, err error) (int, string) {
+	// 1. *ErrorCode — from error chain or value
+	var ec *ErrorCode
+	if err != nil {
+		errors.As(err, &ec)
 	}
+	if ec == nil {
+		ec, _ = value.(*ErrorCode)
+	}
+	if ec != nil {
+		return ec.Code, ec.Error()
+	}
+	// 2. *Message — use its code if non-success
+	if msg, ok := value.(*Message); ok && msg.Code != http.StatusOK {
+		text, _ := msg.Data.(string)
+		if text == "" {
+			text = msg.Msg
+		}
+		return msg.Code, text
+	}
+	// 3. os sentinel errors
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return http.StatusNotFound, err.Error()
+		}
+		if errors.Is(err, os.ErrPermission) {
+			return http.StatusForbidden, err.Error()
+		}
+		return http.StatusInternalServerError, err.Error()
+	}
+	// 4. fallback
+	return http.StatusInternalServerError, "error"
 }

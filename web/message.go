@@ -39,42 +39,6 @@ func DataCode(code int, data any) *Message {
 	return &Message{Code: code, Msg: "ok", Data: data}
 }
 
-// ErrorMessage creates an error response with code 500 and the given message.
-func ErrorMessage(msg ...string) *Message {
-	m := "error"
-	if len(msg) > 0 {
-		m = msg[0]
-	}
-	return &Message{Code: 500, Msg: m}
-}
-
-// Error creates an error response with code 500 from the given error.
-func Error(err ...error) *Message {
-	m := "error"
-	if len(err) > 0 {
-		m = err[0].Error()
-	}
-	return &Message{Code: 500, Msg: m}
-}
-
-// Errors creates an error response with code 500, data, and an optional error message.
-func Errors(data any, msg ...error) *Message {
-	m := "error"
-	if len(msg) > 0 {
-		m = msg[0].Error()
-	}
-	return &Message{Code: 500, Msg: m, Data: data}
-}
-
-// Unauthorized creates a response with code 401, data, and an optional error message.
-func Unauthorized(data any, msg ...error) *Message {
-	m := "error"
-	if len(msg) > 0 {
-		m = msg[0].Error()
-	}
-	return &Message{Code: 401, Msg: m, Data: data}
-}
-
 // Redirect creates a redirect response with the given URL.
 func Redirect(url string) *Message {
 	return &Message{Code: http.StatusMovedPermanently, Msg: "redirect", Data: url}

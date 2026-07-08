@@ -23,80 +23,90 @@ func TestErrorCode_Error(t *testing.T) {
 	assert.Equal(t, "something went wrong", err.Error())
 }
 
-func TestErrorCode_ToMessage(t *testing.T) {
-	err := NewErrorCode(CodeNotFound, "user not found")
-	msg := err.ToMessage()
-	assert.Equal(t, CodeNotFound, msg.Code)
-	assert.Equal(t, err, msg.Data)
-}
-
 func TestNewBadRequest(t *testing.T) {
-	msg := NewBadRequest("bad request")
-	assert.Equal(t, CodeBadRequest, msg.Code)
-	assert.Equal(t, "bad request", msg.Data)
+	err := NewBadRequest()
+	assert.Equal(t, CodeBadRequest, err.Code)
+	assert.Equal(t, "bad request", err.Message)
+	assert.Empty(t, err.Detail)
 }
 
 func TestNewBadRequestWithDetail(t *testing.T) {
-	msg := NewBadRequestWithDetail("bad request", "detail info")
-	assert.Equal(t, CodeBadRequest, msg.Code)
-	err, ok := msg.Data.(*ErrorCode)
-	assert.True(t, ok)
+	err := NewBadRequest().WithDetail("detail info")
+	assert.Equal(t, CodeBadRequest, err.Code)
 	assert.Equal(t, "detail info", err.Detail)
 }
 
 func TestNewUnauthorized(t *testing.T) {
-	msg := NewUnauthorized("unauthorized")
-	assert.Equal(t, CodeUnauthorized, msg.Code)
+	err := NewUnauthorized()
+	assert.Equal(t, CodeUnauthorized, err.Code)
+	assert.Equal(t, "unauthorized", err.Message)
 }
 
 func TestNewForbidden(t *testing.T) {
-	msg := NewForbidden("forbidden")
-	assert.Equal(t, CodeForbidden, msg.Code)
+	err := NewForbidden()
+	assert.Equal(t, CodeForbidden, err.Code)
+	assert.Equal(t, "forbidden", err.Message)
 }
 
 func TestNewNotFound(t *testing.T) {
-	msg := NewNotFound("not found")
-	assert.Equal(t, CodeNotFound, msg.Code)
+	err := NewNotFound()
+	assert.Equal(t, CodeNotFound, err.Code)
+	assert.Equal(t, "not found", err.Message)
 }
 
 func TestNewMethodNotAllowed(t *testing.T) {
-	msg := NewMethodNotAllowed("method not allowed")
-	assert.Equal(t, CodeMethodNotAllowed, msg.Code)
+	err := NewMethodNotAllowed()
+	assert.Equal(t, CodeMethodNotAllowed, err.Code)
+	assert.Equal(t, "method not allowed", err.Message)
 }
 
 func TestNewTooManyRequests(t *testing.T) {
-	msg := NewTooManyRequests("too many requests")
-	assert.Equal(t, CodeTooManyRequests, msg.Code)
+	err := NewTooManyRequests()
+	assert.Equal(t, CodeTooManyRequests, err.Code)
+	assert.Equal(t, "too many requests", err.Message)
 }
 
 func TestNewInternalError(t *testing.T) {
-	msg := NewInternalError("internal error")
-	assert.Equal(t, CodeInternalError, msg.Code)
+	err := NewInternalError()
+	assert.Equal(t, CodeInternalError, err.Code)
+	assert.Equal(t, "internal server error", err.Message)
 }
 
 func TestNewServiceUnavailable(t *testing.T) {
-	msg := NewServiceUnavailable("service unavailable")
-	assert.Equal(t, CodeServiceUnavailable, msg.Code)
+	err := NewServiceUnavailable()
+	assert.Equal(t, CodeServiceUnavailable, err.Code)
+	assert.Equal(t, "service unavailable", err.Message)
 }
 
 func TestNewValidationError(t *testing.T) {
-	msg := NewValidationError("validation failed")
-	assert.Equal(t, CodeValidationFailed, msg.Code)
+	err := NewValidationError()
+	assert.Equal(t, CodeValidationFailed, err.Code)
+	assert.Equal(t, "validation failed", err.Message)
 }
 
 func TestNewDuplicateEntry(t *testing.T) {
-	msg := NewDuplicateEntry("duplicate entry")
-	assert.Equal(t, CodeDuplicateEntry, msg.Code)
+	err := NewDuplicateEntry()
+	assert.Equal(t, CodeDuplicateEntry, err.Code)
+	assert.Equal(t, "duplicate entry", err.Message)
 }
 
 func TestNewTokenExpired(t *testing.T) {
-	msg := NewTokenExpired("token expired")
-	assert.Equal(t, CodeTokenExpired, msg.Code)
+	err := NewTokenExpired()
+	assert.Equal(t, CodeTokenExpired, err.Code)
+	assert.Equal(t, "token expired", err.Message)
 }
 
 func TestNewTokenInvalid(t *testing.T) {
-	msg := NewTokenInvalid("token invalid")
-	assert.Equal(t, CodeTokenInvalid, msg.Code)
+	err := NewTokenInvalid()
+	assert.Equal(t, CodeTokenInvalid, err.Code)
+	assert.Equal(t, "token invalid", err.Message)
+}
+
+func TestNewReturnsCopy(t *testing.T) {
+	a := NewNotFound()
+	b := NewNotFound()
+	a.WithDetail("a detail")
+	assert.Empty(t, b.Detail, "clone should be independent")
 }
 
 func TestErrorCodeConstants(t *testing.T) {

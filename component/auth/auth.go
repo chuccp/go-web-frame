@@ -28,6 +28,7 @@ type NoLoginError struct {
 func (e *NoLoginError) Error() string {
 	return "no login"
 }
+
 // WithLogin returns a MetaOption that marks a route as requiring authentication.
 func WithLogin() web.MetaOption {
 	return web.WithKey(LoginKey)
@@ -63,7 +64,7 @@ func (s *AuthenticationFilter[U]) Handle(filterChain web.FilterChain, request *w
 	if request.HasMeta(WithLogin()) {
 		_, err := s.authentication.User(request)
 		if err != nil {
-			return nil, err
+			return nil, web.NewForbidden().WithError(err)
 		}
 	}
 	return filterChain.Next()

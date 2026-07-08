@@ -111,14 +111,6 @@ func (server *Server) Run() error {
 	return errors.WithStackIf(err)
 }
 
-// Shutdown gracefully shuts down all HTTP servers managed by this Server.
-// It calls http.Server.Shutdown with the given timeout context, which stops
-// accepting new connections and waits for active requests to drain.
-// This causes ListenAndServe to return http.ErrServerClosed, which unblocks Run().
-func (server *Server) Shutdown(ctx context.Context) error {
-	return server.servers.Shutdown(ctx)
-}
-
 // NewServer creates a new Server with the given REST groups and runners.
 func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{

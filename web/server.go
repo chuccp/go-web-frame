@@ -16,9 +16,8 @@ import (
 
 // Servers manages multiple HTTP servers that can be started together.
 type Servers struct {
-	servers      []*Server
-	ctx          context.Context
-	serverRunner *ServerRunner
+	servers []*Server
+	ctx     context.Context
 }
 
 // NewServers creates a new Servers instance with release mode and background context.
@@ -71,14 +70,8 @@ func defaultEngine() *gin.Engine {
 
 // Start starts all managed servers with TLS and auto-cert support.
 func (servers *Servers) Start() error {
-	servers.serverRunner = newServerRunner(servers.ctx, "./auto_cert", servers.servers)
-	return servers.serverRunner.Start()
-}
-
-// Shutdown gracefully shuts down all servers managed by this instance.
-// It stops accepting new connections and waits for active requests to complete.
-func (servers *Servers) Shutdown(ctx context.Context) error {
-	return servers.serverRunner.Shutdown(ctx)
+	certServer := newServerRunner(servers.ctx, "./auto_cert", servers.servers)
+	return certServer.Start()
 }
 
 // Server is an HTTP server with routing, filters, and static file support.

@@ -38,3 +38,5 @@ go.work.sum
 /.claude
 /docs-site/site
 *.png
+text
+text.md

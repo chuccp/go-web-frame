@@ -155,12 +155,12 @@ func (c *DefaultConverter) String(request *Request, value string) {
 // Error writes an error response and aborts the request.
 // It recognizes *ErrorCode, *Message, os sentinel errors, and maps them to appropriate HTTP status codes.
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
-	code, msg := c.classifyError(value, err)
+	code, msg := ClassifyError(value, err)
 	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: msg})
 }
 
-// classifyError maps an error to an HTTP status code and message string.
-func (c *DefaultConverter) classifyError(value any, err error) (int, string) {
+// ClassifyError  maps an error to an HTTP status code and message string.
+func ClassifyError(value any, err error) (int, string) {
 	// 1. *ErrorCode — from error chain or value
 	var ec *ErrorCode
 	if err != nil {

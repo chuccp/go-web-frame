@@ -14,10 +14,10 @@ import (
 // Model is a generic database model that provides CRUD operations for type T.
 // It wraps GORM with type-safe query building and table management.
 type Model[T any] struct {
-	db           *db.DB
-	tableName    string
-	entry        T
-	pkColumn     string
+	db        *db.DB
+	tableName string
+	entry     T
+	pkColumn  string
 }
 
 // getPrimaryKeyColumn extracts the primary key column name from struct's gorm tag
@@ -48,12 +48,15 @@ func getPrimaryKeyColumn[T any]() string {
 			}
 		}
 
-		if isPrimaryKey && columnName != "" {
-			return columnName
+		if isPrimaryKey {
+			if columnName != "" {
+				return columnName
+			}
+			return field.Name
 		}
 	}
 
-	// Fallback to "id" if no primaryKey found with column tag
+	// Fallback to "id" if no primaryKey tag found
 	return "id"
 }
 
@@ -82,6 +85,7 @@ func (a *Model[T]) IsExist() (bool, error) {
 	}
 	return dbConn.Migrator().HasTable(a.tableName), nil
 }
+
 // CreateTable creates the database table for this model if it does not already exist.
 func (a *Model[T]) CreateTable() error {
 	dbConn, err := a.getDB()
@@ -98,6 +102,7 @@ func (a *Model[T]) CreateTable() error {
 	t := util.NewPtr(a.entry)
 	return errors.WithStackIf(dbConn.Table(a.tableName).AutoMigrate(t))
 }
+
 // DeleteTable deletes all rows from the table (does not drop the table structure).
 func (a *Model[T]) DeleteTable() error {
 	dbConn, err := a.getDB()
@@ -117,10 +122,12 @@ func (a *Model[T]) DropTable() error {
 	}
 	return errors.WithStackIf(dbConn.Migrator().DropTable(a.tableName))
 }
+
 // GetTableName returns the database table name for this model.
 func (a *Model[T]) GetTableName() string {
 	return a.tableName
 }
+
 // Save creates or updates a single record in the database.
 func (a *Model[T]) Save(entry T) error {
 	dbConn, err := a.getDB()
@@ -205,6 +212,7 @@ func (a *Model[T]) Update() *Update[T] {
 		wheres:    make([]*where, 0),
 	}
 }
+
 // Delete returns a new Delete builder for constructing type-safe delete operations.
 func (a *Model[T]) Delete() *Delete[T] {
 	return &Delete[T]{
@@ -224,6 +232,8 @@ func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 
 // GetPkColumn returns the primary key column name for this model.
 func (a *Model[T]) GetPkColumn() string {
+
+	// getPrimaryKeyColumn[T]()
 	return a.pkColumn
 }
 

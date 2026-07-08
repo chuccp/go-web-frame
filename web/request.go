@@ -58,6 +58,17 @@ type Request struct {
 func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta
 }
+func (r *Request) HasMeta(mo ...MetaOption) bool {
+	if r.handlerMeta == nil {
+		return false
+	}
+	for _, o := range mo {
+		if o.has(r.handlerMeta) {
+			return true
+		}
+	}
+	return false
+}
 
 // Ctx returns the context.Context for the current HTTP request.
 // The context is automatically cancelled when the request completes.
@@ -355,10 +366,10 @@ func request(ctx *gin.Context, route *Route, serverConfig *ServerConfig) *Reques
 // NewRequestForTest creates a Request for testing purposes.
 func NewRequestForTest(ctx *gin.Context, resp Response, meta *HandlerMeta) *Request {
 	return &Request{
-		c:          ctx,
-		cookie:     NewCookie(ctx),
+		c:           ctx,
+		cookie:      NewCookie(ctx),
 		handlerMeta: meta,
-		response:   resp,
+		response:    resp,
 	}
 }
 

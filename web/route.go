@@ -65,33 +65,39 @@ func (r *Route) LastFuncName() string {
 	return runtime.FuncForPC(reflect.ValueOf(last).Pointer()).Name()
 }
 
-// WithMeta applies the given MetaOption values to the route's metadata.
+// WithMeta adds the given MetaOption values to the route's metadata.
 // If handlerMeta is nil, a new one is created automatically.
 func (r *Route) WithMeta(mo ...MetaOption) *Route {
 	if r.handlerMeta == nil {
 		r.handlerMeta = NewHandlerMeta()
 	}
 	for _, o := range mo {
-		o.apply(r.handlerMeta)
+		o.add(r.handlerMeta)
 	}
 	return r
 }
 
 // MetaOption is an option that can be applied to a HandlerMeta.
 type MetaOption interface {
-	apply(o *HandlerMeta)
+	add(o *HandlerMeta)
+	has(o *HandlerMeta) bool
 }
 
 type funcOption struct {
-	f func(oo *HandlerMeta)
+	a func(oo *HandlerMeta)
+	h func(oo *HandlerMeta) bool
 }
 
-func (fo *funcOption) apply(oo *HandlerMeta) {
-	fo.f(oo)
+func (fo *funcOption) add(oo *HandlerMeta) {
+	fo.a(oo)
 }
 
-func newFunMetaOption(f func(o *HandlerMeta)) *funcOption {
-	return &funcOption{f: f}
+func (fo *funcOption) has(oo *HandlerMeta) bool {
+	return fo.h(oo)
+}
+
+func newFunMetaOption(a func(o *HandlerMeta), h func(oo *HandlerMeta) bool) *funcOption {
+	return &funcOption{a: a, h: h}
 }
 
 // WithKey creates a MetaOption that sets the given keys to true in the handler metadata.
@@ -100,6 +106,13 @@ func WithKey(keys ...string) MetaOption {
 		for _, key := range keys {
 			oo.Add(key, true)
 		}
+	}, func(oo *HandlerMeta) bool {
+		for _, key := range keys {
+			if oo.Has(key) {
+				return true
+			}
+		}
+		return false
 	})
 }
 
@@ -107,5 +120,10 @@ func WithKey(keys ...string) MetaOption {
 func WithValue(key string, value any) MetaOption {
 	return newFunMetaOption(func(oo *HandlerMeta) {
 		oo.Add(key, value)
+	}, func(oo *HandlerMeta) bool {
+		if oo.Has(key) {
+			return oo.Get(key) == value
+		}
+		return false
 	})
 }

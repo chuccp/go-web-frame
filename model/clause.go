@@ -289,12 +289,18 @@ func (q *Query[T]) Count() (int, error) {
 	return int(num), errors.WithStackIf(err)
 }
 
-// WithContext sets the context for this query builder and returns itself for chaining.
+// WithContext returns a shallow copy of the query builder with the given context.
+// The original instance is unchanged; safe for concurrent use.
 func (q *Query[T]) WithContext(ctx context.Context) *Query[T] {
-	if q.db != nil {
-		q.db = q.db.WithContext(ctx)
+	return &Query[T]{
+		db:        q.db.WithContext(ctx),
+		tableName: q.tableName,
+		entry:     q.entry,
+		wheres:    q.wheres,
+		orders:    q.orders,
+		preloads:  q.preloads,
+		joins:     q.joins,
 	}
-	return q
 }
 
 var whereRe = regexp.MustCompile(`(?i)\sWHERE\s`)
@@ -366,12 +372,15 @@ func (u *Update[T]) Set(s string, value any) *UpdateSet {
 	return &UpdateSet{tx: tx, set: setMap}
 }
 
-// WithContext sets the context for this update builder and returns itself for chaining.
+// WithContext returns a shallow copy of the update builder with the given context.
+// The original instance is unchanged; safe for concurrent use.
 func (u *Update[T]) WithContext(ctx context.Context) *Update[T] {
-	if u.db != nil {
-		u.db = u.db.WithContext(ctx)
+	return &Update[T]{
+		db:        u.db.WithContext(ctx),
+		tableName: u.tableName,
+		model:     u.model,
+		wheres:    u.wheres,
 	}
-	return u
 }
 
 // UpdateSet accumulates column-value pairs for a batch update.
@@ -432,10 +441,13 @@ func (d *Delete[T]) Delete() error {
 	return tx.Delete(d.model)
 }
 
-// WithContext sets the context for this delete builder and returns itself for chaining.
+// WithContext returns a shallow copy of the delete builder with the given context.
+// The original instance is unchanged; safe for concurrent use.
 func (d *Delete[T]) WithContext(ctx context.Context) *Delete[T] {
-	if d.db != nil {
-		d.db = d.db.WithContext(ctx)
+	return &Delete[T]{
+		db:        d.db.WithContext(ctx),
+		tableName: d.tableName,
+		model:     d.model,
+		wheres:    d.wheres,
 	}
-	return d
 }

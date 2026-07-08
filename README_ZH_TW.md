@@ -712,6 +712,114 @@ go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
 go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
 ```
 
+### 使用說明
+
+#### Cache — 高效能記憶體快取
+
+```go
+import "github.com/chuccp/go-web-frame/component/cache"
+
+// 1. 註冊
+builder.Service(&cache.Cache{})
+
+// 2. 在控制器或服務中使用
+c := core.GetService[*cache.Cache](ctx)
+c.Set("user:1", user)
+val, ok := c.Get("user:1")
+c.SetNX("lock:task", true, 30*time.Second) // 不存在則設定，帶過期時間
+```
+
+#### Captcha — 滑動拼圖驗證碼
+
+```yaml
+# application.yml
+captcha:
+  code_key: "your-32-character-key-here!!"  # 32 個字元，必填
+  code_iv: "your-16-char-iv"                # 16 個字元，必填
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/captcha"
+
+// 1. 註冊
+builder.Service(&captcha.Captcha{})
+
+// 2. 生成驗證碼（返回給前端）
+c := core.GetService[*captcha.Captcha](ctx)
+data, _ := c.GetCaptchaData()
+// → 返回 SlideCaptchaData，包含 TileImage、MasterImage、ThumbCode
+
+// 3. 校驗使用者滑動結果
+result, ok := c.ValidateThumb(data.ThumbCode, userXOffset)
+if ok {
+    valid, _ := c.ValidateCode(result.CaptchaCode)
+}
+```
+
+#### Schedule — Cron 定時任務
+
+```go
+import (
+    "github.com/chuccp/go-web-frame/component/schedule"
+    "github.com/robfig/cron/v3"
+)
+
+// 1. 註冊為 Runner（注意不是 Service！）
+sched := schedule.NewSchedule(cron.WithSeconds())
+builder.Runner(sched)
+
+// 2. 新增任務 — Build() 前後均可
+sched.AddKeyFunc("cleanup", "0 0 * * *", func(ctx *core.Context) {
+    // 每天午夜執行
+})
+sched.AddKeyFunc("report", "*/30 * * * * *", func(ctx *core.Context) {
+    // 每 30 秒執行
+})
+```
+
+#### QRCode — QR 碼產生器
+
+```go
+import "github.com/chuccp/go-web-frame/component/qrcode"
+
+// 生成到檔案（條紋樣式）
+qrcode.GenerateStripeQRCode("https://example.com", "qr.png")
+
+// 生成到記憶體，自訂樣式
+buf := qrcode.CreateBufferWriteCloser()
+qrcode.GenerateQrcode("hello", buf, qrcode.WithCircleShape())
+pngBytes := buf.Bytes()
+
+// 自訂顏色
+s := qrcode.NewStripeQRCode().WithModuleSize(10)
+s.GenerateFile("https://example.com", "custom.png")
+```
+
+> QRCode 是獨立工具套件，無需註冊，直接 import 呼叫即可。
+
+#### RateLimit — 令牌桶限流器
+
+```yaml
+# application.yml（可選，以下為預設值）
+rate_limit:
+  limit: 10     # 每秒生成令牌數
+  burst: 5      # 最大突發容量
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/ratelimit"
+
+// 1. 註冊
+builder.Service(&ratelimit.RateLimit{})
+
+// 2. 使用 — 通常在 Filter 中
+r := core.GetService[*ratelimit.RateLimit](ctx)
+if r.Allow(req.ClientIP()) {
+    return fc.Next()
+}
+return nil, errors.New("請求過於頻繁")
+```
+
 ### 發布子模組
 
 每個子模組透過 tag 前綴獨立版本管理：

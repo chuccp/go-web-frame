@@ -712,6 +712,114 @@ go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
 go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
 ```
 
+### 使用方法
+
+#### Cache — 高速インメモリキャッシュ
+
+```go
+import "github.com/chuccp/go-web-frame/component/cache"
+
+// 1. 登録
+builder.Service(&cache.Cache{})
+
+// 2. コントローラやサービスで使用
+c := core.GetService[*cache.Cache](ctx)
+c.Set("user:1", user)
+val, ok := c.Get("user:1")
+c.SetNX("lock:task", true, 30*time.Second) // 存在しない場合のみ設定（TTL付き）
+```
+
+#### Captcha — スライドパズル CAPTCHA
+
+```yaml
+# application.yml
+captcha:
+  code_key: "your-32-character-key-here!!"  # 32文字（必須）
+  code_iv: "your-16-char-iv"                # 16文字（必須）
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/captcha"
+
+// 1. 登録
+builder.Service(&captcha.Captcha{})
+
+// 2. CAPTCHA を生成（フロントエンドに返す）
+c := core.GetService[*captcha.Captcha](ctx)
+data, _ := c.GetCaptchaData()
+// → SlideCaptchaData（TileImage, MasterImage, ThumbCode を含む）
+
+// 3. ユーザーのスライド操作を検証
+result, ok := c.ValidateThumb(data.ThumbCode, userXOffset)
+if ok {
+    valid, _ := c.ValidateCode(result.CaptchaCode)
+}
+```
+
+#### Schedule — Cron ジョブスケジューラ
+
+```go
+import (
+    "github.com/chuccp/go-web-frame/component/schedule"
+    "github.com/robfig/cron/v3"
+)
+
+// 1. Runner として登録（Service ではありません！）
+sched := schedule.NewSchedule(cron.WithSeconds())
+builder.Runner(sched)
+
+// 2. ジョブを追加 — Build() の前後どちらでも可能
+sched.AddKeyFunc("cleanup", "0 0 * * *", func(ctx *core.Context) {
+    // 毎日深夜に実行
+})
+sched.AddKeyFunc("report", "*/30 * * * * *", func(ctx *core.Context) {
+    // 30秒ごとに実行
+})
+```
+
+#### QRCode — QR コードジェネレータ
+
+```go
+import "github.com/chuccp/go-web-frame/component/qrcode"
+
+// ファイルに生成（ストライプスタイル）
+qrcode.GenerateStripeQRCode("https://example.com", "qr.png")
+
+// メモリ上に生成、スタイルをカスタマイズ
+buf := qrcode.CreateBufferWriteCloser()
+qrcode.GenerateQrcode("hello", buf, qrcode.WithCircleShape())
+pngBytes := buf.Bytes()
+
+// 色をカスタマイズ
+s := qrcode.NewStripeQRCode().WithModuleSize(10)
+s.GenerateFile("https://example.com", "custom.png")
+```
+
+> QRCode はスタンドアロンユーティリティです。登録不要で、そのまま import して使用できます。
+
+#### RateLimit — トークンバケットレートリミッタ
+
+```yaml
+# application.yml（任意 — デフォルト値を表示）
+rate_limit:
+  limit: 10     # 1秒あたりのトークン数
+  burst: 5      # 最大バーストサイズ
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/ratelimit"
+
+// 1. 登録
+builder.Service(&ratelimit.RateLimit{})
+
+// 2. 使用 — 通常は Filter 内で
+r := core.GetService[*ratelimit.RateLimit](ctx)
+if r.Allow(req.ClientIP()) {
+    return fc.Next()
+}
+return nil, errors.New("レート制限中")
+```
+
 ### サブモジュールの公開
 
 各サブモジュールはタグプレフィックスで独立してバージョン管理：

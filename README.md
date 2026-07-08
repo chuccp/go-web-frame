@@ -713,6 +713,114 @@ go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
 go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
 ```
 
+### Usage
+
+#### Cache — High-Performance In-Memory Cache
+
+```go
+import "github.com/chuccp/go-web-frame/component/cache"
+
+// 1. Register
+builder.Service(&cache.Cache{})
+
+// 2. Use in any controller or service
+c := core.GetService[*cache.Cache](ctx)
+c.Set("user:1", user)
+val, ok := c.Get("user:1")
+c.SetNX("lock:task", true, 30*time.Second) // set if not exists, with TTL
+```
+
+#### Captcha — Slide Puzzle Captcha
+
+```yaml
+# application.yml
+captcha:
+  code_key: "your-32-character-key-here!!"  # 32 chars, required
+  code_iv: "your-16-char-iv"                # 16 chars, required
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/captcha"
+
+// 1. Register
+builder.Service(&captcha.Captcha{})
+
+// 2. Generate captcha (return to frontend)
+c := core.GetService[*captcha.Captcha](ctx)
+data, _ := c.GetCaptchaData()
+// → returns SlideCaptchaData with TileImage, MasterImage, ThumbCode
+
+// 3. Validate user's slide answer
+result, ok := c.ValidateThumb(data.ThumbCode, userXOffset)
+if ok {
+    valid, _ := c.ValidateCode(result.CaptchaCode)
+}
+```
+
+#### Schedule — Cron Job Scheduler
+
+```go
+import (
+    "github.com/chuccp/go-web-frame/component/schedule"
+    "github.com/robfig/cron/v3"
+)
+
+// 1. Register as Runner (NOT Service)
+sched := schedule.NewSchedule(cron.WithSeconds())
+builder.Runner(sched)
+
+// 2. Add jobs — before or after Build()
+sched.AddKeyFunc("cleanup", "0 0 * * *", func(ctx *core.Context) {
+    // runs daily at midnight
+})
+sched.AddKeyFunc("report", "*/30 * * * * *", func(ctx *core.Context) {
+    // runs every 30 seconds
+})
+```
+
+#### QRCode — QR Code Generator
+
+```go
+import "github.com/chuccp/go-web-frame/component/qrcode"
+
+// Generate to a file (stripe style)
+qrcode.GenerateStripeQRCode("https://example.com", "qr.png")
+
+// Generate in-memory with custom style
+buf := qrcode.CreateBufferWriteCloser()
+qrcode.GenerateQrcode("hello", buf, qrcode.WithCircleShape())
+pngBytes := buf.Bytes()
+
+// Custom colors
+s := qrcode.NewStripeQRCode().WithModuleSize(10)
+s.GenerateFile("https://example.com", "custom.png")
+```
+
+> QRCode is a standalone utility — no registration needed. Just import and call directly.
+
+#### RateLimit — Token-Bucket Rate Limiter
+
+```yaml
+# application.yml (optional — defaults shown)
+rate_limit:
+  limit: 10     # tokens per second
+  burst: 5      # max burst size
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/ratelimit"
+
+// 1. Register
+builder.Service(&ratelimit.RateLimit{})
+
+// 2. Use — typically in a Filter
+r := core.GetService[*ratelimit.RateLimit](ctx)
+if r.Allow(req.ClientIP()) {
+    return fc.Next()
+}
+return nil, errors.New("rate limited")
+```
+
 ### Publishing Sub-Modules
 
 Each sub-module is versioned independently using tag prefixes:

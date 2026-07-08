@@ -58,7 +58,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Auto-loading configuration (JSON/YAML/TOML)
   - Structured logging with Zap
   - Log rotation support
-  - Daemon/service mode for Windows/Linux/macOS
 
 - **Documentation**
   - Multi-language README (English, Chinese, Traditional Chinese, Japanese)

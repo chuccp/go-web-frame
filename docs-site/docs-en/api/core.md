@@ -13,10 +13,6 @@ app := builder.Build()
 
 // Run
 app.Run(ctx)
-
-// Graceful shutdown
-app.Start()  // daemon mode
-app.Stop()   // stop daemon
 ```
 
 ## Builder

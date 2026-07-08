@@ -17,12 +17,6 @@ go run example/model/model.go
 
 # Build the framework (library only)
 go build
-
-# Run application as a daemon/service
-# (Requires implementing AppService interface)
-go run your_app.go
-# Stop the daemon
-go run your_app.go -stop
 ```
 
 ### Testing
@@ -80,7 +74,6 @@ This is a Go web framework built on top of Gin, providing a structured approach 
 - Type-safe generic ORM with zero boilerplate
 - Database integration (SQLite, MySQL, Redis)
 - Component-based system
-- Daemon/service mode for production deployment
 
 ### Core Components
 
@@ -128,7 +121,6 @@ A typical application using this framework will:
 - `core/server.go`: Server implementation that manages REST groups and background runners
 - `web/handles.go`: Request routing and handler registration
 - `web/request.go`: Request abstraction with helper methods for binding, params, query
-- `daemon.go`: Daemon/service wrapper for running applications as system services
 
 ### Dependency Injection
 The framework uses a context-based DI container:
@@ -143,12 +135,6 @@ The framework uses a context-based DI container:
 - Database configuration under `db` key
 - Server configuration under `server` key
 - Logging configuration under `log` key
-
-### Daemon/Service Mode
-The framework supports running applications as system services using:
-- `daemon.go`: Provides service wrappers for Windows (Service Control Manager), Linux (systemd), and macOS (launchd)
-- Implement the `AppService` interface with `Start()` and `Close()` methods to use daemon mode
-- Use `-stop` flag to stop a running service
 
 ## Framework Usage Guide
 

@@ -250,35 +250,33 @@ func (f *AuthFilter) Init(ctx *core.Context) error {
 }
 
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-    
     // Skip public routes
-    if meta.Has("public") {
+    if req.HasMeta(Public()) {
         return fc.Next()
     }
-    
+
     // Check authentication
-    if meta.Has("auth") {
+    if req.HasMeta(RequireAuth()) {
         token := req.GetHeader("Authorization")
         if token == "" {
             return nil, ErrUnauthorized
         }
-        
+
         claims, err := f.validateToken(token)
         if err != nil {
             return nil, ErrUnauthorized
         }
-        
+
         // Store user info in request context
         req.Set("user", claims)
-        
-        // Check role
-        requiredRole, _ := meta.Get("role").(string)
+
+        // Check role — use HandlerMeta().Get() for value retrieval
+        requiredRole, _ := req.HandlerMeta().Get("role").(string)
         if requiredRole != "" && claims.Role != requiredRole {
             return nil, ErrForbidden
         }
     }
-    
+
     return fc.Next()
 }
 ```

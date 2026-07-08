@@ -287,33 +287,31 @@ func (c *UserController) Init(context *core.Context) error {
 
 ```go
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-    
     // 跳过公开路由
-    if meta.Has("public") {
+    if req.HasMeta(Public()) {
         return fc.Next()
     }
-    
+
     // 检查认证
-    if meta.Has("auth") {
+    if req.HasMeta(RequireAuth()) {
         token := req.GetHeader("Authorization")
         if token == "" {
             return nil, errors.New("unauthorized")
         }
-        
+
         // 验证 Token
         claims, err := f.validateToken(token)
         if err != nil {
             return nil, errors.New("unauthorized")
         }
-        
+
         // 检查角色
-        requiredRole, _ := meta.Get("role").(string)
+        requiredRole, _ := req.HandlerMeta().Get("role").(string)
         if requiredRole != "" && claims["role"] != requiredRole {
             return nil, errors.New("forbidden")
         }
     }
-    
+
     return fc.Next()
 }
 ```
@@ -360,18 +358,16 @@ type AuthFilter struct {
 }
 
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-    
     // 跳过公开路由
-    if meta.Has("public") {
+    if req.HasMeta(Public()) {
         return fc.Next()
     }
-    
+
     token := req.GetHeader("Authorization")
     if token == "" {
         return nil, errors.New("unauthorized")
     }
-    
+
     return fc.Next()
 }
 

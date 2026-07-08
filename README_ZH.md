@@ -383,9 +383,7 @@ func RequirePermission(p string) web.MetaOption { return web.WithValue("require_
 ```go
 // 一个 Filter 处理所有认证逻辑
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-
-    if !meta.Has("require_auth") || meta.Has("skip_auth") {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
         return fc.Next()
     }
 

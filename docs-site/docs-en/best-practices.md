@@ -82,7 +82,7 @@ builder.Get("/profile", handler).WithMeta(RequireAuth())
 
 // Handle in filter
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if req.HandlerMeta().GetBool("require_auth") {
+    if req.HasMeta(RequireAuth()) {
         // verify token
     }
     return fc.Next()

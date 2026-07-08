@@ -233,35 +233,33 @@ func (f *AuthFilter) Init(context *core.Context) error {
 }
 
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-    
     // 跳过公开路由
-    if meta.Has("public") {
+    if req.HasMeta(Public()) {
         return fc.Next()
     }
-    
+
     // 检查认证
-    if meta.Has("auth") {
+    if req.HasMeta(RequireAuth()) {
         token := req.GetHeader("Authorization")
         if token == "" {
             return nil, ErrUnauthorized
         }
-        
+
         claims, err := f.validateToken(token)
         if err != nil {
             return nil, ErrUnauthorized
         }
-        
+
         // 存储用户信息到请求上下文
         req.Set("user", claims)
-        
+
         // 检查角色
-        requiredRole, _ := meta.Get("role").(string)
+        requiredRole, _ := req.HandlerMeta().Get("role").(string)
         if requiredRole != "" && claims.Role != requiredRole {
             return nil, ErrForbidden
         }
     }
-    
+
     return fc.Next()
 }
 ```

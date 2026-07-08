@@ -51,12 +51,9 @@ Read metadata in filter:
 
 ```go
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    meta := req.HandlerMeta()
-    
-    if meta.GetBool("require_auth") {
+    if req.HasMeta(RequireAuth()) {
         // check auth
     }
-    
     return fc.Next()
 }
 ```

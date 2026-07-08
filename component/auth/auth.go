@@ -60,7 +60,7 @@ func (s *AuthenticationFilter[U]) User(request *web.Request) (U, error) {
 	return s.authentication.User(request)
 }
 func (s *AuthenticationFilter[U]) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
-	if request.HandlerMeta().Has(LoginKey) {
+	if request.HasMeta(WithLogin()) {
 		_, err := s.authentication.User(request)
 		if err != nil {
 			return nil, err

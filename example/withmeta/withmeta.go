@@ -24,18 +24,13 @@ func (f *LoginAuthFilter) Init(ctx *core.Context) error {
 }
 
 func (f *LoginAuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-	// Get handler metadata
-	meta := req.HandlerMeta()
-
 	// Check if this route requires authentication
-	requireAuth := meta.Has(AuthMetaKey)
-	if !requireAuth {
-		// No auth required, skip checking and continue
+	if !req.HasMeta(RequireAuth()) {
 		return fc.Next()
 	}
 
 	// Check for skip_auth meta - useful for public routes inside authenticated groups
-	if meta.Has("skip_auth") {
+	if req.HasMeta(SkipAuth()) {
 		return fc.Next()
 	}
 

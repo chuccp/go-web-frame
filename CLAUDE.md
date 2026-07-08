@@ -413,6 +413,11 @@ func (u *UserController) HandleRequest(c *web.Request) (any, error) {
     value := cookie.Get("session_id")
     cookie.Set("token", "xxx", 3600)  // name, value, maxAge
 
+    // Route metadata (set via Route.WithMeta, queried via HasMeta)
+    if c.HasMeta(web.WithKey("login")) {
+        // this route requires authentication
+    }
+
     return map[string]any{"result": "ok"}, nil
 }
 ```
@@ -487,6 +492,37 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 // Register filter:
 // app.AddFilter(&AuthFilter{})
 ```
+
+### 8a. Route Metadata (MetaOption)
+
+Attach key-value metadata to routes via `WithMeta`, query it in filters via `HasMeta`:
+
+```go
+// Define meta option constructors
+func RequireLogin() web.MetaOption {
+    return web.WithKey("login")
+}
+
+func RequirePermission(perm string) web.MetaOption {
+    return web.WithValue("permission", perm)
+}
+
+// Set metadata on route registration
+ctx.Get("/api/profile", handler).WithMeta(RequireLogin())
+ctx.Post("/api/admin/users", handler).WithMeta(RequireLogin(), RequirePermission("admin:create"))
+
+// Query metadata in filter (unified with route's WithMeta)
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if req.HasMeta(RequireLogin()) {
+        // check authentication
+    }
+    return fc.Next()
+}
+```
+
+Built-in `MetaOption` constructors:
+- `web.WithKey(keys ...string)` — sets multiple keys to `true`; `HasMeta` matches if **any** key exists
+- `web.WithValue(key string, value any)` — sets a key-value pair; `HasMeta` matches if key exists and value equals (via `reflect.DeepEqual`)
 
 ### 8b. WebSocket
 

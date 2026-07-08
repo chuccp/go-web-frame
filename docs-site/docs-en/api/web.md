@@ -62,17 +62,15 @@ return web.Redirect("/new-url"), nil
 return nil, errors.New("error")
 ```
 
-## HandlerMeta
+## HasMeta
 
-Route metadata from WithMeta.
+Query route metadata (set via `WithMeta`) in filters or handlers:
 
 ```go
-meta := req.HandlerMeta()
-
-meta.Has("require_auth")
-meta.Get("require_auth")
-meta.GetBool("require_auth")
-meta.GetString("require_permission")
+// Check if route has a metadata key
+if req.HasMeta(RequireAuth()) {
+    // route requires authentication
+}
 ```
 
 ## MetaOption
@@ -83,6 +81,18 @@ func RequireAuth() web.MetaOption {
     return web.WithValue("require_auth", true)
 }
 
-// Use
+// Use on route
 builder.Get("/profile", handler).WithMeta(RequireAuth())
+
+// Query in filter — unified with WithMeta
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if req.HasMeta(RequireAuth()) {
+        // verify token
+    }
+    return fc.Next()
+}
 ```
+
+Built-in constructors:
+- `web.WithKey(keys ...string)` — match if **any** key exists
+- `web.WithValue(key string, value any)` — match if key exists and value equals (via `reflect.DeepEqual`)

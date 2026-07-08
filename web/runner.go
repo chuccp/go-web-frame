@@ -19,10 +19,11 @@ import (
 
 // ServerRunner manages HTTP and TLS listeners with auto-certification support.
 type ServerRunner struct {
-	servers    []*Server
-	serversMap map[int]*Server
-	certs      *certStore
-	ctx        context.Context
+	servers      []*Server
+	serversMap   map[int]*Server
+	certs        *certStore
+	serverConfig *ServerConfig
+	ctx          context.Context
 }
 
 func newServerRunner(ctx context.Context, certsPath string, servers []*Server) *ServerRunner {
@@ -31,6 +32,9 @@ func newServerRunner(ctx context.Context, certsPath string, servers []*Server) *
 		serversMap: make(map[int]*Server),
 		certs:      newCertStore(certsPath),
 		ctx:        ctx,
+	}
+	if len(servers) > 0 {
+		sr.serverConfig = servers[0].serverConfig
 	}
 	for _, server := range servers {
 		sr.serversMap[server.serverConfig.Port] = server
@@ -87,9 +91,9 @@ func (sr *ServerRunner) listen(ctx context.Context, server *Server) error {
 		},
 		Addr:              addr,
 		Handler:           engine,
-		ReadHeaderTimeout: MaxReadHeaderTimeout,
-		MaxHeaderBytes:    MaxHeaderBytes,
-		ReadTimeout:       MaxReadTimeout,
+		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       server.serverConfig.GetReadTimeout(),
 	}
 	go func() {
 		<-sr.ctx.Done()
@@ -126,9 +130,9 @@ func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
 		Addr:              addr,
 		Handler:           engine,
 		TLSConfig:         tlsConfig,
-		ReadHeaderTimeout: MaxReadHeaderTimeout,
-		MaxHeaderBytes:    MaxHeaderBytes,
-		ReadTimeout:       MaxReadTimeout,
+		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       server.serverConfig.GetReadTimeout(),
 	}
 	go func() {
 		<-sr.ctx.Done()
@@ -161,9 +165,9 @@ func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 	server := &http.Server{
 		Addr:              ":80",
 		Handler:           sr.certs.autoCertManager.HTTPHandler(nil),
-		ReadHeaderTimeout: MaxReadHeaderTimeout,
-		MaxHeaderBytes:    MaxHeaderBytes,
-		ReadTimeout:       MaxReadTimeout,
+		ReadHeaderTimeout: sr.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    sr.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       sr.serverConfig.GetReadTimeout(),
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx
 		},
@@ -190,9 +194,9 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 	server := &http.Server{
 		Addr:              ":443",
 		TLSConfig:         tlsConfig,
-		ReadHeaderTimeout: MaxReadHeaderTimeout,
-		MaxHeaderBytes:    MaxHeaderBytes,
-		ReadTimeout:       MaxReadTimeout,
+		ReadHeaderTimeout: sr.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    sr.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       sr.serverConfig.GetReadTimeout(),
 		Handler:           sr.certs.autoCertManager.HTTPHandler(nil),
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx

@@ -693,16 +693,24 @@ Pre-integrated, production-proven components:
 
 Heavy dependencies are split into independent sub-modules. Install only what you need:
 
+<!-- component-badges -->
+[![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
+[![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
+[![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+<!-- /component-badges -->
+
 ```bash
 # Core framework (no captcha/qrcode/cron/otter)
 go get github.com/chuccp/go-web-frame
 
 # Optional — install as needed
-go get github.com/chuccp/go-web-frame/component/captcha@v1.0.1
-go get github.com/chuccp/go-web-frame/component/schedule@v1.0.1
-go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.1
-go get github.com/chuccp/go-web-frame/component/cache@v1.0.1
-go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.1
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
 ```
 
 ### Publishing Sub-Modules

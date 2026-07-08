@@ -688,6 +688,63 @@ JSON、YAML、TOML 形式に対応。
 
 ---
 
+## オプションモジュール
+
+重い依存関係は独立したサブモジュールに分割されています。必要なものだけインストール：
+
+<!-- component-badges -->
+[![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
+[![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
+[![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+<!-- /component-badges -->
+
+```bash
+# コアフレームワーク（captcha/qrcode/cron/otter なし）
+go get github.com/chuccp/go-web-frame
+
+# 必要に応じてインストール
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
+```
+
+### サブモジュールの公開
+
+各サブモジュールはタグプレフィックスで独立してバージョン管理：
+
+```bash
+# 1. メインモジュールを公開
+git tag v1.0.1
+git push origin v1.0.1
+
+# 2. 各サブモジュールの依存関係を更新
+for mod in captcha schedule qrcode cache ratelimit; do
+  cd component/$mod
+  go get github.com/chuccp/go-web-frame@v1.0.1
+  go mod edit -dropreplace github.com/chuccp/go-web-frame
+  go mod tidy
+  cd ../..
+done
+
+# 3. 各サブモジュールにタグを付ける（形式：component/<name>/vX.Y.Z）
+git tag component/captcha/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/qrcode/v1.0.1
+git tag component/cache/v1.0.1
+git tag component/ratelimit/v1.0.1
+
+# 4. すべてのタグをプッシュ
+git push origin --tags
+```
+
+Go proxy は `component/captcha/v1.0.1` タグから自動的に対応ディレクトリの `go.mod` を見つけます。
+
+---
+
 ## ヘルプ
 
 - **[ユーザーガイド (英語)](./docs-site/docs-en/index.md)** — 完全なドキュメント

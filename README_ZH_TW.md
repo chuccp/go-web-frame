@@ -688,6 +688,63 @@ db:
 
 ---
 
+## 可選模組
+
+重型依賴拆分為獨立子模組，按需安裝：
+
+<!-- component-badges -->
+[![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
+[![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
+[![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+<!-- /component-badges -->
+
+```bash
+# 核心框架（不含 captcha/qrcode/cron/otter）
+go get github.com/chuccp/go-web-frame
+
+# 按需安裝
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
+```
+
+### 發布子模組
+
+每個子模組透過 tag 前綴獨立版本管理：
+
+```bash
+# 1. 發布主模組
+git tag v1.0.1
+git push origin v1.0.1
+
+# 2. 更新各子模組對主模組的依賴
+for mod in captcha schedule qrcode cache ratelimit; do
+  cd component/$mod
+  go get github.com/chuccp/go-web-frame@v1.0.1
+  go mod edit -dropreplace github.com/chuccp/go-web-frame
+  go mod tidy
+  cd ../..
+done
+
+# 3. 為每個子模組打 tag（格式：component/<name>/vX.Y.Z）
+git tag component/captcha/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/qrcode/v1.0.1
+git tag component/cache/v1.0.1
+git tag component/ratelimit/v1.0.1
+
+# 4. 推送所有 tag
+git push origin --tags
+```
+
+Go proxy 會根據 `component/captcha/v1.0.1` tag 前綴自動找到對應目錄的 `go.mod`。
+
+---
+
 ## 取得幫助
 
 - **[使用手冊 (中文)](./docs-site/docs-zh/index.md)** — 完整使用文件

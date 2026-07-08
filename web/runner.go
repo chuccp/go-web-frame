@@ -19,23 +19,38 @@ import (
 
 // ServerRunner manages HTTP and TLS listeners with auto-certification support.
 type ServerRunner struct {
-	servers    []*Server
-	serversMap map[int]*Server
-	certs      *certStore
-	ctx        context.Context
+	servers     []*Server
+	serversMap  map[int]*Server
+	certs       *certStore
+	ctx         context.Context
+	httpServers []*http.Server // all created http.Server instances for graceful shutdown
 }
 
 func newServerRunner(ctx context.Context, certsPath string, servers []*Server) *ServerRunner {
 	sr := &ServerRunner{
-		servers:    servers,
-		serversMap: make(map[int]*Server),
-		certs:      newCertStore(certsPath),
-		ctx:        ctx,
+		servers:     servers,
+		serversMap:  make(map[int]*Server),
+		certs:       newCertStore(certsPath),
+		ctx:         ctx,
+		httpServers: make([]*http.Server, 0),
 	}
 	for _, server := range servers {
 		sr.serversMap[server.serverConfig.Port] = server
 	}
 	return sr
+}
+
+// Shutdown gracefully shuts down all HTTP servers managed by this runner.
+// It stops accepting new connections and waits for active requests to complete
+// within the given timeout. Returns any error from the shutdown process.
+func (sr *ServerRunner) Shutdown(timeoutCtx context.Context) error {
+	for _, srv := range sr.httpServers {
+		if err := srv.Shutdown(timeoutCtx); err != nil {
+			log.Error("server shutdown error", zap.Error(err))
+			return err
+		}
+	}
+	return nil
 }
 
 func (sr *ServerRunner) Start() error {
@@ -92,6 +107,7 @@ func (sr *ServerRunner) listen(server *Server) error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
+	sr.httpServers = append(sr.httpServers, httpServer)
 	log.Info("server listening", zap.String("url", "http://localhost"+addr))
 	return errors.WithStackIf(httpServer.ListenAndServe())
 }
@@ -125,6 +141,7 @@ func (sr *ServerRunner) listenTLS(server *Server) error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
+	sr.httpServers = append(sr.httpServers, httpServer)
 	sr.logTLSListen(server, addr)
 	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
 }
@@ -157,6 +174,7 @@ func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 			return ctx
 		},
 	}
+	sr.httpServers = append(sr.httpServers, server)
 	log.Info("starting ACME HTTP-01 challenge server on :80")
 	if err := errors.WithStackIf(server.ListenAndServe()); err != nil {
 		log.Error("ACME HTTP-01 challenge server error", zap.Error(err))
@@ -181,6 +199,7 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 			return ctx
 		},
 	}
+	sr.httpServers = append(sr.httpServers, server)
 	log.Info("starting ACME TLS-ALPN-01 challenge + auto-cert HTTPS server on :443")
 	if err := errors.WithStackIf(server.ListenAndServeTLS("", "")); err != nil {
 		log.Error("ACME TLS challenge server error", zap.Error(err))

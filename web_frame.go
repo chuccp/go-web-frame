@@ -65,6 +65,7 @@ type WebFrame struct {
 	runners    []core.IRunner
 	filters    []core.IFilter
 	handles    *web.Handles
+	server     *core.Server
 }
 
 // Start initializes and runs the web application with a background context.
@@ -180,9 +181,33 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
+	w.server = server
 	err = server.Run()
 	log.Error("Start the WebFrame", zap.Error(err))
 	return errors.WithStackIf(err)
+}
+
+// Shutdown gracefully shuts down the running web application.
+// It stops accepting new connections and waits for active requests to drain
+// within the given timeout. Call this from a signal handler or another goroutine
+// while Run() or Start() is blocking.
+//
+// Example:
+//
+//	go func() {
+//	    sigCh := make(chan os.Signal, 1)
+//	    signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+//	    <-sigCh
+//	    shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	    defer cancel()
+//	    frame.Shutdown(shutdownCtx)
+//	}()
+//	frame.Run(context.Background())
+func (w *WebFrame) Shutdown(ctx context.Context) error {
+	if w.server == nil {
+		return nil
+	}
+	return w.server.Shutdown(ctx)
 }
 
 // Builder provides a fluent API for constructing a WebFrame application.

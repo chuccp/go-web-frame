@@ -122,7 +122,7 @@ func WithValue(key string, value any) MetaOption {
 		oo.Add(key, value)
 	}, func(oo *HandlerMeta) bool {
 		if oo.Has(key) {
-			return oo.Get(key) == value
+			return reflect.DeepEqual(oo.Get(key), value)
 		}
 		return false
 	})

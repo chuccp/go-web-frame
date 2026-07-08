@@ -24,21 +24,52 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      - name: Parse tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == component/* ]]; then
+            COMPONENT=$(echo "$TAG" | cut -d'/' -f2)
+            VERSION=$(echo "$TAG" | cut -d'/' -f3)
+            echo "IS_COMPONENT=true" >> $GITHUB_ENV
+            echo "COMPONENT=$COMPONENT" >> $GITHUB_ENV
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
+            echo "Component: $COMPONENT, Version: $VERSION"
+          else
+            echo "IS_COMPONENT=false" >> $GITHUB_ENV
+            echo "Version tag: $TAG"
+          fi
+
       - name: Run tests
         run: go test -race ./...
 
       - name: Run go vet
         run: go vet ./...
 
-      - name: Create GitHub Release
+      - name: Build component assets
+        if: env.IS_COMPONENT == 'true'
+        run: |
+          mkdir -p dist
+          (cd "component/${{ env.COMPONENT }}" && zip -r "../../dist/${{ env.COMPONENT }}.zip" .)
+          tar -czf "dist/${{ env.COMPONENT }}.tar.gz" -C "component/${{ env.COMPONENT }}" .
+          echo "Created dist/${{ env.COMPONENT }}.zip and dist/${{ env.COMPONENT }}.tar.gz"
+
+      - name: Create GitHub Release (version tag)
+        if: env.IS_COMPONENT != 'true'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
 
-      - name: Publish to Go module proxy
-        run: |
-          if [[ "${{ github.ref_name }}" == v* ]]; then
-            GOPROXY=proxy.golang.org go list -m github.com/chuccp/go-web-frame@${{ github.ref_name }}
-          else
-            echo "Skipping Go module proxy publish for non-version tag"
-          fi
+      - name: Create GitHub Release (component tag)
+        if: env.IS_COMPONENT == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
+
+      - name: Publish to Go module proxy (main module)
+        if: env.IS_COMPONENT != 'true'
+        run: GOPROXY=proxy.golang.org go list -m github.com/chuccp/go-web-frame@${{ github.ref_name }}
+
+      - name: Publish to Go module proxy (component)
+        if: env.IS_COMPONENT == 'true'
+        run: GOPROXY=proxy.golang.org go list -m github.com/chuccp/go-web-frame/component/${{ env.COMPONENT }}@${{ env.VERSION }}

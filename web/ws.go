@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/chuccp/go-web-frame/log"
 	"github.com/coder/websocket"
+	"go.uber.org/zap"
 )
 
 // WebSocketHandler is the function signature for WebSocket stream handlers.
@@ -102,6 +104,6 @@ func (ws *WebSocketStream) Close() {
 	ws.cancel()
 	err := ws.conn.Close(websocket.StatusNormalClosure, "")
 	if err != nil {
-		return
+		log.Debug("websocket close error", zap.Error(err))
 	}
 }

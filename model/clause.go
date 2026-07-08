@@ -55,6 +55,7 @@ func (q *Query[T]) Where(query interface{}, args ...interface{}) *Query[T] {
 	q.wheres = append(q.wheres, &where{query: query, args: args})
 	return q
 }
+
 // Order adds an ORDER BY clause to the query.
 func (q *Query[T]) Order(query interface{}) *Query[T] {
 	q.orders = append(q.orders, query)
@@ -75,6 +76,7 @@ func (q *Query[T]) Joins(query string) *Query[T] {
 	q.joins = append(q.joins, query)
 	return q
 }
+
 // List returns up to size records matching the query conditions.
 func (q *Query[T]) List(size int) ([]T, error) {
 	ts := util.NewSlice(q.entry)
@@ -86,8 +88,12 @@ func (q *Query[T]) List(size int) ([]T, error) {
 	return ts, errors.WithStackIf(err)
 
 }
+
 // ListPage returns a page of records matching the query conditions.
 func (q *Query[T]) ListPage(page *util.Page) ([]T, error) {
+	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
+		return nil, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
+	}
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
 	if err != nil {
@@ -97,6 +103,7 @@ func (q *Query[T]) ListPage(page *util.Page) ([]T, error) {
 	return ts, errors.WithStackIf(err)
 
 }
+
 // All returns all records matching the query conditions.
 func (q *Query[T]) All() ([]T, error) {
 	ts := util.NewSlice(q.entry)
@@ -107,6 +114,7 @@ func (q *Query[T]) All() ([]T, error) {
 	err = tx.Find(&ts)
 	return ts, errors.WithStackIf(err)
 }
+
 // One returns a single record matching the query conditions.
 func (q *Query[T]) One() (T, error) {
 	t := util.NewPtr(q.entry)
@@ -178,6 +186,9 @@ func (q *Query[T]) ExecPage(page *util.Page, sql string, args ...interface{}) ([
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
+	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
+		return nil, 0, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
+	}
 
 	// Merge Where conditions
 	finalSql, finalArgs := q.mergeWheres(sql, args...)
@@ -222,6 +233,9 @@ func toCountSql(sql string) string {
 // Page returns a paginated list with total count.
 // Both queries run in a single transaction for consistency.
 func (q *Query[T]) Page(page *util.Page) ([]T, int, error) {
+	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
+		return nil, 0, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
+	}
 	ts := util.NewSlice(q.entry)
 	var num int64
 
@@ -278,6 +292,7 @@ func (q *Query[T]) Size(size int) ([]T, int, error) {
 	}
 	return nil, 0, errors.WithStackIf(err)
 }
+
 // Count returns the number of records matching the query conditions.
 func (q *Query[T]) Count() (int, error) {
 	var num int64
@@ -309,6 +324,7 @@ type where struct {
 	query interface{}
 	args  []interface{}
 }
+
 // Update is a type-safe update builder for constructing update operations on type T.
 type Update[T any] struct {
 	db        *db.DB
@@ -398,6 +414,7 @@ func (w *UpdateSet) Set(s string, value any) *UpdateSet {
 	w.set[s] = value
 	return w
 }
+
 // Exec executes the accumulated updates.
 func (w *UpdateSet) Exec() error {
 	if w.err != nil {

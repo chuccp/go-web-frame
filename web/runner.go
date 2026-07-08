@@ -58,24 +58,23 @@ func (sr *ServerRunner) Start() error {
 		}
 	}
 	for _, server := range sr.servers {
-		errorPool.Go(func(_ context.Context) error {
-			return sr.startServer(server)
+		errorPool.Go(func(ctx context.Context) error {
+			return sr.startServer(ctx, server)
 		})
 	}
 	return errorPool.Wait()
 }
 
-func (sr *ServerRunner) startServer(server *Server) error {
+func (sr *ServerRunner) startServer(ctx context.Context, server *Server) error {
 	server.initRoute()
 	if server.isTls() {
-		return sr.listenTLS(server)
+		return sr.listenTLS(ctx, server)
 	}
-	return sr.listen(server)
+	return sr.listen(ctx, server)
 }
 
-func (sr *ServerRunner) listen(server *Server) error {
+func (sr *ServerRunner) listen(ctx context.Context, server *Server) error {
 	var engine http.Handler = server.engine
-
 	if sr.certs.hasAutoCert() {
 		if server.serverConfig.Port == 80 {
 			engine = sr.certs.autoCertManager.HTTPHandler(engine)
@@ -92,11 +91,17 @@ func (sr *ServerRunner) listen(server *Server) error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
+	go func() {
+		<-sr.ctx.Done()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown HTTP server", zap.Error(err))
+		}
+	}()
 	log.Info("server listening", zap.String("url", "http://localhost"+addr))
 	return errors.WithStackIf(httpServer.ListenAndServe())
 }
 
-func (sr *ServerRunner) listenTLS(server *Server) error {
+func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
 	var engine http.Handler = server.engine
 	if sr.certs.hasAutoCert() {
 		if server.serverConfig.Port == 443 {
@@ -125,6 +130,12 @@ func (sr *ServerRunner) listenTLS(server *Server) error {
 		MaxHeaderBytes:    MaxHeaderBytes,
 		ReadTimeout:       MaxReadTimeout,
 	}
+	go func() {
+		<-sr.ctx.Done()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown HTTPS server", zap.Error(err))
+		}
+	}()
 	sr.logTLSListen(server, addr)
 	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
 }
@@ -157,6 +168,12 @@ func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 			return ctx
 		},
 	}
+	go func() {
+		<-sr.ctx.Done()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown ACME HTTP-01 challenge server", zap.Error(err))
+		}
+	}()
 	log.Info("starting ACME HTTP-01 challenge server on :80")
 	if err := errors.WithStackIf(server.ListenAndServe()); err != nil {
 		log.Error("ACME HTTP-01 challenge server error", zap.Error(err))
@@ -181,6 +198,12 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 			return ctx
 		},
 	}
+	go func() {
+		<-sr.ctx.Done()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown ACME TLS challenge server", zap.Error(err))
+		}
+	}()
 	log.Info("starting ACME TLS-ALPN-01 challenge + auto-cert HTTPS server on :443")
 	if err := errors.WithStackIf(server.ListenAndServeTLS("", "")); err != nil {
 		log.Error("ACME TLS challenge server error", zap.Error(err))

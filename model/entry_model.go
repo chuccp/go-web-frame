@@ -33,7 +33,11 @@ func (a *EntryModel[T, PK]) WithContext(ctx context.Context) *EntryModel[T, PK] 
 // FindByPK finds a single record by its primary key.
 func (a *EntryModel[T, PK]) FindByPK(id PK) (T, error) {
 	q := a.Query()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
 	return q.Where(fmt.Sprintf("`%s` = (?)", pkCol), id).One()
 }
 
@@ -44,7 +48,11 @@ func (a *EntryModel[T, PK]) FindByPKWithPreload(id PK, preloads ...string) (T, e
 	for _, p := range preloads {
 		q = q.Preload(p)
 	}
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
 	return q.Where(fmt.Sprintf("`%s` = (?)", pkCol), id).One()
 }
 
@@ -66,7 +74,11 @@ func (a *EntryModel[T, PK]) FindOneWithPreload(query interface{}, args []interfa
 // FindAllByPK finds all records matching the given primary keys.
 func (a *EntryModel[T, PK]) FindAllByPK(id ...PK) ([]T, error) {
 	q := a.Query()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero []T
+		return zero, err
+	}
 	return q.Where(fmt.Sprintf("`%s` in (?)", pkCol), id).All()
 }
 
@@ -77,7 +89,11 @@ func (a *EntryModel[T, PK]) FindAllByPKWithPreload(ids []PK, preloads ...string)
 	for _, p := range preloads {
 		q = q.Preload(p)
 	}
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero []T
+		return zero, err
+	}
 	return q.Where(fmt.Sprintf("`%s` in (?)", pkCol), ids).All()
 }
 
@@ -98,27 +114,39 @@ func (a *EntryModel[T, PK]) FindAllWithPreload(preloads ...string) ([]T, error) 
 }
 // DeleteByPK deletes a record by its primary key.
 func (a *EntryModel[T, PK]) DeleteByPK(id PK) error {
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		return err
+	}
 	return a.Delete().Where(fmt.Sprintf("`%s` = ?", pkCol), id).Delete()
 }
 
 // UpdateByPK updates a record using the primary key value embedded in the entity.
 func (a *EntryModel[T, PK]) UpdateByPK(t T) error {
 	u := a.Update()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		return err
+	}
 	pkValue := getPrimaryKeyValue(t)
 	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), pkValue).Update(t)
 }
 // UpdateColumn updates a single column value for the record with the given primary key.
 func (a *EntryModel[T, PK]) UpdateColumn(id PK, column string, value interface{}) error {
 	u := a.Update()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		return err
+	}
 	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), id).UpdateColumn(column, value)
 }
 // UpdateForMap updates columns from a map for the record with the given primary key.
 func (a *EntryModel[T, PK]) UpdateForMap(id PK, data map[string]interface{}) error {
 	u := a.Update()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		return err
+	}
 	return u.Where(fmt.Sprintf("`%s` = ?", pkCol), id).UpdateForMap(data)
 }
 
@@ -130,19 +158,30 @@ func (a *EntryModel[T, PK]) NewEntryModel(db *db.DB) *EntryModel[T, PK] {
 // Page returns a paginated list of records ordered by primary key descending.
 func (a *EntryModel[T, PK]) Page(page *util.Page) ([]T, int, error) {
 	q := a.Query()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero []T
+		return zero, 0, err
+	}
 	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)
 }
 // PageForWeb returns a paginated response suitable for web API responses.
 func (a *EntryModel[T, PK]) PageForWeb(page *util.Page) (*util.PageAble[T], error) {
 	q := a.Query()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		return nil, err
+	}
 	return q.Order(fmt.Sprintf("`%s` desc", pkCol)).PageForWeb(page)
 }
 // QueryPage returns a paginated list matching the given query condition.
 func (a *EntryModel[T, PK]) QueryPage(page *util.Page, query interface{}, args ...interface{}) ([]T, int, error) {
 	q := a.Query()
-	pkCol := a.GetPkColumn()
+	pkCol, err := a.GetPkColumn()
+	if err != nil {
+		var zero []T
+		return zero, 0, err
+	}
 	return q.Where(query, args...).Order(fmt.Sprintf("`%s` desc", pkCol)).Page(page)
 }
 // GetTableName returns the database table name for this model.

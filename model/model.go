@@ -20,8 +20,7 @@ type Model[T any] struct {
 	pkColumn  string
 }
 
-// getPrimaryKeyColumn extracts the primary key column name from struct's gorm tag
-func getPrimaryKeyColumn[T any]() string {
+func getPrimaryKeyColumn[T any]() (string, error) {
 	var entryPtr T
 	t := util.NewPtr(entryPtr)
 	rt := reflect.TypeOf(t).Elem()
@@ -50,14 +49,14 @@ func getPrimaryKeyColumn[T any]() string {
 
 		if isPrimaryKey {
 			if columnName != "" {
-				return columnName
+				return columnName, nil
 			}
-			return field.Name
+			return field.Name, nil
 		}
 	}
 
 	// Fallback to "id" if no primaryKey tag found
-	return "id"
+	return "", errors.New("primaryKey column not found")
 }
 
 // getPrimaryKeyValue extracts the primary key value from entity struct via reflection
@@ -227,14 +226,19 @@ func (a *Model[T]) Delete() *Delete[T] {
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 	var entryPtr T
 	entry := util.NewPtr(entryPtr)
-	return &Model[T]{db: db, tableName: tableName, entry: entry, pkColumn: getPrimaryKeyColumn[T]()}
+	return &Model[T]{db: db, tableName: tableName, entry: entry}
 }
 
 // GetPkColumn returns the primary key column name for this model.
-func (a *Model[T]) GetPkColumn() string {
-
-	// getPrimaryKeyColumn[T]()
-	return a.pkColumn
+func (a *Model[T]) GetPkColumn() (string, error) {
+	if a.pkColumn == "" {
+		column, err := getPrimaryKeyColumn[T]()
+		if err != nil {
+			return "", err
+		}
+		a.pkColumn = column
+	}
+	return a.pkColumn, nil
 }
 
 // WithContext returns a shallow copy of the model with the given context.

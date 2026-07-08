@@ -19,15 +19,16 @@ type SSEResponse struct {
 	Handler SSEHandler
 }
 
-// SSEStream represents a Server-Sent Events stream backed by a web2 Request.
+// SSEStream represents a Server-Sent Events stream backed by a web Request.
 type SSEStream struct {
+	mu        sync.Mutex
 	cancel    context.CancelFunc
 	request   *Request
 	ctx       context.Context
 	bgWorkers sync.WaitGroup
 }
 
-// NewSSEStream creates a new SSE stream from a web2 Request.
+// NewSSEStream creates a new SSE stream from a web Request.
 func NewSSEStream(r *Request) *SSEStream {
 	ctx, cancel := context.WithCancel(r.Ctx())
 	return &SSEStream{
@@ -37,9 +38,25 @@ func NewSSEStream(r *Request) *SSEStream {
 	}
 }
 
-// Request returns the underlying web2 Request.
+// Request returns the underlying web Request.
 func (s *SSEStream) Request() *Request {
 	return s.request
+}
+
+// Context returns the stream's context, cancelled when the stream closes.
+func (s *SSEStream) Context() context.Context {
+	return s.ctx
+}
+
+// send writes an already-formatted SSE frame to the response writer.
+// Caller must hold s.mu.
+func (s *SSEStream) send(frame string) error {
+	w := s.request.response
+	if _, err := fmt.Fprint(w, frame); err != nil {
+		return err
+	}
+	w.Flush()
+	return nil
 }
 
 // Send sends an SSE event with the given event name and data.
@@ -50,12 +67,9 @@ func (s *SSEStream) Send(event string, data string) error {
 	default:
 	}
 
-	w := s.request.response
-	if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data); err != nil {
-		return err
-	}
-	w.Flush()
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.send(fmt.Sprintf("event: %s\ndata: %s\n\n", event, data))
 }
 
 // SendMessage sends a default message event without a named event type.
@@ -66,13 +80,9 @@ func (s *SSEStream) SendMessage(data string) error {
 	default:
 	}
 
-	w := s.request.response
-	_, err := fmt.Fprintf(w, "data: %s\n\n", data)
-	if err != nil {
-		return err
-	}
-	w.Flush()
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.send(fmt.Sprintf("data: %s\n\n", data))
 }
 
 // SendWithID sends an SSE event with an ID, event name, and data.
@@ -83,12 +93,9 @@ func (s *SSEStream) SendWithID(id string, event string, data string) error {
 	default:
 	}
 
-	w := s.request.response
-	if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, event, data); err != nil {
-		return err
-	}
-	w.Flush()
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.send(fmt.Sprintf("id: %s\nevent: %s\ndata: %s\n\n", id, event, data))
 }
 
 // SendRetry sends a reconnection interval hint (in milliseconds) to the client.
@@ -99,25 +106,27 @@ func (s *SSEStream) SendRetry(retryMs int) error {
 	default:
 	}
 
-	w := s.request.response
-	if _, err := fmt.Fprintf(w, "retry: %d\n\n", retryMs); err != nil {
-		return err
-	}
-	w.Flush()
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.send(fmt.Sprintf("retry: %d\n\n", retryMs))
 }
 
 // SetHeaders writes the standard SSE headers on the response.
 func (s *SSEStream) SetHeaders() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	w := s.request.response
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	//w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
 // SetHeader sets a custom header on the SSE response.
 func (s *SSEStream) SetHeader(key string, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	w := s.request.response
 	w.Header().Set(key, value)
 }
@@ -141,23 +150,22 @@ func (s *SSEStream) Heartbeat() error {
 	default:
 	}
 
-	w := s.request.response
-	if _, err := fmt.Fprintf(w, ": heartbeat\n\n"); err != nil {
-		return err
-	}
-	w.Flush()
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.send(": heartbeat\n\n")
 }
 
-// StartHeartbeat starts a periodic heartbeat goroutine.
-// The goroutine exits automatically when the stream is closed or the request disconnects.
+// StartHeartbeat starts a periodic heartbeat goroutine that sends SSE comment
+// lines at the given interval. The goroutine exits automatically when the stream
+// is closed or the request disconnects. Close() blocks until the heartbeat
+// goroutine has fully exited.
 func (s *SSEStream) StartHeartbeat(interval time.Duration) {
 	s.StartHeartbeatWithContext(s.ctx, interval)
 }
 
-// StartHeartbeatWithContext starts a periodic heartbeat goroutine with an external context.
-// The goroutine exits when ctx is cancelled, the stream is closed, or the request disconnects.
-// Close() blocks until the heartbeat goroutine has fully exited.
+// StartHeartbeatWithContext starts a periodic heartbeat goroutine with an
+// external context. The goroutine exits when ctx is cancelled, the stream is
+// closed, or the request disconnects. Close() blocks until the goroutine exits.
 func (s *SSEStream) StartHeartbeatWithContext(ctx context.Context, interval time.Duration) {
 	s.bgWorkers.Add(1)
 	go panics.Try(func() {

@@ -542,7 +542,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
 
     validator := wf.GetService[*validator.Validator](req.Context())
     if err := validator.Validate(input); err != nil {
-        return nil, web.NewValidationError(err.Error())
+        return nil, web.NewValidationError().WithError(err)
     }
 
     // input is valid, proceed...
@@ -565,7 +565,7 @@ return web.DataCode(http.StatusCreated, &user), nil
 return nil, errors.New("something went wrong")
 
 // Return a business error code
-return nil, web.NewValidationError("name is required")
+return nil, web.NewValidationError().WithDetail("name is required")
 
 // Redirect
 return web.Redirect("/new-url"), nil

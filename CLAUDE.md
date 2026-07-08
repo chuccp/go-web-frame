@@ -750,8 +750,14 @@ func (c *Controller) Redirect(req *web.Request) (any, error) {
     return web.Redirect("/new-url"), nil
 }
 
-// Error response
+// Error response (auto-mapped to HTTP status code)
 func (c *Controller) Error(req *web.Request) (any, error) {
-    return nil, errors.New("something went wrong")
+    return nil, errors.New("something went wrong")                // 500
+}
+func (c *Controller) NotFound(req *web.Request) (any, error) {
+    return nil, web.NewNotFound().WithDetail("user not found")     // 404
+}
+func (c *Controller) Forbidden(req *web.Request) (any, error) {
+    return nil, web.NewForbidden().WithError(err)                  // 403
 }
 ```

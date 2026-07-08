@@ -177,7 +177,7 @@ func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
     result, err := fc.Next()
     if err != nil {
         // 返回标准错误响应
-        req.Response().AbortWithStatusJSON(200, web.ErrorMessage(err.Error()))
+        req.Response().AbortWithStatusJSON(500, &web.Message{Code: 500, Msg: err.Error()})
         return
     }
     // 返回标准成功响应

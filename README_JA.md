@@ -541,7 +541,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
 
     validator := wf.GetService[*validator.Validator](req.Context())
     if err := validator.Validate(input); err != nil {
-        return nil, web.NewValidationError(err.Error())
+        return nil, web.NewValidationError().WithError(err)
     }
 
     // input は検証済み、処理を続行...
@@ -564,7 +564,7 @@ return web.DataCode(http.StatusCreated, &user), nil
 return nil, errors.New("問題が発生しました")
 
 // ビジネスエラーコード
-return nil, web.NewValidationError("名前は必須です")
+return nil, web.NewValidationError().WithDetail("名前は必須です")
 
 // リダイレクト
 return web.Redirect("/new-url"), nil

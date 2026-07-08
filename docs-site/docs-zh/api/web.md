@@ -141,17 +141,14 @@ return web.DataCode(201, createdUser), nil
 // 带类型的响应
 return web.DataType("table", data), nil
 
-// 错误响应（code=500）
-return nil, errors.New("something went wrong")
-// 或显式创建错误消息
-return web.ErrorMessage("server error"), nil
-return web.Error(err), nil
-
-// 带数据的错误响应
-return web.Errors(invalidData, errors.New("validation failed")), nil
+// 错误响应 — 返回 *ErrorCode，converter 自动识别状态码
+return nil, errors.New("something went wrong")         // 500
+return nil, web.NewInternalError().WithDetail("server error")
+return nil, web.NewValidationError().WithError(err)     // 1001
+return nil, web.NewNotFound().WithDetail("user #123")   // 404
 
 // 未授权响应（code=401）
-return web.Unauthorized(nil, errors.New("token expired")), nil
+return nil, web.NewUnauthorized().WithError(err)
 
 // 重定向响应
 return web.Redirect("/login"), nil

@@ -246,13 +246,10 @@ return web.DataType("table", data), nil // {"code":200,"data":...,"type":"table"
 // 带自定义状态码的响应
 return web.DataCode(201, user), nil     // {"code":201,"data":{...},"msg":"","type":""}
 
-// 错误响应（code=500）
-return web.ErrorMessage("服务器错误"), nil
-return web.Error(err), nil              // 从 error 创建
-return web.Errors(data, err), nil       // 带数据和错误信息
-
-// 未授权响应（code=401）
-return web.Unauthorized(nil, errors.New("token expired")), nil
+// 错误响应 — 返回 *ErrorCode，converter 自动识别状态码
+return nil, web.NewInternalError().WithDetail("服务器错误")
+return nil, web.NewInternalError().WithError(err)
+return nil, web.NewUnauthorized().WithError(err)
 
 // 检查响应是否成功
 msg := web.Data(users)
@@ -288,7 +285,7 @@ func (c *UserController) Create(req *web.Request) (any, error) {
 
 | handler 返回值 | 响应行为 |
 |----------------|----------|
-| `error` | 返回 `web.Error(err)`，HTTP 500 |
+| `error` | 返回 HTTP 500，`*ErrorCode` 自动识别状态码 |
 | `*web.Message` | 如果是 Redirect 类型则 301 跳转，否则返回 JSON |
 | `string` | 直接写入纯文本 |
 | `*web.File` / `*os.File` | 文件下载 |
@@ -309,7 +306,7 @@ func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
     result, err := fc.Next()
     if err != nil {
         // 所有错误统一返回 Message 格式
-        req.Response().AbortWithStatusJSON(200, web.Error(err))
+        req.Response().AbortWithStatusJSON(500, &web.Message{Code: 500, Msg: err.Error()})
         return
     }
     // 如果已经是 Message 类型，直接返回

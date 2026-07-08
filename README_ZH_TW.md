@@ -541,7 +541,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
 
     validator := wf.GetService[*validator.Validator](req.Context())
     if err := validator.Validate(input); err != nil {
-        return nil, web.NewValidationError(err.Error())
+        return nil, web.NewValidationError().WithError(err)
     }
 
     // input 已校驗，繼續業務...
@@ -564,7 +564,7 @@ return web.DataCode(http.StatusCreated, &user), nil
 return nil, errors.New("出錯了")
 
 // 回傳業務錯誤碼
-return nil, web.NewValidationError("名字不能為空")
+return nil, web.NewValidationError().WithDetail("名字不能為空")
 
 // 重新導向
 return web.Redirect("/new-url"), nil

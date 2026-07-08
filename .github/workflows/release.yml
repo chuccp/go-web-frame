@@ -36,5 +36,9 @@ jobs:
           generate_release_notes: true
 
       - name: Publish to Go module proxy
-        if: startsWith(github.ref_name, 'v')
-        run: GOPROXY=proxy.golang.org go list -m github.com/chuccp/go-web-frame@${{ github.ref_name }}
+        run: |
+          if [[ "${{ github.ref_name }}" == v* ]]; then
+            GOPROXY=proxy.golang.org go list -m github.com/chuccp/go-web-frame@${{ github.ref_name }}
+          else
+            echo "Skipping Go module proxy publish for non-version tag"
+          fi

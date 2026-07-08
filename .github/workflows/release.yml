@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*'
-      - 'component/*'
+      - 'component/**'
 
 permissions:
   contents: write

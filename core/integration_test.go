@@ -265,3 +265,41 @@ func (r *testRunner) Run() error {
 	r.runCalled = true
 	return nil
 }
+
+// testServiceRunner is a service that also implements IRunner.
+// It tracks how many times Init is called to guard against double initialization.
+type testServiceRunner struct {
+	initCount int
+}
+
+func (s *testServiceRunner) Init(ctx *Context) error {
+	s.initCount++
+	return nil
+}
+
+func (s *testServiceRunner) Run() error {
+	return nil
+}
+
+// TestIntegration_ServiceRunnerNoDoubleInit verifies that a service implementing IRunner
+// is initialized exactly once: in the services loop, not again in the runners loop.
+func TestIntegration_ServiceRunnerNoDoubleInit(t *testing.T) {
+	config := config2.NewConfig()
+	ctx := NewContext(newTestServer(), config, context.Background())
+
+	svcRunner := &testServiceRunner{}
+	// Registered as a service; AddService also adds it to runnerMap because it implements IRunner.
+	ctx.AddService(svcRunner)
+
+	// Simulate the services initialization loop (as done in web_frame.go).
+	err := svcRunner.Init(ctx)
+	assert.NoError(t, err)
+
+	// Build a Server with all runners (including the one from AddService).
+	server := NewServer(nil, ctx.GetRunners())
+	err = server.Init(ctx)
+	assert.NoError(t, err)
+
+	// Init should have been called exactly once, not twice.
+	assert.Equal(t, 1, svcRunner.initCount, "service implementing IRunner should not be initialized twice")
+}

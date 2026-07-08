@@ -43,6 +43,11 @@ func (server *Server) getOrCreateServer(serverConfig *web.ServerConfig) *web.Ser
 func (server *Server) Init(ctx *Context) error {
 	server.ctx = ctx
 	for _, runner := range server.runners {
+		// Skip Init for runners that were already initialized as services
+		// (services implementing IRunner are registered in both maps by AddService).
+		if ctx.IsServiceRegistered(runner) {
+			continue
+		}
 		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
 		err := runner.Init(ctx)
 		if err != nil {

@@ -11,6 +11,9 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// ConfigKey is the configuration key under which logger settings are stored.
+const ConfigKey = "web.log"
+
 // Config holds the logger configuration settings.
 type Config struct {
 	Level      string // Log level: debug, info, warn, error
@@ -21,11 +24,6 @@ type Config struct {
 	MaxAge     int    // Max days to retain old log files, default 30
 	Compress   bool   // Whether to compress old log files, default true
 	LocalTime  bool   // Whether to use local time, default false (UTC)
-}
-
-// Key returns the configuration key for this logger config.
-func (c *Config) Key() string {
-	return "web.log"
 }
 
 func defaultConfig() *Config {
@@ -51,7 +49,7 @@ func getEncoder() zapcore.Encoder {
 	return zapcore.NewJSONEncoder(encoderConfig)
 }
 func getFileLogWriter(cfg *Config) zapcore.Core {
-		// Apply default values
+	// Apply default values
 	maxSize := cfg.MaxSize
 	if maxSize <= 0 {
 		maxSize = 500
@@ -119,6 +117,7 @@ func Info(msg string, fields ...zap.Field) {
 	defer lock.RUnlock()
 	defaultLogger.info(msg, fields...)
 }
+
 // Error logs an error message.
 func Error(msg string, fields ...zap.Field) {
 	lock.RLock()
@@ -130,6 +129,7 @@ func Error(msg string, fields ...zap.Field) {
 	//}
 	defaultLogger.error(msg, fields...)
 }
+
 // Errors logs an error message with one or more error values.
 func Errors(msg string, errs ...error) {
 	lock.RLock()
@@ -143,24 +143,28 @@ func Errors(msg string, errs ...error) {
 	//}
 	defaultLogger.error(msg, fields...)
 }
+
 // Debug logs a debug-level message.
 func Debug(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.debug(msg, fields...)
 }
+
 // Warn logs a warning message.
 func Warn(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.warn(msg, fields...)
 }
+
 // Fatal logs a fatal message and calls os.Exit(1).
 func Fatal(msg string, fields ...zap.Field) {
 	lock.RLock()
 	defer lock.RUnlock()
 	defaultLogger.fatal(msg, fields...)
 }
+
 // Panic logs a panic message and then panics.
 // Error fields are also printed via log.Printf for stack trace visibility.
 func Panic(msg string, fields ...zap.Field) {
@@ -173,6 +177,7 @@ func Panic(msg string, fields ...zap.Field) {
 	}
 	defaultLogger.panic(msg, fields...)
 }
+
 // PanicErrors logs a panic message with error values and prints them via log.Printf.
 // Unlike zap.Panic, this only logs the message without actually panicking.
 func PanicErrors(msg string, errs ...error) {
@@ -188,6 +193,7 @@ func PanicErrors(msg string, errs ...error) {
 	defaultLogger.panic(msg, fields...)
 
 }
+
 // PrintPanic prints error stack traces via log.Printf without panicking.
 func PrintPanic(errs ...error) {
 	for _, err := range errs {
@@ -209,6 +215,7 @@ func getDefaultLogger() *logger {
 		zap: l,
 	}
 }
+
 // InitLogger initializes or reconfigures the global logger with the given config.
 func InitLogger(logConfig *Config) {
 

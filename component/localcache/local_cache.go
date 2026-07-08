@@ -20,13 +20,16 @@ type Config struct {
 	Open bool
 }
 
+// ConfigKey is the configuration key under which local cache settings are stored.
+const ConfigKey = "local_cache"
+
 type LocalCache struct {
 	config *Config
 }
 
 func (l *LocalCache) Init(context *core.Context) error {
 	var config Config
-	err := context.GetConfig().UnmarshalKey("local_cache", &config)
+	err := context.GetConfig().UnmarshalKey(ConfigKey, &config)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

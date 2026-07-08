@@ -42,16 +42,15 @@ type Config struct {
 	CodeIv  string
 }
 
-func (c *Config) Key() string {
-	return "captcha"
-}
+// ConfigKey is the configuration key under which captcha settings are stored.
+const ConfigKey = "captcha"
 
 type SlideCaptcha struct {
 }
 
 func (c *Captcha) Init(context *core.Context) error {
 	var cfg Config
-	err := context.GetConfig().UnmarshalKey(cfg.Key(), &cfg)
+	err := context.GetConfig().UnmarshalKey(ConfigKey, &cfg)
 	if err != nil {
 		return err
 	}

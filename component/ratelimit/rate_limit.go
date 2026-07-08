@@ -13,11 +13,14 @@ import (
 
 // Config holds rate limiter configuration.
 type Config struct {
-	Limit   int // Requests per second
+	Limit   int // Token refill interval in seconds (one token is added every Limit seconds)
 	Burst   int // Maximum burst size
 	MaxSize int // Maximum number of cached limiters
 	Expiry  int // Limiter cache TTL in seconds
 }
+
+// ConfigKey is the configuration key under which rate limiter settings are stored.
+const ConfigKey = "rate_limit"
 
 // RateLimit provides per-key rate limiting using a token bucket algorithm.
 type RateLimit struct {
@@ -35,6 +38,7 @@ func (r *RateLimit) Allow(key string) bool {
 	}
 	return limiter.Allow()
 }
+
 // AllowSBurst checks if a request is permitted with a custom burst size.
 func (r *RateLimit) AllowSBurst(key string, burst int) bool {
 	limiter, err := r.cache.Get(r.ctx, key, r._limiterLoader(burst))
@@ -54,7 +58,7 @@ func (r *RateLimit) Wait(key string) error {
 }
 func (r *RateLimit) _limiterLoader(burst int) otter.Loader[string, *rate.Limiter] {
 	return otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
-		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
+		// Refill 1 token every `Limit` seconds, burst = burst
 		return rate.NewLimiter(rate.Every(time.Duration(r.config.Limit)*time.Second), burst), nil
 	})
 }
@@ -67,13 +71,13 @@ func (r *RateLimit) Init(ctx *core.Context) error {
 	}
 
 	r.ctx = ctx
-	err := ctx.GetConfig().UnmarshalKey("rate_limit", lConfig)
+	err := ctx.GetConfig().UnmarshalKey(ConfigKey, lConfig)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
 	r.config = lConfig
 	r.limiterLoader = otter.LoaderFunc[string, *rate.Limiter](func(ctx context.Context, key string) (*rate.Limiter, error) {
-		// 每 15 分钟允许 3 次请求 → 每 5 分钟填充 1 个令牌，burst = 3
+		// Refill 1 token every `Limit` seconds, burst = Burst
 		return rate.NewLimiter(rate.Every(time.Duration(lConfig.Limit)*time.Second), lConfig.Burst), nil
 	})
 	counter := stats.NewCounter()

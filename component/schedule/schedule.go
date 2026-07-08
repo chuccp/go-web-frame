@@ -34,6 +34,7 @@ func NewSchedule(opts ...cron.Option) *Schedule {
 		lock:      new(sync.RWMutex),
 	}
 }
+
 // NewScheduleWithSeconds creates a new Schedule that supports second-level cron granularity.
 func NewScheduleWithSeconds() *Schedule {
 	return &Schedule{
@@ -43,12 +44,14 @@ func NewScheduleWithSeconds() *Schedule {
 		lock:      new(sync.RWMutex),
 	}
 }
+
 // AddFunc adds a cron job that runs in the context's goroutine pool.
 func (c *Schedule) AddFunc(spec string, cmd func(context2 *core.Context)) (cron.EntryID, error) {
 	return c.cron.AddFunc(spec, func() {
 		c.ctx.Go(cmd)
 	})
 }
+
 // StopKeyFunc stops a cron job identified by its key.
 func (c *Schedule) StopKeyFunc(key string) {
 	c.lock.Lock()
@@ -58,6 +61,7 @@ func (c *Schedule) StopKeyFunc(key string) {
 		c.cron.Remove(info.entryID)
 	}
 }
+
 // ReplaceKeyFunc replaces a cron job identified by key with a new spec and command.
 func (c *Schedule) ReplaceKeyFunc(key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, error) {
 	c.lock.Lock()
@@ -80,6 +84,7 @@ func (c *Schedule) ReplaceKeyFunc(key string, spec string, cmd func(context2 *co
 	c.infoMap[key] = info
 	return v, err
 }
+
 // AddKeyFunc adds a cron job if no job with the given key exists.
 func (c *Schedule) AddKeyFunc(key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, bool, error) {
 	c.lock.Lock()
@@ -102,6 +107,7 @@ func (c *Schedule) AddKeyFunc(key string, spec string, cmd func(context2 *core.C
 	c.infoMap[key] = info
 	return v, ok, err
 }
+
 // StopIdFunc stops a cron job identified by its numeric ID.
 func (c *Schedule) StopIdFunc(id uint) {
 	c.lock.Lock()
@@ -111,6 +117,7 @@ func (c *Schedule) StopIdFunc(id uint) {
 		c.cron.Remove(info.entryID)
 	}
 }
+
 // GetIds returns all registered numeric IDs.
 func (c *Schedule) GetIds() []uint {
 	ids := make([]uint, 0)
@@ -119,6 +126,7 @@ func (c *Schedule) GetIds() []uint {
 	}
 	return ids
 }
+
 // AddIdOrReplaceKeyFunc adds or replaces a cron job identified by a numeric ID.
 func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd func(context2 *core.Context)) (cron.EntryID, bool, error) {
 	c.lock.Lock()
@@ -128,6 +136,9 @@ func (c *Schedule) AddIdOrReplaceKeyFunc(id uint, key string, spec string, cmd f
 		if info.Key == key {
 			return info.entryID, ok, nil
 		}
+		// Remove the old job before adding the new one to avoid leaks
+		c.cron.Remove(info.entryID)
+		delete(c.idInfoMap, id)
 	}
 	v, err := c.cron.AddFunc(spec, func() {
 		c.ctx.Go(cmd)

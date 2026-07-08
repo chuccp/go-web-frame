@@ -164,7 +164,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 	var logConfig = &log.Config{
 		Level: "debug",
 	}
-	err := w.config.UnmarshalKey(logConfig.Key(), &logConfig)
+	err := w.config.UnmarshalKey(log.ConfigKey, &logConfig)
 	if err != nil {
 		return err
 	}

@@ -5,13 +5,16 @@ import (
 	redis2 "github.com/redis/go-redis/v9"
 )
 
+// ConfigKey is the configuration key under which Redis settings are stored.
+const ConfigKey = "web.redis"
+
 type Component struct {
 	client *redis2.Client
 }
 
 func (l *Component) Init(ctx *core.Context) error {
 	var options = &redis2.Options{}
-	err := ctx.GetConfig().UnmarshalKey("web.redis", options)
+	err := ctx.GetConfig().UnmarshalKey(ConfigKey, options)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,9 @@ type Config struct {
 	Expiry  int // Cache TTL in seconds
 }
 
+// ConfigKey is the configuration key under which cache settings are stored.
+const ConfigKey = "cache"
+
 // Cache provides a high-performance in-memory cache backed by Otter.
 type Cache struct {
 	cache *otter.Cache[string, any]
@@ -52,6 +55,7 @@ func (c *Cache) GetOrSet(key string, f func() any) any {
 	})
 	return v
 }
+
 // ComputeIfAbsent atomically computes a value if the key is not present.
 // f should return (value, cancel); if cancel is true the operation is aborted.
 func (c *Cache) ComputeIfAbsent(key string, f func() (any, bool)) (any, bool) {
@@ -72,6 +76,10 @@ func (c *Cache) Init(context *core.Context) error {
 	lConfig := &Config{
 		MaxSize: 1000_000,
 		Expiry:  3600,
+	}
+	err := context.GetConfig().UnmarshalKey(ConfigKey, lConfig)
+	if err != nil {
+		return errors.WithStackIf(err)
 	}
 	counter := stats.NewCounter()
 	cache, err := otter.New(&otter.Options[string, any]{

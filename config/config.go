@@ -36,10 +36,12 @@ type Config struct {
 func (c *Config) GetString(key string) string {
 	return c.v.GetString(key)
 }
+
 // Put sets a configuration value.
 func (c *Config) Put(key string, value any) {
 	c.v.Set(key, value)
 }
+
 // GetStringOrDefault returns the string value for the given key, or defaultValue if blank.
 func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	v := c.v.GetString(key)
@@ -48,10 +50,12 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 	}
 	return v
 }
+
 // HasKey reports whether the given key exists in the configuration.
 func (c *Config) HasKey(key string) bool {
 	return c.v.IsSet(key)
 }
+
 // UnmarshalKey unmarshals configuration under the given key into the target struct.
 func (c *Config) UnmarshalKey(key string, v any) error {
 	return errors.WithStackIf(c.v.UnmarshalKey(key, v))
@@ -74,6 +78,7 @@ func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
 	}
 	return c.v.GetInt(key)
 }
+
 // GetBoolOrDefault returns the bool value for the given key, or defaultValue if not set.
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	if util.IsBlank(key) || !c.v.IsSet(key) {
@@ -81,6 +86,7 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 	}
 	return c.v.GetBool(key)
 }
+
 // ReplaceKey copies the value from key to newKey if key is set.
 func (c *Config) ReplaceKey(key string, newKey string) {
 	if c.v.IsSet(key) {
@@ -104,6 +110,7 @@ type SingleFileConfig struct {
 func (c *SingleFileConfig) WriteConfig() error {
 	return c.v.WriteConfig()
 }
+
 // LoadSingleFileConfig loads a single configuration file (YAML, JSON, TOML, INI).
 // Creates the file if it does not exist.
 func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
@@ -114,7 +121,7 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, errors.WithStackIf(er)
+		return nil, errors.WithStackIf(err)
 	}
 	log.Info("Load the configuration file", zap.String("path", absPath))
 	err = util.CreateFileIfNoExists(absPath)
@@ -134,6 +141,7 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 func NewConfig() *Config {
 	return &Config{v: viper.New()}
 }
+
 // LoadConfig loads and merges multiple configuration files.
 func LoadConfig(paths ...string) (*Config, error) {
 	registry := viper.NewCodecRegistry()
@@ -156,6 +164,7 @@ func LoadConfig(paths ...string) (*Config, error) {
 	}
 	return &Config{v: _viper_}, nil
 }
+
 // LoadAutoConfig creates a new empty Config, typically used when configuration
 // is provided programmatically rather than from files.
 func LoadAutoConfig() *Config {

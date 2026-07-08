@@ -144,6 +144,18 @@ func (c *Context) AddService(services ...IService) {
 	}
 }
 
+// IsServiceRegistered reports whether the given value is registered in the service map
+// (i.e. added via AddService). Used to avoid double-initializing services that also
+// implement IRunner, since they are initialized in the services loop and would otherwise
+// be initialized again in the runners loop.
+func (c *Context) IsServiceRegistered(s IService) bool {
+	c.rLock.RLock()
+	defer c.rLock.RUnlock()
+	name := util.GetStructFullQualifiedName(s)
+	_, ok := c.serviceMap[name]
+	return ok
+}
+
 // GetRunner finds the first runner matching the predicate function.
 func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
 	c.rLock.RLock()
@@ -281,7 +293,6 @@ func (c *Context) GetRunners() []IRunner {
 	}
 	return runners
 }
-
 
 // GetService retrieves a service of the specified type from the context.
 // Panics if the service is not registered.

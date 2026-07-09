@@ -205,7 +205,11 @@ Built-in constructors:
 
 ## Response Converter
 
-`web/converter.go` converts handler return values into HTTP responses. The framework uses `web.DefaultConverter` by default, and you can replace it via `RestGroupBuilder.Converter()`.
+`web/converter.go` converts handler return values into HTTP responses. The framework uses `web.DefaultConverter` by default. It already handles `*web.Message`, `*web.ErrorCode`, files, redirects, WebSocket, SSE, and more.
+
+When writing a custom converter, embed `*web.DefaultConverter` and reuse its methods so you don't miss message, file, or error handling. See the full guide at [Response Converter](../guide/converter.md).
+
+> `web.Converter` only has `Request`, but `RestGroupBuilder.Converter()` expects `core.IConverter`, so you still need to implement `Init(ctx *core.Context) error` when registering it.
 
 ### Default conversion rules
 
@@ -213,55 +217,33 @@ Built-in constructors:
 |---|---|
 | `*web.Message` | JSON response with `Message.Code` as HTTP status; redirects when `Code == 301` |
 | `*web.ErrorCode` | JSON error response via `ClassifyError` |
-| `*web.FileResponse` | File download |
-| `*web.FileSystemResponse` | Serve file from `http.FileSystem` |
+| `*web.FileResponse` / `*os.File` | File download |
 | `*web.SSEResponse` | Open SSE stream |
 | `*web.WSResponse` | Upgrade to WebSocket |
-| `*web.ReverseProxyResponse` | Reverse proxy |
-| `*os.File` | Download as attachment |
 | `string` | Plain text |
-| `error` | Error handling flow |
 | Any other value | Wrap as `web.Data(value)` and return JSON |
 
-### Error mapping
-
-`web.ClassifyError(value, err)` handles errors in this priority:
-
-1. `*web.ErrorCode` — uses its `Code` and `Error()` text.
-2. `*web.Message` with `Code != 200` — uses `Message.Code`.
-3. `os.ErrNotExist` → 404; `os.ErrPermission` → 403.
-4. Any other error → 500.
-
-### Custom converter
-
-Implement `core.IConverter` (which is `IService` + `web.Converter`) to take over response formatting:
+### Simple example
 
 ```go
-type XMLConverter struct {
+type APIConverter struct {
     core.IConverter
+    *web.DefaultConverter
 }
 
-func (c *XMLConverter) Init(ctx *core.Context) error { return nil }
+func (c *APIConverter) Init(ctx *core.Context) error { return nil }
 
-func (c *XMLConverter) Request(fc web.FilterChain, req *web.Request) {
-    result, err := fc.Next()
-    if err != nil {
-        req.Response().AbortWithStatusJSON(500, web.NewInternalError().WithError(err))
-        return
-    }
-
-    xmlBytes, _ := xml.Marshal(result)
-    req.Response().Header().Set("Content-Type", "application/xml")
-    req.Response().Write(xmlBytes)
+func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
+    // Run the default conversion logic first
+    c.DefaultConverter.Request(fc, req)
+    // Add your own logic, e.g. logging or metrics
 }
 ```
-
-Register it on the RestGroup:
 
 ```go
 restGroup := wf.NewRestGroupBuilder().
     Rest(&UserController{}).
-    Converter(&XMLConverter{}).
+    Converter(&APIConverter{DefaultConverter: &web.DefaultConverter{}}).
     Port(8081).
     Build()
 builder.RestGroup(restGroup)

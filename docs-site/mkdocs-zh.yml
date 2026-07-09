@@ -58,6 +58,7 @@ nav:
       - 模型: guide/model.md
       - 服务: guide/service.md
       - 过滤器/中间件: guide/filter.md
+      - 响应转换器: guide/converter.md
       - 配置: guide/configuration.md
       - 日志: guide/logging.md
       - 后台任务: guide/runner.md

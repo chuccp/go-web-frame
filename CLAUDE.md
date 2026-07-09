@@ -677,6 +677,47 @@ MySQL configuration:
 }
 ```
 
+### Custom Database Driver
+
+Register a custom database driver for databases not built-in (e.g., SQL Server, ClickHouse). The framework uses GORM as the underlying ORM, so custom databases must have a [GORM driver](https://gorm.io/docs/connecting_to_the_database.html).
+
+```go
+// 1. Implement db.IConfig interface
+type ClickHouseConfig struct {
+    Host     string
+    Port     int
+    Database string
+    User     string
+    Password string
+}
+
+func (c *ClickHouseConfig) Connection() (*db.DB, error) {
+    dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", c.User, c.Password, c.Host, c.Port, c.Database)
+    gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+    if err != nil {
+        return nil, err
+    }
+    return &db.DB{DB: gormDB}, nil
+}
+
+// 2. Register before app starts
+func main() {
+    db.RegisterDB("clickhouse", &ClickHouseConfig{})
+    app := wf.NewWithAutoConfig()
+    app.Start()
+}
+```
+
+Then configure in YAML:
+```yaml
+web:
+  db:
+    type: clickhouse
+    host: localhost
+    port: 9000
+    database: mydb
+```
+
 ### 11. Component
 
 Components are services registered with `Service()` and retrieved with `GetService[T]`:

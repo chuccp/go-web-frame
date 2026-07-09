@@ -197,6 +197,58 @@ users, err := userModel.Query().
     Exec("SELECT * FROM t_user WHERE status = ?", 1)
 ```
 
+## 自定义数据库驱动
+
+框架内置了 MySQL、PostgreSQL 和 SQLite 三种数据库驱动。如果需要使用其他数据库（如 SQL Server、ClickHouse 等），可以通过 `db.RegisterDB` 注册自定义驱动。
+
+> **注意**：框架底层使用 GORM 作为 ORM 引擎，因此自定义数据库必须有对应的 GORM 驱动支持。可以在 [GORM 官方文档](https://gorm.io/docs/connecting_to_the_database.html) 查看支持的数据库列表。
+
+### 注册自定义驱动
+
+```go
+// 1. 定义配置结构体，实现 db.IConfig 接口
+type ClickHouseConfig struct {
+    Host     string
+    Port     int
+    Database string
+    User     string
+    Password string
+}
+
+func (c *ClickHouseConfig) Connection() (*db.DB, error) {
+    // 实现连接逻辑（需要引入对应的 GORM 驱动）
+    dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", c.User, c.Password, c.Host, c.Port, c.Database)
+    gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+    if err != nil {
+        return nil, err
+    }
+    return &db.DB{DB: gormDB}, nil
+}
+
+// 2. 在应用启动前注册
+func main() {
+    db.RegisterDB("clickhouse", &ClickHouseConfig{})
+
+    app := wf.NewWithAutoConfig()
+    app.Start()
+}
+```
+
+### 配置文件
+
+注册后，在配置文件中指定 `type` 为注册的类型名即可：
+
+```yaml
+web:
+  db:
+    type: clickhouse
+    host: localhost
+    port: 9000
+    database: mydb
+    user: default
+    password: ""
+```
+
 ## 数据库配置
 
 ### SQLite

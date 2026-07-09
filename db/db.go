@@ -274,6 +274,7 @@ func (t *Table) Where(query any, args ...any) *Table {
 //		tx := t.db.Set(column, value)
 //		return &Table{db: tx}
 //	}
+//
 // Offset sets the number of records to skip.
 func (t *Table) Offset(i int) *Table {
 	tx := t.db.Offset(i)
@@ -410,46 +411,61 @@ var NoConfigDBError = &noConfigDBError{}
 type IConfig interface {
 	Connection() (*DB, error)
 }
+
 // Config holds the basic database configuration.
 type Config struct {
 	Type string
 }
 
-const ConfigKey = "web.db"
+type dbStore struct {
+	dbMap map[string]IConfig
+}
 
-// CreateDB creates a database connection based on the configuration.
-// It supports MySQL, PostgreSQL, and SQLite database types.
-func CreateDB(c config.IConfig) (*DB, error) {
+func newDbStore() *dbStore {
+	return &dbStore{dbMap: make(map[string]IConfig)}
+}
+
+// connection 根据配置的类型从存储中选择合适的数据库驱动并建立连接。
+func (s *dbStore) connection(c config.IConfig) (*DB, error) {
 	var config2 Config
 	err := c.UnmarshalKey(ConfigKey, &config2)
 	if err != nil {
 		return nil, err
 	}
 	if util.IsNotBlank(config2.Type) {
-		if util.EqualsAnyIgnoreCase(config2.Type, MYSQL) {
-			var mysqlConfig MysqlConfig
-			err := c.UnmarshalKey(ConfigKey, &mysqlConfig)
-			if err != nil {
-				return nil, err
+		for typeName, dbConfig := range s.dbMap {
+			if util.EqualsAnyIgnoreCase(config2.Type, typeName) {
+				err := c.UnmarshalKey(ConfigKey, dbConfig)
+				if err != nil {
+					return nil, err
+				}
+				return dbConfig.Connection()
 			}
-			return mysqlConfig.Connection()
-		}
-		if util.EqualsAnyIgnoreCase(config2.Type, POSTGRES) || util.EqualsAnyIgnoreCase(config2.Type, POSTGRESQL) {
-			var pgConfig PostgresConfig
-			err := c.UnmarshalKey(ConfigKey, &pgConfig)
-			if err != nil {
-				return nil, err
-			}
-			return pgConfig.Connection()
-		}
-		if util.EqualsAnyIgnoreCase(config2.Type, SQLITE) {
-			var sqliteConfig SQLiteConfig
-			err := c.UnmarshalKey(ConfigKey, &sqliteConfig)
-			if err != nil {
-				return nil, err
-			}
-			return sqliteConfig.Connection()
 		}
 	}
+
 	return nil, errors.WithStackIf(NoConfigDBError)
+}
+func (s *dbStore) addIConfig(typeName string, config IConfig) {
+	s.dbMap[typeName] = config
+}
+
+var store = newDbStore()
+
+func init() {
+	store.addIConfig(MYSQL, &MysqlConfig{})
+	store.addIConfig(POSTGRES, &PostgresConfig{})
+	store.addIConfig(SQLITE, &SQLiteConfig{})
+}
+
+const ConfigKey = "web.db"
+
+// RegisterDB 注册自定义数据库驱动，typeName 为配置中的类型名称，dbConfig 为对应的配置实现。
+func RegisterDB(typeName string, dbConfig IConfig) {
+	store.addIConfig(typeName, dbConfig)
+}
+
+// CreateDB 根据配置创建数据库连接。
+func CreateDB(c config.IConfig) (*DB, error) {
+	return store.connection(c)
 }

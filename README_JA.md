@@ -639,6 +639,48 @@ db:
 
 JSON、YAML、TOML 形式に対応。
 
+### カスタムデータベースドライバー
+
+フレームワークに内蔵されていないデータベース（SQL Server、ClickHouse など）を使用する場合、カスタムドライバーを登録できます。フレームワークは基盤 ORM として GORM を使用しているため、カスタムデータベースには対応する [GORM ドライバー](https://gorm.io/docs/connecting_to_the_database.html) が必要です。
+
+```go
+// 1. db.IConfig インターフェースを実装
+type ClickHouseConfig struct {
+    Host     string
+    Port     int
+    Database string
+    User     string
+    Password string
+}
+
+func (c *ClickHouseConfig) Connection() (*db.DB, error) {
+    dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", c.User, c.Password, c.Host, c.Port, c.Database)
+    gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+    if err != nil {
+        return nil, err
+    }
+    return &db.DB{DB: gormDB}, nil
+}
+
+// 2. アプリケーション起動前に登録
+func main() {
+    db.RegisterDB("clickhouse", &ClickHouseConfig{})
+    app := wf.NewWithAutoConfig()
+    app.Start()
+}
+```
+
+設定ファイルで `type` に登録したタイプ名を指定：
+
+```yaml
+web:
+  db:
+    type: clickhouse
+    host: localhost
+    port: 9000
+    database: mydb
+```
+
 ---
 
 ## 技術スタック

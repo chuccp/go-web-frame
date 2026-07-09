@@ -38,6 +38,57 @@ builder.ModelGroup("users").WithDB(db1).Register(&UserModel{})
 builder.ModelGroup("orders").WithDB(db2).Register(&OrderModel{})
 ```
 
+## Custom Database Driver
+
+The framework includes MySQL, PostgreSQL, and SQLite drivers. To use other databases (e.g., SQL Server, ClickHouse), register a custom driver with `db.RegisterDB`.
+
+> **Note**: The framework uses GORM as the underlying ORM engine, so custom databases must have a corresponding GORM driver. See [GORM official documentation](https://gorm.io/docs/connecting_to_the_database.html) for supported databases.
+
+### Register Custom Driver
+
+```go
+// 1. Define config struct implementing db.IConfig interface
+type ClickHouseConfig struct {
+    Host     string
+    Port     int
+    Database string
+    User     string
+    Password string
+}
+
+func (c *ClickHouseConfig) Connection() (*db.DB, error) {
+    dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", c.User, c.Password, c.Host, c.Port, c.Database)
+    gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+    if err != nil {
+        return nil, err
+    }
+    return &db.DB{DB: gormDB}, nil
+}
+
+// 2. Register before app starts
+func main() {
+    db.RegisterDB("clickhouse", &ClickHouseConfig{})
+
+    app := wf.NewWithAutoConfig()
+    app.Start()
+}
+```
+
+### Configuration
+
+After registration, set `type` to the registered name:
+
+```yaml
+web:
+  db:
+    type: clickhouse
+    host: localhost
+    port: 9000
+    database: mydb
+    user: default
+    password: ""
+```
+
 ## Connection Pool
 
 ```yaml

@@ -639,6 +639,48 @@ db:
 
 支援 JSON、YAML、TOML 格式。
 
+### 自訂資料庫驅動
+
+註冊自訂資料庫驅動，用於框架未內建的資料庫（如 SQL Server、ClickHouse 等）。框架底層使用 GORM 作為 ORM 引擎，因此自訂資料庫必須有對應的 [GORM 驅動](https://gorm.io/docs/connecting_to_the_database.html)。
+
+```go
+// 1. 實作 db.IConfig 介面
+type ClickHouseConfig struct {
+    Host     string
+    Port     int
+    Database string
+    User     string
+    Password string
+}
+
+func (c *ClickHouseConfig) Connection() (*db.DB, error) {
+    dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", c.User, c.Password, c.Host, c.Port, c.Database)
+    gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+    if err != nil {
+        return nil, err
+    }
+    return &db.DB{DB: gormDB}, nil
+}
+
+// 2. 在應用啟動前註冊
+func main() {
+    db.RegisterDB("clickhouse", &ClickHouseConfig{})
+    app := wf.NewWithAutoConfig()
+    app.Start()
+}
+```
+
+然後在設定檔中指定 `type` 為註冊的類型名稱：
+
+```yaml
+web:
+  db:
+    type: clickhouse
+    host: localhost
+    port: 9000
+    database: mydb
+```
+
 ---
 
 ## 技術棧

@@ -40,3 +40,5 @@ go.work.sum
 *.png
 text
 text.md
+/docs-site/site-zh
+/docs-site/site-en

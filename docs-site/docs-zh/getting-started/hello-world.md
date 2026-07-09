@@ -10,34 +10,22 @@
 package main
 
 import (
+    "context"
     wf "github.com/chuccp/go-web-frame"
-    "github.com/chuccp/go-web-frame/web"
     "github.com/chuccp/go-web-frame/config"
-    "go.uber.org/zap"
+    "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // 加载配置
-    cfg, err := config.LoadSingleFileConfig("application.yml")
-    if err != nil {
-        zap.L().Fatal("加载配置失败", zap.Error(err))
-    }
-
-    // 创建应用
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
     builder := wf.NewBuilder(cfg)
-    
-    // 注册路由
+
     builder.Get("/", func(req *web.Request) (any, error) {
         return "Hello, World!", nil
     })
-    
+
     app := builder.Build()
-    
-    // 启动应用
-    err = app.Start()
-    if err != nil {
-        zap.L().Fatal("启动失败", zap.Error(err))
-    }
+    app.Run(context.Background())
 }
 ```
 
@@ -47,7 +35,7 @@ func main() {
 go run main.go
 ```
 
-访问 `http://localhost:8081`，你会看到：
+访问 `http://localhost:19009`，你会看到：
 
 ```json
 "Hello, World!"
@@ -99,9 +87,7 @@ builder.Get("/users/:id", func(req *web.Request) (any, error) {
 ```go
 builder.Get("/search", func(req *web.Request) (any, error) {
     keyword := req.Query("q")
-    return map[string]any{
-        "keyword": keyword,
-    }, nil
+    return map[string]any{"keyword": keyword}, nil
 })
 ```
 
@@ -134,7 +120,7 @@ builder.Post("/users", func(req *web.Request) (any, error) {
 发送 POST 请求：
 
 ```bash
-curl -X POST http://localhost:8081/users \
+curl -X POST http://localhost:19009/users \
   -H "Content-Type: application/json" \
   -d '{"name":"Alice","email":"alice@example.com"}'
 ```
@@ -145,10 +131,10 @@ curl -X POST http://localhost:8081/users \
 package main
 
 import (
+    "context"
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/web"
-    "go.uber.org/zap"
 )
 
 var users = []map[string]any{
@@ -157,19 +143,13 @@ var users = []map[string]any{
 }
 
 func main() {
-    cfg, err := config.LoadSingleFileConfig("application.yml")
-    if err != nil {
-        zap.L().Fatal("加载配置失败", zap.Error(err))
-    }
-
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
     builder := wf.NewBuilder(cfg)
 
-    // 获取所有用户
     builder.Get("/users", func(req *web.Request) (any, error) {
         return users, nil
     })
 
-    // 获取单个用户
     builder.Get("/users/:id", func(req *web.Request) (any, error) {
         id := req.ParamInt("id")
         if id <= 0 || id > len(users) {
@@ -178,7 +158,6 @@ func main() {
         return users[id-1], nil
     })
 
-    // 创建用户
     builder.Post("/users", func(req *web.Request) (any, error) {
         var user map[string]any
         if err := req.BindJSON(&user); err != nil {
@@ -189,8 +168,7 @@ func main() {
         return user, nil
     })
 
-    app := builder.Build()
-    app.Start()
+    builder.Build().Run(context.Background())
 }
 ```
 

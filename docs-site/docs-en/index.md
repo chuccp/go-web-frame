@@ -1,34 +1,209 @@
 # Go Web Frame User Guide
 
-Welcome to Go Web Frame — a modern, feature-rich Go web framework.
+> Build a CRUD backend in Go with zero ORM boilerplate. Define a struct, embed a generic `Model`, and typed queries, pagination, and context propagation come with it.
 
 ## What is Go Web Frame?
 
-Go Web Frame combines the best open-source components from the Go ecosystem: Gin (HTTP), GORM (ORM), Viper (config), Zap (logging), Sonic (JSON), Otter (cache), and more. It provides declarative route metadata, type-safe generic ORM, and dependency injection out of the box.
+Go Web Frame is an integrated backend toolkit. Routing, ORM, caching, logging, and configuration are pre-integrated — no need to pick and wire them separately.
 
-**Key Features:**
-- **WithMeta**: Declare metadata per route (auth, permissions, rate limit flags) and handle uniformly in filters
-- **Builder Pattern**: Explicit registration, controllable initialization order, no implicit scanning
-- **Generic ORM**: Zero-boilerplate CRUD with `Model[T]`, no code generation
-- **Transparent Context**: All dependencies injectable via `GetService[T]`, debug-friendly
+The core is **a generic Model layer that eliminates CRUD boilerplate**. Define an entity struct, embed `Model[T]` or `EntryModel[T, PK]`, and the compiler checks types from the database all the way to the handler. No `interface{}`, no code generation.
+
+```go
+type User struct {
+    Id   uint   `gorm:"primaryKey;autoIncrement"`
+    Name string
+}
+
+type UserModel struct {
+    *model.EntryModel[*User, uint]
+}
+
+func (m *UserModel) Init(db *db.DB, c *core.Context) error {
+    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
+    return m.CreateTable()
+}
+
+// That's your model layer. Now use it anywhere:
+user, _  := userModel.FindByPK(1)
+users, _ := userModel.FindAll()
+users, total, _ := userModel.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
+```
+
+## 30-Second Hello World
+
+```bash
+go get github.com/chuccp/go-web-frame
+```
+
+```go
+package main
+
+import (
+    "context"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+func main() {
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+    builder := wf.NewBuilder(cfg)
+    builder.Get("/", func(c *web.Request) (any, error) {
+        return "Hello, World!", nil
+    })
+    builder.Build().Run(context.Background())
+}
+```
+
+```bash
+go run main.go
+# → http://localhost:19009
+```
+
+## Framework Highlights
+
+### 1. Zero-Boilerplate CRUD with Generic Models (`Model[T]`)
+
+**Pain point**: Traditional frameworks force you to run CLI commands over and over to generate `model.go` or `dao.go` files, cluttering the project.
+
+**Design**: Go Web Frame uses Go generics to bind structs to the database at runtime. You define a plain struct, and create, read, update, delete, and advanced pagination (`Page` / `PageForWeb`) are immediately available — no code generation.
+
+```go
+type UserModel struct {
+    *model.EntryModel[*User, uint]
+}
+
+// Queries
+user, err := userModel.Query().Where("email = ?", email).One()
+users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
+
+// Writes
+err := userModel.Save(&User{Name: "alice"})
+err := userModel.UpdateByPK(&user)
+err := userModel.DeleteByPK(1)
+
+// Request context propagates to the database automatically
+m := userModel.WithContext(req.Ctx())
+users, err := m.FindAll()
+```
+
+| Type | Capabilities | Use when |
+|---|---|---|
+| `Model[T]` | `Save`, `Query()`, `Update()`, `Delete()`, `CreateTable()`, `WithContext()` | Full control over query building |
+| `EntryModel[T, PK]` | Everything in `Model[T]` + `FindByPK`, `FindAll`, `DeleteByPK`, `UpdateByPK`, `Page` | Entity has a primary key (most common) |
+
+### 2. Declarative Route Metadata (`WithMeta`)
+
+**Pain point**: In Gin, configuring auth, rate limiting, or public routes usually means attaching many middlewares in many places — scattered and hard to manage.
+
+**Design**: Routes are tagged declaratively with `.WithMeta()`. A single top-level filter checks the metadata, keeping business handlers clean.
+
+```go
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+
+func (c *ApiController) Init(ctx *core.Context) error {
+    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
+    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
+    ctx.Post("/api/admin/users", c.CreateUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+```go
+// One filter handles all auth logic
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()
+    }
+    token := req.GetHeader("Authorization")
+    if token == "" {
+        return nil, errors.New("unauthorized")
+    }
+    // verify token, check permission...
+    return fc.Next()
+}
+```
+
+### 3. Explicit Dependency Injection with the Builder Pattern
+
+**Pain point**: Implicit global scanning, like in Java Spring, can lead to hidden initialization order and hard-to-debug "magic" in Go.
+
+**Design**: Components are registered explicitly through a fluent Builder. Dependencies are retrieved transparently via `GetService[T]` and `GetModel[T]`, and initialization order is fully visible and controllable.
+
+```go
+builder := wf.NewBuilder(cfg)
+
+// Infrastructure runs first
+builder.Filter(&cors.Filter{})
+builder.Filter(&AuthFilter{})
+
+// Data layer
+builder.Model(&UserModel{})
+builder.Model(&OrderModel{})
+
+// Business layer
+builder.Service(&UserService{})
+
+// HTTP layer
+builder.Rest(&UserController{})
+
+// Background work
+builder.Runner(&CleanupTask{})
+
+app := builder.Build()
+app.Run(ctx)
+```
+
+```go
+// In any Init() or handler, get dependencies by type
+userModel   := wf.GetModel[*UserModel](ctx)
+userService := wf.GetService[*UserService](ctx)
+```
+
+### 4. Seamless Gin Ecosystem Reuse (`GinContext` Compatible)
+
+**Pain point**: Many custom frameworks cannot use Gin community plugins, so common features have to be reimplemented.
+
+**Design**: Go Web Frame wraps HTTP requests and responses, but exposes the underlying `*gin.Context` through `req.GinContext()`. Hundreds of `gin-contrib` middlewares — CORS, Gzip, Secure, and more — work out of the box.
+
+```go
+import "github.com/gin-contrib/gzip"
+
+type GzipFilter struct{ core.IFilter }
+
+func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    gzip.Gzip(gzip.DefaultCompression)(req.GinContext())
+    return fc.Next()
+}
+```
+
+Common concerns are also built in:
+
+```go
+builder.Filter(&cors.Filter{})              // cross-origin
+builder.Service(&ratelimit.RateLimit{})     // rate limiting
+builder.Service(&cache.Cache{})             // in-memory cache
+builder.Service(&captcha.Captcha{})         // slide-puzzle captcha
+```
 
 ## Tech Stack
 
-### Core Framework
-| Component | Description |
-|------|------|
-| [Gin](https://github.com/gin-gonic/gin) | High-performance HTTP web framework |
-| [GORM](https://gorm.io/) | Powerful ORM library with multi-database support |
-| [Viper](https://github.com/spf13/viper) | Complete configuration solution |
-| [Zap](https://go.uber.org/zap) | Uber's high-performance structured logging library |
-
-### Data Storage
-| Component | Description |
-|------|------|
-| [gorm/driver/mysql](https://gorm.io/driver/mysql/) | GORM MySQL driver |
-| [gorm/driver/postgres](https://gorm.io/driver/postgres/) | GORM PostgreSQL driver |
-| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | Pure Go SQLite implementation, no CGO dependency |
-| [go-redis](https://github.com/redis/go-redis) | Redis client recommended by Redis |
+| Layer | Library | Role |
+|---|---|---|
+| HTTP | Gin | Router, middleware chain, parameter binding |
+| ORM | GORM | Underlying SQL driver, migrations, joins/preload |
+| Config | Viper | Multi-format, multi-path loading |
+| Logging | Zap | Structured, leveled, rotated logging |
+| JSON | Sonic | High-performance marshal/unmarshal |
+| Cache | Otter | Local in-memory cache |
+| Redis | go-redis | Pub/sub, caching |
+| SQLite | modernc/sqlite | Pure Go, zero CGO |
+| Validation | go-playground/validator | Struct tag validation |
+| WebSocket | coder/websocket | Upgrade, read/write |
+| Cron | robfig/cron | Expression-based scheduling |
 
 ## Quick Links
 
@@ -40,39 +215,23 @@ Go Web Frame combines the best open-source components from the Go ecosystem: Gin
 
 ### User Guide
 
-- [Routing](guide/routing.md) - HTTP routing system (path params, query params, REST controllers, static files, reverse proxy, WebSocket, SSE)
-- [Controller](guide/controller.md) - REST controllers and request handling
-- [Service](guide/service.md) - Business logic layer and dependency injection
-- [Model](guide/model.md) - Type-safe ORM (Model, EntryModel, query builder, transactions)
-- [Filter/Middleware](guide/filter.md) - HTTP request filtering (auth, logging, CORS, rate limiting, route metadata)
-- [Configuration](guide/configuration.md) - Configuration management (YAML/JSON/TOML, environment variables, multi-environment)
-- [Logging](guide/logging.md) - Structured logging (Zap, file rotation, log levels)
-- [Runner](guide/runner.md) - Runner and scheduled task management
-- [Components](guide/components.md) - Built-in framework components (rate limiting, auth, cron, cache, captcha, etc.)
+- [Routing](guide/routing.md) - HTTP routing system
+- [Controller](guide/controller.md) - REST controllers
+- [Service](guide/service.md) - Business logic and dependency injection
+- [Model](guide/model.md) - Type-safe ORM
+- [Filter/Middleware](guide/filter.md) - Auth, logging, CORS, rate limiting, route metadata
+- [Configuration](guide/configuration.md) - Configuration management
+- [Logging](guide/logging.md) - Structured logging
+- [Runner](guide/runner.md) - Runners and scheduled tasks
+- [Components](guide/components.md) - Rate limiting, cache, captcha, etc.
 
-### Advanced Topics
+### Advanced and Reference
 
 - [Database](advanced/database.md) - Transactions, model groups, migrations, raw SQL
-- [Deployment](advanced/deployment.md) - HTTPS, SSL certificates, graceful shutdown, production configuration
-
-### API Reference
-
-- [Core API](api/core.md) - WebFrame, Builder, Context, Request, Response
-- [Web API](api/web.md) - HandlerFunc, route registration, response types, web.Message
-- [Model API](api/model.md) - Model, EntryModel, Query, Transaction
-- [Util API](api/util.md) - String, crypto, file, network, time utilities
-
-### Best Practices
-
-- [Best Practices](best-practices.md) - Recommended project structure, layer separation, error handling, auth, testing
-
-## Main Features
-
-- **Dependency Injection** - Type-safe DI container based on Context
-- **Type-safe ORM** - Zero-boilerplate generic Model
-- **Flexible Configuration** - Multi-location, multi-format config files (YAML/JSON/TOML)
-- **Component System** - Reusable standalone components (rate limiting, auth, cron, etc.)
-- **HTTPS Auto Certificate** - Integrated Let's Encrypt
+- [Deployment](advanced/deployment.md) - HTTPS, SSL, graceful shutdown
+- [Core API](api/core.md) / [Web API](api/web.md) / [Model API](api/model.md)
+- [Best Practices](best-practices.md)
+- [Changelog](changelog.md)
 
 ## Community
 

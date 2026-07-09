@@ -1,6 +1,6 @@
 # 过滤器/中间件
 
-过滤器用于处理 HTTP 请求的横切关注点（如认证、日志、限流等）。
+过滤器用于处理 HTTP 请求的横切关注点，如认证、日志、限流、CORS 等。
 
 ## 创建过滤器
 
@@ -19,8 +19,7 @@ type AuthFilter struct {
     core.IFilter
 }
 
-func (f *AuthFilter) Init(context *core.Context) error {
-    // 初始化逻辑
+func (f *AuthFilter) Init(ctx *core.Context) error {
     return nil
 }
 
@@ -30,10 +29,10 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
     if token == "" {
         return nil, errors.New("unauthorized")
     }
-    
+
     // 调用下一个处理器
     result, err := fc.Next()
-    
+
     // 后置处理（可选）
     return result, err
 }
@@ -41,67 +40,40 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 
 ### 注册过滤器
 
-在 `main.go` 中注册：
-
 ```go
 package main
 
 import (
-    config "github.com/chuccp/go-web-frame/config"
+    "context"
     wf "github.com/chuccp/go-web-frame"
-    "go.uber.org/zap"
+    "github.com/chuccp/go-web-frame/config"
     "myapp/filter"
 )
 
-func createApp() (*wf.WebFrame, error) {
-    // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("application.yml")
-    if err != nil {
-        return nil, err
-    }
-    
-    // 创建 Builder
-    builder := wf.NewBuilder(fileConfig)
-    
-    // 注册过滤器
-    builder.Filter(&filter.LoggingFilter{}, &filter.AuthFilter{})
-    
-    // 构建应用
-    app := builder.Build()
-    return app, nil
-}
-
 func main() {
-    app, err := createApp()
-    if err != nil {
-        zap.L().Fatal("创建应用失败", zap.Error(err))
-        return
-    }
-    err = app.Start()
-    if err != nil {
-        zap.L().Fatal("启动应用失败", zap.Error(err))
-    }
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+    builder := wf.NewBuilder(cfg)
+
+    builder.Filter(&filter.LoggingFilter{}, &filter.AuthFilter{})
+
+    builder.Build().Run(context.Background())
 }
 ```
 
 ## 过滤器链
 
-多个过滤器形成过滤器链：
+多个过滤器形成链式调用：
 
 ```
 请求 → Filter1 → Filter2 → ... → Handler → 响应
 ```
 
-### 执行顺序
-
-过滤器的执行顺序按照注册顺序：
+执行顺序按照注册顺序：
 
 ```go
-builder := wf.NewBuilder(cfg)
 builder.Filter(&filter.LoggingFilter{})   // 第 1 个执行
 builder.Filter(&filter.AuthFilter{})      // 第 2 个执行
 builder.Filter(&filter.RateLimitFilter{}) // 第 3 个执行
-app := builder.Build()
 ```
 
 ## 常见过滤器示例
@@ -115,22 +87,18 @@ type LoggingFilter struct {
 
 func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
     start := time.Now()
-    
-    // 记录请求开始
     log.Info("request started",
         zap.String("method", req.Request().Method),
         zap.String("path", req.Request().URL.Path),
     )
-    
-    // 执行下一个处理器
+
     result, err := fc.Next()
-    
-    // 记录请求结束
+
     log.Info("request completed",
         zap.Duration("duration", time.Since(start)),
         zap.Error(err),
     )
-    
+
     return result, err
 }
 ```
@@ -140,114 +108,27 @@ func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error
 ```go
 type AuthFilter struct {
     core.IFilter
-    jwtSecret string
-}
-
-func (f *AuthFilter) Init(context *core.Context) error {
-    f.jwtSecret = context.GetConfig().GetString("jwt.secret")
-    return nil
 }
 
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    // 获取 Token
     token := req.GetHeader("Authorization")
     if token == "" {
         return nil, errors.New("unauthorized")
     }
-    
-    // 验证 Token
-    claims, err := f.validateToken(token)
-    if err != nil {
-        return nil, errors.New("invalid token")
-    }
-    
-    // 存储用户信息到请求上下文
-    req.Set("user", claims)
-    
-    return fc.Next()
-}
-
-func (f *AuthFilter) validateToken(token string) (map[string]any, error) {
-    // 实现 JWT 验证逻辑
-    return nil, nil
-}
-```
-
-### CORS 过滤器
-
-```go
-type CORSFilter struct {
-    core.IFilter
-}
-
-func (f *CORSFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    // 设置 CORS 头
-    req.Response().Header().Set("Access-Control-Allow-Origin", "*")
-    req.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-    req.Response().Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-    
-    // 处理 OPTIONS 请求
-    if req.Request().Method == "OPTIONS" {
-        return nil, nil
-    }
-    
+    // 验证 token...
     return fc.Next()
 }
 ```
 
-### 限流过滤器
-
-使用框架内置的限流组件：
+### 内置 CORS 过滤器
 
 ```go
-package main
+import "github.com/chuccp/go-web-frame/component/cors"
 
-import (
-    wf "github.com/chuccp/go-web-frame"
-    "github.com/chuccp/go-web-frame/component/ratelimit"
-    "github.com/chuccp/go-web-frame/core"
-    "github.com/chuccp/go-web-frame/web"
-)
-
-type MyController struct {
-    core.IService
-    rateLimit *ratelimit.RateLimit
-}
-
-func (c *MyController) Init(ctx *core.Context) error {
-    c.rateLimit = wf.GetService[*ratelimit.RateLimit](ctx)
-    ctx.Get("/api/data", c.Handle)
-    return nil
-}
-
-func (c *MyController) Handle(req *web.Request) (any, error) {
-    // 使用限流检查
-    if !c.rateLimit.AllowSBurst(req.ClientIP(), 5) {
-        return nil, errors.New("请求过于频繁")
-    }
-    return "ok", nil
-}
-
-func main() {
-    builder := wf.NewBuilder(cfg)
-    builder.Service(&ratelimit.RateLimit{})
-    builder.Rest(&MyController{})
-    app := builder.Build()
-    app.Start()
-}
+builder.Filter(&cors.Filter{})
 ```
 
-在配置文件中设置限流参数（`application.yml`）：
-
-```yaml
-rate_limit:
-  limit: 600     # 每秒限制
-  burst: 5       # 最大令牌数
-  maxSize: 1000000
-  expiry: 3600   # 缓存过期时间（秒）
-```
-
-## 路由元数据
+## 路由元数据（WithMeta）
 
 ### 定义元数据选项
 
@@ -266,19 +147,20 @@ func RequireAuth() web.MetaOption {
     return web.WithValue("auth", true)
 }
 
-// 需要特定角色
-func RequireRole(role string) web.MetaOption {
-    return web.WithValue("role", role)
+// 需要特定权限
+func RequirePermission(perm string) web.MetaOption {
+    return web.WithValue("permission", perm)
 }
 ```
 
 ### 注册带元数据的路由
 
 ```go
-func (c *UserController) Init(context *core.Context) error {
-    context.Get("/login", c.Login).WithMeta(Public())
-    context.Get("/dashboard", c.Dashboard).WithMeta(RequireAuth())
-    context.Delete("/users/:id", c.DeleteUser).WithMeta(RequireAuth(), RequireRole("admin"))
+func (c *UserController) Init(ctx *core.Context) error {
+    ctx.Get("/login", c.Login).WithMeta(Public())
+    ctx.Get("/dashboard", c.Dashboard).WithMeta(RequireAuth())
+    ctx.Delete("/users/:id", c.DeleteUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:delete"))
     return nil
 }
 ```
@@ -287,31 +169,91 @@ func (c *UserController) Init(context *core.Context) error {
 
 ```go
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    // 跳过公开路由
     if req.HasMeta(Public()) {
         return fc.Next()
     }
 
-    // 检查认证
     if req.HasMeta(RequireAuth()) {
         token := req.GetHeader("Authorization")
         if token == "" {
             return nil, errors.New("unauthorized")
         }
-
-        // 验证 Token
-        claims, err := f.validateToken(token)
-        if err != nil {
-            return nil, errors.New("unauthorized")
-        }
-
-        // 检查角色
-        requiredRole, _ := req.HandlerMeta().Get("role").(string)
-        if requiredRole != "" && claims["role"] != requiredRole {
-            return nil, errors.New("forbidden")
-        }
+        // 验证 token、检查 permission...
     }
 
+    return fc.Next()
+}
+```
+
+## 限流过滤器示例
+
+使用框架内置限流组件：
+
+```go
+package main
+
+import (
+    "context"
+    "errors"
+    wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/component/ratelimit"
+    "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type DataController struct {
+    core.IService
+    rateLimit *ratelimit.RateLimit
+}
+
+func (c *DataController) Init(ctx *core.Context) error {
+    c.rateLimit = wf.GetService[*ratelimit.RateLimit](ctx)
+    ctx.Get("/api/data", c.Handle)
+    return nil
+}
+
+func (c *DataController) Handle(req *web.Request) (any, error) {
+    if !c.rateLimit.Allow(req.ClientIP()) {
+        return nil, errors.New("rate limited")
+    }
+    return "ok", nil
+}
+
+func main() {
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+    builder := wf.NewBuilder(cfg)
+    builder.Service(&ratelimit.RateLimit{})
+    builder.Rest(&DataController{})
+    builder.Build().Run(context.Background())
+}
+```
+
+`application.yml`：
+
+```yaml
+rate_limit:
+  limit: 600    # 每多少秒补充 1 个令牌
+  burst: 5      # 最大 burst 大小
+  maxSize: 1000000
+  expiry: 3600  # 缓存过期时间（秒）
+```
+
+## 复用 Gin 生态中间件
+
+通过 `req.GinContext()` 暴露底层 `*gin.Context`，可以直接使用 `gin-contrib` 中间件：
+
+```go
+import (
+    "github.com/gin-contrib/gzip"
+    "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/web"
+)
+
+type GzipFilter struct{ core.IFilter }
+
+func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    gzip.Gzip(gzip.DefaultCompression)(req.GinContext())
     return fc.Next()
 }
 ```
@@ -322,18 +264,17 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 package main
 
 import (
+    "context"
     "errors"
     "time"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/web"
     "go.uber.org/zap"
 )
 
-// 日志过滤器
-type LoggingFilter struct {
-    core.IFilter
-}
+type LoggingFilter struct{ core.IFilter }
 
 func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
     start := time.Now()
@@ -341,79 +282,57 @@ func (f *LoggingFilter) Handle(fc web.FilterChain, req *web.Request) (any, error
         zap.String("method", req.Request().Method),
         zap.String("path", req.Request().URL.Path),
     )
-    
     result, err := fc.Next()
-    
     log.Info("request completed",
         zap.Duration("duration", time.Since(start)),
         zap.Error(err),
     )
-    
     return result, err
 }
 
-// 认证过滤器
-type AuthFilter struct {
-    core.IFilter
-}
+type AuthFilter struct{ core.IFilter }
+
+func Public() web.MetaOption { return web.WithValue("public", true) }
 
 func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    // 跳过公开路由
     if req.HasMeta(Public()) {
         return fc.Next()
     }
-
-    token := req.GetHeader("Authorization")
-    if token == "" {
+    if req.GetHeader("Authorization") == "" {
         return nil, errors.New("unauthorized")
     }
-
     return fc.Next()
 }
 
-// 控制器
-type UserController struct {
-    core.IService
-}
+type UserController struct{ core.IService }
 
-func (c *UserController) Init(context *core.Context) error {
-    context.Get("/login", c.Login).WithMeta(Public())
-    context.Get("/users", c.List).WithMeta(RequireAuth())
+func (c *UserController) Init(ctx *core.Context) error {
+    ctx.Get("/login", c.Login).WithMeta(Public())
+    ctx.Get("/users", c.List).WithMeta(RequireAuth())
     return nil
 }
 
-func Public() web.MetaOption {
-    return web.WithValue("public", true)
-}
-
-func RequireAuth() web.MetaOption {
-    return web.WithValue("auth", true)
-}
+func RequireAuth() web.MetaOption { return web.WithValue("auth", true) }
 
 func (c *UserController) Login(req *web.Request) (any, error) {
     return map[string]any{"token": "xxx"}, nil
 }
 
 func (c *UserController) List(req *web.Request) (any, error) {
-    return []map[string]any{{"id": float64(1), "name": "Alice"}}, nil
+    return []map[string]any{{"id": 1, "name": "Alice"}}, nil
 }
 
 func main() {
-    // 使用 Builder 注册组件
-    builder := wf.NewBuilder(config.LoadSingleFileConfig("application.yml"))
-    
-    // 注册过滤器（顺序很重要）
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
+    builder := wf.NewBuilder(cfg)
     builder.Filter(&LoggingFilter{}, &AuthFilter{})
-    
-    // 注册控制器
     builder.Rest(&UserController{})
-    
-    app := builder.Build()
-    app.Start()
+    builder.Build().Run(context.Background())
 }
 ```
 
 ## 下一步
 
 - [配置](configuration.md) - 了解配置管理
-- [高级主题](advanced/database.md) - 了解更多高级功能
+- [服务](service.md) - 业务逻辑层与依赖注入
+- [高级主题](../advanced/database.md) - 了解更多高级功能

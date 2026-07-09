@@ -26,7 +26,7 @@ This document describes the internal architecture and design decisions of Go Web
 │                         Application                              │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    WebFrame (Facade)                      │   │
-│  │  NewWithAutoConfig() | AddRest() | AddModel() | Run()    │   │
+│  │  NewBuilder() | Rest() | Model() | Build() | Run()       │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                              │                                   │
 │                              ▼                                   │
@@ -34,13 +34,13 @@ This document describes the internal architecture and design decisions of Go Web
 │  │                    Core Context                           │   │
 │  │  - Manages DI container                                  │   │
 │  │  - Provides config access                                │   │
-│  │  - Route registration (Context.Get/Post/etc)            │   │
+│  │  - Route registration (Context.Get/Post/etc)             │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                              │                                   │
 │                              ▼                                   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    HandlerConfig                          │   │
-│  │  - Handles (RouteTree storage)                           │   │
+│  │  - Routes (Route storage)                                │   │
 │  │  - Filters (middleware chain)                            │   │
 │  │  - Converter (response transformation)                   │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -48,7 +48,7 @@ This document describes the internal architecture and design decisions of Go Web
 │                              ▼                                   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    HttpServer                             │   │
-│  │  - Process RouteTree → Gin routes                        │   │
+│  │  - Process Routes → Gin routes                           │   │
 │  │  - Handle static files, reverse proxy                    │   │
 │  │  - Graceful shutdown                                     │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -104,49 +104,49 @@ IService (base)
 ```
 1. IModel.Init(db, ctx)          ← First, DB ready
 2. IService.Init(ctx)            ← Second, services (including components) can use models
-4. IFilter.Init(ctx)             ← Fourth, filters can use services
-5. IRunner.Run(ctx)              ← Last, background tasks start
+3. IFilter.Init(ctx)             ← Third, filters can use services
+4. IRest.Init(ctx)               ← Fourth, controllers register routes
+5. IRunner.Run()                 ← Last, background tasks start
 ```
 
 ## Route Registry Design
 
-### Unified RouteTree
+### Unified Route Storage
 
-All routes (API, static files, reverse proxy) are stored in a single `RouteTree`:
+All routes (API, static files, reverse proxy) are stored in the `HandlerConfig`:
 
 ```go
-type RouteTree map[string]RouteInfo  // method → handlers
+type Route struct {
+    path     string
+    method   string
+    handlers []HandlerFunc
+    meta     map[string]any  // route metadata for filters
+}
 
-type HandlerInfo struct {
-    path        string
-    handlers    []HandlerFunc
-    fs          http.FileSystem  // for StaticFs
-    targetUrl   string           // for ReverseProxy
+type HandlerMeta struct {
+    keys   []string
+    values map[string]any
 }
 ```
 
-### Type Detection
+### Route Registration
 
 ```go
-func (h *HandlerInfo) IsStaticFs() bool     { return h.fs != nil }
-func (h *HandlerInfo) IsReverseProxy() bool { return h.targetUrl != "" }
+// In Context (used by controllers)
+ctx.Get("/users", handler)
+ctx.Post("/users", handler).WithMeta(RequireAuth())
+
+// In Builder (top-level routes)
+builder.Get("/health", handler)
+builder.Post("/api/login", handler)
 ```
 
 ### Processing in HttpServer
 
 ```go
 func (s *HttpServer) Handle(config *HandlerConfig) {
-    for method, routes := range config.RouteTree() {
-        for _, info := range routes {
-            switch {
-            case info.IsReverseProxy():
-                s.handleReverseProxy(method, info)
-            case info.IsStaticFs():
-                s.handleStaticFs(info)
-            default:
-                s.handleAPI(method, info)
-            }
-        }
+    for _, route := range config.Routes() {
+        s.engine.Handle(route.method, route.path, route.handlers...)
     }
 }
 ```
@@ -154,7 +154,7 @@ func (s *HttpServer) Handle(config *HandlerConfig) {
 **Benefits:**
 - Single source of truth for all routes
 - Consistent registration API
-- Easy to extend with new route types
+- Route metadata for filter-based auth/permissions
 
 ## Dependency Injection
 
@@ -162,11 +162,10 @@ func (s *HttpServer) Handle(config *HandlerConfig) {
 
 ```go
 type Context struct {
-    config       IConfig
-    modelMap     map[string]IModel
-    serviceMap   map[string]IService
-    componentMap map[string]IService  // removed, merged into serviceMap
-    runnerMap    map[string]IRunner
+    config     IConfig
+    modelMap   map[string]IModel
+    serviceMap map[string]IService
+    runnerMap  map[string]IRunner
     // ...
 }
 ```
@@ -184,6 +183,7 @@ func GetService[T IService](c *Context) T {
 
 // Usage
 userService := wf.GetService[*UserService](ctx)
+userModel := wf.GetModel[*UserModel](ctx)
 ```
 
 ## Error Handling Strategy
@@ -191,12 +191,20 @@ userService := wf.GetService[*UserService](ctx)
 ### Unified Error Conversion
 
 ```go
+// In core/interface.go
+type IConverter interface {
+    Init(ctx *Context) error
+}
+
+// In web/converter.go
 type Converter interface {
     Request(fc FilterChain, req *Request)
 }
 
 // Default: error → JSON response with error message
-func (c *Converter) Request(fc FilterChain, req *Request) {
+type DefaultConverter struct{}
+
+func (c *DefaultConverter) Request(fc FilterChain, req *Request) {
     result, err := fc.Next()
     if err != nil {
         req.Response().AbortWithError(err)
@@ -224,13 +232,13 @@ func (c *Converter) Request(fc FilterChain, req *Request) {
 ### Priority: Later locations override earlier
 
 ```go
-func NewWithAutoConfig() *WebFrame {
-    cfg := config.NewAutoConfig("appname")
-    cfg.AddSearchPath("./config")
-    cfg.AddSearchPath(filepath.Join(os.UserHomeDir(), ".appname"))
-    cfg.AddSearchPath("/etc/appname")
-    // ...
-}
+// Auto-config loads from standard locations
+cfg := config.LoadAutoConfig()
+builder := wf.NewBuilder(cfg)
+
+// Or explicit single file
+cfg, _ := config.LoadSingleFileConfig("application.yml")
+builder := wf.NewBuilder(cfg)
 ```
 
 ## Context Propagation
@@ -279,9 +287,10 @@ db:
 
 ```go
 tx := ctx.GetTransaction()
-err := tx.Execute(func(db *gorm.DB) error {
+err := tx.Exec(func(tx *db.DB) error {
     // All operations within transaction
-    if err := userRepo.Create(db, user); err != nil {
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    if err := userModel.Save(user); err != nil {
         return err  // Will rollback
     }
     return nil  // Will commit
@@ -354,15 +363,21 @@ server:
 ### Adding New Component
 
 1. Implement `IService`
-2. Register with `AddService()`
-3. Retrieve via `GetService[T](ctx)`
+2. Register with `builder.Service()` or `ctx.AddService()`
+3. Retrieve via `wf.GetService[T](ctx)`
 
 ### Custom Converter
 
 ```go
-type GraphQLConverter struct{}
+type GraphQLConverter struct {
+    core.IConverter
+}
 
-func (c *GraphQLConverter) Request(fc FilterChain, req *Request) {
+func (c *GraphQLConverter) Init(ctx *core.Context) error {
+    return nil
+}
+
+func (c *GraphQLConverter) Request(fc web.FilterChain, req *web.Request) {
     // Custom GraphQL response formatting
 }
 ```
@@ -392,9 +407,13 @@ func (c *GraphQLConverter) Request(fc FilterChain, req *Request) {
 - Test full request/response cycle
 
 ```go
-server := web.NewHttpServer(config, certManager)
-server.Handle(handlerConfig)
+builder := wf.NewBuilder(config.LoadAutoConfig())
+builder.Rest(&UserController{})
+builder.Model(&UserModel{})
+app := builder.Build()
 
-ts := httptest.NewServer(server.Engine())
+// Use httptest for testing
+ts := httptest.NewServer(app.Engine())
+defer ts.Close()
 resp, _ := http.Get(ts.URL + "/api/users")
 ```

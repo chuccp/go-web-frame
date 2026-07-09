@@ -1,12 +1,17 @@
 # Go Web Frame 使用手册
 
-> 用 Go 编写 CRUD 后端，零 ORM 样板代码。定义结构体、嵌入泛型 `Model`，即可获得类型安全的查询、分页和请求上下文传播。
+> 一个集成式 Go 后端开发工具包：零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。
 
 ## 什么是 Go Web Frame？
 
-Go Web Frame 是一个集成式后端开发工具包。路由、ORM、缓存、日志、配置等已预先集成，无需单独挑选和组装。
+Go Web Frame 是一个集成式后端开发工具包。路由、ORM、缓存、日志、配置、过滤器、后台任务等已预先集成，无需单独挑选和组装。
 
-核心亮点是**泛型 Model 层消除 CRUD 样板**。定义实体结构体，嵌入 `Model[T]` 或 `EntryModel[T, PK]`，从数据库到 Handler 全链路类型安全，无 `interface{}`，无需代码生成。
+它同时强调**简洁、透明与可扩展**：
+
+- **泛型 Model 层**：用 `Model[T]` / `EntryModel[T, PK]` 消除 CRUD 样板，从数据库到 Handler 全链路类型安全。
+- **声明式路由元数据**：通过 `.WithMeta()` 给路由打标记，一个全局 Filter 即可集中处理认证、权限、限流等横切逻辑。
+- **显式依赖注入**：用 Builder 模式显式注册组件，初始化顺序完全透明、可控。
+- **Gin 生态兼容**：封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等 `gin-contrib` 中间件可直接复用。
 
 ```go
 type User struct {

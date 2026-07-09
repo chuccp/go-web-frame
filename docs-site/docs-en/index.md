@@ -1,12 +1,17 @@
 # Go Web Frame User Guide
 
-> Build a CRUD backend in Go with zero ORM boilerplate. Define a struct, embed a generic `Model`, and typed queries, pagination, and context propagation come with it.
+> An integrated Go backend toolkit: zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.
 
 ## What is Go Web Frame?
 
-Go Web Frame is an integrated backend toolkit. Routing, ORM, caching, logging, and configuration are pre-integrated — no need to pick and wire them separately.
+Go Web Frame is an integrated backend toolkit. Routing, ORM, caching, logging, configuration, filters, and background runners are pre-integrated — no need to pick and wire them separately.
 
-The core is **a generic Model layer that eliminates CRUD boilerplate**. Define an entity struct, embed `Model[T]` or `EntryModel[T, PK]`, and the compiler checks types from the database all the way to the handler. No `interface{}`, no code generation.
+It focuses on **simplicity, transparency, and extensibility**:
+
+- **Generic Model layer**: `Model[T]` / `EntryModel[T, PK]` eliminate CRUD boilerplate with full type safety from the database to the handler.
+- **Declarative route metadata**: Tag routes with `.WithMeta()` and handle auth, permissions, rate limiting, etc. in one global filter.
+- **Explicit dependency injection**: Register components through a fluent Builder, making initialization order fully transparent and controllable.
+- **Gin ecosystem compatible**: Wrap HTTP requests/responses while exposing `req.GinContext()` so `gin-contrib` middlewares like CORS and Gzip work out of the box.
 
 ```go
 type User struct {

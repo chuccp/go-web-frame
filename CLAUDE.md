@@ -110,13 +110,13 @@ Built on Gin, provides:
 
 ### Application Structure
 A typical application using this framework will:
-1. Create a `WebFrame` instance with `NewWithAutoConfig()` or `New(config)`
+1. Create a `Builder` instance with `NewBuilder(config)`
 2. Register routes directly or add REST controllers
 3. Add models, services, components, and runners
-4. Start the application with `Run(ctx)` or `Start()`
+4. Build and start the application with `Build().Run(ctx)` or `Build().Start()`
 
 ### Key Entry Points
-- `web_frame.go`: Main package entry point with factory methods (`NewWithAutoConfig()`, `New()`) and registration methods
+- `web_frame.go`: Main package entry point with Builder pattern (`NewBuilder()`, `Build()`, `Run()`) and registration methods
 - `core/context.go`: Core context for dependency injection - all components initialize through this context
 - `core/server.go`: Server implementation that manages REST groups and background runners
 - `web/handles.go`: Request routing and handler registration
@@ -148,20 +148,21 @@ package main
 import (
     "context"
     wf "github.com/chuccp/go-web-frame"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {
-    // Create application with auto-loading config
-    app := wf.NewWithAutoConfig()
+    // Create builder with auto-loading config
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
     // Register a simple route
-    app.Get("/", func(c *web.Request) (any, error) {
+    builder.Get("/", func(c *web.Request) (any, error) {
         return "hello world", nil
     })
 
-    // Run the application
-    app.Start()
+    // Build and run the application
+    builder.Build().Run(context.Background())
 }
 ```
 
@@ -225,9 +226,9 @@ func (u *UserController) DeleteUser(c *web.Request) (any, error) {
 }
 
 func main() {
-    app := wf.NewWithAutoConfig()
-    app.AddRest(&UserController{})
-    app.Start()
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Rest(&UserController{})
+    builder.Build().Start()
 }
 ```
 
@@ -450,7 +451,7 @@ func (s *UserService) GetUserById(id uint) (*User, error) {
 }
 
 // Register service in main:
-// app.AddService(&UserService{})
+// builder.Service(&UserService{})
 // Then get it: userService := wf.GetService[*UserService](ctx)
 ```
 
@@ -490,7 +491,7 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 }
 
 // Register filter:
-// app.AddFilter(&AuthFilter{})
+// builder.Filter(&AuthFilter{})
 ```
 
 ### 8a. Route Metadata (MetaOption)
@@ -633,7 +634,7 @@ func (t *CleanupTask) Run() error {
 }
 
 // Register runner:
-// app.AddRunner(&CleanupTask{})
+// builder.Runner(&CleanupTask{})
 ```
 
 ### 10. Configuration
@@ -703,8 +704,9 @@ func (c *ClickHouseConfig) Connection() (*db.DB, error) {
 // 2. Register before app starts
 func main() {
     db.RegisterDB("clickhouse", &ClickHouseConfig{})
-    app := wf.NewWithAutoConfig()
-    app.Start()
+
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Build().Start()
 }
 ```
 
@@ -751,18 +753,21 @@ Group models for shared database connection and transactions:
 
 ```go
 func main() {
-    app := wf.NewWithAutoConfig()
+    builder := wf.NewBuilder(config.LoadAutoConfig())
 
-    // Create model group
-    group := app.NewModelGroup(db, "user_group")
-    group.AddModel(&UserModel{}, &ProfileModel{})
-    group.AutoCreateTable(true)
+    // Register models to default model group
+    builder.Model(&UserModel{}, &OrderModel{})
 
-    // Or use default model group
-    app.AddModel(&UserModel{}, &OrderModel{})
-    app.SetDefaultDB(db)
+    // Create model group for separate database
+    group := wf.NewModelGroupBuilder().
+        Name("user_group").
+        DB(db).
+        Model(&UserModel{}, &ProfileModel{}).
+        AutoCreateTable(true).
+        Build()
+    builder.ModelGroup(group)
 
-    app.Start()
+    builder.Build().Start()
 }
 ```
 

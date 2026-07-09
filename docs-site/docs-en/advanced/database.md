@@ -24,18 +24,30 @@ err := db.Transaction(func(tx *db.DB) error {
 Share database connection across models:
 
 ```go
-group := builder.NewModelGroup(db, "user_group")
-group.AddModel(&UserModel{}, &ProfileModel{})
+group := wf.NewModelGroupBuilder().
+    Name("user_group").
+    DB(db).
+    Model(&UserModel{}, &ProfileModel{}).
+    AutoCreateTable(true).
+    Build()
+builder.ModelGroup(group)
 ```
 
 ## Multiple Databases
 
 ```go
-db1, err := db.NewDB(config1)
-db2, err := db.NewDB(config2)
+// First database (MySQL)
+builder.Model(&UserModel{}, &OrderModel{})
 
-builder.ModelGroup("users").WithDB(db1).Register(&UserModel{})
-builder.ModelGroup("orders").WithDB(db2).Register(&OrderModel{})
+// Second database (SQLite)
+sqliteDB, _ := db.ConnectionSQLite("./logs.db")
+logGroup := wf.NewModelGroupBuilder().
+    Name("log_group").
+    DB(sqliteDB).
+    Model(&LogModel{}).
+    AutoCreateTable(true).
+    Build()
+builder.ModelGroup(logGroup)
 ```
 
 ## Custom Database Driver
@@ -69,7 +81,8 @@ func (c *ClickHouseConfig) Connection() (*db.DB, error) {
 func main() {
     db.RegisterDB("clickhouse", &ClickHouseConfig{})
 
-    app := wf.NewWithAutoConfig()
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    app := builder.Build()
     app.Start()
 }
 ```

@@ -344,10 +344,13 @@ users, _ := userService.GetActiveUsers()
 builder.Model(&UserModel{}, &LogModel{})
 
 // 分析系统用独立数据库
-analyticsDB := db.NewDBFromConfig(analyticsConfig)
-analyticsGroup := app.NewModelGroup(analyticsDB, "analytics")
-analyticsGroup.AddModel(&ReportModel{})
-analyticsGroup.AutoCreateTable(true)
+analyticsGroup := wf.NewModelGroupBuilder().
+    Name("analytics").
+    DB(analyticsDB).
+    Model(&ReportModel{}).
+    AutoCreateTable(true).
+    Build()
+builder.ModelGroup(analyticsGroup)
 ```
 
 ---
@@ -665,8 +668,8 @@ func (c *ClickHouseConfig) Connection() (*db.DB, error) {
 // 2. 在应用启动前注册
 func main() {
     db.RegisterDB("clickhouse", &ClickHouseConfig{})
-    app := wf.NewWithAutoConfig()
-    app.Start()
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    builder.Build().Start()
 }
 ```
 

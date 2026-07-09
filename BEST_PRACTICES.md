@@ -363,35 +363,38 @@ err := userModel.Delete().WithContext(req.Ctx()).Where("id = ?", 1).Delete()
 ```go
 func (s *OrderService) CreateOrder(input *CreateOrderInput) (*Order, error) {
     var order *Order
-    
+
     tx := s.ctx.GetTransaction()
-    err := tx.Execute(func(db *gorm.DB) error {
+    err := tx.Exec(func(tx *db.DB) error {
+        orderModel := wf.GetReNewModel[*OrderModel](tx, s.ctx)
+        itemModel := wf.GetReNewModel[*OrderItemModel](tx, s.ctx)
+        productModel := wf.GetReNewModel[*ProductModel](tx, s.ctx)
+
         // Step 1: Create order
         order = &Order{UserID: input.UserID, Total: input.Total}
-        if err := db.Create(order).Error; err != nil {
+        if err := orderModel.Save(order); err != nil {
             return err
         }
-        
+
         // Step 2: Create order items
         for _, item := range input.Items {
             orderItem := &OrderItem{OrderID: order.Id, ProductID: item.ProductID}
-            if err := db.Create(orderItem).Error; err != nil {
+            if err := itemModel.Save(orderItem); err != nil {
                 return err
             }
         }
-        
+
         // Step 3: Update inventory
         for _, item := range input.Items {
-            if err := db.Model(&Product{}).
-                Where("id = ?", item.ProductID).
-                Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
+            if err := productModel.Update().Where("id = ?", item.ProductID).
+                UpdateColumn("stock", gorm.Expr("stock - ?", item.Quantity)); err != nil {
                 return err
             }
         }
-        
+
         return nil
     })
-    
+
     return order, err
 }
 ```
@@ -416,12 +419,19 @@ type User struct {
 type EmailRunner struct {
     core.IRunner
     emailQueue chan *Email
+    stopCh     chan struct{}
 }
 
-func (r *EmailRunner) Run(ctx context.Context) error {
+func (r *EmailRunner) Init(ctx *core.Context) error {
+    r.emailQueue = make(chan *Email, 100)
+    r.stopCh = make(chan struct{})
+    return nil
+}
+
+func (r *EmailRunner) Run() error {
     for {
         select {
-        case <-ctx.Done():
+        case <-r.stopCh:
             // Drain remaining emails before exit
             r.drainQueue()
             return nil
@@ -539,12 +549,13 @@ func (c *UserController) CreateUser(req *web.Request) (any, error) {
 
 ```go
 func main() {
-    app := wf.NewWithAutoConfig()
-    
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+
     // Add rate limit filter
     rateLimiter := ratelimit.NewRateLimit()
-    app.AddFilter(rateLimiter)
-    
+    builder.Filter(rateLimiter)
+
+    app := builder.Build()
     app.Start()
 }
 ```

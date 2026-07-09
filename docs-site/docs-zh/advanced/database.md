@@ -229,7 +229,8 @@ func (c *ClickHouseConfig) Connection() (*db.DB, error) {
 func main() {
     db.RegisterDB("clickhouse", &ClickHouseConfig{})
 
-    app := wf.NewWithAutoConfig()
+    builder := wf.NewBuilder(config.LoadAutoConfig())
+    app := builder.Build()
     app.Start()
 }
 ```

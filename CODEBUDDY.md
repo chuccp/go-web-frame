@@ -89,8 +89,9 @@ Components initialize in a specific order to ensure dependencies are available:
 
 1. `IModel.Init(db, ctx)` - Data access layer
 2. `IService.Init(ctx)` - Business logic services (including components)
-4. `IFilter.Init(ctx)` - HTTP middleware filters
-5. `IRunner.Run(ctx)` - Background tasks
+3. `IFilter.Init(ctx)` - HTTP middleware filters
+4. `IRest.Init(ctx)` - REST controllers register routes
+5. `IRunner.Run()` - Background tasks
 
 ### Dependency Injection
 
@@ -124,7 +125,7 @@ Supported formats: JSON, YAML, TOML
 
 ## Key Entry Points
 
-- `web_frame.go` - Main package with factory methods (`NewWithAutoConfig()`, `New()`)
+- `web_frame.go` - Main package with Builder pattern (`NewBuilder()`, `Build()`, `Run()`)
 - `core/context.go` - Dependency injection context
 - `core/server.go` - Server managing REST groups and runners
 - `web/handles.go` - Route registration and handler storage

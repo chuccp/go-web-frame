@@ -201,6 +201,24 @@ func (c *UserController) Download(req *web.Request) (any, error) {
 }
 ```
 
+### 文件上传
+
+```go
+func (c *UserController) Upload(req *web.Request) (any, error) {
+    file, header, err := req.File("file")  // 表单字段名
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    dst := "./uploads/" + header.Filename
+    if err := web.SaveUploadedFile(header, dst); err != nil {
+        return nil, err
+    }
+    return map[string]string{"path": dst}, nil
+}
+```
+
 ### 重定向
 
 ```go

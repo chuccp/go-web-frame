@@ -80,3 +80,21 @@ return web.Redirect("/new-url"), nil
 // Error
 return nil, errors.New("something wrong")
 ```
+
+## File Upload
+
+```go
+func (u *UserController) Upload(c *web.Request) (any, error) {
+    file, header, err := c.File("file")  // form field name
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    dst := "./uploads/" + header.Filename
+    if err := web.SaveUploadedFile(header, dst); err != nil {
+        return nil, err
+    }
+    return map[string]string{"path": dst}, nil
+}
+```

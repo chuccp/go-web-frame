@@ -325,6 +325,71 @@ func (f *ErrorHandlerFilter) Handle(fc web.FilterChain, req *web.Request) (any, 
 }
 ```
 
+## 响应转换器（Converter）
+
+`web/converter.go` 负责把 Handler 的返回值转换成 HTTP 响应。框架默认使用 `web.DefaultConverter`，你也可以通过 `RestGroupBuilder.Converter()` 替换为自定义转换器。
+
+### 默认转换规则
+
+| Handler 返回值 | 响应行为 |
+|---|---|
+| `*web.Message` | 以 `Message.Code` 为 HTTP 状态码返回 JSON；`Code == 301` 时执行重定向 |
+| `*web.ErrorCode` | 调用 `ClassifyError` 映射为 JSON 错误响应 |
+| `*web.FileResponse` | 文件下载 |
+| `*web.FileSystemResponse` | 从 `http.FileSystem` 读取文件 |
+| `*web.SSEResponse` | 建立 SSE 流 |
+| `*web.WSResponse` | 升级为 WebSocket |
+| `*web.ReverseProxyResponse` | 反向代理 |
+| `*os.File` | 作为附件下载 |
+| `string` | 直接返回纯文本 |
+| `error` | 走错误处理流程 |
+| 其他任意值 | 包装为 `web.Data(value)` 返回 JSON |
+
+### 错误映射
+
+`web.ClassifyError(value, err)` 按以下优先级处理错误：
+
+1. `*web.ErrorCode`：使用其 `Code` 和 `Error()` 文本。
+2. `*web.Message` 且 `Code != 200`：使用 `Message.Code`。
+3. `os.ErrNotExist` → 404；`os.ErrPermission` → 403。
+4. 其他 error → 500。
+
+### 自定义 Converter
+
+实现 `core.IConverter`（即 `IService` + `web.Converter`）即可接管响应格式：
+
+```go
+type XMLConverter struct {
+    core.IConverter
+}
+
+func (c *XMLConverter) Init(ctx *core.Context) error { return nil }
+
+func (c *XMLConverter) Request(fc web.FilterChain, req *web.Request) {
+    result, err := fc.Next()
+    if err != nil {
+        req.Response().AbortWithStatusJSON(500, web.NewInternalError().WithError(err))
+        return
+    }
+
+    // 自定义序列化，例如 XML
+    xmlBytes, _ := xml.Marshal(result)
+    req.Response().Header().Set("Content-Type", "application/xml")
+    req.Response().Write(xmlBytes)
+}
+```
+
+注册到 RestGroup：
+
+```go
+restGroup := wf.NewRestGroupBuilder().
+    Rest(&UserController{}).
+    Converter(&XMLConverter{}).
+    Port(8081).
+    Build()
+builder.RestGroup(restGroup)
+```
+
 ## 下一步
 
 - [模型 API](model.md) - 了解模型层 API

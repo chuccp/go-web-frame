@@ -202,3 +202,67 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 Built-in constructors:
 - `web.WithKey(keys ...string)` — match if **any** key exists
 - `web.WithValue(key string, value any)` — match if key exists and value equals (via `reflect.DeepEqual`)
+
+## Response Converter
+
+`web/converter.go` converts handler return values into HTTP responses. The framework uses `web.DefaultConverter` by default, and you can replace it via `RestGroupBuilder.Converter()`.
+
+### Default conversion rules
+
+| Handler return value | Response behavior |
+|---|---|
+| `*web.Message` | JSON response with `Message.Code` as HTTP status; redirects when `Code == 301` |
+| `*web.ErrorCode` | JSON error response via `ClassifyError` |
+| `*web.FileResponse` | File download |
+| `*web.FileSystemResponse` | Serve file from `http.FileSystem` |
+| `*web.SSEResponse` | Open SSE stream |
+| `*web.WSResponse` | Upgrade to WebSocket |
+| `*web.ReverseProxyResponse` | Reverse proxy |
+| `*os.File` | Download as attachment |
+| `string` | Plain text |
+| `error` | Error handling flow |
+| Any other value | Wrap as `web.Data(value)` and return JSON |
+
+### Error mapping
+
+`web.ClassifyError(value, err)` handles errors in this priority:
+
+1. `*web.ErrorCode` — uses its `Code` and `Error()` text.
+2. `*web.Message` with `Code != 200` — uses `Message.Code`.
+3. `os.ErrNotExist` → 404; `os.ErrPermission` → 403.
+4. Any other error → 500.
+
+### Custom converter
+
+Implement `core.IConverter` (which is `IService` + `web.Converter`) to take over response formatting:
+
+```go
+type XMLConverter struct {
+    core.IConverter
+}
+
+func (c *XMLConverter) Init(ctx *core.Context) error { return nil }
+
+func (c *XMLConverter) Request(fc web.FilterChain, req *web.Request) {
+    result, err := fc.Next()
+    if err != nil {
+        req.Response().AbortWithStatusJSON(500, web.NewInternalError().WithError(err))
+        return
+    }
+
+    xmlBytes, _ := xml.Marshal(result)
+    req.Response().Header().Set("Content-Type", "application/xml")
+    req.Response().Write(xmlBytes)
+}
+```
+
+Register it on the RestGroup:
+
+```go
+restGroup := wf.NewRestGroupBuilder().
+    Rest(&UserController{}).
+    Converter(&XMLConverter{}).
+    Port(8081).
+    Build()
+builder.RestGroup(restGroup)
+```

@@ -445,7 +445,7 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
     defer file.Close()
 
     dst := "./uploads/" + header.Filename
-    if err := req.SaveUploadedFile(header, dst); err != nil {
+    if err := web.SaveUploadedFile(header, dst); err != nil {
         return nil, err
     }
     return map[string]string{"path": dst}, nil

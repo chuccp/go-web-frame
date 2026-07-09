@@ -1,5 +1,5 @@
 site_name: Go Web Frame 使用手册
-site_url: https://go-web-frame.dev/zh/
+site_url: https://chuccp.github.io/go-web-frame/zh/
 site_description: Go Web Frame 框架官方文档（中文）
 site_author: Go Web Frame Team
 
@@ -79,8 +79,8 @@ extra:
       link: https://github.com/chuccp/go-web-frame
   alternate:
     - name: English
-      link: https://go-web-frame.dev/en/
+      link: https://chuccp.github.io/go-web-frame/en/
       lang: en
     - name: 中文
-      link: https://go-web-frame.dev/zh/
+      link: https://chuccp.github.io/go-web-frame/zh/
       lang: zh

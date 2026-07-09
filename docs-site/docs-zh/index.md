@@ -13,27 +13,6 @@ Go Web Frame 是一个集成式后端开发工具包。路由、ORM、缓存、�
 - **显式依赖注入**：用 Builder 模式显式注册组件，初始化顺序完全透明、可控。
 - **Gin 生态兼容**：封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等 `gin-contrib` 中间件可直接复用。
 
-```go
-type User struct {
-    Id   uint   `gorm:"primaryKey;autoIncrement"`
-    Name string
-}
-
-type UserModel struct {
-    *model.EntryModel[*User, uint]
-}
-
-func (m *UserModel) Init(db *db.DB, c *core.Context) error {
-    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
-    return m.CreateTable()
-}
-
-// 这就是你的模型层。然后随处使用：
-user, _  := userModel.FindByPK(1)
-users, _ := userModel.FindAll()
-users, total, _ := userModel.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
-```
-
 ## 30 秒 Hello World
 
 ```bash

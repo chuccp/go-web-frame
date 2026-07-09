@@ -13,27 +13,6 @@ It focuses on **simplicity, transparency, and extensibility**:
 - **Explicit dependency injection**: Register components through a fluent Builder, making initialization order fully transparent and controllable.
 - **Gin ecosystem compatible**: Wrap HTTP requests/responses while exposing `req.GinContext()` so `gin-contrib` middlewares like CORS and Gzip work out of the box.
 
-```go
-type User struct {
-    Id   uint   `gorm:"primaryKey;autoIncrement"`
-    Name string
-}
-
-type UserModel struct {
-    *model.EntryModel[*User, uint]
-}
-
-func (m *UserModel) Init(db *db.DB, c *core.Context) error {
-    m.EntryModel = model.NewEntryModel[*User, uint](db, "t_user")
-    return m.CreateTable()
-}
-
-// That's your model layer. Now use it anywhere:
-user, _  := userModel.FindByPK(1)
-users, _ := userModel.FindAll()
-users, total, _ := userModel.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
-```
-
 ## 30-Second Hello World
 
 ```bash

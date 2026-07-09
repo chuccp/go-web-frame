@@ -59,6 +59,7 @@ nav:
       - Service: guide/service.md
       - Filter/Middleware: guide/filter.md
       - Converter: guide/converter.md
+      - Error Code: guide/error-code.md
       - Configuration: guide/configuration.md
       - Logging: guide/logging.md
       - Runner: guide/runner.md

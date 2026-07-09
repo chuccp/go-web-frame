@@ -18,16 +18,7 @@ const (
 )
 
 // NoLogin is the sentinel error returned when a user is not authenticated.
-var NoLogin = &NoLoginError{}
-
-// NoLoginError represents an unauthenticated access attempt.
-type NoLoginError struct {
-	error
-}
-
-func (e *NoLoginError) Error() string {
-	return "no login"
-}
+var NoLogin = web.NewForbidden().WithDetail("Not logged in")
 
 // WithLogin returns a MetaOption that marks a route as requiring authentication.
 func WithLogin() web.MetaOption {

@@ -57,7 +57,7 @@ func newTestRequest(method, path string, meta *web.HandlerMeta) *web.Request {
 func TestAuth_NoLoginError(t *testing.T) {
 	err := NoLogin
 	assert.Error(t, err)
-	assert.Equal(t, "no login", err.Error())
+	assert.Equal(t, "Not logged in", err.Error())
 }
 
 func TestAuth_WithLogin(t *testing.T) {

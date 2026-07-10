@@ -77,8 +77,9 @@ pageAble, err := userModel.Query().PageForWeb(page)
 > user, err := userModel.FindByPK(1)
 > 
 > // Option 2: Use GORM directly (more flexible for complex queries)
+> // Get *gorm.DB via GetGorm() and use the full GORM ecosystem
 > var user User
-> err := db.DB.First(&user, 1).Error
+> err := db.GetGorm().First(&user, 1).Error
 > ```
 > 
 > When EntryModel's built-in methods are insufficient (complex JOINs, subqueries, window functions, etc.), using the GORM ecosystem directly is the best choice. You can mix both approaches freely — the framework imposes no restrictions.

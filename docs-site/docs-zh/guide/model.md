@@ -113,8 +113,9 @@ func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
 > user, err := userModel.FindByPK(1)
 > 
 > // 方式二：直接使用 GORM（更灵活，适合复杂场景）
+> // 通过 GetGorm() 获取 *gorm.DB，直接操作 GORM 生态
 > var user entity.User
-> err := db.DB.First(&user, 1).Error
+> err := db.GetGorm().First(&user, 1).Error
 > ```
 > 
 > 当 EntryModel 的内置方法无法满足需求时（如复杂 JOIN、子查询、窗口函数等），直接使用 GORM 生态是最佳选择。两者可以混合使用，框架不做限制。

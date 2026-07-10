@@ -720,7 +720,147 @@ web:
     database: mydb
 ```
 
-### 11. Component
+### 11. GORM Ecosystem Compatibility
+
+The framework is built on GORM as its ORM layer. You get full access to the GORM ecosystem — any GORM driver, plugin, callback, or feature works out of the box.
+
+#### Access the Underlying GORM Instance
+
+```go
+// Get *gorm.DB directly from any db.DB
+gormDB := db.GetGorm()
+
+// Use any GORM feature: callbacks, plugins, raw queries, etc.
+gormDB.Callback().Create().Before("gorm:create").Register("my_hook", func(db *gorm.DB) {
+    // custom logic
+})
+```
+
+#### GORM Plugins
+
+Install any GORM plugin by calling `db.Use()` on the underlying `*gorm.DB`:
+
+```go
+// Example: the framework's own ZeroTimePlugin (in db/zerotime.go)
+gormDB := db.GetGorm()
+gormDB.Use(&db.ZeroTimePlugin{})
+
+// Third-party GORM plugins work the same way:
+// - gorm.io/plugin/soft_delete
+// - gorm.io/plugin/dbresolver
+// - gorm.io/plugin/optimisticlock
+```
+
+#### GORM Struct Tags
+
+Entity structs use standard GORM tags — everything GORM supports works directly:
+
+```go
+type User struct {
+    Id        uint      `gorm:"primaryKey;autoIncrement"`
+    Name      string    `gorm:"size:255;not null;index"`
+    Email     string    `gorm:"size:255;unique;default:''"`
+    Profile   Profile   `gorm:"foreignKey:UserId"`              // Has One
+    Orders    []Order   `gorm:"foreignKey:UserId"`              // Has Many
+    Roles     []Role    `gorm:"many2many:user_roles"`           // Many To Many
+    CreatedAt time.Time `gorm:"autoCreateTime"`                 // Auto timestamps
+    UpdatedAt time.Time `gorm:"autoUpdateTime"`
+}
+```
+
+#### GORM Associations (Eager Loading)
+
+`Preload` and `Joins` are supported throughout the query builder:
+
+```go
+// Preload associations
+users, _ := userModel.Query().Preload("Profile").Preload("Orders").All()
+
+// Joins for conditional eager loading
+users, _ := userModel.Query().Joins("Profile").All()
+
+// EntryModel convenience methods with preload
+user, _ := userModel.FindByPKWithPreload(1, "Profile", "Orders")
+user, _ := userModel.FindOneWithPreload("status = ?", 1, []interface{}{}, "Profile")
+```
+
+#### GORM Migrator (Schema Management)
+
+Access GORM's full migrator API:
+
+```go
+migrator := db.Migrator()
+
+// Check/build/drop tables, columns, indexes
+migrator.HasTable("users")
+migrator.CreateTable(&User{})
+migrator.AddColumn(&User{}, "Age")
+migrator.CreateIndex(&User{}, "idx_name")
+
+// Or use AutoMigrate directly
+db.Table("users").AutoMigrate(&User{})
+```
+
+#### GORM Sessions
+
+Create GORM sessions with custom configuration:
+
+```go
+// Disable default transaction for batch operations
+session := db.Table("users").Session(&gorm.Session{
+    SkipDefaultTransaction: true,
+    PrepareStmt:            true,
+})
+```
+
+#### Any GORM Driver
+
+The `db.RegisterDB()` mechanism accepts any GORM-compatible driver. Beyond the built-in MySQL/PostgreSQL/SQLite support, you can register:
+
+- SQL Server (`github.com/microsoft/go-mssqldb` + GORM SQL Server driver)
+- ClickHouse (`gorm.io/driver/clickhouse`)
+- Custom drivers implementing the `db.IConfig` interface
+
+#### GORM Transactions
+
+Transactions follow the GORM pattern:
+
+```go
+err := db.Transaction(func(tx *db.DB) error {
+    // All operations within tx use the same transaction
+    userModel := NewEntryModel[*User, uint](tx, "t_user")
+    userModel.Save(&User{Name: "alice"})
+    return nil // commit on nil, rollback on error
+})
+```
+
+#### GORM Error Handling
+
+Standard GORM errors are passed through:
+
+```go
+user, err := userModel.Query().Where("id = ?", 999).One()
+if errors.Is(err, gorm.ErrRecordNotFound) {
+    // handle not found
+}
+```
+
+#### Summary
+
+| Feature | How to Use |
+|---------|-----------|
+| GORM plugins | `db.GetGorm().Use(plugin)` |
+| Struct tags | Standard GORM tags on entity fields |
+| Associations | `Preload("Relation")`, `Joins("Relation")` |
+| Schema migration | `db.Migrator()` or `AutoMigrate()` |
+| Custom drivers | `db.RegisterDB(name, IConfig)` |
+| Raw SQL | `Raw(sql, args...).Scan(&dest)` |
+| Transactions | `db.Transaction(func(tx *db.DB) error { ... })` |
+| GORM callbacks | `db.GetGorm().Callback().Register(...)` |
+| Session config | `Session(&gorm.Session{...})` |
+| Context propagation | `WithContext(ctx)` on Model/Query/Update/Delete/DB |
+
+### 12. Component
 
 Components are services registered with `Service()` and retrieved with `GetService[T]`:
 
@@ -747,7 +887,7 @@ func (c *CacheComponent) Init(ctx *core.Context) error {
 // Retrieve: wf.GetService[*CacheComponent](ctx)
 ```
 
-### 12. Model Groups
+### 13. Model Groups
 
 Group models for shared database connection and transactions:
 
@@ -771,7 +911,7 @@ func main() {
 }
 ```
 
-### 13. Response Types
+### 14. Response Types
 
 Return different response types from handlers:
 

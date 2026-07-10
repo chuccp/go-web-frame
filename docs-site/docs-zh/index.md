@@ -20,6 +20,7 @@ hide:
 - **:material-shield-key: 声明式路由元数据** — 通过 `.WithMeta()` 给路由打标记，一个全局 Filter 集中处理认证、权限、限流等横切逻辑。
 - **:material-link-variant: 显式依赖注入** — 用 Builder 模式显式注册组件，初始化顺序完全透明、可控，告别隐式扫描的"黑箱操作"。
 - **:material-transit-connection-variant: Gin 生态兼容** — 封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等中间件可直接复用。
+- **:material-database-settings: GORM 生态兼容** — `db.GetGorm()` 暴露原生 `*gorm.DB`，任意 GORM 驱动、插件、回调、标签零成本接入。
 - **:material-package-variant: 内置组件开箱即用** — 限流、缓存、验证码、定时任务、认证、CORS 等常用组件已预集成，一行代码即可启用。
 - **:material-lock-check: 生产就绪** — 内置 Let's Encrypt 自动 HTTPS、优雅关停、连接池管理、结构化日志，直接部署到生产环境。
 

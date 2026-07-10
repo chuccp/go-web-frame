@@ -20,6 +20,7 @@ hide:
 - **:material-shield-key: Declarative Route Metadata** — Tag routes with `.WithMeta()` and handle auth, permissions, and rate limiting in one global filter.
 - **:material-link-variant: Explicit Dependency Injection** — Register components through a fluent Builder — initialization order is fully transparent and controllable.
 - **:material-transit-connection-variant: Gin Ecosystem Compatible** — Wraps HTTP requests/responses while exposing `req.GinContext()` — CORS, Gzip, and other middlewares work out of the box.
+- **:material-database-settings: GORM Ecosystem Compatible** — `db.GetGorm()` exposes the underlying `*gorm.DB` — any GORM driver, plugin, callback, or tag works natively.
 - **:material-package-variant: Built-in Components** — Rate limiting, caching, captcha, cron scheduling, authentication, CORS — all pre-integrated and ready to use.
 - **:material-lock-check: Production Ready** — Let's Encrypt auto HTTPS, graceful shutdown, connection pooling, structured logging — deploy to production with confidence.
 

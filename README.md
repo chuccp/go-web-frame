@@ -85,7 +85,7 @@ Create `application.yml`:
 web:
   db:
     type: sqlite
-    file_path: ./data.db
+    path: ./data.db
 ```
 
 Create `main.go`:
@@ -545,7 +545,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
         return nil, err
     }
 
-    validator := wf.GetService[*validator.Validator](req.Context())
+    validator := wf.GetService[*validator.Validator](req.Ctx())
     if err := validator.Validate(input); err != nil {
         return nil, web.NewValidationError().WithError(err)
     }
@@ -576,7 +576,7 @@ return nil, web.NewValidationError().WithDetail("name is required")
 return web.Redirect("/new-url"), nil
 
 // File download
-return &web.File{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
+return &web.FileResponse{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
 ```
 
 ---
@@ -640,7 +640,7 @@ db:
 # SQLite
 db:
   type: sqlite
-  file_path: ./data.db
+  path: ./data.db
 ```
 
 Format support: JSON, YAML, TOML. Call `config.LoadAutoConfig()` for zero-config auto-discovery, or pass a path explicitly.

@@ -85,7 +85,7 @@ go run main.go
 web:
   db:
     type: sqlite
-    file_path: ./data.db
+    path: ./data.db
 ```
 
 创建 `main.go`：
@@ -544,7 +544,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
         return nil, err
     }
 
-    validator := wf.GetService[*validator.Validator](req.Context())
+    validator := wf.GetService[*validator.Validator](req.Ctx())
     if err := validator.Validate(input); err != nil {
         return nil, web.NewValidationError().WithError(err)
     }
@@ -575,7 +575,7 @@ return nil, web.NewValidationError().WithDetail("名字不能为空")
 return web.Redirect("/new-url"), nil
 
 // 文件下载
-return &web.File{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
+return &web.FileResponse{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
 ```
 
 ---
@@ -639,7 +639,7 @@ db:
 # SQLite
 db:
   type: sqlite
-  file_path: ./data.db
+  path: ./data.db
 ```
 
 支持 JSON、YAML、TOML 格式。

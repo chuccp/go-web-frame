@@ -85,7 +85,7 @@ go run main.go
 web:
   db:
     type: sqlite
-    file_path: ./data.db
+    path: ./data.db
 ```
 
 建立 `main.go`：
@@ -544,7 +544,7 @@ func (c *Controller) Create(req *web.Request) (any, error) {
         return nil, err
     }
 
-    validator := wf.GetService[*validator.Validator](req.Context())
+    validator := wf.GetService[*validator.Validator](req.Ctx())
     if err := validator.Validate(input); err != nil {
         return nil, web.NewValidationError().WithError(err)
     }
@@ -639,7 +639,7 @@ db:
 # SQLite
 db:
   type: sqlite
-  file_path: ./data.db
+  path: ./data.db
 ```
 
 支援 JSON、YAML、TOML 格式。

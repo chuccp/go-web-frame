@@ -85,7 +85,7 @@ go run main.go
 web:
   db:
     type: sqlite
-    file_path: ./data.db
+    path: ./data.db
 ```
 
 `main.go` を作成：
@@ -450,7 +450,7 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
     defer file.Close()
 
     dst := "./uploads/" + header.Filename
-    if err := req.SaveUploadedFile(header, dst); err != nil {
+    if err := web.SaveUploadedFile(header, dst); err != nil {
         return nil, err
     }
     return map[string]string{"path": dst}, nil
@@ -575,7 +575,7 @@ return nil, web.NewValidationError().WithDetail("名前は必須です")
 return web.Redirect("/new-url"), nil
 
 // ファイルダウンロード
-return &web.File{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
+return &web.FileResponse{Path: "/path/to/report.pdf", FileName: "report.pdf"}, nil
 ```
 
 ---

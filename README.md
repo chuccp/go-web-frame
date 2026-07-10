@@ -251,14 +251,16 @@ m := userModel.WithContext(req.Ctx())
 user, _ := m.FindByPK(1)
 users, total, _ := m.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// Raw GORM — manual table, manual ctx, no pagination
+// Raw GORM — use GetGorm() to access *gorm.DB directly
 var user User
-db.WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
 var users []User
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
 var total int64
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
 ```
+
+`EntryModel` is a convenience wrapper — it reduces boilerplate, not restricts you. When built-in methods aren't enough (complex JOINs, subqueries, window functions), call `db.GetGorm()` and use the full [GORM](https://gorm.io/docs/) ecosystem directly. Mix both styles freely.
 
 Every call in raw GORM repeats the table name, the context, and the type. Go Web Frame binds those once at construction. The difference adds up fast when you have 20+ models.
 

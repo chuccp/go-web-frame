@@ -251,14 +251,16 @@ m := userModel.WithContext(req.Ctx())
 user, _ := m.FindByPK(1)
 users, total, _ := m.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// 生 GORM — 毎回テーブル名、毎回 ctx、ページネーションは自前
+// 生 GORM — GetGorm() で *gorm.DB を取得、GORM エコシステムを直接使用
 var user User
-db.WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
 var users []User
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
 var total int64
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
 ```
+
+`EntryModel` は便利なラッパーであり、ボイラープレートを減らすだけで制限するものではありません。組み込みメソッドで不十分な場合（複雑な JOIN、サブクエリ、ウィンドウ関数など）、`db.GetGorm()` を呼んで [GORM](https://gorm.io/docs/) エコシステムを直接使用できます。両方のスタイルを自由に混在可能です。
 
 生 GORM ではすべての呼出でテーブル名、コンテキスト、型を繰り返します。Go Web Frame は構築時に一度バインドするだけ。20 以上のモデルがあるときに違いが顕著になります。
 

@@ -251,14 +251,16 @@ m := userModel.WithContext(req.Ctx())
 user, _ := m.FindByPK(1)
 users, total, _ := m.Query().Where("age > ?", 18).Page(&web.Page{PageNo: 1, PageSize: 10})
 
-// 原生 GORM — 每次呼叫都要寫表名、ctx、手動分頁
+// 原生 GORM — 透過 GetGorm() 取得 *gorm.DB，直接使用 GORM 生態
 var user User
-db.WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("id = ?", 1).First(&user)
 var users []User
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Offset(0).Limit(10).Find(&users)
 var total int64
-db.WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
+db.GetGorm().WithContext(ctx).Table("t_user").Where("age > ?", 18).Count(&total)
 ```
+
+`EntryModel` 是輔助封裝——減少樣板程式碼，而非限制能力。內建方法不夠用時（複雜 JOIN、子查詢、視窗函式等），呼叫 `db.GetGorm()` 直接使用 [GORM](https://gorm.io/zh_CN/docs/) 生態，兩種方式可自由混用。
 
 原生 GORM 每次都要重複表名、context 和型別。Go Web Frame 在建構時綁定一次，開發時差異巨大——有 20 個 Model 的時候最明顯。
 

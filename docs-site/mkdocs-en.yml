@@ -9,7 +9,6 @@ site_dir: site-en
 theme:
   name: material
   language: en
-  custom_dir: docs-en/overrides
   font:
     text: Noto Sans
     code: JetBrains Mono
@@ -109,9 +108,6 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/chuccp/go-web-frame
       name: GitHub
-    - icon: fontawesome/brands/go
-      link: https://pkg.go.dev/github.com/chuccp/go-web-frame
-      name: Go Reference
   alternate:
     - name: English
       link: https://chuccp.github.io/go-web-frame/en/

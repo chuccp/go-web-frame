@@ -485,5 +485,5 @@ for _, u := range users {
 
 ## 下一步
 
-- [API 参考](../api/core.md) - 查看完整的 API 文档
-- [高级主题](../advanced/database.md) - 了解更多高级功能
+- [API 参考](api/core.md) - 查看完整的 API 文档
+- [高级主题](advanced/database.md) - 了解更多高级功能

@@ -1,6 +1,6 @@
 site_name: Go Web Frame
 site_url: https://chuccp.github.io/go-web-frame/zh/
-site_description: Go Web Frame - 集成式 Go 后端开发工具包：零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。
+site_description: 'Go Web Frame - 集成式 Go 后端开发工具包：零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。'
 site_author: Go Web Frame Team
 
 docs_dir: docs-zh

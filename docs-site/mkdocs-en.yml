@@ -1,6 +1,6 @@
 site_name: Go Web Frame
 site_url: https://chuccp.github.io/go-web-frame/en/
-site_description: Go Web Frame - An integrated Go backend toolkit: zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.
+site_description: 'Go Web Frame - An integrated Go backend toolkit: zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.'
 site_author: Go Web Frame Team
 
 docs_dir: docs-en

@@ -1,4 +1,4 @@
-﻿---
+---
 hide:
   - navigation
   - toc
@@ -6,59 +6,24 @@ hide:
 
 # Go Web Frame
 
-<div class="gw-hero" markdown>
+> 集成式 Go 后端开发工具包 — 零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。
 
-# Go Web Frame
+[5 分钟上手](getting-started/quick-start.md){ .md-button .md-button--primary }
+[安装](getting-started/installation.md){ .md-button }
+[源码 :simple-github:](https://github.com/chuccp/go-web-frame){ .md-button }
 
-<p class="gw-subtitle">集成式 Go 后端开发工具包 — 零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。</p>
+---
 
-<div class="gw-cta" markdown>
-<a href="getting-started/quick-start.md" class="gw-cta-primary">:material-rocket-launch: 5 分钟上手</a>
-<a href="getting-started/installation.md" class="gw-cta-secondary">:material-download: 安装</a>
-<a href="https://github.com/chuccp/go-web-frame" class="gw-cta-secondary">:simple-github: 源码</a>
-</div>
+## 特性
 
-</div>
+- **:material-database-check: 零样板 CRUD** — `Model[T]` / `EntryModel[T, PK]` 消除 CRUD 样板，从数据库到 Handler 全链路类型安全，无需代码生成。
+- **:material-shield-key: 声明式路由元数据** — 通过 `.WithMeta()` 给路由打标记，一个全局 Filter 集中处理认证、权限、限流等横切逻辑。
+- **:material-link-variant: 显式依赖注入** — 用 Builder 模式显式注册组件，初始化顺序完全透明、可控，告别隐式扫描的"黑箱操作"。
+- **:material-transit-connection-variant: Gin 生态兼容** — 封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等中间件可直接复用。
+- **:material-package-variant: 内置组件开箱即用** — 限流、缓存、验证码、定时任务、认证、CORS 等常用组件已预集成，一行代码即可启用。
+- **:material-lock-check: 生产就绪** — 内置 Let's Encrypt 自动 HTTPS、优雅关停、连接池管理、结构化日志，直接部署到生产环境。
 
-<div class="gw-features" markdown>
-
-<a href="getting-started/quick-start.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-database-check:</span>
-#### 零样板 CRUD
-用 `Model[T]` / `EntryModel[T, PK]` 消除 CRUD 样板，从数据库到 Handler 全链路类型安全，无需代码生成。
-</a>
-
-<a href="guide/filter.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-shield-key:</span>
-#### 声明式路由元数据
-通过 `.WithMeta()` 给路由打标记，一个全局 Filter 集中处理认证、权限、限流等横切逻辑。
-</a>
-
-<a href="guide/service.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-link-variant:</span>
-#### 显式依赖注入
-用 Builder 模式显式注册组件，初始化顺序完全透明、可控，告别隐式扫描的"黑箱操作"。
-</a>
-
-<a href="guide/routing.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-transit-connection-variant:</span>
-#### Gin 生态兼容
-封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等中间件可直接复用。
-</a>
-
-<a href="guide/components.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-package-variant:</span>
-#### 内置组件开箱即用
-限流、缓存、验证码、定时任务、认证、CORS 等常用组件已预集成，一行代码即可启用。
-</a>
-
-<a href="advanced/deployment.md" class="gw-feature-card" markdown>
-<span class="gw-feature-icon">:material-lock-check:</span>
-#### 生产就绪
-内置 Let's Encrypt 自动 HTTPS、优雅关停、连接池管理、结构化日志，直接部署到生产环境。
-</a>
-
-</div>
+---
 
 ## 30 秒 Hello World
 
@@ -93,41 +58,16 @@ go run main.go
 
 ## :material-compass: 快速导航
 
-<div class="gw-quicknav" markdown>
-
-<a href="getting-started/installation.md"><span class="gw-quicknav-icon">:material-download:</span> 安装</a>
-<a href="getting-started/quick-start.md"><span class="gw-quicknav-icon">:material-rocket-launch:</span> 5 分钟上手</a>
-<a href="guide/routing.md"><span class="gw-quicknav-icon">:material-routes:</span> 路由</a>
-<a href="guide/controller.md"><span class="gw-quicknav-icon">:material-format-list-bulleted:</span> 控制器</a>
-<a href="guide/model.md"><span class="gw-quicknav-icon">:material-database:</span> 模型</a>
-<a href="guide/service.md"><span class="gw-quicknav-icon">:material-server:</span> 服务</a>
-<a href="guide/filter.md"><span class="gw-quicknav-icon">:material-shield:</span> 过滤器</a>
-<a href="guide/converter.md"><span class="gw-quicknav-icon">:material-swap-horizontal:</span> 响应转换器</a>
-<a href="guide/error-code.md"><span class="gw-quicknav-icon">:material-alert-circle:</span> 错误码</a>
-<a href="guide/configuration.md"><span class="gw-quicknav-icon">:material-cog:</span> 配置</a>
-<a href="guide/logging.md"><span class="gw-quicknav-icon">:material-file-document:</span> 日志</a>
-<a href="guide/runner.md"><span class="gw-quicknav-icon">:material-run:</span> 后台任务</a>
-<a href="guide/components.md"><span class="gw-quicknav-icon">:material-package-variant:</span> 内置组件</a>
-<a href="advanced/websocket-sse.md"><span class="gw-quicknav-icon">:material-web:</span> WebSocket 与 SSE</a>
-<a href="advanced/database.md"><span class="gw-quicknav-icon">:material-database-cog:</span> 数据库高级</a>
-<a href="advanced/deployment.md"><span class="gw-quicknav-icon">:material-rocket:</span> 部署</a>
-
-</div>
+| | | |
+|---|---|---|
+| [:material-download: 安装](getting-started/installation.md) | [:material-rocket-launch: 5 分钟上手](getting-started/quick-start.md) | [:material-routes: 路由](guide/routing.md) |
+| [:material-format-list-bulleted: 控制器](guide/controller.md) | [:material-database: 模型](guide/model.md) | [:material-server: 服务](guide/service.md) |
+| [:material-shield: 过滤器](guide/filter.md) | [:material-swap-horizontal: 响应转换器](guide/converter.md) | [:material-alert-circle: 错误码](guide/error-code.md) |
+| [:material-cog: 配置](guide/configuration.md) | [:material-file-document: 日志](guide/logging.md) | [:material-run: 后台任务](guide/runner.md) |
+| [:material-package-variant: 内置组件](guide/components.md) | [:material-web: WebSocket & SSE](advanced/websocket-sse.md) | [:material-database-cog: 数据库高级](advanced/database.md) |
+| [:material-rocket: 部署](advanced/deployment.md) | | |
 
 ## :material-layers: 技术栈
-
-<div class="gw-techstack" markdown>
-<span class="gw-badge">:simple-go: Gin</span>
-<span class="gw-badge">:material-database: GORM</span>
-<span class="gw-badge">:material-file-cog: Viper</span>
-<span class="gw-badge">:material-lightning-bolt: Zap</span>
-<span class="gw-badge">:material-code-json: Sonic</span>
-<span class="gw-badge">:material-database-sync: go-redis</span>
-<span class="gw-badge">:simple-sqlite: modernc/sqlite</span>
-<span class="gw-badge">:material-check-circle: validator</span>
-<span class="gw-badge">:material-web: coder/websocket</span>
-<span class="gw-badge">:material-clock-time-four: robfig/cron</span>
-</div>
 
 | 层级 | 库 | 作用 |
 |---|---|---|

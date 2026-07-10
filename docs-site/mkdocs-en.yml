@@ -119,8 +119,6 @@ extra:
     new: New
     deprecated: Deprecated
 
-extra_css:
-  - css/extra.css
 
 nav:
   - Home: index.md

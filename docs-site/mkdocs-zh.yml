@@ -119,8 +119,6 @@ extra:
     new: 新增
     deprecated: 已弃用
 
-extra_css:
-  - css/extra.css
 
 nav:
   - 首页: index.md

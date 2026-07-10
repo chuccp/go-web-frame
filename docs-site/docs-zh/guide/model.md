@@ -104,7 +104,22 @@ func (m *UserModel) Init(db *db.DB, ctx *core.Context) error {
 }
 ```
 
-### EntryModel 额外方法
+> **关于 EntryModel 与 GORM 生态**
+> 
+> `EntryModel` 和 `Model` 是框架提供的辅助封装，旨在减少样板代码。它们底层基于 GORM，你完全可以跳过这些封装，直接使用 GORM 的原生 API：
+> 
+> ```go
+> // 方式一：使用 EntryModel（减少代码量，推荐日常 CRUD）
+> user, err := userModel.FindByPK(1)
+> 
+> // 方式二：直接使用 GORM（更灵活，适合复杂场景）
+> var user entity.User
+> err := db.DB.First(&user, 1).Error
+> ```
+> 
+> 当 EntryModel 的内置方法无法满足需求时（如复杂 JOIN、子查询、窗口函数等），直接使用 GORM 生态是最佳选择。两者可以混合使用，框架不做限制。
+> 
+> ### EntryModel 额外方法
 
 ```go
 // 根据主键查找

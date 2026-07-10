@@ -371,6 +371,9 @@ type DB struct {
 func (d *DB) New() *DB {
 	return &DB{db: d.db}
 }
+func (d *DB) GetGorm() *gorm.DB {
+	return d.db
+}
 
 // WithContext returns a new DB whose underlying *gorm.DB carries the given context.
 // The original DB instance is unchanged; safe for concurrent use across requests.

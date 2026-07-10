@@ -68,6 +68,21 @@ err := userModel.DeleteByPK(1)
 pageAble, err := userModel.Query().PageForWeb(page)
 ```
 
+> **EntryModel vs Raw GORM**
+> 
+> `EntryModel` and `Model` are convenience wrappers that reduce boilerplate code. They are built on top of GORM — you can skip these wrappers entirely and use GORM's native API directly:
+> 
+> ```go
+> // Option 1: Use EntryModel (recommended for common CRUD, less boilerplate)
+> user, err := userModel.FindByPK(1)
+> 
+> // Option 2: Use GORM directly (more flexible for complex queries)
+> var user User
+> err := db.DB.First(&user, 1).Error
+> ```
+> 
+> When EntryModel's built-in methods are insufficient (complex JOINs, subqueries, window functions, etc.), using the GORM ecosystem directly is the best choice. You can mix both approaches freely — the framework imposes no restrictions.
+
 ## Query Builder
 
 ```go

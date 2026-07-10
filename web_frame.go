@@ -2,6 +2,7 @@ package wf
 
 import (
 	"context"
+	"net/http"
 
 	"emperror.dev/errors"
 	config2 "github.com/chuccp/go-web-frame/config"
@@ -71,6 +72,10 @@ type WebFrame struct {
 // Blocks until the application is shut down.
 func (w *WebFrame) Start() error {
 	return w.Run(context.Background())
+}
+func (w *WebFrame) GetHandler() http.Handler {
+	//TODO 实现测试
+	return nil
 }
 
 // Test initializes the application without starting a real HTTP server,

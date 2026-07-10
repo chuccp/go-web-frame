@@ -62,10 +62,6 @@ plugins:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])'
   - tags:
       tags_file: tags.md
-  - git-revision-date-localized:
-      enabled: !ENV [CI]
-      type: date
-      fallback_to_build_date: true
 
 markdown_extensions:
   - abbr

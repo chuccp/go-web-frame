@@ -224,15 +224,16 @@ func (cs *certStore) hasAutoCert() bool {
 	return len(cs.autoHosts) > 0
 }
 
-func (cs *certStore) matchingDomain() string {
+func (cs *certStore) matchingDomains() []string {
+	domains := make([]string, 0)
 	for _, entry := range cs.certEntries {
 		for _, domain := range entry.domains {
 			if !strings.HasPrefix(domain, "*.") {
-				return domain
+				domains = append(domains, domain)
 			}
 		}
 	}
-	return ""
+	return domains
 }
 
 // ---- package helpers ----

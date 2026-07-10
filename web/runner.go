@@ -146,16 +146,20 @@ func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
 
 func (sr *ServerRunner) logTLSListen(server *Server, addr string) {
 	if server.isAuto() {
-		log.Info("server listening (auto-cert)",
-			zap.Strings("hosts", server.serverConfig.SSL.Hosts),
-			zap.String("url", "https://"+server.serverConfig.SSL.Hosts[0]+addr),
-		)
+		for _, host := range server.serverConfig.SSL.Hosts {
+			log.Info("server listening (auto-cert)",
+				zap.Strings("hosts", server.serverConfig.SSL.Hosts),
+				zap.String("url", "https://"+host+addr),
+			)
+		}
 		return
 	}
-	if domain := sr.certs.matchingDomain(); domain != "" {
-		log.Info("server listening",
-			zap.String("url", "https://"+domain+addr),
-		)
+	if domains := sr.certs.matchingDomains(); len(domains) > 0 {
+		for _, domain := range domains {
+			log.Info("server listening",
+				zap.String("url", "https://"+domain+addr),
+			)
+		}
 		return
 	}
 	log.Info("server listening", zap.String("url", "https://localhost"+addr))

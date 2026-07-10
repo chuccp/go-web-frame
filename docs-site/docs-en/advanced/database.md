@@ -4,19 +4,49 @@ Advanced database usage.
 
 ## Transactions
 
+### Basic Transaction
+
 ```go
-err := db.Transaction(func(tx *db.DB) error {
-    userModel := model.NewModel[*User](tx, "t_user")
-    orderModel := model.NewModel[*Order](tx, "t_order")
-    
-    user := &User{Name: "alice"}
-    if err := userModel.Save(user); err != nil {
-        return err
-    }
-    
-    order := &Order{UserId: user.Id}
-    return orderModel.Save(order)
-})
+func (s *OrderService) CreateOrder(input *CreateOrderInput) (*Order, error) {
+    var order *Order
+
+    tx := ctx.GetTransaction()
+    err := tx.Exec(func(tx *db.DB) error {
+        // Use GetReNewModel to create a model bound to the transaction
+        orderModel := wf.GetReNewModel[*OrderModel](tx, ctx)
+
+        // Step 1: create the order
+        order = &Order{UserID: input.UserID, Total: input.Total}
+        if err := orderModel.Save(order); err != nil {
+            return err
+        }
+
+        // Step 2: create order items
+        itemModel := wf.GetReNewModel[*OrderItemModel](tx, ctx)
+        for _, item := range input.Items {
+            orderItem := &OrderItem{OrderID: order.Id, ProductID: item.ProductID}
+            if err := itemModel.Save(orderItem); err != nil {
+                return err
+            }
+        }
+
+        return nil
+    })
+
+    return order, err
+}
+```
+
+### Named Transaction
+
+```go
+func (s *UserService) UpdateUserWithTransaction(user *User) error {
+    tx := ctx.GetTransaction()
+    return tx.Exec(func(tx *db.DB) error {
+        userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+        return userModel.Save(user)
+    })
+}
 ```
 
 ## Model Groups
@@ -49,6 +79,28 @@ logGroup := wf.NewModelGroupBuilder().
     Build()
 builder.ModelGroup(logGroup)
 ```
+
+### Multi-Database Transactions
+
+Transactions for different model groups are independent:
+
+```go
+// Default model group transaction
+tx := ctx.GetTransaction()
+err := tx.Exec(func(tx *db.DB) error {
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
+})
+
+// Named model group transaction
+logTx := ctx.GetTransactionByName("log_group")
+err = logTx.Exec(func(tx *db.DB) error {
+    logModel := wf.GetReNewModel[*LogModel](tx, ctx)
+    return logModel.Save(logEntry)
+})
+```
+
+> **Note**: Cross-model-group transactions do not support distributed transactions. Handle cross-database consistency at the application level.
 
 ## Custom Database Driver
 
@@ -115,5 +167,14 @@ web:
 ## Raw SQL
 
 ```go
-result, err := db.Raw("SELECT * FROM users WHERE id = ?", 1)
+// Raw SQL query (Where conditions are auto-merged)
+users, err := userModel.Query().
+    Where("status = ?", 1).
+    Exec("SELECT * FROM t_user WHERE status = ?", 1)
+
+// Raw SQL pagination
+users, total, err := userModel.Query().
+    Where("status = ?", 1).
+    Order("id desc").
+    ExecPage(page, "SELECT * FROM t_user WHERE status = ?", 1)
 ```

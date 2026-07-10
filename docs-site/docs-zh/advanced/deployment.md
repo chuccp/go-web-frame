@@ -17,6 +17,7 @@ import (
 
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/config"
+    "github.com/chuccp/go-web-frame/web"
 )
 
 func main() {

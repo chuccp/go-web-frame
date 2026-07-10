@@ -1,6 +1,6 @@
-# 快速开始
+﻿# 5 分钟上手
 
-本指南将帮助你在几分钟内上手 Go Web Frame。
+本指南将帮助你在几分钟内创建第一个 Go Web Frame 应用。
 
 ## 创建项目
 
@@ -11,6 +11,15 @@ go get github.com/chuccp/go-web-frame
 ```
 
 ## 30 秒：Hello World
+
+创建 `application.yml`：
+
+```yaml
+web:
+  server:
+    port: 19009
+    host: 0.0.0.0
+```
 
 创建 `main.go`：
 
@@ -46,10 +55,13 @@ go run main.go
 
 ## 5 分钟：REST + 数据库
 
-创建 `application.yml`：
+在 `application.yml` 中添加 SQLite 配置：
 
 ```yaml
 web:
+  server:
+    port: 19009
+    host: 0.0.0.0
   db:
     type: sqlite
     path: ./data.db
@@ -70,13 +82,13 @@ import (
     "github.com/chuccp/go-web-frame/web"
 )
 
-// ── 实体 ──
+// ──── 实体 ────
 type User struct {
     Id   uint   `gorm:"primaryKey;autoIncrement"`
     Name string `gorm:"size:255"`
 }
 
-// ── 模型（零 CRUD 样板） ──
+// ──── 模型（零 CRUD 样板）────
 type UserModel struct {
     *model.EntryModel[*User, uint]
 }
@@ -86,7 +98,7 @@ func (m *UserModel) Init(database *db.DB, ctx *core.Context) error {
     return m.CreateTable()
 }
 
-// ── 控制器 ──
+// ──── 控制器 ────
 type UserController struct {
     core.IService
     userModel *UserModel
@@ -132,7 +144,7 @@ func (c *UserController) Delete(req *web.Request) (any, error) {
     return nil, c.userModel.DeleteByPK(req.ParamUint("id"))
 }
 
-// ── 入口 ──
+// ──── 入口 ────
 func main() {
     cfg, _ := config.LoadSingleFileConfig("application.yml")
     builder := wf.NewBuilder(cfg)
@@ -151,6 +163,65 @@ curl -X POST http://localhost:19009/users \
 ```
 
 表会自动创建，CRUD 直接可用，无需手写 SQL 和 ORM 装配代码。
+
+## 10 分钟：请求参数处理
+
+### 路径参数
+
+```go
+builder.Get("/users/:id", func(req *web.Request) (any, error) {
+    id := req.Param("id")         // 字符串 "123"
+    idInt := req.ParamInt("id")   // 整数 123
+    idUint := req.ParamUint("id") // uint 123
+    return map[string]any{"id": id, "idInt": idInt, "idUint": idUint}, nil
+})
+```
+
+访问 `/users/123`：
+
+```json
+{
+  "id": "123",
+  "idInt": 123,
+  "idUint": 123
+}
+```
+
+### 查询参数
+
+```go
+builder.Get("/search", func(req *web.Request) (any, error) {
+    keyword := req.Query("q")               // /search?q=go
+    page := req.DefaultQuery("page", "1")   // 带默认值
+    return map[string]any{"keyword": keyword, "page": page}, nil
+})
+```
+
+### JSON 请求体
+
+```go
+builder.Post("/users", func(req *web.Request) (any, error) {
+    var user struct {
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    }
+    if err := req.BindJSON(&user); err != nil {
+        return nil, err
+    }
+    return map[string]any{
+        "name":  user.Name,
+        "email": user.Email,
+    }, nil
+})
+```
+
+发送 POST 请求：
+
+```bash
+curl -X POST http://localhost:19009/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@example.com"}'
+```
 
 ## 核心概念
 
@@ -205,7 +276,7 @@ myapp/
 
 ## 下一步
 
-- [Hello World](hello-world.md) - 更详细的入门示例
 - [路由](../guide/routing.md) - 深入了解路由系统
 - [控制器](../guide/controller.md) - 使用 REST 控制器组织代码
 - [模型](../guide/model.md) - 类型安全 ORM 完整用法
+- [服务](../guide/service.md) - 业务逻辑层与依赖注入

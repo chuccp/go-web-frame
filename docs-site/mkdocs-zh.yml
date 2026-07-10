@@ -1,6 +1,6 @@
-site_name: Go Web Frame 使用手册
+site_name: Go Web Frame
 site_url: https://chuccp.github.io/go-web-frame/zh/
-site_description: Go Web Frame 框架官方文档（中文）
+site_description: Go Web Frame - 集成式 Go 后端开发工具包：零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。
 site_author: Go Web Frame Team
 
 docs_dir: docs-zh
@@ -9,63 +9,149 @@ site_dir: site-zh
 theme:
   name: material
   language: zh
+  custom_dir: docs-zh/overrides
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
   palette:
     - scheme: default
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: 切换到深色模式
     - scheme: slate
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: 切换到浅色模式
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
-    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - navigation.path
+    - navigation.prune
+    - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
     - content.code.annotate
+    - content.code.select
     - content.tabs.link
+    - content.tooltips
+    - content.action.edit
+    - content.action.view
+    - announce.dismiss
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+
+repo_url: https://github.com/chuccp/go-web-frame
+repo_name: chuccp/go-web-frame
+edit_uri: edit/main/docs-site/docs-zh/
 
 plugins:
-  - search
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])'
+  - tags:
+      tags_file: tags.md
+  - git-revision-date-localized:
+      enabled: !ENV [CI]
+      type: date
+      fallback_to_build_date: true
 
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
+  - abbr
   - admonition
-  - pymdownx.details
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
+  - tables
   - toc:
       permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/chuccp/go-web-frame
+      name: GitHub
+    - icon: fontawesome/brands/go
+      link: https://pkg.go.dev/github.com/chuccp/go-web-frame
+      name: Go Reference
+  alternate:
+    - name: English
+      link: https://chuccp.github.io/go-web-frame/en/
+      lang: en
+    - name: 中文
+      link: https://chuccp.github.io/go-web-frame/zh/
+      lang: zh
+  status:
+    new: 新增
+    deprecated: 已弃用
+
+extra_css:
+  - css/extra.css
 
 nav:
   - 首页: index.md
   - 快速开始:
       - 安装: getting-started/installation.md
-      - 快速开始: getting-started/quick-start.md
-      - Hello World: getting-started/hello-world.md
-  - 指南:
+      - 5 分钟上手: getting-started/quick-start.md
+  - 核心概念:
       - 路由: guide/routing.md
       - 控制器: guide/controller.md
       - 模型: guide/model.md
       - 服务: guide/service.md
-      - 过滤器/中间件: guide/filter.md
+      - 过滤器: guide/filter.md
       - 响应转换器: guide/converter.md
       - 错误码: guide/error-code.md
-      - 配置: guide/configuration.md
+  - 配置与运维:
+      - 配置管理: guide/configuration.md
       - 日志: guide/logging.md
       - 后台任务: guide/runner.md
-      - 组件: guide/components.md
-  - 高级:
-      - 数据库: advanced/database.md
+      - 内置组件: guide/components.md
+  - 进阶:
+      - WebSocket 与 SSE: advanced/websocket-sse.md
+      - 静态文件与代理: advanced/static-proxy.md
+      - 数据库高级用法: advanced/database.md
       - 部署: advanced/deployment.md
   - API 参考:
       - 核心 API: api/core.md
@@ -74,15 +160,3 @@ nav:
       - 工具库 API: api/util.md
   - 最佳实践: best-practices.md
   - 更新日志: changelog.md
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/chuccp/go-web-frame
-  alternate:
-    - name: English
-      link: https://chuccp.github.io/go-web-frame/en/
-      lang: en
-    - name: 中文
-      link: https://chuccp.github.io/go-web-frame/zh/
-      lang: zh

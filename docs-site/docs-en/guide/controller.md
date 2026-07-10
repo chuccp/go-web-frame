@@ -19,34 +19,34 @@ func (u *UserController) Init(ctx *core.Context) error {
 ## Register Controller
 
 ```go
-builder := wf.NewBuilder(config.LoadAutoConfig())
+cfg, _ := config.LoadSingleFileConfig("application.yml")
+builder := wf.NewBuilder(cfg)
 builder.Rest(&UserController{})
 ```
 
 ## Request Handling
 
 ```go
-func (u *UserController) List(c *web.Request) (any, error) {
+func (u *UserController) List(req *web.Request) (any, error) {
     // Path params
-    id := c.Param("id")
+    id := req.Param("id")
     
     // Query params
-    page := c.Query("page")
+    page := req.Query("page")
     
     // JSON body
     var data struct {
         Name string `json:"name"`
     }
-    if err := c.BindJSON(&data); err != nil {
+    if err := req.BindJSON(&data); err != nil {
         return nil, err
     }
     
-    // Get service/model
-    userModel := wf.GetModel[*UserModel](c.Context())
-    
-    return userModel.Query().All()
+    return data, nil
 }
 ```
+
+> **Note:** Get models and services in `Init()`, not in the handler. See [Dependency Injection](service.md).
 
 ## Request Methods
 
@@ -54,13 +54,16 @@ func (u *UserController) List(c *web.Request) (any, error) {
 |--------|-------------|
 | `Param(key)` | Path parameter (string) |
 | `ParamInt(key)` | Path parameter (int) |
+| `ParamUint(key)` | Path parameter (uint) |
 | `Query(key)` | Query parameter (string) |
-| `QueryInt(key)` | Query parameter (int) |
+| `DefaultQuery(key, default)` | Query parameter with default |
 | `BindJSON(v)` | Bind JSON body |
 | `GetHeader(key)` | Get header |
 | `Cookie()` | Get cookie helper |
-| `Context()` | Get core.Context |
+| `Ctx()` | Get request `context.Context` |
+| `ClientIP()` | Get client IP |
 | `Page()` | Get pagination info |
+| `GinContext()` | Get underlying `*gin.Context` |
 
 ## Response Types
 
@@ -72,7 +75,7 @@ return map[string]any{"id": 1}, nil
 return "hello", nil
 
 // File download
-return &web.File{Path: "/path/file.pdf", FileName: "doc.pdf"}, nil
+return &web.FileResponse{Path: "/path/file.pdf", FileName: "doc.pdf"}, nil
 
 // Redirect
 return web.Redirect("/new-url"), nil
@@ -98,3 +101,40 @@ func (u *UserController) Upload(c *web.Request) (any, error) {
     return map[string]string{"path": dst}, nil
 }
 ```
+
+## Dependency Injection
+
+Controllers can get other components via the `ctx` parameter in `Init`:
+
+```go
+type UserController struct {
+    core.IService
+    userService *UserService
+}
+
+func (c *UserController) Init(ctx *core.Context) error {
+    // Get service
+    c.userService = wf.GetService[*UserService](ctx)
+
+    // Register routes
+    ctx.Get("/users", c.List)
+    ctx.Get("/users/:id", c.Get)
+
+    return nil
+}
+
+func (c *UserController) List(req *web.Request) (any, error) {
+    users, err := c.userService.GetAllUsers()
+    if err != nil {
+        return nil, err
+    }
+    return users, nil
+}
+```
+
+## Next Steps
+
+- [Model](model.md) - Type-safe ORM
+- [Service](service.md) - Business logic layer
+- [Filter/Middleware](filter.md) - Cross-cutting concerns
+- [Runner](runner.md) - Background tasks

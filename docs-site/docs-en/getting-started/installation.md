@@ -46,4 +46,3 @@ Go Web Frame automatically installs the following dependencies:
 ## Next Steps
 
 - [Quick Start](quick-start.md) - Create your first application
-- [Hello World](hello-world.md) - The simplest example

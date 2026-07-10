@@ -194,7 +194,7 @@ func (c *UserController) GetString(req *web.Request) (any, error) {
 
 ```go
 func (c *UserController) Download(req *web.Request) (any, error) {
-    return &web.File{
+    return &web.FileResponse{
         Path:     "/path/to/file.pdf",
         FileName: "document.pdf",
     }, nil

@@ -110,12 +110,12 @@ Certificate selection priority: local cert match > autocert > first local cert a
 Register two `RestGroup`s on different ports:
 
 ```go
-httpsGroup := core.NewRestGroupBuilder().
+httpsGroup := wf.NewRestGroupBuilder().
     ServerConfig(sslServerConfig).
     Rest(&UserController{}).
     Build()
 
-httpGroup := core.NewRestGroupBuilder().
+httpGroup := wf.NewRestGroupBuilder().
     ServerConfig(web.DefaultServerConfig()). // port 80
     Rest(&UserController{}).
     Build()
@@ -144,7 +144,7 @@ web:
 
 | Key | Description | Default |
 |-----|-------------|----------|
-| `web.server.port` | Listen port | 19009 |
+| `web.server.port` | Listen port | 8081 |
 | `web.server.context_path` | Route prefix | none |
 | `web.server.locations` | Static file directories | none |
 | `web.server.page404` | 404 fallback page | none |

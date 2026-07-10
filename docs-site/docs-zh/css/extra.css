@@ -1,0 +1,437 @@
+/* ============================================================
+   Go Web Frame - Custom Material Theme Styles
+   ============================================================ */
+
+/* --- CSS Variables --- */
+:root {
+  --gw-logo-blue: #4F46E5;
+  --gw-logo-teal: #14B8A6;
+  --gw-hero-gradient: linear-gradient(135deg, #4F46E5 0%, #14B8A6 100%);
+  --gw-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --gw-card-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-md-color-scheme="slate"] {
+  --gw-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --gw-card-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Hero Section --- */
+.md-typeset .gw-hero {
+  margin: 0 -0.8rem 2rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--gw-hero-gradient);
+  border-radius: 1rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.md-typeset .gw-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at top right, rgba(255, 255, 255, 0.15), transparent 60%),
+              radial-gradient(ellipse at bottom left, rgba(255, 255, 255, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+.md-typeset .gw-hero h1 {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1.2;
+  color: #fff;
+  position: relative;
+}
+
+.md-typeset .gw-hero .gw-subtitle {
+  font-size: 1.15rem;
+  opacity: 0.92;
+  margin: 0 auto 1.5rem;
+  max-width: 640px;
+  line-height: 1.6;
+  position: relative;
+}
+
+.md-typeset .gw-hero .gw-cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.md-typeset .gw-hero .gw-cta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.6rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.md-typeset .gw-hero .gw-cta-primary {
+  background: #fff;
+  color: var(--gw-logo-blue);
+}
+
+.md-typeset .gw-hero .gw-cta-primary:hover {
+  background: #f0f0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.md-typeset .gw-hero .gw-cta-secondary {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+}
+
+.md-typeset .gw-hero .gw-cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-2px);
+}
+
+/* --- Feature Cards Grid --- */
+.md-typeset .gw-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0;
+}
+
+.md-typeset .gw-feature-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: var(--gw-card-shadow);
+  transition: all 0.25s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.md-typeset .gw-feature-card:hover {
+  box-shadow: var(--gw-card-shadow-hover);
+  transform: translateY(-3px);
+  border-color: var(--md-accent-fg-color);
+}
+
+.md-typeset .gw-feature-card .gw-feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(20, 184, 166, 0.12));
+  color: var(--gw-logo-blue);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .gw-feature-card .gw-feature-icon {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(20, 184, 166, 0.2));
+  color: #818CF8;
+}
+
+.md-typeset .gw-feature-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.md-typeset .gw-feature-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.7;
+  line-height: 1.5;
+}
+
+/* --- Quick Navigation Section --- */
+.md-typeset .gw-quicknav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.md-typeset .gw-quicknav a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--md-code-bg-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.md-typeset .gw-quicknav a:hover {
+  border-color: var(--md-accent-fg-color);
+  background: var(--md-accent-fg-color--transparent);
+}
+
+.md-typeset .gw-quicknav a .gw-quicknav-icon {
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+/* --- Tech Stack Badges --- */
+.md-typeset .gw-techstack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.md-typeset .gw-techstack .gw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--md-code-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* --- Section Headers --- */
+.md-typeset .gw-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 2.5rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .gw-section-title .gw-section-icon {
+  font-size: 1.6rem;
+}
+
+/* --- Code Block Enhancements --- */
+.md-typeset code {
+  border-radius: 0.3rem;
+}
+
+.md-typeset pre > code {
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+/* --- Admonition Tweaks --- */
+.md-typeset .admonition {
+  border-radius: 0.5rem;
+  border-width: 0 0 0 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* --- Table Enhancements --- */
+.md-typeset table:not([class]) {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--md-code-bg-color);
+  font-weight: 600;
+}
+
+/* --- Content Width --- */
+.md-grid {
+  max-width: 1400px;
+}
+
+/* --- Hide "Made with" footer text --- */
+.md-footer-meta__inner {
+  display: none;
+}
+
+/* --- Smooth Scrolling --- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* --- Content Link Cards (for navigation pages) --- */
+.md-typeset .gw-link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.md-typeset .gw-link-grid > a {
+  display: block;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.md-typeset .gw-link-grid > a:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: var(--gw-card-shadow);
+  transform: translateY(-2px);
+}
+
+.md-typeset .gw-link-grid > a strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.md-typeset .gw-link-grid > a small {
+  opacity: 0.65;
+  font-size: 0.8rem;
+}
+
+/* ============================================================
+   Responsive & Polish
+   ============================================================ */
+
+/* --- Hero responsive adjustments --- */
+@media screen and (max-width: 768px) {
+  .md-typeset .gw-hero {
+    margin: 0 -0.8rem 1.5rem;
+    padding: 1.75rem 1rem;
+  }
+
+  .md-typeset .gw-hero h1 {
+    font-size: 1.75rem;
+  }
+
+  .md-typeset .gw-hero .gw-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .md-typeset .gw-hero .gw-cta a {
+    padding: 0.55rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  .md-typeset .gw-features {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .md-typeset .gw-feature-card {
+    padding: 1.1rem;
+  }
+
+  .md-typeset .gw-quicknav {
+    grid-template-columns: 1fr;
+  }
+
+  .md-typeset .gw-link-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .md-typeset .gw-section-title {
+    font-size: 1.2rem;
+  }
+}
+
+/* --- Tablet adjustments --- */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .md-typeset .gw-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- Feature card icon colors per card (nth-child rotation) --- */
+.md-typeset .gw-feature-card:nth-child(1) .gw-feature-icon { color: #4F46E5; }
+.md-typeset .gw-feature-card:nth-child(2) .gw-feature-icon { color: #0EA5E9; }
+.md-typeset .gw-feature-card:nth-child(3) .gw-feature-icon { color: #10B981; }
+.md-typeset .gw-feature-card:nth-child(4) .gw-feature-icon { color: #F59E0B; }
+.md-typeset .gw-feature-card:nth-child(5) .gw-feature-icon { color: #EF4444; }
+.md-typeset .gw-feature-card:nth-child(6) .gw-feature-icon { color: #8B5CF6; }
+
+/* --- Tech badge hover effect --- */
+.md-typeset .gw-techstack .gw-badge {
+  transition: all 0.2s ease;
+}
+
+.md-typeset .gw-techstack .gw-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Quick nav icon colors --- */
+.md-typeset .gw-quicknav a .gw-quicknav-icon {
+  transition: transform 0.2s ease;
+}
+
+.md-typeset .gw-quicknav a:hover .gw-quicknav-icon {
+  transform: scale(1.2);
+}
+
+/* --- Code block copy button offset fix --- */
+.md-typeset pre {
+  margin-bottom: 1em;
+}
+
+/* --- Table responsive scroll --- */
+.md-typeset table:not([class]) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* --- Admonition title weight --- */
+.md-typeset .admonition-title {
+  font-weight: 600;
+}
+
+/* --- Content max width for readability on large screens --- */
+.md-grid {
+  max-width: 1400px;
+}
+
+/* --- Link grid description color --- */
+.md-typeset .gw-link-grid > a:hover strong {
+  color: var(--md-accent-fg-color);
+}
+
+/* --- Focus visible for accessibility --- */
+.md-typeset .gw-feature-card:focus-visible,
+.md-typeset .gw-quicknav a:focus-visible,
+.md-typeset .gw-link-grid > a:focus-visible,
+.md-typeset .gw-hero .gw-cta a:focus-visible {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: 2px;
+}
+
+/* --- Print styles --- */
+@media print {
+  .md-typeset .gw-hero,
+  .md-typeset .gw-cta,
+  .md-typeset .gw-quicknav {
+    display: none;
+  }
+
+  .md-typeset .gw-features,
+  .md-typeset .gw-link-grid {
+    grid-template-columns: 1fr;
+  }
+}

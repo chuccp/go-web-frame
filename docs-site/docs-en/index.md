@@ -1,17 +1,64 @@
-# Go Web Frame User Guide
+﻿---
+hide:
+  - navigation
+  - toc
+---
 
-> An integrated Go backend toolkit: zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.
+# Go Web Frame
 
-## What is Go Web Frame?
+<div class="gw-hero" markdown>
 
-Go Web Frame is an integrated backend toolkit. Routing, ORM, caching, logging, configuration, filters, and background runners are pre-integrated — no need to pick and wire them separately.
+# Go Web Frame
 
-It focuses on **simplicity, transparency, and extensibility**:
+<p class="gw-subtitle">An integrated Go backend toolkit — zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.</p>
 
-- **Generic Model layer**: `Model[T]` / `EntryModel[T, PK]` eliminate CRUD boilerplate with full type safety from the database to the handler.
-- **Declarative route metadata**: Tag routes with `.WithMeta()` and handle auth, permissions, rate limiting, etc. in one global filter.
-- **Explicit dependency injection**: Register components through a fluent Builder, making initialization order fully transparent and controllable.
-- **Gin ecosystem compatible**: Wrap HTTP requests/responses while exposing `req.GinContext()` so `gin-contrib` middlewares like CORS and Gzip work out of the box.
+<div class="gw-cta" markdown>
+<a href="getting-started/quick-start.md" class="gw-cta-primary">:material-rocket-launch: Quick Start</a>
+<a href="getting-started/installation.md" class="gw-cta-secondary">:material-download: Installation</a>
+<a href="https://github.com/chuccp/go-web-frame" class="gw-cta-secondary">:simple-github: Source</a>
+</div>
+
+</div>
+
+<div class="gw-features" markdown>
+
+<a href="getting-started/quick-start.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-database-check:</span>
+#### Zero-Boilerplate CRUD
+`Model[T]` / `EntryModel[T, PK]` eliminate CRUD boilerplate with full type safety from database to handler — no code generation.
+</a>
+
+<a href="guide/filter.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-shield-key:</span>
+#### Declarative Route Metadata
+Tag routes with `.WithMeta()` and handle auth, permissions, and rate limiting in one global filter.
+</a>
+
+<a href="guide/service.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-link-variant:</span>
+#### Explicit Dependency Injection
+Register components through a fluent Builder — initialization order is fully transparent and controllable.
+</a>
+
+<a href="guide/routing.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-transit-connection-variant:</span>
+#### Gin Ecosystem Compatible
+Wraps HTTP requests/responses while exposing `req.GinContext()` — CORS, Gzip, and other middlewares work out of the box.
+</a>
+
+<a href="guide/components.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-package-variant:</span>
+#### Built-in Components
+Rate limiting, caching, captcha, cron scheduling, authentication, CORS — all pre-integrated and ready to use.
+</a>
+
+<a href="advanced/deployment.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-lock-check:</span>
+#### Production Ready
+Let's Encrypt auto HTTPS, graceful shutdown, connection pooling, structured logging — deploy to production with confidence.
+</a>
+
+</div>
 
 ## 30-Second Hello World
 
@@ -44,136 +91,43 @@ go run main.go
 # → http://localhost:19009
 ```
 
-## Framework Highlights
+## :material-compass: Quick Navigation
 
-### 1. Zero-Boilerplate CRUD with Generic Models (`Model[T]`)
+<div class="gw-quicknav" markdown>
 
-**Pain point**: Traditional frameworks force you to run CLI commands over and over to generate `model.go` or `dao.go` files, cluttering the project.
+<a href="getting-started/installation.md"><span class="gw-quicknav-icon">:material-download:</span> Installation</a>
+<a href="getting-started/quick-start.md"><span class="gw-quicknav-icon">:material-rocket-launch:</span> Quick Start</a>
+<a href="guide/routing.md"><span class="gw-quicknav-icon">:material-routes:</span> Routing</a>
+<a href="guide/controller.md"><span class="gw-quicknav-icon">:material-format-list-bulleted:</span> Controller</a>
+<a href="guide/model.md"><span class="gw-quicknav-icon">:material-database:</span> Model</a>
+<a href="guide/service.md"><span class="gw-quicknav-icon">:material-server:</span> Service</a>
+<a href="guide/filter.md"><span class="gw-quicknav-icon">:material-shield:</span> Filter</a>
+<a href="guide/converter.md"><span class="gw-quicknav-icon">:material-swap-horizontal:</span> Converter</a>
+<a href="guide/error-code.md"><span class="gw-quicknav-icon">:material-alert-circle:</span> Error Code</a>
+<a href="guide/configuration.md"><span class="gw-quicknav-icon">:material-cog:</span> Configuration</a>
+<a href="guide/logging.md"><span class="gw-quicknav-icon">:material-file-document:</span> Logging</a>
+<a href="guide/runner.md"><span class="gw-quicknav-icon">:material-run:</span> Runner</a>
+<a href="guide/components.md"><span class="gw-quicknav-icon">:material-package-variant:</span> Components</a>
+<a href="advanced/websocket-sse.md"><span class="gw-quicknav-icon">:material-web:</span> WebSocket & SSE</a>
+<a href="advanced/database.md"><span class="gw-quicknav-icon">:material-database-cog:</span> Database</a>
+<a href="advanced/deployment.md"><span class="gw-quicknav-icon">:material-rocket:</span> Deployment</a>
 
-**Design**: Go Web Frame uses Go generics to bind structs to the database at runtime. You define a plain struct, and create, read, update, delete, and advanced pagination (`Page` / `PageForWeb`) are immediately available — no code generation.
+</div>
 
-```go
-type UserModel struct {
-    *model.EntryModel[*User, uint]
-}
+## :material-layers: Tech Stack
 
-// Queries
-user, err := userModel.Query().Where("email = ?", email).One()
-users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
-
-// Writes
-err := userModel.Save(&User{Name: "alice"})
-err := userModel.UpdateByPK(&user)
-err := userModel.DeleteByPK(1)
-
-// Request context propagates to the database automatically
-m := userModel.WithContext(req.Ctx())
-users, err := m.FindAll()
-```
-
-| Type | Capabilities | Use when |
-|---|---|---|
-| `Model[T]` | `Save`, `Query()`, `Update()`, `Delete()`, `CreateTable()`, `WithContext()` | Full control over query building |
-| `EntryModel[T, PK]` | Everything in `Model[T]` + `FindByPK`, `FindAll`, `DeleteByPK`, `UpdateByPK`, `Page` | Entity has a primary key (most common) |
-
-### 2. Declarative Route Metadata (`WithMeta`)
-
-**Pain point**: In Gin, configuring auth, rate limiting, or public routes usually means attaching many middlewares in many places — scattered and hard to manage.
-
-**Design**: Routes are tagged declaratively with `.WithMeta()`. A single top-level filter checks the metadata, keeping business handlers clean.
-
-```go
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-
-func (c *ApiController) Init(ctx *core.Context) error {
-    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
-    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
-    ctx.Post("/api/admin/users", c.CreateUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// One filter handles all auth logic
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-    token := req.GetHeader("Authorization")
-    if token == "" {
-        return nil, errors.New("unauthorized")
-    }
-    // verify token, check permission...
-    return fc.Next()
-}
-```
-
-### 3. Explicit Dependency Injection with the Builder Pattern
-
-**Pain point**: Implicit global scanning, like in Java Spring, can lead to hidden initialization order and hard-to-debug "magic" in Go.
-
-**Design**: Components are registered explicitly through a fluent Builder. Dependencies are retrieved transparently via `GetService[T]` and `GetModel[T]`, and initialization order is fully visible and controllable.
-
-```go
-builder := wf.NewBuilder(cfg)
-
-// Infrastructure runs first
-builder.Filter(&cors.Filter{})
-builder.Filter(&AuthFilter{})
-
-// Data layer
-builder.Model(&UserModel{})
-builder.Model(&OrderModel{})
-
-// Business layer
-builder.Service(&UserService{})
-
-// HTTP layer
-builder.Rest(&UserController{})
-
-// Background work
-builder.Runner(&CleanupTask{})
-
-app := builder.Build()
-app.Run(ctx)
-```
-
-```go
-// In any Init() or handler, get dependencies by type
-userModel   := wf.GetModel[*UserModel](ctx)
-userService := wf.GetService[*UserService](ctx)
-```
-
-### 4. Seamless Gin Ecosystem Reuse (`GinContext` Compatible)
-
-**Pain point**: Many custom frameworks cannot use Gin community plugins, so common features have to be reimplemented.
-
-**Design**: Go Web Frame wraps HTTP requests and responses, but exposes the underlying `*gin.Context` through `req.GinContext()`. Hundreds of `gin-contrib` middlewares — CORS, Gzip, Secure, and more — work out of the box.
-
-```go
-import "github.com/gin-contrib/gzip"
-
-type GzipFilter struct{ core.IFilter }
-
-func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    gzip.Gzip(gzip.DefaultCompression)(req.GinContext())
-    return fc.Next()
-}
-```
-
-Common concerns are also built in:
-
-```go
-builder.Filter(&cors.Filter{})              // cross-origin
-builder.Service(&ratelimit.RateLimit{})     // rate limiting
-builder.Service(&cache.Cache{})             // in-memory cache
-builder.Service(&captcha.Captcha{})         // slide-puzzle captcha
-```
-
-## Tech Stack
+<div class="gw-techstack" markdown>
+<span class="gw-badge">:simple-go: Gin</span>
+<span class="gw-badge">:material-database: GORM</span>
+<span class="gw-badge">:material-file-cog: Viper</span>
+<span class="gw-badge">:material-lightning-bolt: Zap</span>
+<span class="gw-badge">:material-code-json: Sonic</span>
+<span class="gw-badge">:material-database-sync: go-redis</span>
+<span class="gw-badge">:simple-sqlite: modernc/sqlite</span>
+<span class="gw-badge">:material-check-circle: validator</span>
+<span class="gw-badge">:material-web: coder/websocket</span>
+<span class="gw-badge">:material-clock-time-four: robfig/cron</span>
+</div>
 
 | Layer | Library | Role |
 |---|---|---|
@@ -189,35 +143,9 @@ builder.Service(&captcha.Captcha{})         // slide-puzzle captcha
 | WebSocket | coder/websocket | Upgrade, read/write |
 | Cron | robfig/cron | Expression-based scheduling |
 
-## Quick Links
+## :simple-github: Community
 
-### Getting Started
-
-- [Installation](getting-started/installation.md) - Requirements and installation
-- [Quick Start](getting-started/quick-start.md) - Create your first application
-- [Hello World](getting-started/hello-world.md) - The simplest example
-
-### User Guide
-
-- [Routing](guide/routing.md) - HTTP routing system
-- [Controller](guide/controller.md) - REST controllers
-- [Service](guide/service.md) - Business logic and dependency injection
-- [Model](guide/model.md) - Type-safe ORM
-- [Filter/Middleware](guide/filter.md) - Auth, logging, CORS, rate limiting, route metadata
-- [Configuration](guide/configuration.md) - Configuration management
-- [Logging](guide/logging.md) - Structured logging
-- [Runner](guide/runner.md) - Runners and scheduled tasks
-- [Components](guide/components.md) - Rate limiting, cache, captcha, etc.
-
-### Advanced and Reference
-
-- [Database](advanced/database.md) - Transactions, model groups, migrations, raw SQL
-- [Deployment](advanced/deployment.md) - HTTPS, SSL, graceful shutdown
-- [Core API](api/core.md) / [Web API](api/web.md) / [Model API](api/model.md)
+- [GitHub Repository](https://github.com/chuccp/go-web-frame)
+- [Issue Tracker](https://github.com/chuccp/go-web-frame/issues)
 - [Best Practices](best-practices.md)
 - [Changelog](changelog.md)
-
-## Community
-
-- [GitHub](https://github.com/chuccp/go-web-frame)
-- [Issue Tracker](https://github.com/chuccp/go-web-frame/issues)

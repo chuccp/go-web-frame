@@ -94,17 +94,22 @@ func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
 ```go
 func TestUserService(t *testing.T) {
     // Setup
-    builder := wf.NewBuilder(testConfig)
+    cfg, _ := config.LoadSingleFileConfig("test.yml")
+    builder := wf.NewBuilder(cfg)
     builder.Model(&UserModel{})
     builder.Service(&UserService{})
     app := builder.Build()
     
-    // Get service
-    userService := wf.GetService[*UserService](app.Context())
-    
-    // Test
-    user, err := userService.GetUser(1)
+    // Use Test() to initialize without starting HTTP server
+    err := app.Test(func(ctx *core.Context) error {
+        userService := wf.GetService[*UserService](ctx)
+        
+        // Test
+        user, err := userService.GetUser(1)
+        assert.NoError(t, err)
+        assert.Equal(t, "alice", user.Name)
+        return nil
+    })
     assert.NoError(t, err)
-    assert.Equal(t, "alice", user.Name)
 }
 ```

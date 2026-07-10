@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="gw-fav-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5"/>
+      <stop offset="100%" style="stop-color:#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="10" fill="url(#gw-fav-grad)"/>
+  <path d="M14 30 L14 18 L20 18 L20 24 L28 24 L28 18 L34 18 L34 30 L28 30 L28 24 L20 24 L20 30 Z" fill="white" opacity="0.95"/>
+</svg>

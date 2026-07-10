@@ -69,6 +69,7 @@ import (
     "errors"
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/component/ratelimit"
+    "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
     "github.com/chuccp/go-web-frame/web"
 )
@@ -93,6 +94,7 @@ func (c *MyController) Handle(req *web.Request) (any, error) {
 }
 
 func main() {
+    cfg, _ := config.LoadSingleFileConfig("application.yml")
     builder := wf.NewBuilder(cfg)
     builder.Service(&ratelimit.RateLimit{})
     builder.Rest(&MyController{})

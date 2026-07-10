@@ -1,6 +1,6 @@
-site_name: Go Web Frame User Guide
+site_name: Go Web Frame
 site_url: https://chuccp.github.io/go-web-frame/en/
-site_description: Go Web Frame official documentation (English)
+site_description: Go Web Frame - An integrated Go backend toolkit: zero-boilerplate CRUD, declarative route metadata, explicit dependency injection, and seamless reuse of the Gin ecosystem.
 site_author: Go Web Frame Team
 
 docs_dir: docs-en
@@ -9,62 +9,148 @@ site_dir: site-en
 theme:
   name: material
   language: en
+  custom_dir: docs-en/overrides
+  font:
+    text: Noto Sans
+    code: JetBrains Mono
   palette:
     - scheme: default
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
-    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - navigation.path
+    - navigation.prune
+    - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
     - content.code.annotate
+    - content.code.select
     - content.tabs.link
+    - content.tooltips
+    - content.action.edit
+    - content.action.view
+    - announce.dismiss
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+
+repo_url: https://github.com/chuccp/go-web-frame
+repo_name: chuccp/go-web-frame
+edit_uri: edit/main/docs-site/docs-en/
 
 plugins:
-  - search
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])'
+  - tags:
+      tags_file: tags.md
+  - git-revision-date-localized:
+      enabled: !ENV [CI]
+      type: date
+      fallback_to_build_date: true
 
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
+  - abbr
   - admonition
-  - pymdownx.details
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
+  - tables
   - toc:
       permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/chuccp/go-web-frame
+      name: GitHub
+    - icon: fontawesome/brands/go
+      link: https://pkg.go.dev/github.com/chuccp/go-web-frame
+      name: Go Reference
+  alternate:
+    - name: English
+      link: https://chuccp.github.io/go-web-frame/en/
+      lang: en
+    - name: 中文
+      link: https://chuccp.github.io/go-web-frame/zh/
+      lang: zh
+  status:
+    new: New
+    deprecated: Deprecated
+
+extra_css:
+  - css/extra.css
 
 nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quick-start.md
-      - Hello World: getting-started/hello-world.md
-  - Guide:
+  - Core Concepts:
       - Routing: guide/routing.md
       - Controller: guide/controller.md
       - Model: guide/model.md
       - Service: guide/service.md
-      - Filter/Middleware: guide/filter.md
+      - Filter: guide/filter.md
       - Converter: guide/converter.md
       - Error Code: guide/error-code.md
+  - Configuration & Ops:
       - Configuration: guide/configuration.md
       - Logging: guide/logging.md
       - Runner: guide/runner.md
       - Components: guide/components.md
   - Advanced:
+      - WebSocket & SSE: advanced/websocket-sse.md
+      - Static Files & Proxy: advanced/static-proxy.md
       - Database: advanced/database.md
       - Deployment: advanced/deployment.md
   - API Reference:
@@ -74,15 +160,3 @@ nav:
       - Util API: api/util.md
   - Best Practices: best-practices.md
   - Changelog: changelog.md
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/chuccp/go-web-frame
-  alternate:
-    - name: English
-      link: https://chuccp.github.io/go-web-frame/en/
-      lang: en
-    - name: 中文
-      link: https://chuccp.github.io/go-web-frame/zh/
-      lang: zh

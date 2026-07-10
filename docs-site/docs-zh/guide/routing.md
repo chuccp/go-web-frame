@@ -1,4 +1,4 @@
-# 路由
+﻿# 路由
 
 Go Web Frame 提供了强大而灵活的路由系统，基于 Gin。
 
@@ -87,7 +87,7 @@ idUint := req.ParamUint("id")    // 123 (uint)
 
 ```go
 builder.Get("/search", func(req *web.Request) (any, error) {
-    keyword := req.Query("q")       // /users?q=go
+    keyword := req.Query("q")       // /search?q=go
     page := req.DefaultQuery("page", "1") // 带默认值
     return map[string]any{
         "keyword": keyword,
@@ -102,85 +102,6 @@ builder.Get("/search", func(req *web.Request) (any, error) {
 {
   "keyword": "go",
   "page": "2"
-}
-```
-
-## REST 控制器
-
-### 创建 REST 控制器
-
-```go
-package main
-
-import (
-    wf "github.com/chuccp/go-web-frame"
-    "github.com/chuccp/go-web-frame/core"
-    "github.com/chuccp/go-web-frame/web"
-    "github.com/chuccp/go-web-frame/config"
-    "go.uber.org/zap"
-)
-
-type UserController struct {
-    core.IService
-    userService *UserService
-}
-
-func (c *UserController) Init(context *core.Context) error {
-    // 获取依赖的服务
-    c.userService = wf.GetService[*UserService](context)
-    
-    // 注册路由
-    context.Get("/users", c.List)
-    context.Get("/users/:id", c.Get)
-    context.Post("/users", c.Create)
-    context.Put("/users/:id", c.Update)
-    context.Delete("/users/:id", c.Delete)
-    
-    return nil
-}
-
-func (c *UserController) List(req *web.Request) (any, error) {
-    users, err := c.userService.GetAllUsers()
-    if err != nil {
-        return nil, err
-    }
-    return users, nil
-}
-
-func (c *UserController) Get(req *web.Request) (any, error) {
-    id := req.ParamUint("id")
-    user, err := c.userService.GetUserById(id)
-    if err != nil {
-        return nil, err
-    }
-    return user, nil
-}
-
-func main() {
-    // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("application.yml")
-    if err != nil {
-        zap.L().Fatal("加载配置失败", zap.Error(err))
-    }
-
-    // 创建 Builder
-    builder := wf.NewBuilder(fileConfig)
-    
-    // 注册 REST 控制器
-    restGroupBuilder := wf.NewRestGroupBuilder()
-    restGroupBuilder.Rest(&UserController{})
-    restGroupBuilder.Port(8081)
-    restGroup := restGroupBuilder.Build()
-    builder.RestGroup(restGroup)
-    
-    // 构建应用
-    app := builder.Build()
-    
-    // 启动应用
-    err = app.Start()
-    if err != nil {
-        zap.L().Fatal("启动应用失败", zap.Error(err))
-    }
 }
 ```
 
@@ -265,246 +186,29 @@ restGroup := wf.NewRestGroupBuilder().
 | `ServerConfig(config *web.ServerConfig)` | 设置服务器配置（SSL、超时等） |
 | `Build()` | 构建路由组 |
 
-## 静态文件
+## 路由元数据（WithMeta）
 
-### 静态文件目录
-
-在控制器的 `Init` 方法中注册：
+通过 `.WithMeta()` 给路由绑定元数据，在全局 Filter 中集中处理：
 
 ```go
-func (c *MyController) Init(ctx *core.Context) error {
-    // 注册静态文件目录，访问 /static/* 返回 ./www/*
-    ctx.Static("/static", "./www")
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+
+func (c *ApiController) Init(ctx *core.Context) error {
+    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
+    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
+    ctx.Post("/api/admin/users", c.CreateUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
     return nil
 }
 ```
 
-访问 `/static/style.css` 会返回 `./www/style.css` 文件。
-
-### 静态文件系统
-
-使用 `http.FileSystem` 接口注册静态文件，支持嵌入文件系统：
-
-```go
-import "net/http"
-
-func (c *MyController) Init(ctx *core.Context) error {
-    // 使用 http.Dir 注册静态文件系统
-    ctx.StaticFs("/assets", http.Dir("./dist"))
-    return nil
-}
-```
-
-## 反向代理
-
-在控制器中注册反向代理，将请求转发到后端服务：
-
-```go
-func (c *MyController) Init(ctx *core.Context) error {
-    // 所有 /api/* 请求会被代理到 http://backend:8080/api/*
-    ctx.ReverseProxy("/api", "http://backend:8080")
-    return nil
-}
-```
-
-## WebSocket
-
-### 基本用法
-
-注册 WebSocket 端点，使用 `*web.WebSocketStream`（基于 `coder/websocket`）：
-
-```go
-func (c *MyController) Init(ctx *core.Context) error {
-    ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
-        defer stream.Close()
-        for {
-            typ, message, err := stream.Read(stream.Context())
-            if err != nil {
-                break
-            }
-            stream.Write(stream.Context(), typ, message) // echo
-        }
-    })
-    return nil
-}
-```
-
-### 完整示例（聊天室）
-
-```go
-type ChatController struct {
-    core.IService
-    clients map[*web.WebSocketStream]bool
-    mu      sync.Mutex
-}
-
-func (c *ChatController) Init(ctx *core.Context) error {
-    c.clients = make(map[*web.WebSocketStream]bool)
-    ctx.WebSocket("/ws/chat", c.HandleChat)
-    return nil
-}
-
-func (c *ChatController) HandleChat(stream *web.WebSocketStream) error {
-    // 新客户端加入
-    c.mu.Lock()
-    c.clients[stream] = true
-    c.mu.Unlock()
-
-    defer func() {
-        // 客户端离开
-        c.mu.Lock()
-        delete(c.clients, stream)
-        c.mu.Unlock()
-        stream.Close()
-    }()
-
-    for {
-        _, message, err := stream.Read(stream.Context())
-        if err != nil {
-            break
-        }
-        // 广播消息给所有客户端
-        c.mu.Lock()
-        for client := range c.clients {
-            err := client.WriteString(stream.Context(), string(message))
-            if err != nil {
-                client.Close()
-                delete(c.clients, client)
-            }
-        }
-        c.mu.Unlock()
-    }
-}
-```
-
-### WebSocketStream API
-
-| 方法 | 说明 |
-|------|------|
-| `Read(ctx) (MessageType, []byte, error)` | 读取消息（任意类型） |
-| `Write(ctx, typ, data)` | 写入消息 |
-| `WriteText(ctx, data)` | 写入文本消息 |
-| `WriteString(ctx, s)` | 写入字符串消息 |
-| `WriteBinary(ctx, data)` | 写入二进制消息 |
-| `ReadText(ctx) ([]byte, error)` | 读取文本消息，非文本则报错 |
-| `Ping(ctx)` | 发送 Ping 帧 |
-| `Close()` | 关闭连接（正常关闭） |
-| `Done() <-chan struct{}` | 返回关闭通知 channel |
-| `Context() context.Context` | 返回流的 context |
-| `Request() *web.Request` | 返回原始 HTTP 请求 |
-
-## SSE（Server-Sent Events）
-
-注册 SSE 端点，用于服务器推送事件。`SetHeaders()` 由框架自动调用，无需手动设置：
-
-```go
-func (c *MyController) Init(ctx *core.Context) error {
-    ctx.SSE("/events", func(stream *web.SSEStream) error {
-        defer stream.Close()
-
-        // 启动心跳保活（每 30 秒，Close 时自动停止）
-        stream.StartHeartbeat(30 * time.Second)
-
-        // 发送命名事件
-        stream.Send("message", "Hello World")
-
-        // 发送默认消息（无事件名）
-        stream.SendMessage("ping")
-
-        // 发送带 ID 的事件（客户端可断线重连）
-        stream.SendWithID("1", "update", `{"status":"ok"}`)
-
-        // 设置重连时间（毫秒）
-        stream.SendRetry(3000)
-
-        // 发送心跳
-        stream.Heartbeat()
-
-        return nil
-    })
-    return nil
-}
-```
-
-### SSEStream API
-
-| 方法 | 说明 |
-|------|------|
-| `Send(event, data)` | 发送命名事件 |
-| `SendMessage(data)` | 发送默认消息（无事件名） |
-| `SendWithID(id, event, data)` | 发送带 ID 的事件，客户端断线重连时可使用 Last-Event-ID |
-| `SendRetry(retryMs)` | 设置客户端重连时间（毫秒） |
-| `Heartbeat()` | 发送心跳注释，保持连接活跃 |
-| `StartHeartbeat(interval)` | 启动定时心跳 goroutine，Close 时自动等待退出 |
-| `Close()` | 关闭 SSE 流（等待后台 goroutine 退出） |
-| `Done() <-chan struct{}` | 返回关闭通知 channel |
-| `SetHeader(key, value)` | 设置自定义响应头 |
-
-> **注意：** `SetHeaders()`（Content-Type、Cache-Control 等）由 converter 自动调用，无需在 handler 中手动调用。
-
-## 完整示例
-
-```go
-package main
-
-import (
-    wf "github.com/chuccp/go-web-frame"
-    "github.com/chuccp/go-web-frame/core"
-    "github.com/chuccp/go-web-frame/web"
-    "github.com/chuccp/go-web-frame/config"
-    "go.uber.org/zap"
-)
-
-func main() {
-    // 加载配置
-    fileConfig, err := config.LoadSingleFileConfig("application.yml")
-    if err != nil {
-        zap.L().Fatal("加载配置失败", zap.Error(err))
-    }
-
-    // 创建 Builder
-    builder := wf.NewBuilder(fileConfig)
-    
-    // 基本路由
-    builder.Get("/", func(req *web.Request) (any, error) {
-        return "Welcome!", nil
-    })
-    
-    // 路径参数
-    builder.Get("/users/:id", func(req *web.Request) (any, error) {
-        id := req.Param("id")
-        return map[string]any{"id": id}, nil
-    })
-    
-    // 查询参数
-    builder.Get("/search", func(req *web.Request) (any, error) {
-        q := req.Query("q")
-        return map[string]any{"keyword": q}, nil
-    })
-    
-    // JSON 请求体
-    builder.Post("/users", func(req *web.Request) (any, error) {
-        var user struct {
-            Name string `json:"name"`
-        }
-        if err := req.BindJSON(&user); err != nil {
-            return nil, err
-        }
-        return map[string]any{"name": user.Name}, nil
-    })
-    
-    // 构建应用
-    app := builder.Build()
-    
-    // 启动应用
-    err = app.Start()
-    if err != nil {
-        zap.L().Fatal("启动应用失败", zap.Error(err))
-    }
-}
-```
+详见 [过滤器](filter.md) 文档中的路由元数据章节。
 
 ## 下一步
 
 - [控制器](controller.md) - 使用 REST 控制器组织代码
-- [过滤器/中间件](filter.md) - 添加横切关注点
+- [过滤器](filter.md) - 添加横切关注点
+- [WebSocket 与 SSE](../advanced/websocket-sse.md) - 实时通信
+- [静态文件与代理](../advanced/static-proxy.md) - 静态文件和反向代理

@@ -81,6 +81,12 @@ builder.Filter(&filter.RateLimitFilter{}) // 第 3 个执行
 ### 日志过滤器
 
 ```go
+import (
+    "time"
+    "github.com/chuccp/go-web-frame/log"
+    "go.uber.org/zap"
+)
+
 type LoggingFilter struct {
     core.IFilter
 }
@@ -270,6 +276,7 @@ import (
     wf "github.com/chuccp/go-web-frame"
     "github.com/chuccp/go-web-frame/config"
     "github.com/chuccp/go-web-frame/core"
+    "github.com/chuccp/go-web-frame/log"
     "github.com/chuccp/go-web-frame/web"
     "go.uber.org/zap"
 )

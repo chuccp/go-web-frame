@@ -14,7 +14,7 @@ idUint := c.ParamUint("id")
 
 // Query params
 q := c.Query("q")
-qInt := c.QueryInt("q")
+qDefault := c.DefaultQuery("page", "1")
 
 // JSON body
 var data MyStruct
@@ -34,7 +34,7 @@ cookie := c.Cookie()
 val := cookie.Get("session")
 
 // Context
-ctx := c.Context()
+ctx := c.Ctx()
 
 // Gin context
 ginCtx := c.GinContext()
@@ -53,7 +53,7 @@ return map[string]any{"key": "value"}, nil
 return "text", nil
 
 // File download
-return &web.File{Path: "/path/file.pdf", FileName: "doc.pdf"}, nil
+return &web.FileResponse{Path: "/path/file.pdf", FileName: "doc.pdf"}, nil
 
 // Redirect
 return web.Redirect("/new-url"), nil

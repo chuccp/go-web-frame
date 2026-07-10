@@ -135,7 +135,7 @@ web:
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `web.server.port` | Listen port | 19009 |
+| `web.server.port` | Listen port | 8081 |
 | `web.server.context_path` | Route prefix | none |
 | `web.server.locations` | Static file directories | none |
 | `web.server.page404` | 404 fallback page | none |
@@ -151,7 +151,7 @@ web:
 web:
   db:
     type: sqlite
-    file_path: ./data.db
+    path: ./data.db
 ```
 
 #### MySQL

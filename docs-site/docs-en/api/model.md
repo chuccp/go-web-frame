@@ -34,7 +34,7 @@ users, err := m.Query().Where("status = ?", 1).Order("id desc").All()
 users, total, err := m.Query().Page(page)
 
 // Limit
-users, err := m.Query().Limit(10).All()
+users, err := m.Query().List(10)
 
 // Preload (GORM)
 users, err := m.Query().Preload("Profile").All()
@@ -82,3 +82,34 @@ err := m.UpdateByPK(user)
 pageAble, err := m.Query().PageForWeb(page)
 err := m.UpdateColumn(1, "name", "bob")
 ```
+
+## Transaction
+
+`model.Transaction` provides transaction support.
+
+### Basic Transaction
+
+```go
+tx := ctx.GetTransaction()
+err := tx.Exec(func(tx *db.DB) error {
+    // Execute operations within the transaction
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
+})
+```
+
+### Named Transaction
+
+```go
+tx := ctx.GetTransactionByName("user_group")
+err := tx.Exec(func(tx *db.DB) error {
+    // Execute operations within a named transaction
+    userModel := wf.GetReNewModel[*UserModel](tx, ctx)
+    return userModel.Save(user)
+})
+```
+
+## Next Steps
+
+- [Core API](core.md) - Core API reference
+- [Web API](web.md) - Web layer API

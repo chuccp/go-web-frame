@@ -87,7 +87,7 @@ func handler(req *web.Request) (any, error) {
 
 ```go
 func handler(req *web.Request) (any, error) {
-    return &web.File{
+    return &web.FileResponse{
         Path:     "/path/to/file.pdf",
         FileName: "document.pdf",
     }, nil
@@ -362,21 +362,12 @@ func (c *APIConverter) Request(fc web.FilterChain, req *web.Request) {
 }
 ```
 
-```go
-restGroup := wf.NewRestGroupBuilder().
-    Rest(&UserController{}).
-    Converter(&APIConverter{DefaultConverter: &web.DefaultConverter{}}).
-    Port(8081).
-    Build()
-builder.RestGroup(restGroup)
-```
-
 注册到 RestGroup：
 
 ```go
 restGroup := wf.NewRestGroupBuilder().
     Rest(&UserController{}).
-    Converter(&XMLConverter{}).
+    Converter(&APIConverter{DefaultConverter: &web.DefaultConverter{}}).
     Port(8081).
     Build()
 builder.RestGroup(restGroup)

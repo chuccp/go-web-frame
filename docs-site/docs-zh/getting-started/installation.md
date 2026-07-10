@@ -91,5 +91,4 @@ go run main.go
 
 ## 下一步
 
-- [快速开始](quick-start.md) - 创建你的第一个应用
-- [Hello World](hello-world.md) - 最简单的示例
+- [5 分钟上手](quick-start.md) - 创建你的第一个应用

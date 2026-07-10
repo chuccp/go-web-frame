@@ -1,17 +1,64 @@
-# Go Web Frame 使用手册
+﻿---
+hide:
+  - navigation
+  - toc
+---
 
-> 一个集成式 Go 后端开发工具包：零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。
+# Go Web Frame
 
-## 什么是 Go Web Frame？
+<div class="gw-hero" markdown>
 
-Go Web Frame 是一个集成式后端开发工具包。路由、ORM、缓存、日志、配置、过滤器、后台任务等已预先集成，无需单独挑选和组装。
+# Go Web Frame
 
-它同时强调**简洁、透明与可扩展**：
+<p class="gw-subtitle">集成式 Go 后端开发工具包 — 零样板 CRUD、声明式路由元数据、显式依赖注入，并无缝复用 Gin 生态。</p>
 
-- **泛型 Model 层**：用 `Model[T]` / `EntryModel[T, PK]` 消除 CRUD 样板，从数据库到 Handler 全链路类型安全。
-- **声明式路由元数据**：通过 `.WithMeta()` 给路由打标记，一个全局 Filter 即可集中处理认证、权限、限流等横切逻辑。
-- **显式依赖注入**：用 Builder 模式显式注册组件，初始化顺序完全透明、可控。
-- **Gin 生态兼容**：封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等 `gin-contrib` 中间件可直接复用。
+<div class="gw-cta" markdown>
+<a href="getting-started/quick-start.md" class="gw-cta-primary">:material-rocket-launch: 5 分钟上手</a>
+<a href="getting-started/installation.md" class="gw-cta-secondary">:material-download: 安装</a>
+<a href="https://github.com/chuccp/go-web-frame" class="gw-cta-secondary">:simple-github: 源码</a>
+</div>
+
+</div>
+
+<div class="gw-features" markdown>
+
+<a href="getting-started/quick-start.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-database-check:</span>
+#### 零样板 CRUD
+用 `Model[T]` / `EntryModel[T, PK]` 消除 CRUD 样板，从数据库到 Handler 全链路类型安全，无需代码生成。
+</a>
+
+<a href="guide/filter.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-shield-key:</span>
+#### 声明式路由元数据
+通过 `.WithMeta()` 给路由打标记，一个全局 Filter 集中处理认证、权限、限流等横切逻辑。
+</a>
+
+<a href="guide/service.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-link-variant:</span>
+#### 显式依赖注入
+用 Builder 模式显式注册组件，初始化顺序完全透明、可控，告别隐式扫描的"黑箱操作"。
+</a>
+
+<a href="guide/routing.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-transit-connection-variant:</span>
+#### Gin 生态兼容
+封装自己的请求/响应抽象，同时暴露 `req.GinContext()`，CORS、Gzip 等中间件可直接复用。
+</a>
+
+<a href="guide/components.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-package-variant:</span>
+#### 内置组件开箱即用
+限流、缓存、验证码、定时任务、认证、CORS 等常用组件已预集成，一行代码即可启用。
+</a>
+
+<a href="advanced/deployment.md" class="gw-feature-card" markdown>
+<span class="gw-feature-icon">:material-lock-check:</span>
+#### 生产就绪
+内置 Let's Encrypt 自动 HTTPS、优雅关停、连接池管理、结构化日志，直接部署到生产环境。
+</a>
+
+</div>
 
 ## 30 秒 Hello World
 
@@ -44,136 +91,43 @@ go run main.go
 # → http://localhost:19009
 ```
 
-## 框架亮点
+## :material-compass: 快速导航
 
-### 1. 泛型 Model 实现零模板 CRUD（Model[T]）
+<div class="gw-quicknav" markdown>
 
-**痛点**：传统框架为了解决 CRUD 重复代码，需要开发者在终端频繁运行 CLI 命令去“生成”一大堆 `model.go` 或 `dao.go` 文件，污染项目目录。
+<a href="getting-started/installation.md"><span class="gw-quicknav-icon">:material-download:</span> 安装</a>
+<a href="getting-started/quick-start.md"><span class="gw-quicknav-icon">:material-rocket-launch:</span> 5 分钟上手</a>
+<a href="guide/routing.md"><span class="gw-quicknav-icon">:material-routes:</span> 路由</a>
+<a href="guide/controller.md"><span class="gw-quicknav-icon">:material-format-list-bulleted:</span> 控制器</a>
+<a href="guide/model.md"><span class="gw-quicknav-icon">:material-database:</span> 模型</a>
+<a href="guide/service.md"><span class="gw-quicknav-icon">:material-server:</span> 服务</a>
+<a href="guide/filter.md"><span class="gw-quicknav-icon">:material-shield:</span> 过滤器</a>
+<a href="guide/converter.md"><span class="gw-quicknav-icon">:material-swap-horizontal:</span> 响应转换器</a>
+<a href="guide/error-code.md"><span class="gw-quicknav-icon">:material-alert-circle:</span> 错误码</a>
+<a href="guide/configuration.md"><span class="gw-quicknav-icon">:material-cog:</span> 配置</a>
+<a href="guide/logging.md"><span class="gw-quicknav-icon">:material-file-document:</span> 日志</a>
+<a href="guide/runner.md"><span class="gw-quicknav-icon">:material-run:</span> 后台任务</a>
+<a href="guide/components.md"><span class="gw-quicknav-icon">:material-package-variant:</span> 内置组件</a>
+<a href="advanced/websocket-sse.md"><span class="gw-quicknav-icon">:material-web:</span> WebSocket 与 SSE</a>
+<a href="advanced/database.md"><span class="gw-quicknav-icon">:material-database-cog:</span> 数据库高级</a>
+<a href="advanced/deployment.md"><span class="gw-quicknav-icon">:material-rocket:</span> 部署</a>
 
-**精巧设计**：Go Web Frame 利用 Go 语言的泛型特性，直接在运行时完成结构体与数据库的动态绑定。你只需定义一个基础 struct，增删改查、高级分页（`Page` / `PageForWeb`）直接可用，实现真正的零代码生成。
+</div>
 
-```go
-type UserModel struct {
-    *model.EntryModel[*User, uint]
-}
+## :material-layers: 技术栈
 
-// 查询
-user, err := userModel.Query().Where("email = ?", email).One()
-users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
-
-// 写入
-err := userModel.Save(&User{Name: "alice"})
-err := userModel.UpdateByPK(&user)
-err := userModel.DeleteByPK(1)
-
-// 请求上下文自动透传到数据库
-m := userModel.WithContext(req.Ctx())
-users, err := m.FindAll()
-```
-
-| 类型 | 能力 | 适用场景 |
-|---|---|---|
-| `Model[T]` | `Save`、`Query()`、`Update()`、`Delete()`、`CreateTable()`、`WithContext()` | 需要完全控制查询构建 |
-| `EntryModel[T, PK]` | 继承 `Model[T]` 全部能力 + `FindByPK`、`FindAll`、`DeleteByPK`、`UpdateByPK`、`Page` | 实体有主键，最常见场景 |
-
-### 2. 声明式路由元数据（WithMeta）
-
-**痛点**：在 Gin 中，如果要为不同路由配置权限、限流、免密，通常需要套用大量中间件，配置散乱，难以动态管理。
-
-**精巧设计**：允许在声明路由时通过 `.WithMeta()` 直接给路由绑定元数据。开发者只需在顶层写一个全局 Filter，即可一处校验所有路由的 Meta 标记，保持业务 Handler 的极致干净。
-
-```go
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-
-func (c *ApiController) Init(ctx *core.Context) error {
-    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
-    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
-    ctx.Post("/api/admin/users", c.CreateUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// 一个 Filter 处理所有认证逻辑
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-    token := req.GetHeader("Authorization")
-    if token == "" {
-        return nil, errors.New("unauthorized")
-    }
-    // 校验 token、检查权限...
-    return fc.Next()
-}
-```
-
-### 3. 显式依赖注入（Builder 模式）
-
-**痛点**：像 Java Spring 那样的隐式全局扫描，在 Go 中容易导致“暗箱操作”，初始化顺序混乱且调试困难。
-
-**精巧设计**：采用显式的 Builder 模式进行组件注册。所有依赖组件都可通过透明上下文的 `GetService[T]`、`GetModel[T]` 动态获取。初始化顺序完全透明、可控。
-
-```go
-builder := wf.NewBuilder(cfg)
-
-// 基础设施（最先初始化）
-builder.Filter(&cors.Filter{})
-builder.Filter(&AuthFilter{})
-
-// 数据层
-builder.Model(&UserModel{})
-builder.Model(&OrderModel{})
-
-// 业务层
-builder.Service(&UserService{})
-
-// HTTP 层
-builder.Rest(&UserController{})
-
-// 后台任务
-builder.Runner(&CleanupTask{})
-
-app := builder.Build()
-app.Run(ctx)
-```
-
-```go
-// 在任意 Init() 或 Handler 中按类型获取依赖
-userModel   := wf.GetModel[*UserModel](ctx)
-userService := wf.GetService[*UserService](ctx)
-```
-
-### 4. 无缝复用 Gin 生态（GinContext 兼容）
-
-**痛点**：许多自研框架无法使用 Gin 社区插件，导致很多基础功能需要重新手写。
-
-**精巧设计**：框架封装了自己的请求/响应抽象，但通过 `req.GinContext()` 暴露底层 `*gin.Context`。这意味着社区沉淀多年的数百个 `gin-contrib` 中间件（如 CORS、Gzip、Secure 等）可以无缝拿来即用。
-
-```go
-import "github.com/gin-contrib/gzip"
-
-type GzipFilter struct{ core.IFilter }
-
-func (f *GzipFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    gzip.Gzip(gzip.DefaultCompression)(req.GinContext())
-    return fc.Next()
-}
-```
-
-框架也已内置常用组件，开箱即用：
-
-```go
-builder.Filter(&cors.Filter{})              // 跨域
-builder.Service(&ratelimit.RateLimit{})     // 限流
-builder.Service(&cache.Cache{})             // 本地缓存
-builder.Service(&captcha.Captcha{})         // 滑块验证码
-```
-
-## 技术栈
+<div class="gw-techstack" markdown>
+<span class="gw-badge">:simple-go: Gin</span>
+<span class="gw-badge">:material-database: GORM</span>
+<span class="gw-badge">:material-file-cog: Viper</span>
+<span class="gw-badge">:material-lightning-bolt: Zap</span>
+<span class="gw-badge">:material-code-json: Sonic</span>
+<span class="gw-badge">:material-database-sync: go-redis</span>
+<span class="gw-badge">:simple-sqlite: modernc/sqlite</span>
+<span class="gw-badge">:material-check-circle: validator</span>
+<span class="gw-badge">:material-web: coder/websocket</span>
+<span class="gw-badge">:material-clock-time-four: robfig/cron</span>
+</div>
 
 | 层级 | 库 | 作用 |
 |---|---|---|
@@ -189,35 +143,9 @@ builder.Service(&captcha.Captcha{})         // 滑块验证码
 | WebSocket | coder/websocket | 连接升级与读写 |
 | 定时任务 | robfig/cron | 表达式定时调度 |
 
-## 快速链接
+## :simple-github: 社区
 
-### 快速开始
-
-- [安装](getting-started/installation.md) - 环境要求与安装方式
-- [快速开始](getting-started/quick-start.md) - 创建第一个应用
-- [Hello World](getting-started/hello-world.md) - 最简单的示例
-
-### 用户指南
-
-- [路由](guide/routing.md) - HTTP 路由系统
-- [控制器](guide/controller.md) - REST 控制器
-- [服务](guide/service.md) - 业务逻辑层与依赖注入
-- [模型](guide/model.md) - 类型安全 ORM
-- [过滤器/中间件](guide/filter.md) - 认证、日志、CORS、限流、路由元数据
-- [配置](guide/configuration.md) - 配置管理
-- [日志](guide/logging.md) - 结构化日志
-- [后台任务](guide/runner.md) - Runner 与定时调度
-- [组件](guide/components.md) - 限流、缓存、验证码等内置组件
-
-### 高级与参考
-
-- [数据库高级用法](advanced/database.md) - 事务、模型组、迁移、原生 SQL
-- [部署](advanced/deployment.md) - HTTPS、SSL、优雅关闭
-- [核心 API](api/core.md) / [Web API](api/web.md) / [模型 API](api/model.md)
+- [GitHub 仓库](https://github.com/chuccp/go-web-frame)
+- [问题反馈](https://github.com/chuccp/go-web-frame/issues)
 - [最佳实践](best-practices.md)
 - [更新日志](changelog.md)
-
-## 社区
-
-- [GitHub](https://github.com/chuccp/go-web-frame)
-- [问题反馈](https://github.com/chuccp/go-web-frame/issues)

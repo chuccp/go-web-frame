@@ -113,13 +113,16 @@ func newCertStore(certsPath string) *certStore {
 
 func (cs *certStore) init(servers []*Server) error {
 	hosts := make([]string, 0)
+	errs := make([]error, 0)
 	for _, server := range servers {
 		if server.isTls() {
 			if !server.isAuto() {
 				for _, certCfg := range server.serverConfig.SSL.Certs {
 					entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
 					if err != nil {
-						return errors.Wrapf(err, "server port %d", server.serverConfig.Port)
+						errs = append(errs, err)
+						continue
+
 					}
 					cs.addCertEntry(entry)
 				}
@@ -140,7 +143,9 @@ func (cs *certStore) init(servers []*Server) error {
 			HostPolicy: autocert.HostWhitelist(hosts...),
 		}
 	}
-
+	if len(errs) > 0 {
+		return errors.Combine(errs...)
+	}
 	return nil
 }
 

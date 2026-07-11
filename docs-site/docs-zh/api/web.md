@@ -325,6 +325,37 @@ func (f *ErrorHandlerFilter) Handle(fc web.FilterChain, req *web.Request) (any, 
 }
 ```
 
+## GetHandler（测试）
+
+`WebFrame.GetHandler()` 初始化完整应用（数据库、服务、路由）并返回 `http.Handler`，可直接用于 `httptest.NewServer()`。推荐用于编写集成测试。
+
+```go
+func TestUserAPI(t *testing.T) {
+    cfg := config.NewConfig()
+    cfg.Put("server.port", "19009")
+
+    builder := wf.NewBuilder(cfg)
+    builder.Get("/users", func(req *web.Request) (any, error) {
+        return web.Data([]string{"alice", "bob"}), nil
+    })
+    app := builder.Build()
+
+    handler := app.GetHandler()
+    ts := httptest.NewServer(handler)
+    defer ts.Close()
+
+    // 设置 Host header 匹配配置的端口
+    req, _ := http.NewRequest("GET", ts.URL+"/users", nil)
+    req.Host = "localhost:19009"
+    resp, _ := http.DefaultClient.Do(req)
+    // 断言响应...
+}
+```
+
+返回的 handler 根据 Host header 中的端口号分发请求到对应的 Server engine。每个 server 的路由、过滤器和 ContextPath 完全独立。
+
+如果不需要真实 HTTP 请求，可用 `app.Test()` 替代（见 [核心 API](core.md)）。
+
 ## 响应转换器（Converter）
 
 `web/converter.go` 负责把 Handler 的返回值转换成 HTTP 响应。框架默认使用 `web.DefaultConverter`，它已经能处理 `*web.Message`、`*web.ErrorCode`、文件、重定向、WebSocket、SSE 等返回值。

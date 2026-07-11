@@ -85,6 +85,27 @@ err := app.Test(func(ctx *core.Context) error {
 })
 ```
 
+### GetHandler (HTTP Testing)
+
+`GetHandler()` initializes the app and returns an `http.Handler` for use with `httptest.NewServer()`. Unlike `Test()`, it gives you a real HTTP handler to test full request/response cycles:
+
+```go
+app := builder.Build()
+handler := app.GetHandler()
+ts := httptest.NewServer(handler)
+defer ts.Close()
+
+// Set Host header with the configured port for correct routing
+req, _ := http.NewRequest("GET", ts.URL+"/api/users", nil)
+req.Host = "localhost:19009"
+resp, _ := http.DefaultClient.Do(req)
+```
+
+| Method | Use case |
+|--------|----------|
+| `Test()` | Unit tests — access services/models directly, no HTTP |
+| `GetHandler()` | Integration tests — real HTTP requests via `httptest` |
+
 ## Context
 
 `core.Context` is the dependency injection container.

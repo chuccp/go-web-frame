@@ -103,7 +103,18 @@ web:
           key-file: /etc/ssl/example.com/privkey.pem
 ```
 
-Certificate selection priority: local cert match > autocert > first local cert as default.
+Certificate selection priority: local cert match > wildcard match > autocert > self-signed fallback.
+
+### Self-Signed Certificate Fallback
+
+When no certificate matches a host (no local cert, no wildcard, no autocert), the framework automatically generates an in-memory ECDSA P-256 self-signed certificate (valid for 1 year) and caches it. This is especially useful in development — no external certificates needed.
+
+- IPv6 addresses are supported, including bracketed format (`[::1]`, `[::1]:8443`) from HTTP Host headers.
+- Generated certificates are cached per-host and reused for subsequent requests.
+
+### Certificate Error Resilience
+
+If a certificate file fails to load (e.g., file not found), the framework logs the error and continues — other certificates are still loaded, and the HTTP server starts without TLS. This prevents a single bad cert path from blocking the entire application.
 
 ### Running HTTP and HTTPS Simultaneously
 

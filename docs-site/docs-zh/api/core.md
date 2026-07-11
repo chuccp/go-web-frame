@@ -141,6 +141,27 @@ func TestUserService(t *testing.T) {
 - 如果需要数据库操作，确保测试配置指向测试数据库
 - 多个测试用例应使用独立的测试配置，避免数据互相干扰
 
+### GetHandler（HTTP 测试）
+
+`GetHandler()` 初始化应用并返回 `http.Handler`，可直接用于 `httptest.NewServer()`。与 `Test()` 不同，它提供真实的 HTTP handler，可测试完整的请求/响应流程：
+
+```go
+app := builder.Build()
+handler := app.GetHandler()
+ts := httptest.NewServer(handler)
+defer ts.Close()
+
+// 设置 Host header 匹配配置的端口，确保路由正确分发
+req, _ := http.NewRequest("GET", ts.URL+"/api/users", nil)
+req.Host = "localhost:19009"
+resp, _ := http.DefaultClient.Do(req)
+```
+
+| 方法 | 适用场景 |
+|------|----------|
+| `Test()` | 单元测试 — 直接访问服务/模型，无 HTTP |
+| `GetHandler()` | 集成测试 — 通过 `httptest` 发送真实 HTTP 请求 |
+
 ## Context
 
 `core.Context` 是依赖注入容器。

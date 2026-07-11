@@ -203,6 +203,37 @@ Built-in constructors:
 - `web.WithKey(keys ...string)` — match if **any** key exists
 - `web.WithValue(key string, value any)` — match if key exists and value equals (via `reflect.DeepEqual`)
 
+## GetHandler (Testing)
+
+`WebFrame.GetHandler()` initializes the full application (DB, services, routes) and returns an `http.Handler` for use with `httptest.NewServer()`. This is the recommended way to write integration tests.
+
+```go
+func TestUserAPI(t *testing.T) {
+    cfg := config.NewConfig()
+    cfg.Put("server.port", "19009")
+
+    builder := wf.NewBuilder(cfg)
+    builder.Get("/users", func(req *web.Request) (any, error) {
+        return web.Data([]string{"alice", "bob"}), nil
+    })
+    app := builder.Build()
+
+    handler := app.GetHandler()
+    ts := httptest.NewServer(handler)
+    defer ts.Close()
+
+    // Set Host header to match the configured port
+    req, _ := http.NewRequest("GET", ts.URL+"/users", nil)
+    req.Host = "localhost:19009"
+    resp, _ := http.DefaultClient.Do(req)
+    // assert response...
+}
+```
+
+The handler dispatches requests to the correct `Server` engine based on the port in the Host header. Each server's routes, filters, and ContextPath remain fully independent.
+
+For simpler tests that don't need a real HTTP server, use `app.Test()` instead (see [Core API](core.md)).
+
 ## Response Converter
 
 `web/converter.go` converts handler return values into HTTP responses. The framework uses `web.DefaultConverter` by default. It already handles `*web.Message`, `*web.ErrorCode`, files, redirects, WebSocket, SSE, and more.

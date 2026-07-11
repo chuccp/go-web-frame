@@ -2,8 +2,15 @@
 package web
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -217,7 +224,72 @@ func (cs *certStore) matchWildcard(host string) *certEntry {
 			}
 		}
 	}
-	return nil
+	return cs.generateSelfSigned(host)
+}
+
+// generateSelfSigned creates an in-memory self-signed certificate for the given host.
+func (cs *certStore) generateSelfSigned(host string) *certEntry {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		log.Error("failed to generate self-signed key", zap.String("host", host), zap.Error(err))
+		return nil
+	}
+
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		log.Error("failed to generate serial number", zap.String("host", host), zap.Error(err))
+		return nil
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: host},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		template.IPAddresses = []net.IP{ip}
+	} else {
+		template.DNSNames = []string{host}
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		log.Error("failed to create self-signed certificate", zap.String("host", host), zap.Error(err))
+		return nil
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		log.Error("failed to marshal private key", zap.String("host", host), zap.Error(err))
+		return nil
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+
+	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		log.Error("failed to load self-signed key pair", zap.String("host", host), zap.Error(err))
+		return nil
+	}
+
+	entry := &certEntry{
+		host:      host,
+		domains:   []string{host},
+		cert:      &tlsCert,
+		nextCheck: time.Now().Add(24 * time.Hour), // self-signed certs don't need frequent checks
+	}
+
+	cs.mu.Lock()
+	cs.certEntries = append(cs.certEntries, entry)
+	cs.certMap[strings.ToLower(host)] = entry
+	cs.mu.Unlock()
+
+	log.Info("generated self-signed certificate", zap.String("host", host))
+	return entry
 }
 
 func (cs *certStore) hasAutoCert() bool {
@@ -257,4 +329,3 @@ func extractDomains(tlsCert *tls.Certificate) []string {
 
 	return domains
 }
-

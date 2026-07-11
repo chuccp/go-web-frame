@@ -3,8 +3,10 @@ package web
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"emperror.dev/errors"
@@ -58,8 +60,35 @@ func (servers *Servers) CreateServer(serverConfig *ServerConfig) (*Server, error
 }
 
 // GetServers returns all managed Server instances.
+
 func (servers *Servers) GetServers() []*Server {
 	return servers.servers
+}
+
+// GetHandler returns an http.Handler that dispatches requests to the correct
+// Server based on the port in the request's Host header. Each Server's routes,
+// filters, and ContextPath are fully independent.
+func (servers *Servers) GetHandler() http.Handler {
+	if len(servers.servers) == 0 {
+		return nil
+	}
+	m := make(map[string]http.Handler, len(servers.servers))
+	for _, s := range servers.servers {
+		s.initRoute()
+		m[strconv.Itoa(s.serverConfig.Port)] = s.engine
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, port, err := net.SplitHostPort(r.Host)
+		if err != nil {
+			// Host without explicit port — try default HTTP port
+			port = "80"
+		}
+		if h, ok := m[port]; ok {
+			h.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "no server for port "+port, http.StatusNotFound)
+	})
 }
 
 func defaultEngine() *gin.Engine {
@@ -96,7 +125,7 @@ func DefaultServer() *Server {
 	return server
 }
 func (server *Server) GetHandler() http.Handler {
-	server.initRoute()
+	server.justInitRoute()
 	return server.engine
 }
 
@@ -214,12 +243,15 @@ func (server *Server) Handlers(httpMethods []string, relativePath string, handle
 }
 
 func (server *Server) initRoute() {
+	server.justInitRoute()
+	server.noRoute()
+}
+func (server *Server) justInitRoute() {
 	for _, route := range server.routes {
 		for _, httpMethod := range route.httpMethods {
 			server.addHandler(httpMethod, route)
 		}
 	}
-	server.noRoute()
 }
 func (server *Server) noRoute() {
 	if len(server.serverConfig.Locations) == 0 {

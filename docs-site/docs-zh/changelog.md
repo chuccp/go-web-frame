@@ -2,23 +2,26 @@
 
 本文档记录 Go Web Frame 的版本更新和历史变更。
 
-## [未发布] - 开发中
+## [未发布]
+
+## [1.0.11] - 2026-07-11
 
 ### 新增
-- **SSL 本地证书**：新增 `SSLCert` 结构体和 `SSLConfig.Certs` 字段，支持配置本地证书文件。支持多域名本地证书、SNI 动态匹配和 autocert 兜底。
-- **Context 传播**：`Model[T]`、`EntryModel[T, PK]`、`Query[T]`、`Update[T]`、`Delete[T]` 新增 `WithContext(ctx)` 方法，支持请求级取消、超时和链路追踪传播到数据库操作。
-- `web.Request` 新增 `Ctx()` 方法，暴露每个请求的 `context.Context`。
-- `db` 包新增 `DB.WithContext(ctx)` 和 `Table.WithContext(ctx)` 作为基础层。
-- 添加了完整的 MkDocs 文档站点
-- 修正了文档中的 API 用法错误
+- **自签证书生成**：当没有通配符证书匹配时，框架自动生成内存中的 ECDSA P-256 自签证书（有效期 1 年）并缓存。开发环境无需外部证书。
+- **IPv6 TLS 支持**：自签证书正确处理 IPv6 地址，包括 HTTP Host header 中的方括号格式（`[::1]`、`[::1]:8443`）。
+- **`Servers.GetHandler()`**：返回 `http.Handler`，根据 Host header 中的端口号分发请求到对应的 Server engine。每个 server 的路由、过滤器和 ContextPath 完全独立。
+- **`WebFrame.GetHandler()`**：初始化完整应用（数据库、服务、路由）并返回 `http.Handler`，可直接用于 `httptest.NewServer()`。
+- **`core.Server.GetHandler()`**：暴露底层 `Servers.GetHandler()`，用于测试和嵌入场景。
+- 多域名 server listening — 所有匹配的域名各自打印监听 URL。
 
 ### 修复
-- `Builder.Any()` 现在正确注册所有 HTTP 方法（之前只注册了 GET）。
-- `Config.GetBoolOrDefault()` 在 key 未配置时正确返回默认值。
-- 重命名 `model.Model[T]` 内部方法 `getBb()` 为 `getDB()`。
+- `certStore.init()` 现在收集所有证书错误后统一返回，确保尽可能多的证书被加载。
+- 证书加载失败不再阻塞 HTTP 服务器启动 — 错误记录到日志，服务器继续运行（无 TLS）。
+- MkDocs 2.0 兼容性修复（移除废弃插件、空 overrides、无效图标）。
 
 ### 变更
-- ORM 对比文档更新——Context 传播现在是相比 GORM 内置泛型的关键差异化优势。
+- `core.NewServer()` 现在接收外部 `*web.Servers` 参数，确保 builder 注册的路由在 `GetHandler()` 中可用。
+- 文档改用标准 markdown 以兼容 MkDocs 2.0。
 
 ## [1.0.0] - 2026-04-07
 
@@ -71,6 +74,7 @@
 
 | 版本 | 发布日期 | 主要变更 |
 |------|----------|----------|
+| 1.0.11 | 2026-07-11 | 自签证书、GetHandler 测试支持、TLS 容错 |
 | 1.0.0 | 2026-04-07 | 初始版本 |
 
 ## 下一步

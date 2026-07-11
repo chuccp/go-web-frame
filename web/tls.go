@@ -250,7 +250,8 @@ func (cs *certStore) generateSelfSigned(host string) *certEntry {
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
 
-	if ip := net.ParseIP(host); ip != nil {
+	ipStr := strings.Trim(host, "[]")
+	if ip := net.ParseIP(ipStr); ip != nil {
 		template.IPAddresses = []net.IP{ip}
 	} else {
 		template.DNSNames = []string{host}

@@ -6,19 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-07-11
+
 ### Added
-- **SSL Local Certificates**: `SSLCert` struct and `SSLConfig.Certs` field for configuring local certificate files. Supports multi-domain local certificates with SNI-based selection and autocert fallback.
-- **Context Propagation**: `WithContext(ctx)` on `Model[T]`, `EntryModel[T, PK]`, `Query[T]`, `Update[T]`, `Delete[T]` for propagating request-scoped cancellation, timeouts, and tracing to database operations.
-- `Request.Ctx()` method on `web.Request` to expose the per-request `context.Context`.
-- `DB.WithContext(ctx)` and `Table.WithContext(ctx)` in the `db` package as the foundation layer.
+- **Self-Signed Certificate Generation**: When no wildcard certificate matches a host, the framework now automatically generates an in-memory ECDSA P-256 self-signed certificate (valid for 1 year) and caches it. Eliminates the need for external certs in development.
+- **IPv6 TLS Support**: Self-signed certificates correctly handle IPv6 addresses, including bracketed format (`[::1]`, `[::1]:8443`) from HTTP Host headers.
+- **`Servers.GetHandler()`**: Returns an `http.Handler` that dispatches requests to the correct `Server` engine based on the port in the Host header. Each server's routes, filters, and ContextPath remain fully independent.
+- **`WebFrame.GetHandler()`**: Initializes the full application (DB, services, routes) and returns an `http.Handler` for use with `httptest.NewServer()`.
+- **`core.Server.GetHandler()`**: Exposes the underlying `Servers.GetHandler()` for test and embedding scenarios.
+- Multi-domain server listening — all matched domains now log their own URL on startup.
 
 ### Fixed
-- `Builder.Any()` now correctly registers handlers for all HTTP methods (was only registering GET).
-- `Config.GetBoolOrDefault()` now returns the default value when the key is not set in config.
-- Renamed internal `getBb()` to `getDB()` in `model.Model[T]` for clarity.
+- `certStore.init()` now collects all certificate errors instead of failing on the first one, ensuring as many certs as possible are loaded.
+- Certificate loading failures no longer block HTTP server startup — errors are logged and the server continues without TLS.
+- Various MkDocs 2.0 compatibility fixes (removed deprecated plugins, empty overrides, invalid icons).
 
 ### Changed
-- ORM comparison docs updated — context propagation is now a key differentiator vs GORM's built-in generics.
+- `core.NewServer()` now accepts an external `*web.Servers` parameter, ensuring builder-registered routes are available through `GetHandler()`.
+- Docs rewritten with standard markdown for MkDocs 2.0 compatibility.
 
 ## [1.0.0] - 2026-04-07
 
@@ -75,4 +80,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.0.11 | 2026-07-11 | Self-signed certs, GetHandler for testing, TLS error resilience |
 | 1.0.0 | 2026-04-07 | Initial release with core features |

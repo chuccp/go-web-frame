@@ -44,7 +44,8 @@ func newServerRunner(ctx context.Context, certsPath string, servers []*Server) *
 
 func (sr *ServerRunner) Start() error {
 	if err := sr.certs.init(sr.servers); err != nil {
-		return err
+		log.PrintPanic(err)
+		log.Error("certs init", zap.Error(err))
 	}
 
 	errorPool := pool.New().WithContext(sr.ctx).WithFirstError()

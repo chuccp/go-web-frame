@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"net/http"
 	"sync"
 
 	"emperror.dev/errors"
@@ -114,6 +115,12 @@ func (server *Server) Run() error {
 	err := errorsPool.Wait()
 	log.Error("server Run", zap.Error(err))
 	return errors.WithStackIf(err)
+}
+
+// GetHandler returns an http.Handler for testing. Routes, filters, and
+// ContextPath of each underlying Server are fully preserved.
+func (server *Server) GetHandler() http.Handler {
+	return server.servers.GetHandler()
 }
 
 // NewServer creates a new Server with the given REST groups and runners.

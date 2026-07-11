@@ -74,8 +74,12 @@ func (w *WebFrame) Start() error {
 	return w.Run(context.Background())
 }
 func (w *WebFrame) GetHandler() http.Handler {
-	//TODO 实现测试
-	return nil
+	server, _, err := w.init(context.Background())
+	if err != nil {
+		log.Error("GetHandler init failed", zap.Error(err))
+		return nil
+	}
+	return server.GetHandler()
 }
 
 // Test initializes the application without starting a real HTTP server,

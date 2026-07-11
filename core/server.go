@@ -124,9 +124,9 @@ func (server *Server) GetHandler() http.Handler {
 }
 
 // NewServer creates a new Server with the given REST groups and runners.
-func NewServer(restGroups []*RestGroup, runners []IRunner) *Server {
+func NewServer(servers *web.Servers, restGroups []*RestGroup, runners []IRunner) *Server {
 	return &Server{
-		servers:    web.NewServers(),
+		servers:    servers,
 		restGroups: restGroups,
 		lock:       new(sync.RWMutex),
 		runners:    runners,

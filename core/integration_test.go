@@ -296,7 +296,7 @@ func TestIntegration_ServiceRunnerNoDoubleInit(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Build a Server with all runners (including the one from AddService).
-	server := NewServer(nil, ctx.GetRunners())
+	server := NewServer(web.NewServers(), nil, ctx.GetRunners())
 	err = server.Init(ctx)
 	assert.NoError(t, err)
 

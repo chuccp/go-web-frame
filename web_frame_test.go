@@ -1,8 +1,10 @@
 package wf
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -525,6 +527,60 @@ func TestIntegration_WebFrame_WithRoute(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
 	assert.NotNil(t, ctx)
+}
+
+func TestWebFrame_GetHandler(t *testing.T) {
+	config := config2.NewConfig()
+	config.Put("server.port", "19009")
+
+	builder := NewBuilder(config)
+	builder.Get("/hello", func(c *web.Request) (any, error) {
+		return "world", nil
+	})
+	builder.Post("/echo", func(c *web.Request) (any, error) {
+		var body map[string]any
+		if err := c.BindJSON(&body); err != nil {
+			return nil, err
+		}
+		return body, nil
+	})
+
+	app := builder.Build()
+	handler := app.GetHandler()
+	assert.NotNil(t, handler)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	// GET with correct port in Host header
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/hello", nil)
+	req.Host = "localhost:19009"
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(body), "world")
+
+	// POST with correct port
+	postBody := bytes.NewBufferString(`{"name":"test"}`)
+	req2, _ := http.NewRequest(http.MethodPost, ts.URL+"/echo", postBody)
+	req2.Host = "localhost:19009"
+	req2.Header.Set("Content-Type", "application/json")
+	resp2, err := http.DefaultClient.Do(req2)
+	assert.NoError(t, err)
+	defer resp2.Body.Close()
+	body2, _ := io.ReadAll(resp2.Body)
+	assert.Equal(t, http.StatusOK, resp2.StatusCode)
+	assert.Contains(t, string(body2), "test")
+
+	// Wrong port → 404
+	req3, _ := http.NewRequest(http.MethodGet, ts.URL+"/hello", nil)
+	req3.Host = "localhost:9999"
+	resp3, err := http.DefaultClient.Do(req3)
+	assert.NoError(t, err)
+	defer resp3.Body.Close()
+	assert.Equal(t, http.StatusNotFound, resp3.StatusCode)
 }
 
 // Mock types for testing

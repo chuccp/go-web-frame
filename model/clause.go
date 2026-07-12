@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -18,9 +19,12 @@ type Query[T any] struct {
 	tableName string
 	entry     T
 	wheres    []*where
-	orders    []interface{}
+	orders    []any
 	preloads  []string
 	joins     []string
+	selects   []any
+	having    []*where
+	groups    []string
 }
 
 // buildTx constructs the database transaction, lazily created on first execution.
@@ -42,6 +46,15 @@ func (q *Query[T]) buildTxWith(d *db.DB) (*db.Table, error) {
 	for _, j := range q.joins {
 		tx = tx.Joins(j)
 	}
+	for _, s := range q.selects {
+		tx = tx.Select(s)
+	}
+	for _, g := range q.groups {
+		tx = tx.Group(g)
+	}
+	for _, h := range q.having {
+		tx = tx.Having(h.query, h.args...)
+	}
 	return tx, nil
 }
 
@@ -51,7 +64,7 @@ func (q *Query[T]) buildTx() (*db.Table, error) {
 }
 
 // Where adds a WHERE condition to the query.
-func (q *Query[T]) Where(query interface{}, args ...interface{}) *Query[T] {
+func (q *Query[T]) Where(query any, args ...any) *Query[T] {
 	q.wheres = append(q.wheres, &where{query: query, args: args})
 	return q
 }
@@ -74,6 +87,27 @@ func (q *Query[T]) Preload(query string) *Query[T] {
 // Usage: query.Joins("Profile").All()
 func (q *Query[T]) Joins(query string) *Query[T] {
 	q.joins = append(q.joins, query)
+	return q
+}
+
+// Select specifies select columns for the query.
+// Usage: query.Select("name, age").All()
+func (q *Query[T]) Select(query any, args ...any) *Query[T] {
+	q.selects = append(q.selects, query)
+	return q
+}
+
+// Group adds a GROUP BY clause to the query.
+// Usage: query.Group("category").All()
+func (q *Query[T]) Group(name string) *Query[T] {
+	q.groups = append(q.groups, name)
+	return q
+}
+
+// Having adds a HAVING condition to the query (used with Group).
+// Usage: query.Group("category").Having("COUNT(*) > ?", 5).All()
+func (q *Query[T]) Having(query any, args ...any) *Query[T] {
+	q.having = append(q.having, &where{query: query, args: args})
 	return q
 }
 
@@ -317,14 +351,150 @@ func (q *Query[T]) WithContext(ctx context.Context) *Query[T] {
 		orders:    q.orders,
 		preloads:  q.preloads,
 		joins:     q.joins,
+		selects:   q.selects,
+		having:    q.having,
+		groups:    q.groups,
 	}
+}
+
+// Aggregate is a type-safe builder for constructing aggregate queries on type T.
+// T is the entity type used for table name resolution; result is scanned into a separate type.
+type Aggregate[T any] struct {
+	db        *db.DB
+	tableName string
+	wheres    []*where
+	orders    []any
+	groups    []string
+	having    []*where
+	selects   []any
+	joins     []string
+}
+
+// buildTx constructs the database transaction for the aggregate query.
+func (a *Aggregate[T]) buildTx() (*db.Table, error) {
+	if a.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	tx := a.db.Table(a.tableName)
+	for _, w := range a.wheres {
+		tx = tx.Where(w.query, w.args...)
+	}
+	for _, j := range a.joins {
+		tx = tx.Joins(j)
+	}
+	for _, s := range a.selects {
+		tx = tx.Select(s)
+	}
+	for _, g := range a.groups {
+		tx = tx.Group(g)
+	}
+	for _, h := range a.having {
+		tx = tx.Having(h.query, h.args...)
+	}
+	for _, o := range a.orders {
+		tx = tx.Order(o)
+	}
+	return tx, nil
+}
+
+// Where adds a WHERE condition to the aggregate query.
+func (a *Aggregate[T]) Where(query any, args ...any) *Aggregate[T] {
+	a.wheres = append(a.wheres, &where{query: query, args: args})
+	return a
+}
+
+// Order adds an ORDER BY clause to the aggregate query.
+func (a *Aggregate[T]) Order(query any) *Aggregate[T] {
+	a.orders = append(a.orders, query)
+	return a
+}
+
+// Select specifies select columns or aggregate expressions for the query.
+// Usage: a.Select("category, SUM(amount) as total").Aggregate(&results)
+func (a *Aggregate[T]) Select(query any, args ...any) *Aggregate[T] {
+	a.selects = append(a.selects, query)
+	return a
+}
+
+// Group adds a GROUP BY clause to the aggregate query.
+// Usage: a.Group("category").Aggregate(&results)
+func (a *Aggregate[T]) Group(name string) *Aggregate[T] {
+	a.groups = append(a.groups, name)
+	return a
+}
+
+// Having adds a HAVING condition to the aggregate query (used with Group).
+// Usage: a.Group("category").Having("COUNT(*) > ?", 5).Aggregate(&results)
+func (a *Aggregate[T]) Having(query any, args ...any) *Aggregate[T] {
+	a.having = append(a.having, &where{query: query, args: args})
+	return a
+}
+
+// Joins adds a join clause to the aggregate query.
+func (a *Aggregate[T]) Joins(query string) *Aggregate[T] {
+	a.joins = append(a.joins, query)
+	return a
+}
+
+// Aggregate executes the aggregate query and scans the result into the provided pointer.
+// For scalar results (e.g. *float64), a LIMIT 1 is applied automatically.
+// For slice results (e.g. *[]T), all matching rows are returned.
+//
+// Usage:
+//
+//	var total float64
+//	err := model.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+//
+//	var stats []CategoryStat
+//	err := model.Aggregate().Select("category, SUM(amount) as total").Group("category").Aggregate(&stats)
+func (a *Aggregate[T]) Aggregate(result any) error {
+	tx, err := a.buildTx()
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
+	if isScalarResult(result) {
+		return errors.WithStackIf(tx.Limit(1).Scan(result))
+	}
+	return errors.WithStackIf(tx.Find(result))
+}
+
+// WithContext returns a shallow copy of the aggregate builder with the given context.
+// The original instance is unchanged; safe for concurrent use.
+func (a *Aggregate[T]) WithContext(ctx context.Context) *Aggregate[T] {
+	var newDB *db.DB
+	if a.db != nil {
+		newDB = a.db.WithContext(ctx)
+	}
+	return &Aggregate[T]{
+		db:        newDB,
+		tableName: a.tableName,
+		wheres:    a.wheres,
+		orders:    a.orders,
+		groups:    a.groups,
+		having:    a.having,
+		selects:   a.selects,
+		joins:     a.joins,
+	}
+}
+
+// isScalarResult returns true if result is a pointer to a non-slice type
+// (e.g. *float64, *int, *string, *struct{...}).
+func isScalarResult(result any) bool {
+	if result == nil {
+		return false
+	}
+	rv := reflect.ValueOf(result)
+	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+		rv = rv.Elem()
+	}
+	return rv.Kind() != reflect.Slice
 }
 
 var whereRe = regexp.MustCompile(`(?i)\sWHERE\s`)
 
 type where struct {
-	query interface{}
-	args  []interface{}
+	query any
+	args  []any
 }
 
 // Update is a type-safe update builder for constructing update operations on type T.

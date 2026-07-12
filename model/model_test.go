@@ -420,3 +420,358 @@ func TestModel_CreateAndDropTable(t *testing.T) {
 
 	require.NoError(t, m.DropTable())
 }
+
+// ---- aggregate test entity ----
+
+type TestOrder struct {
+	ID       uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Category string  `gorm:"size:64" json:"category"`
+	Product  string  `gorm:"size:128" json:"product"`
+	Amount   float64 `json:"amount"`
+	Quantity int     `json:"quantity"`
+	Status   int     `gorm:"default:1" json:"status"`
+}
+
+func setupAggregateData(t *testing.T, m *Model[*TestOrder]) {
+	t.Helper()
+	orders := []*TestOrder{
+		{Category: "electronics", Product: "phone", Amount: 800, Quantity: 2, Status: 1},
+		{Category: "electronics", Product: "laptop", Amount: 1500, Quantity: 1, Status: 1},
+		{Category: "electronics", Product: "tablet", Amount: 500, Quantity: 3, Status: 2},
+		{Category: "clothing", Product: "shirt", Amount: 50, Quantity: 5, Status: 1},
+		{Category: "clothing", Product: "pants", Amount: 80, Quantity: 3, Status: 1},
+		{Category: "food", Product: "bread", Amount: 10, Quantity: 10, Status: 1},
+	}
+	for _, o := range orders {
+		require.NoError(t, m.Save(o))
+	}
+}
+
+// ---- Aggregate builder-only (nil db) ----
+
+func TestAggregate_BuilderOnly(t *testing.T) {
+	m := NewModel[*TestOrder](nil, "t_orders")
+	agg := m.Aggregate()
+	assert.Equal(t, "t_orders", agg.tableName)
+}
+
+// ---- Aggregate SUM ----
+
+func TestAggregate_Sum(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var total float64
+	err := m.Aggregate().Select("SUM(amount)").Aggregate(&total)
+	require.NoError(t, err)
+	assert.Equal(t, 2940.0, total)
+}
+
+// ---- Aggregate SUM with WHERE ----
+
+func TestAggregate_SumWithWhere(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var total float64
+	err := m.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+	require.NoError(t, err)
+	// electronics(800+1500) + clothing(50+80) + food(10) = 2440
+	assert.Equal(t, 2440.0, total)
+}
+
+// ---- Aggregate COUNT ----
+
+func TestAggregate_Count(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var cnt int
+	err := m.Aggregate().Select("COUNT(*)").Aggregate(&cnt)
+	require.NoError(t, err)
+	assert.Equal(t, 6, cnt)
+}
+
+// ---- Aggregate AVG ----
+
+func TestAggregate_Avg(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var avg float64
+	err := m.Aggregate().Select("AVG(amount)").Aggregate(&avg)
+	require.NoError(t, err)
+	assert.Equal(t, 2940.0/6.0, avg)
+}
+
+// ---- Aggregate MAX / MIN ----
+
+func TestAggregate_MaxMin(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var maxAmt float64
+	err := m.Aggregate().Select("MAX(amount)").Aggregate(&maxAmt)
+	require.NoError(t, err)
+	assert.Equal(t, 1500.0, maxAmt)
+
+	var minAmt float64
+	err = m.Aggregate().Select("MIN(amount)").Aggregate(&minAmt)
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, minAmt)
+}
+
+// ---- Aggregate GROUP BY ----
+
+type CategoryStat struct {
+	Category string  `json:"category"`
+	Total    float64 `json:"total"`
+}
+
+func TestAggregate_GroupBy(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Group("category").
+		Aggregate(&stats)
+	require.NoError(t, err)
+	assert.Len(t, stats, 3)
+
+	statsMap := make(map[string]float64)
+	for _, s := range stats {
+		statsMap[s.Category] = s.Total
+	}
+	assert.Equal(t, 2800.0, statsMap["electronics"])
+	assert.Equal(t, 130.0, statsMap["clothing"])
+	assert.Equal(t, 10.0, statsMap["food"])
+}
+
+// ---- Aggregate GROUP BY + HAVING ----
+
+func TestAggregate_GroupByHaving(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Group("category").
+		Having("SUM(amount) > ?", 200).
+		Aggregate(&stats)
+	require.NoError(t, err)
+	assert.Len(t, stats, 1)
+	assert.Equal(t, "electronics", stats[0].Category)
+	assert.Equal(t, 2800.0, stats[0].Total)
+}
+
+// ---- Aggregate GROUP BY + WHERE ----
+
+func TestAggregate_GroupByWithWhere(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Where("status = ?", 1).
+		Group("category").
+		Aggregate(&stats)
+	require.NoError(t, err)
+
+	statsMap := make(map[string]float64)
+	for _, s := range stats {
+		statsMap[s.Category] = s.Total
+	}
+	// electronics: 800+1500=2300 (status=2 的 tablet 被排除)
+	assert.Equal(t, 2300.0, statsMap["electronics"])
+	assert.Equal(t, 130.0, statsMap["clothing"])
+	assert.Equal(t, 10.0, statsMap["food"])
+}
+
+// ---- Aggregate GROUP BY + ORDER ----
+
+func TestAggregate_GroupByOrder(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Group("category").
+		Order("SUM(amount) DESC").
+		Aggregate(&stats)
+	require.NoError(t, err)
+	require.Len(t, stats, 3)
+	assert.Equal(t, "electronics", stats[0].Category)
+	assert.Equal(t, "clothing", stats[1].Category)
+	assert.Equal(t, "food", stats[2].Category)
+}
+
+// ---- Aggregate multi-column result ----
+
+type CategoryDetail struct {
+	Category string  `json:"category"`
+	Total    float64 `json:"total"`
+	Cnt      int     `json:"cnt"`
+	AvgAmt   float64 `json:"avgAmt"`
+}
+
+func TestAggregate_MultiColumn(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var details []CategoryDetail
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total, COUNT(*) as cnt, AVG(amount) as avg_amt").
+		Group("category").
+		Aggregate(&details)
+	require.NoError(t, err)
+
+	detailMap := make(map[string]CategoryDetail)
+	for _, d := range details {
+		detailMap[d.Category] = d
+	}
+
+	assert.Equal(t, 2800.0, detailMap["electronics"].Total)
+	assert.Equal(t, 3, detailMap["electronics"].Cnt)
+}
+
+// ---- Aggregate empty result (scalar) ----
+
+func TestAggregate_EmptyScalar(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Use COALESCE to handle NULL when no rows match
+	var total float64
+	err := m.Aggregate().Select("COALESCE(SUM(amount), 0)").Where("category = ?", "nonexistent").Aggregate(&total)
+	require.NoError(t, err)
+	assert.Equal(t, 0.0, total)
+}
+
+// ---- Aggregate empty result (grouped) ----
+
+func TestAggregate_EmptyGrouped(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Where("category = ?", "nonexistent").
+		Group("category").
+		Aggregate(&stats)
+	require.NoError(t, err)
+	assert.Len(t, stats, 0)
+}
+
+// ---- Aggregate with int result ----
+
+func TestAggregate_SumInt(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var totalQty int
+	err := m.Aggregate().Select("SUM(quantity)").Aggregate(&totalQty)
+	require.NoError(t, err)
+	assert.Equal(t, 24, totalQty)
+}
+
+// ---- Aggregate WithContext ----
+
+func TestAggregate_WithContext(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var total float64
+	err := m.Aggregate().
+		WithContext(ctx).
+		Select("SUM(amount)").
+		Aggregate(&total)
+	require.NoError(t, err)
+	assert.Equal(t, 2940.0, total)
+}
+
+// ---- Aggregate WithContext returns copy ----
+
+func TestAggregate_WithContext_ReturnsCopy(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+
+	a1 := m.Aggregate()
+	a2 := a1.WithContext(context.Background())
+
+	assert.NotSame(t, a1, a2, "WithContext should return a new instance")
+
+	a1.Where("id = ?", 1)
+	assert.Len(t, a1.wheres, 1)
+	assert.Len(t, a2.wheres, 0, "original aggregate wheres should not leak into copy")
+}
+
+// ---- Aggregate nil db ----
+
+func TestAggregate_NilDB(t *testing.T) {
+	m := NewModel[*TestOrder](nil, "t_orders")
+	var total float64
+	err := m.Aggregate().Select("SUM(amount)").Aggregate(&total)
+	assert.Error(t, err)
+}
+
+// ---- Query Select/Group/Having ----
+
+func TestQuery_GroupBy(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Verify Select/Group/Having chain methods compile and build correctly.
+	// Query().All() returns []*TestOrder, not grouped structs — use Aggregate() for that.
+	q := m.Query().
+		Select("category, SUM(amount) as total").
+		Group("category").
+		Having("COUNT(*) > ?", 1).
+		Order("category")
+
+	assert.Len(t, q.selects, 1)
+	assert.Len(t, q.groups, 1)
+	assert.Len(t, q.having, 1)
+}
+
+// ---- isScalarResult ----
+
+func TestIsScalarResult(t *testing.T) {
+	var f float64
+	var i int
+	var s string
+	type st struct{ Name string }
+	var ps st
+
+	assert.True(t, isScalarResult(&f))
+	assert.True(t, isScalarResult(&i))
+	assert.True(t, isScalarResult(&s))
+	assert.True(t, isScalarResult(&ps))
+
+	var slice []CategoryStat
+	assert.False(t, isScalarResult(&slice))
+	assert.False(t, isScalarResult(nil))
+}

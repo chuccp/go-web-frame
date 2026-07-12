@@ -222,6 +222,12 @@ func (a *Model[T]) Delete() *Delete[T] {
 	}
 }
 
+// Aggregate returns a new Aggregate builder for constructing aggregate queries (SUM, AVG, COUNT, etc.).
+// Usage: model.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+func (a *Model[T]) Aggregate() *Aggregate[T] {
+	return &Aggregate[T]{db: a.db, tableName: a.tableName}
+}
+
 // NewModel creates a new Model instance for the given table name.
 func NewModel[T any](db *db.DB, tableName string) *Model[T] {
 	var entryPtr T

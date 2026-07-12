@@ -22,9 +22,10 @@ type Query[T any] struct {
 	orders    []any
 	preloads  []string
 	joins     []string
-	selects   []any
-	having    []*where
+	selects   []*selects
+	having    []*having
 	groups    []string
+	distinct  *distinct
 }
 
 // buildTx constructs the database transaction, lazily created on first execution.
@@ -47,13 +48,16 @@ func (q *Query[T]) buildTxWith(d *db.DB) (*db.Table, error) {
 		tx = tx.Joins(j)
 	}
 	for _, s := range q.selects {
-		tx = tx.Select(s)
+		tx = tx.Select(s.query, s.args...)
 	}
 	for _, g := range q.groups {
 		tx = tx.Group(g)
 	}
 	for _, h := range q.having {
 		tx = tx.Having(h.query, h.args...)
+	}
+	if q.distinct != nil {
+		tx = tx.Distinct(q.distinct.args...)
 	}
 	return tx, nil
 }
@@ -93,7 +97,7 @@ func (q *Query[T]) Joins(query string) *Query[T] {
 // Select specifies select columns for the query.
 // Usage: query.Select("name, age").All()
 func (q *Query[T]) Select(query any, args ...any) *Query[T] {
-	q.selects = append(q.selects, query)
+	q.selects = append(q.selects, &selects{query: query, args: args})
 	return q
 }
 
@@ -108,6 +112,17 @@ func (q *Query[T]) Group(name string) *Query[T] {
 // Usage: query.Group("category").Having("COUNT(*) > ?", 5).All()
 func (q *Query[T]) Having(query any, args ...any) *Query[T] {
 	q.having = append(q.having, &where{query: query, args: args})
+	return q
+}
+
+// Distinct adds a DISTINCT clause to the query.
+// Usage:
+//
+//	query.Distinct().All()                        // SELECT DISTINCT * ...
+//	query.Distinct("name", "age").All()           // SELECT DISTINCT name, age ...
+//	query.Select("name", "age").Distinct().All()  // SELECT DISTINCT name, age ... (via Select)
+func (q *Query[T]) Distinct(args ...any) *Query[T] {
+	q.distinct = &distinct{args: args}
 	return q
 }
 
@@ -354,6 +369,7 @@ func (q *Query[T]) WithContext(ctx context.Context) *Query[T] {
 		selects:   q.selects,
 		having:    q.having,
 		groups:    q.groups,
+		distinct:  q.distinct,
 	}
 }
 
@@ -365,9 +381,10 @@ type Aggregate[T any] struct {
 	wheres    []*where
 	orders    []any
 	groups    []string
-	having    []*where
-	selects   []any
+	having    []*having
+	selects   []*selects
 	joins     []string
+	distinct  *distinct
 }
 
 // buildTx constructs the database transaction for the aggregate query.
@@ -383,7 +400,7 @@ func (a *Aggregate[T]) buildTx() (*db.Table, error) {
 		tx = tx.Joins(j)
 	}
 	for _, s := range a.selects {
-		tx = tx.Select(s)
+		tx = tx.Select(s.query, s.args...)
 	}
 	for _, g := range a.groups {
 		tx = tx.Group(g)
@@ -393,6 +410,9 @@ func (a *Aggregate[T]) buildTx() (*db.Table, error) {
 	}
 	for _, o := range a.orders {
 		tx = tx.Order(o)
+	}
+	if a.distinct != nil {
+		tx = tx.Distinct(a.distinct.args...)
 	}
 	return tx, nil
 }
@@ -412,7 +432,7 @@ func (a *Aggregate[T]) Order(query any) *Aggregate[T] {
 // Select specifies select columns or aggregate expressions for the query.
 // Usage: a.Select("category, SUM(amount) as total").Aggregate(&results)
 func (a *Aggregate[T]) Select(query any, args ...any) *Aggregate[T] {
-	a.selects = append(a.selects, query)
+	a.selects = append(a.selects, &selects{query: query, args: args})
 	return a
 }
 
@@ -433,6 +453,16 @@ func (a *Aggregate[T]) Having(query any, args ...any) *Aggregate[T] {
 // Joins adds a join clause to the aggregate query.
 func (a *Aggregate[T]) Joins(query string) *Aggregate[T] {
 	a.joins = append(a.joins, query)
+	return a
+}
+
+// Distinct adds a DISTINCT clause to the aggregate query.
+// Usage:
+//
+//	a.Distinct().Select("category").Aggregate(&results)         // SELECT DISTINCT category ...
+//	a.Distinct("category").Aggregate(&results)                  // SELECT DISTINCT category ...
+func (a *Aggregate[T]) Distinct(args ...any) *Aggregate[T] {
+	a.distinct = &distinct{args: args}
 	return a
 }
 
@@ -474,6 +504,7 @@ func (a *Aggregate[T]) WithContext(ctx context.Context) *Aggregate[T] {
 		having:    a.having,
 		selects:   a.selects,
 		joins:     a.joins,
+		distinct:  a.distinct,
 	}
 }
 
@@ -495,6 +526,13 @@ var whereRe = regexp.MustCompile(`(?i)\sWHERE\s`)
 type where struct {
 	query any
 	args  []any
+}
+
+type selects = where
+type having = where
+
+type distinct struct {
+	args []any
 }
 
 // Update is a type-safe update builder for constructing update operations on type T.

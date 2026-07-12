@@ -298,6 +298,10 @@ func (t *Table) Having(query any, args ...any) *Table {
 	tx := t.db.Having(query, args...)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
+func (t *Table) Distinct(args ...any) *Table {
+	tx := t.db.Distinct(args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
 
 // Preload preloads associations for the query (GORM foreign key support)
 // Usage: db.Table("users").Preload("Profile").Preload("Role").Find(&users)

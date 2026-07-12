@@ -757,6 +757,168 @@ func TestQuery_GroupBy(t *testing.T) {
 	assert.Len(t, q.having, 1)
 }
 
+// ---- Aggregate Select with args ----
+
+func TestAggregate_SelectWithArgs(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// COALESCE with a parameterized fallback value
+	var total float64
+	err := m.Aggregate().
+		Select("COALESCE(SUM(amount), ?)", 0).
+		Where("category = ?", "nonexistent").
+		Aggregate(&total)
+	require.NoError(t, err)
+	assert.Equal(t, 0.0, total)
+}
+
+func TestAggregate_SelectWithArgs_Multiple(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Multiple selects with args
+	var result float64
+	err := m.Aggregate().
+		Select("SUM(amount) * ? + ?", 2, 100).
+		Aggregate(&result)
+	require.NoError(t, err)
+	// SUM = 2940, 2940*2+100 = 5980
+	assert.Equal(t, 5980.0, result)
+}
+
+// ---- Aggregate Having with args ----
+
+func TestAggregate_HavingWithArgs(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	var stats []CategoryStat
+	err := m.Aggregate().
+		Select("category, SUM(amount) as total").
+		Group("category").
+		Having("SUM(amount) > ? AND SUM(amount) < ?", 100, 2000).
+		Aggregate(&stats)
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	assert.Equal(t, "clothing", stats[0].Category)
+	assert.Equal(t, 130.0, stats[0].Total)
+}
+
+// ---- Aggregate chained selects ----
+
+func TestAggregate_MultipleSelects(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Multiple Select() calls — last one wins in GORM
+	var total float64
+	err := m.Aggregate().
+		Select("SUM(quantity)").
+		Select("SUM(amount)").
+		Aggregate(&total)
+	require.NoError(t, err)
+	assert.Equal(t, 2940.0, total)
+}
+
+// ---- Aggregate Distinct ----
+
+func TestAggregate_Distinct(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Distinct categories count
+	var cnt int
+	err := m.Aggregate().
+		Distinct().
+		Select("COUNT(DISTINCT category)").
+		Aggregate(&cnt)
+	require.NoError(t, err)
+	assert.Equal(t, 3, cnt)
+}
+
+func TestAggregate_DistinctWithColumns(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Distinct("category") sets DISTINCT + SELECT category
+	type CatRow struct {
+		Category string
+	}
+	var rows []CatRow
+	err := m.Aggregate().
+		Distinct("category").
+		Aggregate(&rows)
+	require.NoError(t, err)
+	assert.Len(t, rows, 3)
+
+	categories := make(map[string]bool)
+	for _, r := range rows {
+		categories[r.Category] = true
+	}
+	assert.True(t, categories["electronics"])
+	assert.True(t, categories["clothing"])
+	assert.True(t, categories["food"])
+}
+
+func TestAggregate_DistinctWithGroupBy(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Distinct + GroupBy: count distinct products per category
+	type CatProductCnt struct {
+		Category string
+		Cnt      int
+	}
+	var stats []CatProductCnt
+	err := m.Aggregate().
+		Select("category, COUNT(*) as cnt").
+		Distinct().
+		Group("category").
+		Aggregate(&stats)
+	require.NoError(t, err)
+	require.Len(t, stats, 3)
+
+	statMap := make(map[string]int)
+	for _, s := range stats {
+		statMap[s.Category] = s.Cnt
+	}
+	assert.Equal(t, 3, statMap["electronics"])
+	assert.Equal(t, 2, statMap["clothing"])
+	assert.Equal(t, 1, statMap["food"])
+}
+
+// ---- Query Distinct ----
+
+func TestQuery_Distinct(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Distinct categories via Query
+	orders, err := m.Query().Select("category").Distinct().All()
+	require.NoError(t, err)
+	assert.Len(t, orders, 3)
+}
+
+func TestQuery_DistinctWithArgs(t *testing.T) {
+	d := setupDB(t)
+	m := setupModel[*TestOrder](t, d, "t_orders")
+	setupAggregateData(t, m)
+
+	// Distinct("category") via Query
+	orders, err := m.Query().Distinct("category").All()
+	require.NoError(t, err)
+	assert.Len(t, orders, 3)
+}
+
 // ---- isScalarResult ----
 
 func TestIsScalarResult(t *testing.T) {

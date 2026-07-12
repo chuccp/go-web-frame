@@ -133,11 +133,13 @@ func (server *Server) GetHandler() http.Handler {
 func (server *Server) Port() int {
 	return server.serverConfig.Port
 }
-func (server *Server) isAuto() bool {
+func (server *Server) isAuto(host string) bool {
 	if server.isTls() {
 		if len(server.serverConfig.SSL.Certs) <= 0 {
 			if len(server.serverConfig.SSL.Hosts) > 0 {
-				return true
+				if util.EqualsAnyIgnoreCase(host, server.serverConfig.SSL.Hosts...) {
+					return true
+				}
 			}
 		}
 	}

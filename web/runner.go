@@ -117,11 +117,11 @@ func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
 		MinVersion: tls.VersionTLS12,
 		NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			if server.isAuto(info.ServerName) {
+				return sr.certs.autoCertManager.GetCertificate(info)
+			}
 			return sr.certs.getCertificate(info.ServerName)
 		},
-	}
-	if server.isAuto() {
-		tlsConfig.GetCertificate = sr.certs.autoCertManager.GetCertificate
 	}
 	addr := ":" + strconv.Itoa(server.serverConfig.Port)
 	httpServer := &http.Server{
@@ -146,14 +146,18 @@ func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
 }
 
 func (sr *ServerRunner) logTLSListen(server *Server, addr string) {
-	if server.isAuto() {
-		for _, host := range server.serverConfig.SSL.Hosts {
+
+	for _, host := range server.serverConfig.SSL.Hosts {
+		if server.isAuto(host) {
 			log.Info("server listening (auto-cert)",
 				zap.Strings("hosts", server.serverConfig.SSL.Hosts),
 				zap.String("url", "https://"+host+addr),
 			)
+		} else {
+			log.Info("server listening",
+				zap.String("url", "https://"+host+addr),
+			)
 		}
-		return
 	}
 	if domains := sr.certs.matchingDomains(); len(domains) > 0 {
 		for _, domain := range domains {

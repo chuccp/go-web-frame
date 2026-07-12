@@ -219,21 +219,23 @@ func (cs *certStore) init(servers []*Server) error {
 	errs := make([]error, 0)
 	for _, server := range servers {
 		if server.isTls() {
-			if !server.isAuto() {
-				for _, certCfg := range server.serverConfig.SSL.Certs {
-					entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
-					if err != nil {
-						errs = append(errs, err)
-						continue
-					}
-					cs.addCertEntry(entry)
+			var hasFile = false
+			for _, certCfg := range server.serverConfig.SSL.Certs {
+				entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
+				if err != nil {
+					errs = append(errs, err)
+					continue
 				}
-				continue
-			} else {
-				if len(server.serverConfig.SSL.Hosts) > 0 {
-					hosts = append(hosts, server.serverConfig.SSL.Hosts...)
-				}
+				hasFile = true
+				cs.addCertEntry(entry)
 			}
+			if hasFile {
+				continue
+			}
+			if len(server.serverConfig.SSL.Hosts) > 0 {
+				hosts = append(hosts, server.serverConfig.SSL.Hosts...)
+			}
+
 		}
 	}
 	cs.autoHosts = hosts

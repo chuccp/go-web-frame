@@ -181,6 +181,8 @@ func (q *Query[T]) mergeWheres(sql string, args ...interface{}) (string, []inter
 }
 
 // ExecPage executes a paginated raw SQL query with the accumulated WHERE conditions.
+//
+// Deprecated: This method is not recommended for use. Use Page() or PageForWeb() instead.
 func (q *Query[T]) ExecPage(page *util.Page, sql string, args ...interface{}) ([]T, int, error) {
 	ts := util.NewSlice(q.entry)
 	if q.db == nil {

@@ -286,6 +286,18 @@ func (t *Table) Order(query any) *Table {
 	tx := t.db.Order(query)
 	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
 }
+func (t *Table) Select(query any, args ...any) *Table {
+	tx := t.db.Select(query, args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
+func (t *Table) Group(name string) *Table {
+	tx := t.db.Group(name)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
+func (t *Table) Having(query any, args ...any) *Table {
+	tx := t.db.Having(query, args...)
+	return &Table{db: tx, tableName: t.tableName, raw: t.raw}
+}
 
 // Preload preloads associations for the query (GORM foreign key support)
 // Usage: db.Table("users").Preload("Profile").Preload("Role").Find(&users)

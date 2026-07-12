@@ -33,21 +33,31 @@ const MaxReadTimeout = time.Minute * 10
 
 const certCheckInterval = 5 * time.Minute
 
-// ---- certEntry ----
+// ---- certEntry interface ----
 
-type certEntry struct {
-	host      string
-	certFile  string
-	keyFile   string
-	domains   []string
-	cert      *tls.Certificate
-	certMod   time.Time
-	keyMod    time.Time
-	nextCheck time.Time
-	mu        sync.RWMutex
+type certEntry interface {
+	get() (*tls.Certificate, error)
+	domains() []string
 }
 
-func (e *certEntry) get() (*tls.Certificate, error) {
+// ---- fileCertEntry: loaded from cert/key files on disk, auto-reloads on change ----
+
+type fileCertEntry struct {
+	certFile   string
+	keyFile    string
+	cert       *tls.Certificate
+	domainList []string
+	certMod    time.Time
+	keyMod     time.Time
+	nextCheck  time.Time
+	mu         sync.RWMutex
+}
+
+func (e *fileCertEntry) domains() []string {
+	return e.domainList
+}
+
+func (e *fileCertEntry) get() (*tls.Certificate, error) {
 	e.mu.RLock()
 	if e.cert != nil && time.Now().Before(e.nextCheck) {
 		c := e.cert
@@ -79,15 +89,108 @@ func (e *certEntry) get() (*tls.Certificate, error) {
 
 	cert, err := tls.LoadX509KeyPair(e.certFile, e.keyFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reload certificate host=%s cert=%s key=%s", e.host, e.certFile, e.keyFile)
+		return nil, errors.Wrapf(err, "reload certificate cert=%s key=%s", e.certFile, e.keyFile)
 	}
 	e.cert = &cert
 	e.certMod = certStat.ModTime()
 	e.keyMod = keyStat.ModTime()
 	e.nextCheck = time.Now().Add(certCheckInterval)
 
-	log.Info("certificate reloaded from disk", zap.String("host", e.host), zap.String("cert", e.certFile))
+	log.Info("certificate reloaded from disk", zap.String("cert", e.certFile))
 	return e.cert, nil
+}
+
+// ---- selfCertEntry: in-memory self-signed certificate, no file I/O ----
+
+type selfCertEntry struct {
+	host      string
+	cert      *tls.Certificate
+	nextCheck time.Time
+	mu        sync.RWMutex
+}
+
+func (e *selfCertEntry) domains() []string {
+	return []string{e.host}
+}
+
+func (e *selfCertEntry) get() (*tls.Certificate, error) {
+	e.mu.RLock()
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		c := e.cert
+		e.mu.RUnlock()
+		return c, nil
+	}
+	e.mu.RUnlock()
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// double-check after acquiring write lock
+	if e.cert != nil && time.Now().Before(e.nextCheck) {
+		return e.cert, nil
+	}
+
+	if e.cert != nil {
+		e.nextCheck = time.Now().Add(24 * time.Hour)
+		return e.cert, nil
+	}
+
+	// first access: generate self-signed certificate
+	cert, err := e.generate()
+	if err != nil {
+		return nil, err
+	}
+	e.cert = cert
+	e.nextCheck = time.Now().Add(24 * time.Hour)
+	log.Info("generated self-signed certificate", zap.String("host", e.host))
+	return e.cert, nil
+}
+
+// generate creates a new self-signed certificate for the host.
+func (e *selfCertEntry) generate() (*tls.Certificate, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, errors.Wrapf(err, "generate self-signed key for %s", e.host)
+	}
+
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, errors.Wrapf(err, "generate serial number for %s", e.host)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{Organization: []string{"go-web-frame"}, CommonName: e.host},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+
+	ipStr := strings.Trim(e.host, "[]")
+	if ip := net.ParseIP(ipStr); ip != nil {
+		template.IPAddresses = []net.IP{ip}
+	} else {
+		template.DNSNames = []string{e.host}
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return nil, errors.Wrapf(err, "create self-signed certificate for %s", e.host)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, errors.Wrapf(err, "marshal private key for %s", e.host)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+
+	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, errors.Wrapf(err, "load self-signed key pair for %s", e.host)
+	}
+	return &tlsCert, nil
 }
 
 // ---- certStore ----
@@ -95,9 +198,9 @@ func (e *certEntry) get() (*tls.Certificate, error) {
 type certStore struct {
 	autoCertManager *autocert.Manager
 	autoHosts       []string
-	certEntries     []*certEntry
-	certMap         map[string]*certEntry
-	wildcardCache   map[string]*certEntry
+	certEntries     []certEntry
+	certMap         map[string]certEntry
+	wildcardCache   map[string]certEntry
 	mu              sync.RWMutex
 	certsPath       string
 }
@@ -105,9 +208,9 @@ type certStore struct {
 func newCertStore(certsPath string) *certStore {
 	return &certStore{
 		certsPath:     certsPath,
-		certEntries:   make([]*certEntry, 0),
-		certMap:       make(map[string]*certEntry),
-		wildcardCache: make(map[string]*certEntry),
+		certEntries:   make([]certEntry, 0),
+		certMap:       make(map[string]certEntry),
+		wildcardCache: make(map[string]certEntry),
 	}
 }
 
@@ -122,7 +225,6 @@ func (cs *certStore) init(servers []*Server) error {
 					if err != nil {
 						errs = append(errs, err)
 						continue
-
 					}
 					cs.addCertEntry(entry)
 				}
@@ -149,7 +251,7 @@ func (cs *certStore) init(servers []*Server) error {
 	return nil
 }
 
-func (cs *certStore) parseCert(certFile, keyFile string) (*certEntry, error) {
+func (cs *certStore) parseCert(certFile, keyFile string) (certEntry, error) {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read certificate file %s", certFile)
@@ -169,19 +271,19 @@ func (cs *certStore) parseCert(certFile, keyFile string) (*certEntry, error) {
 		return nil, errors.Errorf("no domain names found in certificate %s", certFile)
 	}
 
-	entry := &certEntry{
-		certFile: certFile,
-		keyFile:  keyFile,
-		domains:  domains,
-		cert:     &tlsCert,
+	entry := &fileCertEntry{
+		certFile:   certFile,
+		keyFile:    keyFile,
+		domainList: domains,
+		cert:       &tlsCert,
+		nextCheck:  time.Now().Add(certCheckInterval),
 	}
-	entry.nextCheck = time.Now().Add(certCheckInterval)
 	return entry, nil
 }
 
-func (cs *certStore) addCertEntry(entry *certEntry) {
+func (cs *certStore) addCertEntry(entry certEntry) {
 	cs.certEntries = append(cs.certEntries, entry)
-	for _, domain := range entry.domains {
+	for _, domain := range entry.domains() {
 		key := strings.ToLower(domain)
 		cs.certMap[key] = entry
 		log.Debug("registered local certificate for domain", zap.String("domain", domain))
@@ -215,9 +317,9 @@ func (cs *certStore) getCertificate(host string) (*tls.Certificate, error) {
 	return cs.autoCertManager.GetCertificate(&tls.ClientHelloInfo{ServerName: host})
 }
 
-func (cs *certStore) matchWildcard(host string) *certEntry {
+func (cs *certStore) matchWildcard(host string) certEntry {
 	for _, entry := range cs.certEntries {
-		for _, domain := range entry.domains {
+		for _, domain := range entry.domains() {
 			if strings.HasPrefix(domain, "*.") {
 				suffix := domain[1:]
 				if strings.HasSuffix(host, suffix) {
@@ -232,69 +334,16 @@ func (cs *certStore) matchWildcard(host string) *certEntry {
 	return cs.generateSelfSigned(host)
 }
 
-// generateSelfSigned creates an in-memory self-signed certificate for the given host.
-func (cs *certStore) generateSelfSigned(host string) *certEntry {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		log.Error("failed to generate self-signed key", zap.String("host", host), zap.Error(err))
-		return nil
-	}
-
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		log.Error("failed to generate serial number", zap.String("host", host), zap.Error(err))
-		return nil
-	}
-
-	template := &x509.Certificate{
-		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: host},
-		NotBefore:    time.Now().Add(-1 * time.Hour),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-
-	ipStr := strings.Trim(host, "[]")
-	if ip := net.ParseIP(ipStr); ip != nil {
-		template.IPAddresses = []net.IP{ip}
-	} else {
-		template.DNSNames = []string{host}
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		log.Error("failed to create self-signed certificate", zap.String("host", host), zap.Error(err))
-		return nil
-	}
-
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		log.Error("failed to marshal private key", zap.String("host", host), zap.Error(err))
-		return nil
-	}
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-
-	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		log.Error("failed to load self-signed key pair", zap.String("host", host), zap.Error(err))
-		return nil
-	}
-
-	entry := &certEntry{
-		host:      host,
-		domains:   []string{host},
-		cert:      &tlsCert,
-		nextCheck: time.Now().Add(24 * time.Hour), // self-signed certs don't need frequent checks
-	}
+// generateSelfSigned creates a self-cert entry for the given host.
+// The actual certificate is generated lazily on first get() call.
+func (cs *certStore) generateSelfSigned(host string) certEntry {
+	entry := &selfCertEntry{host: host}
 
 	cs.mu.Lock()
 	cs.certEntries = append(cs.certEntries, entry)
 	cs.certMap[strings.ToLower(host)] = entry
 	cs.mu.Unlock()
 
-	log.Info("generated self-signed certificate", zap.String("host", host))
 	return entry
 }
 
@@ -305,7 +354,7 @@ func (cs *certStore) hasAutoCert() bool {
 func (cs *certStore) matchingDomains() []string {
 	domains := make([]string, 0)
 	for _, entry := range cs.certEntries {
-		for _, domain := range entry.domains {
+		for _, domain := range entry.domains() {
 			if !strings.HasPrefix(domain, "*.") {
 				domains = append(domains, domain)
 			}

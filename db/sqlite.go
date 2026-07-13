@@ -3,7 +3,7 @@ package db
 import (
 	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
-	"github.com/chuccp/go-web-frame/sqlite"
+	"github.com/libtnb/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -314,7 +314,11 @@ func (cs *certStore) getCertificate(host string) (*tls.Certificate, error) {
 	}
 	if cs.autoCertManager == nil {
 		if len(cs.certEntries) > 0 {
-			return cs.certEntries[0].get()
+			certEntry0 := cs.certEntries[0]
+			cs.mu.Lock()
+			cs.wildcardCache[host] = certEntry0
+			cs.mu.Unlock()
+			return certEntry0.get()
 		}
 		return nil, nil
 	}

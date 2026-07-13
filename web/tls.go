@@ -312,8 +312,10 @@ func (cs *certStore) getCertificate(host string) (*tls.Certificate, error) {
 		cs.mu.Unlock()
 		return entry.get()
 	}
-
 	if cs.autoCertManager == nil {
+		if len(cs.certEntries) > 0 {
+			return cs.certEntries[0].get()
+		}
 		return nil, nil
 	}
 	return cs.autoCertManager.GetCertificate(&tls.ClientHelloInfo{ServerName: host})

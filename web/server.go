@@ -246,6 +246,7 @@ func (server *Server) Handlers(httpMethods []string, relativePath string, handle
 
 func (server *Server) initRoute() {
 	server.justInitRoute()
+	server.optionsMiddleware()
 	server.noRoute()
 }
 func (server *Server) justInitRoute() {
@@ -255,6 +256,31 @@ func (server *Server) justInitRoute() {
 		}
 	}
 }
+// optionsMiddleware handles OPTIONS preflight for routes that have no
+// explicit OPTIONS handler. Because filters are only invoked when a route
+// matches, and OPTIONS does not match method-specific routes, we intercept
+// here at gin level and run the filter chain before the 404 is returned.
+func (server *Server) optionsMiddleware() {
+	if len(server.filters) == 0 {
+		return
+	}
+	server.engine.Use(func(c *gin.Context) {
+		fullPath := c.FullPath()
+		if len(fullPath) == 0 {
+			req := &Request{
+				c:           c,
+				cookie:      NewCookie(c),
+				handlerMeta: NewHandlerMeta(),
+				response:    newResponse(c),
+			}
+			mock := newFilterChain(req, server.converter, server.filters, func(req *Request) (any, error) {
+				return nil, nil
+			})
+			mock.next()
+		}
+	})
+}
+
 func (server *Server) noRoute() {
 	if len(server.serverConfig.Locations) == 0 {
 		return

@@ -29,9 +29,9 @@ func (s *Filter) Init(ctx *core.Context) error {
 	// are handled before routing. go-web-frame filters only execute after
 	// route matching, but OPTIONS requests don't match method-specific
 	// routes and would otherwise return 404.
-	if engine, ok := ctx.Server().GetHandler().(*gin.Engine); ok {
-		engine.Use(s.handlerFunc)
-	}
+	//if engine, ok := ctx.Server().GetHandler().(*gin.Engine); ok {
+	//	engine.Use(s.handlerFunc)
+	//}
 
 	return nil
 }

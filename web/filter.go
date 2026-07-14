@@ -67,5 +67,7 @@ func (c *filterChain) Next() (any, error) {
 func (c *filterChain) next() {
 	if c.converter != nil {
 		c.converter.Request(c, c.request)
+	} else {
+		defaultConverter.Request(c, c.request)
 	}
 }

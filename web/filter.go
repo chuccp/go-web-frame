@@ -28,6 +28,7 @@ type FilterChain interface {
 	// Returns (any, error): the result and any error.
 	Next() (any, error)
 }
+
 // Filter is a middleware that intercepts requests before and after the handler.
 type Filter interface {
 	// Handle processes the request.
@@ -66,7 +67,5 @@ func (c *filterChain) Next() (any, error) {
 func (c *filterChain) next() {
 	if c.converter != nil {
 		c.converter.Request(c, c.request)
-	} else {
-		defaultConverter.Request(c, c.request)
 	}
 }

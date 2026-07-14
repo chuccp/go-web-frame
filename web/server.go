@@ -121,6 +121,7 @@ func DefaultServer() *Server {
 		engine:       defaultEngine(),
 		routes:       make([]*Route, 0),
 		filters:      make([]Filter, 0),
+		converter:    defaultConverter,
 	}
 	return server
 }

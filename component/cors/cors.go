@@ -25,6 +25,14 @@ func (s *Filter) Init(ctx *core.Context) error {
 	}
 	s.handlerFunc = cors.New(config)
 
+	// Register as a gin global middleware so OPTIONS preflight requests
+	// are handled before routing. go-web-frame filters only execute after
+	// route matching, but OPTIONS requests don't match method-specific
+	// routes and would otherwise return 404.
+	if engine, ok := ctx.Server().GetHandler().(*gin.Engine); ok {
+		engine.Use(s.handlerFunc)
+	}
+
 	return nil
 }
 func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {

@@ -126,6 +126,7 @@ func DefaultServer() *Server {
 }
 func (server *Server) GetHandler() http.Handler {
 	server.justInitRoute()
+	server.optionsMiddleware()
 	return server.engine
 }
 
@@ -256,6 +257,7 @@ func (server *Server) justInitRoute() {
 		}
 	}
 }
+
 // optionsMiddleware handles OPTIONS preflight for routes that have no
 // explicit OPTIONS handler. Because filters are only invoked when a route
 // matches, and OPTIONS does not match method-specific routes, we intercept

@@ -21,7 +21,37 @@ type WSResponse struct {
 }
 
 type AcceptOptions struct {
+	// Subprotocols lists the WebSocket subprotocols that Accept will negotiate
+	// with the client. The empty subprotocol will always be negotiated as per
+	// RFC 6455. If you would like to reject it, close the connection when
+	// c.Subprotocol() == "".
+	Subprotocols []string
+
+	// InsecureSkipVerify is used to disable Accept's origin verification behaviour.
+	// You probably want to use OriginPatterns instead.
+	InsecureSkipVerify bool
+
+	// OriginPatterns lists the host patterns for authorized origins.
+	// The request host is always authorized. Use this to enable cross origin WebSockets.
 	OriginPatterns []string
+
+	// CompressionMode controls the compression mode.
+	// Defaults to CompressionDisabled.
+	CompressionMode websocket.CompressionMode
+
+	// CompressionThreshold controls the minimum size of a message before
+	// compression is applied. Defaults to 512 bytes for CompressionNoContextTakeover
+	// and 128 bytes for CompressionContextTakeover.
+	CompressionThreshold int
+
+	// OnPingReceived is an optional callback invoked synchronously when a ping
+	// frame is received. If the callback returns false, the subsequent pong
+	// frame will not be sent.
+	OnPingReceived func(ctx context.Context, payload []byte) bool
+
+	// OnPongReceived is an optional callback invoked synchronously when a pong
+	// frame is received.
+	OnPongReceived func(ctx context.Context, payload []byte)
 }
 
 // WebSocketStream wraps a coder/websocket connection with web2 Request and context.
@@ -56,7 +86,13 @@ func (ws *WebSocketStream) initConnection() error {
 		return nil
 	}
 	acceptOptions := &websocket.AcceptOptions{
-		OriginPatterns: ws.AcceptOptions.OriginPatterns,
+		Subprotocols:         ws.AcceptOptions.Subprotocols,
+		InsecureSkipVerify:   ws.AcceptOptions.InsecureSkipVerify,
+		OriginPatterns:       ws.AcceptOptions.OriginPatterns,
+		CompressionMode:      ws.AcceptOptions.CompressionMode,
+		CompressionThreshold: ws.AcceptOptions.CompressionThreshold,
+		OnPingReceived:       ws.AcceptOptions.OnPingReceived,
+		OnPongReceived:       ws.AcceptOptions.OnPongReceived,
 	}
 	conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
 	if err != nil {

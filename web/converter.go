@@ -12,7 +12,6 @@ import (
 
 	"github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/coder/websocket"
 	"go.uber.org/zap"
 )
 
@@ -114,15 +113,8 @@ func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
 
 // WSResponse accepts a WebSocket upgrade and invokes the handler.
 func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
-	conn, err := websocket.Accept(request.GinContext().Writer, request.Request(), nil)
-	if err != nil {
-		log.Debug("converter: WebSocket accept error", zap.Error(err))
-		if abortErr := request.response.AbortWithError(err); abortErr != nil {
-			log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
-		}
-		return
-	}
-	stream := newWebSocketStream(request, conn)
+
+	stream := newWebSocketStream(request)
 	defer stream.Close()
 	if err := value.Handler(stream); err != nil {
 		log.Debug("converter: WebSocket handler error", zap.Error(err))

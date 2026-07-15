@@ -26,23 +26,25 @@ type Server struct {
 func (server *Server) initServer(restGroup *RestGroup) error {
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	ser := func(serverConfig *web.ServerConfig) *web.Server {
+	ser, err := func(serverConfig *web.ServerConfig) (*web.Server, error) {
 		for _, s := range server.servers.GetServers() {
 			if s.Port() == serverConfig.Port {
-				return s
+				return s, nil
 			}
 		}
 		s, err := server.servers.CreateServerWithContext(serverConfig, server.ctx)
 		if err != nil {
-			log.Error("create server", zap.Error(err))
-			return nil
+			return nil, errors.WithStackIf(err)
 		}
-		return s
+		return s, nil
 	}(restGroup.serverConfig)
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
 	for _, filter := range restGroup.filters {
 		err := filter.Init(server.ctx)
 		if err != nil {
-			return err
+			return errors.WithStackIf(err)
 		}
 		ser.AddFilters(filter)
 	}
@@ -51,7 +53,7 @@ func (server *Server) initServer(restGroup *RestGroup) error {
 		ctx := server.ctx.Copy(ser, restGroup.filters)
 		err := rest.Init(ctx)
 		if err != nil {
-			return err
+			return errors.WithStackIf(err)
 		}
 	}
 	ser.SetConverter(restGroup.converter)

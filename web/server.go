@@ -273,6 +273,9 @@ func (server *Server) justInitRoute() {
 // matches, and OPTIONS does not match method-specific routes, we intercept
 // here at gin level and run the filter chain before the 404 is returned.
 func (server *Server) optionsMiddleware() {
+	server.engine.Use(func(c *gin.Context) {
+		log.Debug("access", zap.String("method", c.Request.Method), zap.String("path", c.Request.URL.Path))
+	})
 	if len(server.filters) == 0 {
 		return
 	}

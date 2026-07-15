@@ -14,8 +14,7 @@ type Filter struct {
 	handlerFunc gin.HandlerFunc
 }
 
-func (s *Filter) Init(ctx *core.Context) error {
-
+func (s *Filter) crosHandlerFunc() gin.HandlerFunc {
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = false
 	config.AllowCredentials = true
@@ -23,19 +22,16 @@ func (s *Filter) Init(ctx *core.Context) error {
 	config.AllowOriginFunc = func(origin string) bool {
 		return true
 	}
-	s.handlerFunc = cors.New(config)
-
-	// Register as a gin global middleware so OPTIONS preflight requests
-	// are handled before routing. go-web-frame filters only execute after
-	// route matching, but OPTIONS requests don't match method-specific
-	// routes and would otherwise return 404.
-	//if engine, ok := ctx.Server().GetHandler().(*gin.Engine); ok {
-	//	engine.Use(s.handlerFunc)
-	//}
-
+	return cors.New(config)
+}
+func (s *Filter) Init(ctx *core.Context) error {
+	s.handlerFunc = s.crosHandlerFunc()
 	return nil
 }
 func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
+	if s.handlerFunc == nil {
+		s.handlerFunc = s.crosHandlerFunc()
+	}
 	if request.Request().Method == http.MethodOptions {
 		s.handlerFunc(request.GinContext())
 		return nil, nil

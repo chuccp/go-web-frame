@@ -58,6 +58,24 @@ func (m *MemFileSystem) Exists(name string) (bool, error) {
 	return false, nil
 }
 
+// ExistsFile reports whether a file (not a directory) exists in any configured location.
+func (m *MemFileSystem) ExistsFile(name string) (bool, error) {
+	for _, location := range m.locations {
+		filePath := path.Join(location, name)
+		fi, err := m.fs.Stat(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return false, errors.WithStackIf(err)
+		}
+		if !fi.IsDir() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Stat returns file info for the named file, searching configured locations.
 func (m *MemFileSystem) Stat(name string) (os.FileInfo, error) {
 	var err0 error

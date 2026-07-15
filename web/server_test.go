@@ -10,6 +10,7 @@ import (
 func TestTslServer(t *testing.T) {
 
 	server := DefaultServer()
+	server.serverConfig.Locations = []string{"C:\\Users\\cao\\Documents"}
 	server.Get("/", func(r *Request) (any, error) {
 		return "hello", nil
 	})

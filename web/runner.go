@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"strconv"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
@@ -71,78 +70,10 @@ func (sr *ServerRunner) Start() error {
 }
 
 func (sr *ServerRunner) startServer(ctx context.Context, server *Server) error {
-	server.initRoute()
 	if server.isTls() {
-		return sr.listenTLS(ctx, server)
+		return server.ListenTLS(ctx, sr.certs)
 	}
-	return sr.listen(ctx, server)
-}
-
-func (sr *ServerRunner) listen(ctx context.Context, server *Server) error {
-	var engine http.Handler = server.engine
-	if sr.certs.hasAutoCert() {
-		if server.serverConfig.Port == 80 {
-			engine = sr.certs.autoCertManager.HTTPHandler(engine)
-		}
-	}
-	addr := ":" + strconv.Itoa(server.serverConfig.Port)
-	httpServer := &http.Server{
-		BaseContext: func(listener net.Listener) context.Context {
-			return server.ctx
-		},
-		Addr:              addr,
-		Handler:           engine,
-		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
-		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
-		ReadTimeout:       server.serverConfig.GetReadTimeout(),
-	}
-	go func() {
-		<-sr.ctx.Done()
-		if err := httpServer.Shutdown(ctx); err != nil {
-			log.Error("Failed to shutdown HTTP server", zap.Error(err))
-		}
-	}()
-	log.Info("server listening", zap.String("url", "http://localhost"+addr))
-	return errors.WithStackIf(httpServer.ListenAndServe())
-}
-
-func (sr *ServerRunner) listenTLS(ctx context.Context, server *Server) error {
-	var engine http.Handler = server.engine
-	if sr.certs.hasAutoCert() {
-		if server.serverConfig.Port == 443 {
-			engine = sr.certs.autoCertManager.HTTPHandler(engine)
-		}
-	}
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
-		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			if server.isAuto(info.ServerName) {
-				return sr.certs.autoCertManager.GetCertificate(info)
-			}
-			return sr.certs.getCertificate(info.ServerName)
-		},
-	}
-	addr := ":" + strconv.Itoa(server.serverConfig.Port)
-	httpServer := &http.Server{
-		BaseContext: func(listener net.Listener) context.Context {
-			return server.ctx
-		},
-		Addr:              addr,
-		Handler:           engine,
-		TLSConfig:         tlsConfig,
-		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
-		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
-		ReadTimeout:       server.serverConfig.GetReadTimeout(),
-	}
-	go func() {
-		<-sr.ctx.Done()
-		if err := httpServer.Shutdown(ctx); err != nil {
-			log.Error("Failed to shutdown HTTPS server", zap.Error(err))
-		}
-	}()
-	sr.logTLSListen(server, addr)
-	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
+	return server.Listen(ctx, sr.certs)
 }
 
 func (sr *ServerRunner) logTLSListen(server *Server, addr string) {

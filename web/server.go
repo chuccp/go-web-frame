@@ -3,6 +3,7 @@ package web
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 )
 
 // Servers manages multiple HTTP servers that can be started together.
@@ -135,6 +137,9 @@ func (server *Server) GetHandler() http.Handler {
 // Port returns the configured listen port for this server.
 func (server *Server) Port() int {
 	return server.serverConfig.Port
+}
+func (server *Server) ServerConfig() *ServerConfig {
+	return server.serverConfig
 }
 func (server *Server) isAuto(host string) bool {
 	if server.isTls() {
@@ -305,8 +310,10 @@ func (server *Server) noRoute() {
 		// SPA fallback: 非图片请求返回 404 页面
 		accept := c.Request.Header.Get("Accept")
 		if strings.Contains(accept, "html") && !util.IsImagePath(path) {
-			if exists, _ := fs.Exists(server.serverConfig.Page404); exists {
-				c.FileFromFS(server.serverConfig.Page404, fs)
+			if len(server.serverConfig.Page404) > 0 {
+				if exists, _ := fs.ExistsFile(server.serverConfig.Page404); exists {
+					c.FileFromFS(server.serverConfig.Page404, fs)
+				}
 			}
 		}
 	})
@@ -337,6 +344,100 @@ func (server *Server) addHandler(httpMethod string, route *Route) {
 		relativePath = joinContextPath(server.serverConfig.ContextPath, relativePath)
 	}
 	server.engine.Handle(httpMethod, relativePath, server.toGinHandlerFunc(route)...)
+}
+
+func (server *Server) Listen(ctx context.Context, certs *certStore) error {
+	server.initRoute()
+	var engine http.Handler = server.engine
+	if certs != nil && certs.hasAutoCert() {
+		if server.serverConfig.Port == 80 {
+			engine = certs.autoCertManager.HTTPHandler(engine)
+		}
+	}
+	addr := ":" + strconv.Itoa(server.serverConfig.Port)
+	httpServer := &http.Server{
+		BaseContext: func(listener net.Listener) context.Context {
+			return server.ctx
+		},
+		Addr:              addr,
+		Handler:           engine,
+		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       server.serverConfig.GetReadTimeout(),
+	}
+	go func() {
+		<-ctx.Done()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown HTTP server", zap.Error(err))
+		}
+	}()
+	log.Info("server listening", zap.String("url", "http://localhost"+addr))
+	return errors.WithStackIf(httpServer.ListenAndServe())
+}
+
+func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
+	server.initRoute()
+	var engine http.Handler = server.engine
+	if certs.hasAutoCert() {
+		if server.serverConfig.Port == 443 {
+			engine = certs.autoCertManager.HTTPHandler(engine)
+		}
+	}
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
+		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			if server.isAuto(info.ServerName) {
+				return certs.autoCertManager.GetCertificate(info)
+			}
+			return certs.getCertificate(info.ServerName)
+		},
+	}
+	addr := ":" + strconv.Itoa(server.serverConfig.Port)
+	httpServer := &http.Server{
+		BaseContext: func(listener net.Listener) context.Context {
+			return server.ctx
+		},
+		Addr:              addr,
+		Handler:           engine,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       server.serverConfig.GetReadTimeout(),
+	}
+	go func() {
+		<-ctx.Done()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Error("Failed to shutdown HTTPS server", zap.Error(err))
+		}
+	}()
+	server.logTLSListen(certs, addr)
+	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
+}
+
+func (server *Server) logTLSListen(certs *certStore, addr string) {
+
+	for _, host := range server.serverConfig.SSL.Hosts {
+		if server.isAuto(host) {
+			log.Info("server listening (auto-cert)",
+				zap.Strings("hosts", server.serverConfig.SSL.Hosts),
+				zap.String("url", "https://"+host+addr),
+			)
+		} else {
+			log.Info("server listening",
+				zap.String("url", "https://"+host+addr),
+			)
+		}
+	}
+	if domains := certs.matchingDomains(); len(domains) > 0 {
+		for _, domain := range domains {
+			log.Info("server listening",
+				zap.String("url", "https://"+domain+addr),
+			)
+		}
+		return
+	}
+	log.Info("server listening", zap.String("url", "https://localhost"+addr))
 }
 
 // stripContextPath 去除 path 的 contextPath 前缀，返回去除后的路径和是否匹配。

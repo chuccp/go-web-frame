@@ -94,22 +94,16 @@ func (w *WebFrame) Test(f func(ctx *core.Context) error) error {
 func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error) {
 
 	gin.SetMode(gin.ReleaseMode)
-
-	// 创建 web.Servers 和默认 Server 用于服务路由注册
-	webServers := web.NewServers()
 	defaultServerConfig := web.DefaultServerConfig()
-	defaultServer, err := webServers.CreateServerWithContext(defaultServerConfig, ctx)
-	if err != nil {
-		return nil, nil, errors.WithStackIf(err)
+	if w.config.HasKey(web.ServerConfigKey) {
+		err := w.config.UnmarshalKey(web.ServerConfigKey, defaultServerConfig)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-
-	// 将 Builder 注册的路由转移到默认 Server
-	defaultServer.AddHandles(w.handles)
-
-	coreContext := core.NewContext(defaultServer, w.config, ctx)
+	coreContext := core.NewContext(w.config, ctx)
 	coreContext.AddService(w.services...)
 	coreContext.AddRunner(w.runners...)
-
 	if len(w.models) > 0 {
 		modelGroupBuilder := core.NewModelGroupBuilder()
 		if w.config.HasKey(db2.ConfigKey) {
@@ -145,23 +139,17 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	}
 
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
-		var serverConfig = web.DefaultServerConfig()
-		err := w.config.UnmarshalKey(web.ServerConfigKey, &serverConfig)
-		if err != nil {
-			return nil, nil, errors.WithStackIf(err)
-		}
 		restGroup := core.NewRestGroupBuilder().
-			ServerConfig(serverConfig).
+			ServerConfig(defaultServerConfig).
 			Rest(w.rests...).
 			Filter(w.filters...).
+			Handles(w.handles).
 			Build()
 		w.restGroups = append(w.restGroups, restGroup)
 	}
-	coreServer := core.NewServer(webServers, w.restGroups, coreContext.GetRunners())
-	err = coreServer.Init(coreContext)
-	if err != nil {
-		return nil, nil, errors.WithStackIf(err)
-	}
+	coreServer := core.NewServer(coreContext)
+	coreServer.AddIRunner(w.runners...)
+	coreServer.AddRestGroup(w.restGroups...)
 	return coreServer, coreContext, nil
 
 }

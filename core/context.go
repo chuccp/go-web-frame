@@ -33,7 +33,7 @@ type Context struct {
 }
 
 // NewContext creates a new Context with the given server, config, and parent context.
-func NewContext(server *web.Server, config config2.IConfig, ctx context.Context) *Context {
+func NewContext(config config2.IConfig, ctx context.Context) *Context {
 	context := &Context{
 		Context:       ctx,
 		config:        config,
@@ -44,7 +44,6 @@ func NewContext(server *web.Server, config config2.IConfig, ctx context.Context)
 		runnerMap:     make(map[string]IRunner),
 		modelGroup:    make(map[string]IModelGroup),
 		filters:       make([]IFilter, 0),
-		server:        server,
 	}
 	return context
 }

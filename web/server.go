@@ -164,6 +164,9 @@ func (server *Server) isTls() bool {
 func (server *Server) AddFilter(filter Filter) {
 	server.filters = append(server.filters, filter)
 }
+func (server *Server) AddFilters(filters ...Filter) {
+	server.filters = append(server.filters, filters...)
+}
 
 // SetConverter sets a custom converter that transforms handler results to HTTP responses.
 func (server *Server) SetConverter(converter Converter) {

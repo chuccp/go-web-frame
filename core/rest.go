@@ -12,12 +12,14 @@ type RestGroup struct {
 	filters      []IFilter
 	serverConfig *web.ServerConfig
 	ContextPath  string
+	handles      *web.Handles
 }
 
 // Port returns the HTTP server port for this REST group.
 func (rg *RestGroup) Port() int {
 	return rg.port
 }
+
 // AddRest adds one or more REST controllers to this group.
 func (rg *RestGroup) AddRest(rest ...IRest) *RestGroup {
 	rg.rests = append(rg.rests, rest...)
@@ -29,6 +31,7 @@ func (rg *RestGroup) AddFilter(filter ...IFilter) *RestGroup {
 	rg.filters = append(rg.filters, filter...)
 	return rg
 }
+
 // Converter sets the response converter for this group.
 func (rg *RestGroup) Converter(converter IConverter) *RestGroup {
 	rg.converter = converter
@@ -50,24 +53,15 @@ func (rg *RestGroup) Merge(restGroup *RestGroup) *RestGroup {
 	return rg
 }
 
-func restGroup(serverConfig *web.ServerConfig, converter IConverter) *RestGroup {
-	return &RestGroup{
-		rests:        make([]IRest, 0),
-		port:         serverConfig.Port,
-		serverConfig: serverConfig,
-		converter:    converter,
-		filters:      make([]IFilter, 0),
-	}
-}
-
 // RestGroupBuilder provides a fluent API for constructing RestGroup configurations.
 type RestGroupBuilder struct {
 	converter    IConverter
-	serverConfig *web.ServerConfig
 	rests        []IRest
 	filters      []IFilter
 	port         int
 	contextPath  string
+	serverConfig *web.ServerConfig
+	handles      *web.Handles
 }
 
 // Converter sets a custom response converter for this REST group.
@@ -96,7 +90,8 @@ func (b *RestGroupBuilder) ContextPath(contextPath string) *RestGroupBuilder {
 
 // Handles is kept for backward compatibility but is now a no-op.
 // Routes are registered directly on the server during Init.
-func (b *RestGroupBuilder) Handles(handles any) *RestGroupBuilder {
+func (b *RestGroupBuilder) Handles(handles *web.Handles) *RestGroupBuilder {
+	b.handles = handles
 	return b
 }
 
@@ -105,6 +100,7 @@ func (b *RestGroupBuilder) Rest(rest ...IRest) *RestGroupBuilder {
 	b.rests = append(b.rests, rest...)
 	return b
 }
+
 // Filter adds one or more filters/middleware to this REST group.
 func (b *RestGroupBuilder) Filter(filters ...IFilter) *RestGroupBuilder {
 	b.filters = append(b.filters, filters...)
@@ -124,11 +120,18 @@ func (b *RestGroupBuilder) Build() *RestGroup {
 	if b.contextPath != "" {
 		b.serverConfig.ContextPath = b.contextPath
 	}
-	group := restGroup(b.serverConfig, b.converter)
-	group.AddRest(b.rests...)
-	group.AddFilter(b.filters...)
-	return group
+	restGroup := &RestGroup{
+		rests:        b.rests,
+		port:         b.port,
+		converter:    b.converter,
+		filters:      b.filters,
+		serverConfig: b.serverConfig,
+		ContextPath:  b.contextPath,
+		handles:      b.handles,
+	}
+	return restGroup
 }
+
 // NewRestGroupBuilder creates a new RestGroupBuilder for fluent REST group construction.
 func NewRestGroupBuilder() *RestGroupBuilder {
 	return &RestGroupBuilder{}

@@ -23,69 +23,38 @@ type Server struct {
 	ctx        *Context
 }
 
-func (server *Server) getOrCreateServer(serverConfig *web.ServerConfig) *web.Server {
+func (server *Server) initServer(restGroup *RestGroup) error {
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	for _, s := range server.servers.GetServers() {
-		if s.Port() == serverConfig.Port {
-			return s
+	ser := func(serverConfig *web.ServerConfig) *web.Server {
+		for _, s := range server.servers.GetServers() {
+			if s.Port() == serverConfig.Port {
+				return s
+			}
 		}
-	}
-	s, err := server.servers.CreateServerWithContext(serverConfig, server.ctx)
-	if err != nil {
-		log.Error("create server", zap.Error(err))
-		return nil
-	}
-	return s
-}
-
-// Init initializes all runners, filters, converters, and REST controllers.
-// It also registers route handlers on the HTTP servers.
-func (server *Server) Init(ctx *Context) error {
-	server.ctx = ctx
-	for _, runner := range server.runners {
-		// Skip Init for runners that were already initialized as services
-		// (services implementing IRunner are registered in both maps by AddService).
-		if ctx.IsServiceRegistered(runner) {
-			continue
-		}
-		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
-		err := runner.Init(ctx)
+		s, err := server.servers.CreateServerWithContext(serverConfig, server.ctx)
 		if err != nil {
-			return errors.WithStackIf(err)
+			log.Error("create server", zap.Error(err))
+			return nil
+		}
+		return s
+	}(restGroup.serverConfig)
+	for _, filter := range restGroup.filters {
+		err := filter.Init(server.ctx)
+		if err != nil {
+			return err
+		}
+		ser.AddFilters(filter)
+	}
+	ser.AddHandles(restGroup.handles)
+	for _, rest := range restGroup.rests {
+		ctx := server.ctx.Copy(ser, restGroup.filters)
+		err := rest.Init(ctx)
+		if err != nil {
+			return err
 		}
 	}
-	for _, restGroup := range server.restGroups {
-		serverConfig := restGroup.serverConfig
-		webServer := server.getOrCreateServer(serverConfig)
-		if webServer == nil {
-			return errors.New("failed to create server for port")
-		}
-		restContext := ctx.Copy(webServer, restGroup.filters)
-		if restGroup.converter != nil {
-			webServer.SetConverter(restGroup.converter)
-			err := restGroup.converter.Init(restContext)
-			if err != nil {
-				return errors.WithStackIf(err)
-			}
-		}
-		for _, filter := range restGroup.filters {
-			log.Debug("Init", zap.String("filter", util.GetStructFullQualifiedName(filter)))
-			err := filter.Init(restContext)
-			if err != nil {
-				return errors.WithStackIf(err)
-			}
-		}
-		for _, filter := range restGroup.filters {
-			webServer.AddFilter(filter)
-		}
-		for _, rest := range restGroup.rests {
-			err := rest.Init(restContext)
-			if err != nil {
-				return errors.WithStackIf(err)
-			}
-		}
-	}
+	ser.SetConverter(restGroup.converter)
 	return nil
 }
 
@@ -97,6 +66,10 @@ func (server *Server) Run() error {
 	errorsPool := wg.WithContext(server.ctx).WithFirstError()
 	for _, runner := range server.runners {
 		r := runner
+		err := runner.Init(server.ctx)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
 		errorsPool.Go(func(poolCtx context.Context) error {
 			log.Info("runner", zap.String("runner", util.GetStructFullName(r)))
 			err := errors.WithStackIf(r.Run())
@@ -108,6 +81,12 @@ func (server *Server) Run() error {
 		})
 	}
 
+	for _, restGroup := range server.restGroups {
+		err := server.initServer(restGroup)
+		if err != nil {
+			return errors.WithStackIf(err)
+		}
+	}
 	errorsPool.Go(func(ctx context.Context) error {
 		return errors.WithStackIf(server.servers.Start())
 	})
@@ -117,6 +96,17 @@ func (server *Server) Run() error {
 	return errors.WithStackIf(err)
 }
 
+func (server *Server) AddIRunner(runner ...IRunner) {
+	server.lock.Lock()
+	defer server.lock.Unlock()
+	server.runners = append(server.runners, runner...)
+}
+func (server *Server) AddRestGroup(restGroups ...*RestGroup) {
+	server.lock.Lock()
+	defer server.lock.Unlock()
+	server.restGroups = append(server.restGroups, restGroups...)
+}
+
 // GetHandler returns an http.Handler for testing. Routes, filters, and
 // ContextPath of each underlying Server are fully preserved.
 func (server *Server) GetHandler() http.Handler {
@@ -124,11 +114,12 @@ func (server *Server) GetHandler() http.Handler {
 }
 
 // NewServer creates a new Server with the given REST groups and runners.
-func NewServer(servers *web.Servers, restGroups []*RestGroup, runners []IRunner) *Server {
+func NewServer(ctx *Context) *Server {
 	return &Server{
-		servers:    servers,
-		restGroups: restGroups,
+		ctx:        ctx,
+		servers:    web.NewServers(),
+		restGroups: make([]*RestGroup, 0),
 		lock:       new(sync.RWMutex),
-		runners:    runners,
+		runners:    make([]IRunner, 0),
 	}
 }

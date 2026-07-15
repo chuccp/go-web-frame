@@ -129,8 +129,8 @@ func DefaultServer() *Server {
 	return server
 }
 func (server *Server) GetHandler() http.Handler {
-	server.justInitRoute()
 	server.optionsMiddleware()
+	server.justInitRoute()
 	return server.engine
 }
 
@@ -256,8 +256,8 @@ func (server *Server) Handlers(httpMethods []string, relativePath string, handle
 }
 
 func (server *Server) initRoute() {
-	server.justInitRoute()
 	server.optionsMiddleware()
+	server.justInitRoute()
 	server.noRoute()
 }
 func (server *Server) justInitRoute() {

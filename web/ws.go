@@ -68,10 +68,13 @@ type WebSocketStream struct {
 func newWebSocketStream(r *Request) *WebSocketStream {
 	ctx, cancel := context.WithCancel(r.Ctx())
 	return &WebSocketStream{
-		request:       r,
-		ctx:           ctx,
-		cancel:        cancel,
-		AcceptOptions: &AcceptOptions{},
+		request: r,
+		ctx:     ctx,
+		cancel:  cancel,
+		AcceptOptions: &AcceptOptions{
+			OriginPatterns: []string{},
+			Subprotocols:   []string{},
+		},
 	}
 }
 

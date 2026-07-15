@@ -137,6 +137,13 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			return nil, nil, errors.WithStackIf(err)
 		}
 	}
+	for _, runner := range w.runners {
+		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
+		err := runner.Init(coreContext)
+		if err != nil {
+			return nil, nil, errors.WithStackIf(err)
+		}
+	}
 
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
 		restGroup := core.NewRestGroupBuilder().

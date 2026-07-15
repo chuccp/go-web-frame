@@ -68,10 +68,6 @@ func (server *Server) Run() error {
 	errorsPool := wg.WithContext(server.ctx).WithFirstError()
 	for _, runner := range server.runners {
 		r := runner
-		err := runner.Init(server.ctx)
-		if err != nil {
-			return errors.WithStackIf(err)
-		}
 		errorsPool.Go(func(poolCtx context.Context) error {
 			log.Info("runner", zap.String("runner", util.GetStructFullName(r)))
 			err := errors.WithStackIf(r.Run())

@@ -76,31 +76,6 @@ func (sr *ServerRunner) startServer(ctx context.Context, server *Server) error {
 	return server.Listen(ctx, sr.certs)
 }
 
-func (sr *ServerRunner) logTLSListen(server *Server, addr string) {
-
-	for _, host := range server.serverConfig.SSL.Hosts {
-		if server.isAuto(host) {
-			log.Info("server listening (auto-cert)",
-				zap.Strings("hosts", server.serverConfig.SSL.Hosts),
-				zap.String("url", "https://"+host+addr),
-			)
-		} else {
-			log.Info("server listening",
-				zap.String("url", "https://"+host+addr),
-			)
-		}
-	}
-	if domains := sr.certs.matchingDomains(); len(domains) > 0 {
-		for _, domain := range domains {
-			log.Info("server listening",
-				zap.String("url", "https://"+domain+addr),
-			)
-		}
-		return
-	}
-	log.Info("server listening", zap.String("url", "https://localhost"+addr))
-}
-
 func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 	server := &http.Server{
 		Addr:              ":80",

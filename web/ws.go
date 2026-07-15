@@ -37,7 +37,7 @@ type AcceptOptions struct {
 
 	// CompressionMode controls the compression mode.
 	// Defaults to CompressionDisabled.
-	CompressionMode websocket.CompressionMode
+	CompressionMode int
 
 	// CompressionThreshold controls the minimum size of a message before
 	// compression is applied. Defaults to 512 bytes for CompressionNoContextTakeover
@@ -62,55 +62,44 @@ type WebSocketStream struct {
 	conn          *websocket.Conn
 	initErr       error
 	AcceptOptions *AcceptOptions
-	mu            sync.Mutex
+	once          sync.Once
 }
 
 func newWebSocketStream(r *Request) *WebSocketStream {
 	ctx, cancel := context.WithCancel(r.Ctx())
 	return &WebSocketStream{
-		request: r,
-		ctx:     ctx,
-		cancel:  cancel,
-		AcceptOptions: &AcceptOptions{
-			OriginPatterns: []string{"*"},
-		},
+		request:       r,
+		ctx:           ctx,
+		cancel:        cancel,
+		AcceptOptions: &AcceptOptions{},
 	}
 }
 
 func (ws *WebSocketStream) initConnection() error {
-	if ws.conn != nil {
-		return nil
-	}
-	if ws.initErr != nil {
-		return ws.initErr
-	}
-	ws.mu.Lock()
-	defer ws.mu.Unlock()
-	if ws.conn != nil {
-		return nil
-	}
-	if ws.initErr != nil {
-		return ws.initErr
-	}
-	acceptOptions := &websocket.AcceptOptions{
-		Subprotocols:         ws.AcceptOptions.Subprotocols,
-		InsecureSkipVerify:   ws.AcceptOptions.InsecureSkipVerify,
-		OriginPatterns:       ws.AcceptOptions.OriginPatterns,
-		CompressionMode:      ws.AcceptOptions.CompressionMode,
-		CompressionThreshold: ws.AcceptOptions.CompressionThreshold,
-		OnPingReceived:       ws.AcceptOptions.OnPingReceived,
-		OnPongReceived:       ws.AcceptOptions.OnPongReceived,
-	}
-	conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
-	if err != nil {
-		log.Debug("converter: WebSocket accept error", zap.Error(err))
-		if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
-			log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
+	ws.once.Do(func() {
+		acceptOptions := &websocket.AcceptOptions{
+			Subprotocols:         ws.AcceptOptions.Subprotocols,
+			InsecureSkipVerify:   ws.AcceptOptions.InsecureSkipVerify,
+			OriginPatterns:       ws.AcceptOptions.OriginPatterns,
+			CompressionMode:      websocket.CompressionMode(ws.AcceptOptions.CompressionMode),
+			CompressionThreshold: ws.AcceptOptions.CompressionThreshold,
+			OnPingReceived:       ws.AcceptOptions.OnPingReceived,
+			OnPongReceived:       ws.AcceptOptions.OnPongReceived,
 		}
-		ws.initErr = err
-		return err
+		conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
+		if err != nil {
+			log.Debug("converter: WebSocket accept error", zap.Error(err))
+			if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
+				log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
+			}
+			ws.initErr = err
+			return
+		}
+		ws.conn = conn
+	})
+	if ws.initErr != nil {
+		return ws.initErr
 	}
-	ws.conn = conn
 	return nil
 }
 
@@ -123,8 +112,7 @@ func (ws *WebSocketStream) Request() *Request {
 func (ws *WebSocketStream) Conn() *websocket.Conn {
 	conn, err := ws.getConn()
 	if err != nil {
-		log.Error("converter: WebSocket initConnection error", zap.Error(err))
-		log.PrintPanic(err)
+		log.Panic("converter: WebSocket initConnection error", zap.Error(err))
 	}
 	return conn
 }

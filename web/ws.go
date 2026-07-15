@@ -118,9 +118,6 @@ func (ws *WebSocketStream) Conn() *websocket.Conn {
 }
 
 func (ws *WebSocketStream) getConn() (*websocket.Conn, error) {
-	if ws.conn != nil {
-		return ws.conn, nil
-	}
 	err := ws.initConnection()
 	if err != nil {
 		return nil, err

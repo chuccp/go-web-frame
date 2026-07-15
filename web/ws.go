@@ -60,6 +60,7 @@ type WebSocketStream struct {
 	request       *Request
 	ctx           context.Context
 	conn          *websocket.Conn
+	initErr       error
 	AcceptOptions *AcceptOptions
 	mu            sync.Mutex
 }
@@ -80,10 +81,16 @@ func (ws *WebSocketStream) initConnection() error {
 	if ws.conn != nil {
 		return nil
 	}
+	if ws.initErr != nil {
+		return ws.initErr
+	}
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	if ws.conn != nil {
 		return nil
+	}
+	if ws.initErr != nil {
+		return ws.initErr
 	}
 	acceptOptions := &websocket.AcceptOptions{
 		Subprotocols:         ws.AcceptOptions.Subprotocols,
@@ -100,6 +107,7 @@ func (ws *WebSocketStream) initConnection() error {
 		if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
 			log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
 		}
+		ws.initErr = err
 		return err
 	}
 	ws.conn = conn
@@ -116,6 +124,7 @@ func (ws *WebSocketStream) Conn() *websocket.Conn {
 	conn, err := ws.getConn()
 	if err != nil {
 		log.Error("converter: WebSocket initConnection error", zap.Error(err))
+		log.PrintPanic(err)
 	}
 	return conn
 }

@@ -114,6 +114,13 @@ func (t *Table) Session(g *gorm.Session) *Session {
 	return &Session{db: t.db.Session(g)}
 }
 
+// Model sets the model struct on the underlying GORM chain, which is required
+// for Preload to resolve associations correctly.
+func (t *Table) Model(value any) *Table {
+	t.db = t.db.Model(value)
+	return t
+}
+
 // AutoMigrate runs auto migration for the given models.
 func (t *Table) AutoMigrate(v ...any) error {
 	return t.db.AutoMigrate(v...)

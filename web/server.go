@@ -49,6 +49,7 @@ func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx 
 		engine:       defaultEngine(),
 		routes:       make([]*Route, 0),
 		filters:      make([]Filter, 0),
+		converter:    defaultConverter,
 	}
 	servers.servers = append(servers.servers, server)
 	return server, nil

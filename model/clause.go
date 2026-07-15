@@ -144,9 +144,7 @@ func (q *Query[T]) List(size int) ([]T, error) {
 
 // ListPage returns a page of records matching the query conditions.
 func (q *Query[T]) ListPage(page *util.Page) ([]T, error) {
-	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
-		return nil, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
-	}
+	page = util.DefaultPage(page)
 	ts := util.NewSlice(q.entry)
 	tx, err := q.buildTx()
 	if err != nil {
@@ -241,9 +239,8 @@ func (q *Query[T]) ExecPage(page *util.Page, sql string, args ...interface{}) ([
 	if q.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
-	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
-		return nil, 0, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
-	}
+
+	page = util.DefaultPage(page)
 
 	// Merge Where conditions
 	finalSql, finalArgs := q.mergeWheres(sql, args...)
@@ -288,9 +285,7 @@ func toCountSql(sql string) string {
 // Page returns a paginated list with total count.
 // Both queries run in a single transaction for consistency.
 func (q *Query[T]) Page(page *util.Page) ([]T, int, error) {
-	if page == nil || page.PageNo < 1 || page.PageSize < 1 {
-		return nil, 0, errors.New("invalid page parameters: PageNo and PageSize must be >= 1")
-	}
+	page = util.DefaultPage(page)
 	ts := util.NewSlice(q.entry)
 	var num int64
 

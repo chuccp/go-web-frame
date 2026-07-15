@@ -7,6 +7,26 @@ type Page struct {
 	LastId   int // Last seen ID for cursor-based pagination
 }
 
+func DefaultPage(page *Page) *Page {
+	if page == nil {
+		page = &Page{
+			PageNo:   DefaultPageNo,
+			PageSize: DefaultPageSize,
+		}
+		return page
+	}
+	if page.PageNo < 1 {
+		page.PageNo = DefaultPageNo
+	}
+	if page.PageSize < 1 {
+		page.PageSize = DefaultPageSize
+	}
+	return page
+}
+
+const DefaultPageSize = 10
+const DefaultPageNo = 1
+
 // PageAble is a paginated response wrapper containing total count and item list.
 type PageAble[T any] struct {
 	Total int64 `json:"total"` // Total number of items

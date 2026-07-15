@@ -167,17 +167,3 @@ type mockFilterChain struct {
 func (m *mockFilterChain) Next() (any, error) {
 	return m.nextFunc()
 }
-func TestTslServer2(t *testing.T) {
-
-	server := web.DefaultServer()
-	server.ServerConfig().Locations = []string{"C:\\Users\\cao\\Documents"}
-	server.Get("/aaa", func(r *web.Request) (any, error) {
-		return "hello", nil
-	})
-	server.AddFilter(NewCrosFilter())
-	err := server.Listen(context.Background(), nil)
-	if err != nil {
-		return
-	}
-
-}

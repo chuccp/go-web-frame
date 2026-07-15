@@ -14,7 +14,7 @@ import (
 // TestIntegration_ServiceDependencyInjection tests Service -> Model -> DB dependency injection chain
 func TestIntegration_ServiceDependencyInjection(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(newTestServer(), config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	var modelInitCalled, serviceInitCalled bool
 
@@ -46,7 +46,7 @@ func TestIntegration_ServiceDependencyInjection(t *testing.T) {
 func TestIntegration_RestControllerLifecycle(t *testing.T) {
 	config := config2.NewConfig()
 	server := newTestServer()
-	ctx := NewContext(server, config, context.Background())
+	ctx := NewContext(config, context.Background()).Copy(server, nil)
 
 	restCtrl := &testRestController{initCalled: false}
 	ctx.AddService(restCtrl)
@@ -64,7 +64,7 @@ func TestIntegration_RestControllerLifecycle(t *testing.T) {
 func TestIntegration_FilterChainExecution(t *testing.T) {
 	config := config2.NewConfig()
 	server := newTestServer()
-	ctx := NewContext(server, config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	// Register a route on the server
 	server.Get("/api", func(req *web.Request) (any, error) {
@@ -87,7 +87,7 @@ func TestIntegration_FilterChainExecution(t *testing.T) {
 // TestIntegration_ConcurrentContextAccess tests concurrent access to context
 func TestIntegration_ConcurrentContextAccess(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(newTestServer(), config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	// Add multiple services concurrently (same type overwrites by qualified name)
 	var wg sync.WaitGroup
@@ -122,7 +122,7 @@ func TestIntegration_ConcurrentContextAccess(t *testing.T) {
 // TestIntegration_RunnerLifecycle tests runner init and run lifecycle
 func TestIntegration_RunnerLifecycle(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(newTestServer(), config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	runner := &testRunner{}
 	ctx.AddRunner(runner)
@@ -141,7 +141,7 @@ func TestIntegration_RunnerLifecycle(t *testing.T) {
 func TestIntegration_ContextCopyIsolation(t *testing.T) {
 	config := config2.NewConfig()
 	server1 := newTestServer()
-	ctx := NewContext(server1, config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	// Add service to parent context
 	ctx.AddService(&testService{})
@@ -285,7 +285,7 @@ func (s *testServiceRunner) Run() error {
 // is initialized exactly once: in the services loop, not again in the runners loop.
 func TestIntegration_ServiceRunnerNoDoubleInit(t *testing.T) {
 	config := config2.NewConfig()
-	ctx := NewContext(newTestServer(), config, context.Background())
+	ctx := NewContext(config, context.Background())
 
 	svcRunner := &testServiceRunner{}
 	// Registered as a service; AddService also adds it to runnerMap because it implements IRunner.
@@ -295,10 +295,11 @@ func TestIntegration_ServiceRunnerNoDoubleInit(t *testing.T) {
 	err := svcRunner.Init(ctx)
 	assert.NoError(t, err)
 
-	// Build a Server with all runners (including the one from AddService).
-	server := NewServer(web.NewServers(), nil, ctx.GetRunners())
-	err = server.Init(ctx)
-	assert.NoError(t, err)
+	// Build a Server with runners (including the one from AddService).
+	server := NewServer(ctx)
+	server.AddIRunner(ctx.GetRunners()...)
+	server.AddRestGroup(NewRestGroupBuilder().ServerConfig(web.DefaultServerConfig()).Build())
+	assert.NotNil(t, server)
 
 	// Init should have been called exactly once, not twice.
 	assert.Equal(t, 1, svcRunner.initCount, "service implementing IRunner should not be initialized twice")

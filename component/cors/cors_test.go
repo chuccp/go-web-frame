@@ -28,9 +28,7 @@ func newTestCORSServer(t *testing.T, filter *Filter) *httptest.Server {
 
 func newTestContext() *core.Context {
 	cfg := config2.NewConfig()
-	servers := web.NewServers()
-	server, _ := servers.CreateServer(web.DefaultServerConfig())
-	return core.NewContext(server, cfg, context.Background())
+	return core.NewContext(cfg, context.Background())
 }
 
 func TestCORS_Init(t *testing.T) {

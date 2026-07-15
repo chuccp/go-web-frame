@@ -42,9 +42,7 @@ func (m *mockAuthentication) User(request *web.Request) (*mockUser, error) {
 
 func newTestContext() *core.Context {
 	cfg := config2.NewConfig()
-	servers := web.NewServers()
-	server, _ := servers.CreateServer(web.DefaultServerConfig())
-	return core.NewContext(server, cfg, context.Background())
+	return core.NewContext(cfg, context.Background())
 }
 
 func newTestRequest(method, path string, meta *web.HandlerMeta) *web.Request {

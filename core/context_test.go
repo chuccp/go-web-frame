@@ -31,7 +31,7 @@ func newTestServer() *web.Server {
 func TestContext_AddService(t *testing.T) {
 	// Given: a new context
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 
 	// When: adding a service
 	service := &TestService{}
@@ -49,7 +49,7 @@ func TestContext_AddService(t *testing.T) {
 func TestContext_GetService(t *testing.T) {
 	// Given: context with a service added
 	cfg, _ := config.NewFromBytes([]byte(`{"web": {"db": {"type": "sqlite"}}}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 	service := &TestService{}
 	ctx.AddService(service)
 
@@ -63,7 +63,7 @@ func TestContext_GetService(t *testing.T) {
 func TestContext_GetConfig(t *testing.T) {
 	// Given: a context with config
 	cfg, _ := config.NewFromBytes([]byte(`{"test": {"key": "value", "num": 42}}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 
 	// When: getting config from context
 	resultConfig := ctx.GetConfig()
@@ -79,7 +79,7 @@ func TestContext_GetConfig(t *testing.T) {
 func TestGetService_NotFoundPanics(t *testing.T) {
 	// Given: an empty context
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 
 	// When: trying to get a non-existent service
 	// Then: should panic since service is not registered
@@ -95,7 +95,7 @@ func TestGetService_NotFoundPanics(t *testing.T) {
 func TestGetModel(t *testing.T) {
 	// This test just verifies the generic GetModel function signature compiles
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 	assert.NotNil(t, ctx)
 	// No panic expected when just checking the function exists
 }
@@ -106,7 +106,7 @@ func newContextWithServer(t *testing.T) (*Context, *web.Server) {
 	cfg, err := config.NewFromBytes([]byte(`{}`), "json")
 	assert.NoError(t, err)
 	server := newTestServer()
-	ctx := NewContext(server, cfg, context.Background())
+	ctx := NewContext(cfg, context.Background()).Copy(server, nil)
 	return ctx, server
 }
 
@@ -182,7 +182,7 @@ func TestContext_RouteRegistration(t *testing.T) {
 
 func TestContext_GetRunners(t *testing.T) {
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	ctx := NewContext(newTestServer(), cfg, context.Background())
+	ctx := NewContext(cfg, context.Background())
 
 	runners := ctx.GetRunners()
 	assert.Empty(t, runners)
@@ -190,7 +190,7 @@ func TestContext_GetRunners(t *testing.T) {
 
 func TestContext_Copy(t *testing.T) {
 	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
-	original := NewContext(newTestServer(), cfg, context.Background())
+	original := NewContext(cfg, context.Background())
 
 	// Add a service to the original
 	service := &TestService{}

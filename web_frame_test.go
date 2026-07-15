@@ -19,12 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestServer() *web.Server {
-	servers := web.NewServers()
-	s, _ := servers.CreateServer(web.DefaultServerConfig())
-	return s
-}
-
 // TestResponse wraps the gin.ResponseWriter from test context to implement web.Response
 type TestResponse struct {
 	gin.ResponseWriter
@@ -230,7 +224,7 @@ func TestWebFrame_Test_WithError(t *testing.T) {
 func TestGetService(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(newTestServer(), config, context.Background())
+	ctx := core.NewContext(config, context.Background())
 	service := &MockService{}
 	ctx.AddService(service)
 
@@ -244,7 +238,7 @@ func TestGetService(t *testing.T) {
 func TestGetModel(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(newTestServer(), config, context.Background())
+	ctx := core.NewContext(config, context.Background())
 	model := &MockModel{}
 	ctx.AddModel(model)
 
@@ -258,7 +252,7 @@ func TestGetModel(t *testing.T) {
 func TestGetComponentViaService(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(newTestServer(), config, context.Background())
+	ctx := core.NewContext(config, context.Background())
 	component := &MockComponent{}
 	ctx.AddService(component)
 
@@ -272,7 +266,7 @@ func TestGetComponentViaService(t *testing.T) {
 func TestGetRunner(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()
-	ctx := core.NewContext(newTestServer(), config, context.Background())
+	ctx := core.NewContext(config, context.Background())
 	runner := &MockRunner{}
 	ctx.AddRunner(runner)
 
@@ -286,7 +280,7 @@ func TestGetRunner(t *testing.T) {
 // func TestGetFilter(t *testing.T) {
 // 	// Arrange
 // 	config := config2.NewConfig()
-// 	ctx := core.NewContext(newTestServer(), config, context.Background())
+// 	ctx := core.NewContext(config, context.Background())
 // 	filter := &MockFilter{}
 // 	ctx.AddService(filter)
 
@@ -302,7 +296,7 @@ func TestUnmarshalKeyConfig(t *testing.T) {
 	config := config2.NewConfig()
 	config.Put("test.key", "value")
 	config.Put("test.port", 8080)
-	ctx := core.NewContext(newTestServer(), config, context.Background())
+	ctx := core.NewContext(config, context.Background())
 
 	// Act - test unmarshaling into a struct
 	type TestConfig struct {

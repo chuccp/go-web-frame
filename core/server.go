@@ -108,6 +108,9 @@ func (server *Server) AddRestGroup(restGroups ...*RestGroup) {
 // GetHandler returns an http.Handler for testing. Routes, filters, and
 // ContextPath of each underlying Server are fully preserved.
 func (server *Server) GetHandler() http.Handler {
+	for _, rg := range server.restGroups {
+		_ = server.initServer(rg)
+	}
 	return server.servers.GetHandler()
 }
 

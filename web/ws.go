@@ -31,8 +31,7 @@ type WebSocketStream struct {
 	ctx           context.Context
 	conn          *websocket.Conn
 	AcceptOptions *AcceptOptions
-	isInit        bool
-	initLock      *sync.Mutex
+	mu            sync.Mutex
 }
 
 func newWebSocketStream(r *Request) *WebSocketStream {
@@ -41,34 +40,33 @@ func newWebSocketStream(r *Request) *WebSocketStream {
 		request: r,
 		ctx:     ctx,
 		cancel:  cancel,
-		isInit:  false,
 		AcceptOptions: &AcceptOptions{
 			OriginPatterns: []string{"*"},
 		},
-		initLock: new(sync.Mutex),
 	}
 }
 
 func (ws *WebSocketStream) initConnection() error {
-	if !ws.isInit {
-		ws.initLock.Lock()
-		defer ws.initLock.Unlock()
-		if !ws.isInit {
-			ws.isInit = true
-			acceptOptions := &websocket.AcceptOptions{
-				OriginPatterns: ws.AcceptOptions.OriginPatterns,
-			}
-			conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
-			if err != nil {
-				log.Debug("converter: WebSocket accept error", zap.Error(err))
-				if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
-					log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
-				}
-				return err
-			}
-			ws.conn = conn
-		}
+	if ws.conn != nil {
+		return nil
 	}
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	if ws.conn != nil {
+		return nil
+	}
+	acceptOptions := &websocket.AcceptOptions{
+		OriginPatterns: ws.AcceptOptions.OriginPatterns,
+	}
+	conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
+	if err != nil {
+		log.Debug("converter: WebSocket accept error", zap.Error(err))
+		if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
+			log.Debug("converter: WebSocket abort error", zap.Error(abortErr))
+		}
+		return err
+	}
+	ws.conn = conn
 	return nil
 }
 
@@ -163,12 +161,12 @@ func (ws *WebSocketStream) Ping(ctx context.Context) error {
 
 // Close closes the WebSocket connection and cancels the stream context.
 func (ws *WebSocketStream) Close() {
-	conn, err0 := ws.getConn()
-	if err0 == nil {
-		ws.cancel()
-		err := conn.Close(websocket.StatusNormalClosure, "")
-		if err != nil {
-			log.Debug("websocket close error", zap.Error(err))
-		}
+	defer ws.cancel()
+	conn, err := ws.getConn()
+	if err != nil {
+		return
+	}
+	if closeErr := conn.Close(websocket.StatusNormalClosure, ""); closeErr != nil {
+		log.Debug("websocket close error", zap.Error(closeErr))
 	}
 }

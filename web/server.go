@@ -175,8 +175,10 @@ func (server *Server) SetConverter(converter Converter) {
 
 // AddHandles transfers all routes from the given Handles into this Server.
 func (server *Server) AddHandles(handles *Handles) {
-	for _, route := range handles.routes {
-		server.routes = append(server.routes, route)
+	if handles != nil {
+		for _, route := range handles.routes {
+			server.routes = append(server.routes, route)
+		}
 	}
 }
 

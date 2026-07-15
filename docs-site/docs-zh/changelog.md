@@ -4,6 +4,32 @@
 
 ## [未发布]
 
+## [1.0.12] - 2026-07-15
+
+### 新增
+- **`MemFileSystem.ExistsFile()`**：判断路径是否作为文件（非目录）存在，单次 `Stat` 调用，用于 SPA 404 回退时排除目录误匹配。
+- **`Table.Model()`**：`db.Table` 新增 `Model(value)` 方法，封装 GORM 的 Model，配合 Preload 正确解析关联。
+- **`Server.ServerConfig()`**：暴露 Server 的配置对象，方便外部读取。
+- **`Server.Listen()` / `Server.ListenTLS()`**：将 HTTP/TLS 监听逻辑从 Runner 移到 Server，便于独立使用。
+- **`Server.AddFilters()`**：批量添加过滤器的便捷方法。
+- **访问日志**：`optionsMiddleware` 增加 debug 级别访问日志，打印请求方法和路径。
+- **`util.DefaultPage()`**：统一分页参数默认值（PageNo=1, PageSize=10），消除各处重复的分页校验代码。
+
+### 重构
+- **`core/server.go`**：去掉 `Init()` 阶段，改为 `Run()` 时按需创建 Server 并初始化 RestGroup；新增 `AddIRunner`/`AddRestGroup`。
+- **`core/context.go`**：`NewContext` 不再依赖 `*web.Server`，移除 server 字段，根 Context 更纯粹。
+- **`core/rest.go`**：`Handles` 通过 `RestGroup` 传递到 Server，`Build()` 直接构造结构体。
+- **`web/runner.go`**：监听逻辑委托给 `Server.Listen`/`ListenTLS`，删除重复实现和死代码 `logTLSListen`。
+- **`web_frame.go`**：不再预先创建 Server，handles 通过 RestGroup 传递，简化 init 流程。
+- **`component/cors/cors.go`**：提取 `crosHandlerFunc`，`Handle` 加 nil 保护。
+- **`model/clause.go`**：`ListPage`/`ExecPage`/`Page` 统一使用 `DefaultPage`，消除重复校验。
+
+### 修复
+- SPA 404 回退路径检查从 `Exists` 改为 `ExistsFile`，避免目录被误判为有效回退文件。
+- `initServer` 中 server 创建失败不再吞 nil，错误统一用 `errors.WithStackIf` 包装。
+- Runner `Init` 从 `Run()` 提前到 `web_frame.init()`，确保 runner 不依赖未初始化的 REST 路由。
+- `optionsMiddleware` 先于 `justInitRoute` 注册，确保中间件链顺序正确。
+
 ## [1.0.11] - 2026-07-11
 
 ### 新增
@@ -74,6 +100,7 @@
 
 | 版本 | 发布日期 | 主要变更 |
 |------|----------|----------|
+| 1.0.12 | 2026-07-15 | ExistsFile、Model/Preload 关联、核心重构、DefaultPage |
 | 1.0.11 | 2026-07-11 | 自签证书、GetHandler 测试支持、TLS 容错 |
 | 1.0.0 | 2026-04-07 | 初始版本 |
 

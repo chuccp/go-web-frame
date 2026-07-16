@@ -214,13 +214,27 @@ pageAble, err := m.Query().Where("age > ?", 18).PageForWeb(page)  // PageAble[*U
 // カウント
 count, err := m.Query().Where("status = ?", 1).Count()
 
-// アソシエーション（GORM Preload）
+// 集計クエリ（SUM、AVG、GROUP BY、HAVING、DISTINCT）
+var total float64
+err := m.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+
+type CatStat struct { Category string; Total float64; Count int }
+var stats []CatStat
+err := m.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Aggregate(&stats)
+
+// アソシエーション（GORM Preload — Model() 句を自動設定）
 users, err := m.Query().Preload("Orders").Preload("Profile").All()
 user, err := m.Query().Where("id = ?", 1).Preload("Orders").One()
 
-// Join
+// Join（同様に Model() 句を自動設定、v1.0.14）
 users, err := m.Query().Joins("JOIN orders ON orders.user_id = t_user.id").All()
 ```
+
+> **注意**: `Query.One()` はレコードが見つからない場合、零値と `nil` エラーを返します——`gorm.ErrRecordNotFound` ではなく、戻り値を確認してください。
 
 ### 日常的な書き込み
 
@@ -460,7 +474,11 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
     defer stream.Close()
     for {
         typ, msg, err := stream.Read(stream.Context())
@@ -470,6 +488,15 @@ ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
         stream.Write(stream.Context(), typ, msg)  // エコー
     }
 })
+```
+
+WebSocket 接続は遅延初期化されます——`OpenStream()` は `AcceptOptions` で設定可能：
+
+```go
+stream, err := ws.OpenStream(
+    web.WithOriginPatterns([]string{"example.com"}),
+    web.WithCompressionMode(1),  // CompressionNoContextTakeover
+)
 ```
 
 ### Server-Sent Events
@@ -639,7 +666,7 @@ db:
 # SQLite
 db:
   type: sqlite
-  file_path: ./data.db
+  path: ./data.db
 ```
 
 JSON、YAML、TOML 形式に対応。
@@ -721,7 +748,7 @@ web:
 ├── redis/              # Redis クライアントラッパー
 ├── config/             # Viper 自動読み込み
 ├── log/                # Zap + lumberjack ローテーション
-├── component/          # cors、cache、rate-limit、captcha、qrcode、cron、validator
+├── component/          # 独立モジュール：auth、cache、captcha、cors、localcache、qrcode、ratelimit、schedule、validator
 ├── util/               # 暗号化、ファイル、文字列ヘルパー
 └── example/            # 実行可能なサンプル
     ├── helloworld/     # 最小アプリ
@@ -739,23 +766,31 @@ web:
 重い依存関係は独立したサブモジュールに分割されています。必要なものだけインストール：
 
 <!-- component-badges -->
+[![auth](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/auth/*&label=auth&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/auth)
 [![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
 [![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
-[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![cors](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cors/*&label=cors&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cors)
+[![localcache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/localcache/*&label=localcache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/localcache)
 [![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
 [![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![validator](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/validator/*&label=validator&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/validator)
 <!-- /component-badges -->
 
 ```bash
-# コアフレームワーク（captcha/qrcode/cron/otter なし）
+# コアフレームワーク（コンポーネントは必要に応じてインストール）
 go get github.com/chuccp/go-web-frame
 
 # 必要に応じてインストール
-go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
-go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
-go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
-go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
-go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
+go get github.com/chuccp/go-web-frame/component/auth@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cors@v1.0.14
+go get github.com/chuccp/go-web-frame/component/localcache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.14
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.14
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.14
+go get github.com/chuccp/go-web-frame/component/validator@v1.0.14
 ```
 
 ### 使用方法
@@ -866,6 +901,87 @@ if r.Allow(req.ClientIP()) {
 return nil, errors.New("レート制限中")
 ```
 
+#### Auth — トークン認証フィルター
+
+ジェネリック認証フィルター。`SignIn`/`SignOut`/`User` メソッドを提供——ユーザー型に対して `Authentication[U]` インターフェースを実装：
+
+```go
+import auth "github.com/chuccp/go-web-frame/component/auth"
+
+// 1. ユーザー型の Authentication[U] インターフェースを実装
+type MyUser struct { Id uint; Name string }
+type MyAuth struct{}
+func (a *MyAuth) Init(ctx *core.Context) error              { return nil }
+func (a *MyAuth) SignIn(v any, r *web.Request) (any, error) { /* トークン/クッキー設定 */ }
+func (a *MyAuth) SignOut(r *web.Request) (any, error)       { /* トークンクリア */ }
+func (a *MyAuth) User(r *web.Request) (*MyUser, error)      { /* トークンから読取 */ }
+
+// 2. Filter として登録
+builder.Filter(auth.NewAuthenticationFilter[*MyUser](&MyAuth{}))
+
+// 3. ログイン必須ルートをマーク
+ctx.Get("/api/profile", profile).WithMeta(auth.WithLogin())
+
+// 4. ハンドラで現在のユーザーを取得
+authFilter := wf.GetFilter[*auth.AuthenticationFilter[*MyUser]](ctx)
+user, err := authFilter.User(req)
+```
+
+#### CORS — クロスオリジンリソース共有フィルター
+
+```go
+import "github.com/chuccp/go-web-frame/component/cors"
+
+// 登録 — OPTIONS プリフライトを自動処理
+builder.Filter(cors.NewCrosFilter())
+```
+
+デフォルトポリシー：全オリジン許可、クレデンシャル対応、`Origin`/`Content-Length`/`Content-Type`/`Authorization` ヘッダーを許可。
+
+#### LocalCache — ファイルベースローカルキャッシュ
+
+生成ファイル（画像、PDF、レポート）をディスクにキャッシュ、遅延生成をサポート：
+
+```yaml
+# application.yml
+local_cache:
+  open: true        # ディスクキャッシュ有効化
+  path: ./cache     # キャッシュディレクトリ
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/localcache"
+
+builder.Service(&localcache.LocalCache{})
+
+// 使用 — キャッシュヒット時は即座に返却、ミス時は生成してキャッシュ
+lc := core.GetService[*localcache.LocalCache](ctx)
+file, err := lc.GetFile(func(v ...any) ([]byte, error) {
+    return generateReport(v...)  // キャッシュミス時のみ呼ばれる
+}, "report", "2026-07")
+```
+
+#### Validator — 構造体バリデーション（カスタムルール付き）
+
+```go
+import "github.com/chuccp/go-web-frame/component/validator"
+
+builder.Service(&validator.Validator{})
+
+type RegisterInput struct {
+    Name     string `validate:"required,min=2"`
+    Phone    string `validate:"mobile"`      // 中国携帯電話番号バリデーション
+    Password string `validate:"password"`    // 強力パスワード（大文字+小文字+数字、最小8文字）
+}
+
+v := wf.GetService[*validator.Validator](ctx)
+if err := v.Validate(input); err != nil {
+    // err は *validator.ValidationError、errors.Is で特定コードを判定可能
+    if errors.Is(err, validator.ErrMobileInvalid) { /* ... */ }
+    return nil, err
+}
+```
+
 ### サブモジュールの公開
 
 各サブモジュールはタグプレフィックスで独立してバージョン管理：
@@ -876,7 +992,7 @@ git tag v1.0.1
 git push origin v1.0.1
 
 # 2. 各サブモジュールの依存関係を更新
-for mod in captcha schedule qrcode cache ratelimit; do
+for mod in auth cache captcha cors localcache qrcode ratelimit schedule validator; do
   cd component/$mod
   go get github.com/chuccp/go-web-frame@v1.0.1
   go mod edit -dropreplace github.com/chuccp/go-web-frame
@@ -885,11 +1001,15 @@ for mod in captcha schedule qrcode cache ratelimit; do
 done
 
 # 3. 各サブモジュールにタグを付ける（形式：component/<name>/vX.Y.Z）
-git tag component/captcha/v1.0.1
-git tag component/schedule/v1.0.1
-git tag component/qrcode/v1.0.1
+git tag component/auth/v1.0.1
 git tag component/cache/v1.0.1
+git tag component/captcha/v1.0.1
+git tag component/cors/v1.0.1
+git tag component/localcache/v1.0.1
+git tag component/qrcode/v1.0.1
 git tag component/ratelimit/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/validator/v1.0.1
 
 # 4. すべてのタグをプッシュ
 git push origin --tags

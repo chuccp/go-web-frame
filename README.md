@@ -214,13 +214,27 @@ pageAble, err := m.Query().Where("age > ?", 18).PageForWeb(page)  // returns Pag
 // Counting
 count, err := m.Query().Where("status = ?", 1).Count()
 
-// Associations (GORM Preload)
+// Aggregates (SUM, AVG, GROUP BY, HAVING, DISTINCT)
+var total float64
+err := m.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+
+type CatStat struct { Category string; Total float64; Count int }
+var stats []CatStat
+err := m.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Aggregate(&stats)
+
+// Associations (GORM Preload — auto-sets Model() clause)
 users, err := m.Query().Preload("Orders").Preload("Profile").All()
 user, err := m.Query().Where("id = ?", 1).Preload("Orders").One()
 
-// Joins
+// Joins (also auto-sets Model() clause, v1.0.14)
 users, err := m.Query().Joins("JOIN orders ON orders.user_id = t_user.id").All()
 ```
+
+> **Note**: `Query.One()` returns a zero value + `nil` error when no record is found — check the return value, not `gorm.ErrRecordNotFound`.
 
 ### Common Writes
 
@@ -461,7 +475,11 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
     defer stream.Close()
     for {
         typ, msg, err := stream.Read(stream.Context())
@@ -471,6 +489,15 @@ ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
         stream.Write(stream.Context(), typ, msg)  // echo
     }
 })
+```
+
+WebSocket connections are lazily initialized — `OpenStream()` accepts optional configuration via `AcceptOptions`:
+
+```go
+stream, err := ws.OpenStream(
+    web.WithOriginPatterns([]string{"example.com"}),
+    web.WithCompressionMode(1),  // CompressionNoContextTakeover
+)
 ```
 
 ### Server-Sent Events
@@ -721,7 +748,7 @@ Pre-integrated, production-proven components:
 ├── redis/              # Redis client wrapper
 ├── config/             # Viper auto-loading
 ├── log/                # Zap + lumberjack rotation
-├── component/          # cors, cache, rate-limit, captcha, qrcode, cron, validator
+├── component/          # Independent modules: auth, cache, captcha, cors, localcache, qrcode, ratelimit, schedule, validator
 ├── util/               # Crypto, file, string helpers
 └── example/            # Runnable examples
     ├── helloworld/     # Minimal app
@@ -739,23 +766,31 @@ Pre-integrated, production-proven components:
 Heavy dependencies are split into independent sub-modules. Install only what you need:
 
 <!-- component-badges -->
+[![auth](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/auth/*&label=auth&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/auth)
 [![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
 [![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
-[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![cors](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cors/*&label=cors&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cors)
+[![localcache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/localcache/*&label=localcache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/localcache)
 [![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
 [![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![validator](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/validator/*&label=validator&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/validator)
 <!-- /component-badges -->
 
 ```bash
-# Core framework (no captcha/qrcode/cron/otter)
+# Core framework (components are optional — install as needed)
 go get github.com/chuccp/go-web-frame
 
 # Optional — install as needed
-go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
-go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
-go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
-go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
-go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
+go get github.com/chuccp/go-web-frame/component/auth@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cors@v1.0.14
+go get github.com/chuccp/go-web-frame/component/localcache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.14
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.14
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.14
+go get github.com/chuccp/go-web-frame/component/validator@v1.0.14
 ```
 
 ### Usage
@@ -866,6 +901,87 @@ if r.Allow(req.ClientIP()) {
 return nil, errors.New("rate limited")
 ```
 
+#### Auth — Token-Based Authentication Filter
+
+Generic authentication filter with `SignIn`/`SignOut`/`User` — implement the `Authentication[U]` interface for your user type:
+
+```go
+import auth "github.com/chuccp/go-web-frame/component/auth"
+
+// 1. Implement Authentication[U] for your user type
+type MyUser struct { Id uint; Name string }
+type MyAuth struct{}
+func (a *MyAuth) Init(ctx *core.Context) error                  { return nil }
+func (a *MyAuth) SignIn(v any, r *web.Request) (any, error)     { /* set token/cookie */ }
+func (a *MyAuth) SignOut(r *web.Request) (any, error)           { /* clear token */ }
+func (a *MyAuth) User(r *web.Request) (*MyUser, error)          { /* read from token */ }
+
+// 2. Register as Filter
+builder.Filter(auth.NewAuthenticationFilter[*MyUser](&MyAuth{}))
+
+// 3. Mark routes requiring login
+ctx.Get("/api/profile", profile).WithMeta(auth.WithLogin())
+
+// 4. Get current user in handler
+authFilter := wf.GetFilter[*auth.AuthenticationFilter[*MyUser]](ctx)
+user, err := authFilter.User(req)
+```
+
+#### CORS — Cross-Origin Resource Sharing Filter
+
+```go
+import "github.com/chuccp/go-web-frame/component/cors"
+
+// Register — handles OPTIONS preflight automatically
+builder.Filter(cors.NewCrosFilter())
+```
+
+Default policy: allows all origins, supports credentials, allows `Origin`/`Content-Length`/`Content-Type`/`Authorization` headers.
+
+#### LocalCache — File-Based Local Cache
+
+Caches generated files (images, PDFs, reports) to disk with lazy generation:
+
+```yaml
+# application.yml
+local_cache:
+  open: true        # enable disk caching
+  path: ./cache     # cache directory
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/localcache"
+
+builder.Service(&localcache.LocalCache{})
+
+// Use — returns cached file or generates + caches on miss
+lc := core.GetService[*localcache.LocalCache](ctx)
+file, err := lc.GetFile(func(v ...any) ([]byte, error) {
+    return generateReport(v...)  // only called on cache miss
+}, "report", "2026-07")
+```
+
+#### Validator — Struct Validation with Custom Rules
+
+```go
+import "github.com/chuccp/go-web-frame/component/validator"
+
+builder.Service(&validator.Validator{})
+
+type RegisterInput struct {
+    Name     string `validate:"required,min=2"`
+    Phone    string `validate:"mobile"`      // Chinese mobile validation
+    Password string `validate:"password"`    // strong password (upper+lower+digit, min 8)
+}
+
+v := wf.GetService[*validator.Validator](ctx)
+if err := v.Validate(input); err != nil {
+    // err is *validator.ValidationError — use errors.Is for specific codes
+    if errors.Is(err, validator.ErrMobileInvalid) { /* ... */ }
+    return nil, err
+}
+```
+
 ### Publishing Sub-Modules
 
 Each sub-module is versioned independently using tag prefixes:
@@ -876,7 +992,7 @@ git tag v1.0.1
 git push origin v1.0.1
 
 # 2. Update each sub-module's dependency on the main module
-for mod in captcha schedule qrcode cache ratelimit; do
+for mod in auth cache captcha cors localcache qrcode ratelimit schedule validator; do
   cd component/$mod
   go get github.com/chuccp/go-web-frame@v1.0.1
   go mod edit -dropreplace github.com/chuccp/go-web-frame
@@ -885,11 +1001,15 @@ for mod in captcha schedule qrcode cache ratelimit; do
 done
 
 # 3. Tag each sub-module (format: component/<name>/vX.Y.Z)
-git tag component/captcha/v1.0.1
-git tag component/schedule/v1.0.1
-git tag component/qrcode/v1.0.1
+git tag component/auth/v1.0.1
 git tag component/cache/v1.0.1
+git tag component/captcha/v1.0.1
+git tag component/cors/v1.0.1
+git tag component/localcache/v1.0.1
+git tag component/qrcode/v1.0.1
 git tag component/ratelimit/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/validator/v1.0.1
 
 # 4. Push all tags
 git push origin --tags

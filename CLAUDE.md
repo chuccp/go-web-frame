@@ -105,7 +105,7 @@ Built on Gin, provides:
 #### 4. Other Key Packages
 - `./config`: Configuration management with Viper, supports JSON, YAML, TOML
 - `./log`: Structured logging based on Zap with rotation support
-- `./component`: Reusable components: cache, local cache, rate limiting, captcha, QR code, cron scheduled tasks, input validation
+- `./component`: Independent Go modules (v1.0.14+): auth, cache, captcha, cors, localcache, qrcode, ratelimit, schedule, validator
 - `./util`: Comprehensive utility functions for strings, time, crypto, networking, and more
 
 ### Application Structure
@@ -527,11 +527,15 @@ Built-in `MetaOption` constructors:
 
 ### 8b. WebSocket
 
-Register WebSocket endpoints using `AddWebSocket` or `ctx.WebSocket`. The handler receives a `*web.WebSocketStream` (backed by `coder/websocket`):
+Register WebSocket endpoints using `AddWebSocket` or `ctx.WebSocket`. The handler receives a `*web.WebSocket` — call `OpenStream()` to lazily initialize the connection and get a `*web.WebSocketStream` (backed by `coder/websocket`):
 
 ```go
 // In a controller's Init:
-ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
     defer stream.Close()
     for {
         typ, data, err := stream.Read(stream.Context())
@@ -546,6 +550,8 @@ ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
 // Or via Server/Builder:
 server.AddWebSocket("/ws", handler)
 ```
+
+`OpenStream()` accepts optional `AcceptOptions` for origin patterns, compression, subprotocols, and ping/pong callbacks.
 
 Key methods on `WebSocketStream`:
 - `Read(ctx) (MessageType, []byte, error)` — read any message type
@@ -784,6 +790,37 @@ user, _ := userModel.FindByPKWithPreload(1, "Profile", "Orders")
 user, _ := userModel.FindOneWithPreload("status = ?", 1, []interface{}{}, "Profile")
 ```
 
+> **Note**: When `Preload` or `Joins` is used, the framework automatically calls `Table.Model(entry)` to set the GORM Model clause, ensuring associations are resolved correctly (v1.0.14).
+
+#### Aggregate Queries
+
+Use `model.Aggregate()` for SUM, COUNT, AVG, GROUP BY, HAVING, DISTINCT:
+
+```go
+// Scalar aggregate
+var total float64
+err := orderModel.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+
+// Grouped aggregate — scan into custom struct slice
+type CategoryStat struct {
+    Category string  `json:"category"`
+    Total    float64 `json:"total"`
+    Count    int     `json:"count"`
+}
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Aggregate(&stats)
+
+// DISTINCT
+var cnt int
+err := orderModel.Aggregate().Select("COUNT(DISTINCT category)").Aggregate(&cnt)
+```
+
+`Aggregate(result)` auto-detects: scalar pointers (e.g. `*float64`) get `LIMIT 1`; slice pointers (e.g. `*[]Stat`) return all rows.
+
 #### GORM Migrator (Schema Management)
 
 Access GORM's full migrator API:
@@ -836,12 +873,25 @@ err := db.Transaction(func(tx *db.DB) error {
 
 #### GORM Error Handling
 
-Standard GORM errors are passed through:
+When a record is not found, `Query.One()` returns a zero-value `T` and a **nil error** (not `gorm.ErrRecordNotFound`). Check the return value, not the error:
 
 ```go
 user, err := userModel.Query().Where("id = ?", 999).One()
+if err != nil {
+    // real database error (connection, syntax, etc.)
+}
+if user == nil {
+    // record not found — handle gracefully
+}
+```
+
+If you need `gorm.ErrRecordNotFound` directly, use raw GORM via `db.GetGorm()`:
+
+```go
+var user User
+err := db.GetGorm().WithContext(ctx).Table("t_user").Where("id = ?", 999).First(&user).Error
 if errors.Is(err, gorm.ErrRecordNotFound) {
-    // handle not found
+    // record not found
 }
 ```
 

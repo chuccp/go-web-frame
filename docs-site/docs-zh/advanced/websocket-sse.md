@@ -6,11 +6,15 @@
 
 ### 基本用法
 
-注册 WebSocket 端点，使用 `*web.WebSocketStream`（基于 `coder/websocket`）：
+注册 WebSocket 端点。Handler 接收 `*web.WebSocket`，通过 `OpenStream()` 获取可读写的流（基于 `coder/websocket`）：
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+        stream, err := ws.OpenStream()
+        if err != nil {
+            return err
+        }
         defer stream.Close()
         for {
             typ, message, err := stream.Read(stream.Context())
@@ -19,10 +23,43 @@ func (c *MyController) Init(ctx *core.Context) error {
             }
             stream.Write(stream.Context(), typ, message) // echo
         }
+        return nil
     })
     return nil
 }
 ```
+
+> **v1.0.14 变更**：Handler 签名从 `func(stream *WebSocketStream)` 改为 `func(ws *WebSocket)`。连接延迟初始化——首次调用 `OpenStream()` 或 `Read`/`Write` 时才执行 WebSocket 握手。
+
+### 配置 AcceptOptions
+
+`OpenStream()` 接受可变参数 `AcceptOptions`，用于配置 WebSocket 接受行为：
+
+```go
+stream, err := ws.OpenStream(
+    web.WithOriginPatterns([]string{"example.com", "*.example.com"}),
+    web.WithSubprotocols("chat"),
+    web.WithCompressionMode(1),              // CompressionNoContextTakeover
+    web.WithCompressionThreshold(128),       // 最小压缩阈值（字节）
+    web.WithInsecureSkipVerify(false),       // 禁用来源验证（不推荐）
+    web.WithOnPingReceived(func(ctx context.Context, payload []byte) bool {
+        return true  // 返回 false 可抑制自动 pong 响应
+    }),
+    web.WithOnPongReceived(func(ctx context.Context, payload []byte) {
+        // 收到 pong 帧时的回调
+    }),
+)
+```
+
+| 选项函数 | 说明 |
+|---------|------|
+| `WithOriginPatterns(patterns []string)` | 授权来源的主机模式列表 |
+| `WithSubprotocols(protocols ...string)` | 协商的子协议列表 |
+| `WithInsecureSkipVerify(skip bool)` | 禁用来源验证（建议用 OriginPatterns 代替） |
+| `WithCompressionMode(mode int)` | 压缩模式：0=禁用, 1=NoContextTakeover, 2=ContextTakeover |
+| `WithCompressionThreshold(threshold int)` | 应用压缩的最小消息大小（字节） |
+| `WithOnPingReceived(fn)` | Ping 帧回调，返回 false 抑制 pong |
+| `WithOnPongReceived(fn)` | Pong 帧回调 |
 
 ### 完整示例（聊天室）
 
@@ -39,7 +76,12 @@ func (c *ChatController) Init(ctx *core.Context) error {
     return nil
 }
 
-func (c *ChatController) HandleChat(stream *web.WebSocketStream) error {
+func (c *ChatController) HandleChat(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
+
     // 新客户端加入
     c.mu.Lock()
     c.clients[stream] = true
@@ -69,8 +111,17 @@ func (c *ChatController) HandleChat(stream *web.WebSocketStream) error {
         }
         c.mu.Unlock()
     }
+    return nil
 }
 ```
+
+### WebSocket API
+
+| 方法 | 说明 |
+|------|------|
+| `OpenStream(opts ...AcceptOptions) (*WebSocketStream, error)` | 接受 WebSocket 连接并返回流（延迟初始化，首次调用时握手） |
+| `Request() *web.Request` | 返回发起 WebSocket 升级的原始 HTTP 请求 |
+| `Close()` | 关闭 WebSocket 连接 |
 
 ### WebSocketStream API
 

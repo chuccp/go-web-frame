@@ -22,7 +22,7 @@
 - **`getConn` 非同步快速路径**：移除可能导致 WebSocket 连接并发读写竞争的非同步快速路径。
 - **`AcceptOptions` 切片初始化**：`AcceptOptions` 中的切片字段现在正确初始化为空切片（而非 nil）。
 - **GORM Model 与 Joins**：使用 `Joins` 时现在也会设置 GORM 的 `Model()` 子句，而不仅限于 `Preloads`，修复了 join 查询中的关联解析问题。
-- **`Query.One()` 错误处理**：未找到记录时 `Query.One()` 现在返回 nil 错误而非包装过的 `gorm.ErrRecordNotFound`，调用方可直接用 `errors.Is()` 判断哨兵错误。
+- **`Query.One()` 错误处理**：未找到记录时 `Query.One()` 现在返回零值和 nil 错误（而非包装过的 `gorm.ErrRecordNotFound`），调用方应检查返回值是否为零值来判断记录是否存在。
 
 ## [1.0.12] - 2026-07-15
 

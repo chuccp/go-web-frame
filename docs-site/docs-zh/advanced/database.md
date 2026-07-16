@@ -179,6 +179,8 @@ users, err := userModel.Query().
 
 ### 关联查询
 
+`Preload` 和 `Joins` 都会自动设置 GORM 的 `Model()` 子句，确保关联正确解析（v1.0.14 修复了 Joins 场景）：
+
 ```go
 // 预加载关联
 user, err := userModel.Query().
@@ -186,7 +188,56 @@ user, err := userModel.Query().
     Preload("Roles").
     Where("id = ?", 1).
     One()
+
+// JOIN 查询（关联名由 GORM 自动解析）
+users, err := userModel.Query().
+    Joins("Profile").
+    Where("status = ?", 1).
+    All()
+
+// 原生 JOIN
+users, err := userModel.Query().
+    Joins("JOIN orders ON orders.user_id = t_user.id").
+    Where("t_user.status = ?", 1).
+    All()
 ```
+
+> **记录未找到处理**：`Query.One()` 在记录不存在时返回零值和 `nil` error（不返回 `gorm.ErrRecordNotFound`）。应检查返回值是否为零值来判断记录是否存在。如需使用 `errors.Is(err, gorm.ErrRecordNotFound)`，请通过 `db.GetGorm()` 使用原生 GORM。
+
+### 聚合查询
+
+使用 `Aggregate()` 构建器执行 SUM、COUNT、AVG、GROUP BY、HAVING、DISTINCT 等聚合查询：
+
+```go
+// 标量聚合
+var total float64
+err := orderModel.Aggregate().
+    Select("SUM(amount)").
+    Where("status = ?", 1).
+    Aggregate(&total)
+
+// 分组聚合
+type CategoryStat struct {
+    Category string  `json:"category"`
+    Total    float64 `json:"total"`
+    Count    int     `json:"count"`
+}
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Order("total desc").
+    Aggregate(&stats)
+
+// DISTINCT
+var cnt int
+err := orderModel.Aggregate().
+    Select("COUNT(DISTINCT category)").
+    Aggregate(&cnt)
+```
+
+> `Aggregate(result)` 自动判断结果类型：标量值（如 `*float64`）添加 `LIMIT 1`，切片值（如 `*[]Stat`）返回全部行。
 
 ### 原生 SQL
 

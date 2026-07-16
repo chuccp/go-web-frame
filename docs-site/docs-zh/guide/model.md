@@ -70,6 +70,9 @@ users, err := userModel.Query().All()
 
 // 查询单条
 user, err := userModel.Query().Where("id = ?", 1).One()
+// 注意：记录不存在时 One() 返回零值和 nil error（不是 gorm.ErrRecordNotFound）
+// 应检查返回值判断记录是否存在：
+// if user == nil { /* 记录不存在 */ }
 
 // 条件查询
 users, err := userModel.Query().Where("status = ?", 1).All()
@@ -178,6 +181,8 @@ count, err := userModel.Query().Where("status = ?", 1).Count()
 
 ### 分页
 
+分页参数会自动规范化：`PageNo` 默认 1，`PageSize` 默认 10（通过 `util.DefaultPage` 统一处理，无需手动校验）。
+
 ```go
 page := &web.Page{PageNo: 1, PageSize: 10}
 
@@ -187,7 +192,7 @@ users, total, err := userModel.Query().Where("status = ?", 1).Page(page)
 // 返回 PageAble 结构
 pageAble, err := userModel.Query().Where("status = ?", 1).PageForWeb(page)
 
-// 只返回列表
+// 只返回列表（不分页查询总数）
 users, err := userModel.Query().Where("status = ?", 1).ListPage(page)
 ```
 
@@ -201,6 +206,8 @@ users, total, err := userModel.Query().Order("id desc").Size(100)
 
 ### 预加载关联
 
+使用 `Preload` 加载关联数据。框架会自动设置 GORM 的 `Model()` 子句以确保关联正确解析：
+
 ```go
 users, err := userModel.Query().Preload("Profile").Preload("Role").All()
 user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
@@ -208,9 +215,100 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 
 ### JOIN 查询
 
+使用 `Joins` 进行 JOIN 查询。与 `Preload` 一样，框架会自动设置 `Model()` 子句（v1.0.14 修复）：
+
 ```go
+// 关联 JOIN（GORM 自动解析关联名）
 users, err := userModel.Query().Joins("Profile").Where("status = ?", 1).All()
+
+// 原生 JOIN
+users, err := userModel.Query().
+    Joins("JOIN orders ON orders.user_id = t_user.id").
+    Where("status = ?", 1).
+    All()
 ```
+
+> **注意**：`Preload` 和 `Joins` 都会触发 `Table.Model(entry)` 调用，确保 GORM 能正确解析关联。无需手动调用。
+
+### 聚合查询
+
+使用 `Aggregate()` 构建聚合查询，支持 `SUM`、`COUNT`、`AVG`、`MAX`、`MIN` 等 SQL 聚合函数：
+
+```go
+// 标量聚合 — 结果扫描到单个值
+var total float64
+err := orderModel.Aggregate().
+    Select("SUM(amount)").
+    Where("status = ?", 1).
+    Aggregate(&total)
+
+var count int
+err := orderModel.Aggregate().
+    Select("COUNT(*)").
+    Aggregate(&count)
+
+var avg float64
+err := orderModel.Aggregate().
+    Select("AVG(amount)").
+    Aggregate(&avg)
+```
+
+#### GROUP BY 分组聚合
+
+分组聚合将结果扫描到自定义结构体切片：
+
+```go
+type CategoryStat struct {
+    Category string  `json:"category"`
+    Total    float64 `json:"total"`
+    Count    int     `json:"count"`
+    AvgAmt   float64 `json:"avgAmt"`
+}
+
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count, AVG(amount) as avg_amt").
+    Group("category").
+    Aggregate(&stats)
+```
+
+#### HAVING 过滤
+
+```go
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Aggregate(&stats)
+```
+
+#### DISTINCT 去重
+
+```go
+// SELECT DISTINCT category ...
+var categories []struct{ Category string }
+err := orderModel.Aggregate().
+    Distinct("category").
+    Aggregate(&categories)
+
+// COUNT(DISTINCT category)
+var cnt int
+err := orderModel.Aggregate().
+    Select("COUNT(DISTINCT category)").
+    Aggregate(&cnt)
+```
+
+#### 带参数的表达式
+
+```go
+var result float64
+err := orderModel.Aggregate().
+    Select("SUM(amount) * ? + ?", 2, 100).
+    Aggregate(&result)
+```
+
+> **提示**：`Aggregate(result)` 自动判断结果类型——标量值（如 `*float64`）添加 `LIMIT 1`，切片值（如 `*[]Stat`）返回所有匹配行。
 
 ### 链式更新
 
@@ -234,12 +332,9 @@ err := userModel.Update().Where("id = ?", 1).UpdateForMap(map[string]any{
 users, err := userModel.Query().
     Where("status = ?", 1).
     Exec("SELECT * FROM t_user WHERE status = ?")
-
-users, total, err := userModel.Query().
-    Where("status = ?", 1).
-    Order("id desc").
-    ExecPage(page, "SELECT * FROM t_user WHERE status = ?")
 ```
+
+> **弃用提示**：`ExecPage()` 已标记为弃用，推荐使用 `Page()` 或 `PageForWeb()` 进行分页查询。
 
 ## 请求上下文传播
 

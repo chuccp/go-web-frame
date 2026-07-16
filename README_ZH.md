@@ -214,13 +214,27 @@ pageAble, err := m.Query().Where("age > ?", 18).PageForWeb(page)  // 返回 Page
 // 计数
 count, err := m.Query().Where("status = ?", 1).Count()
 
-// 关联查询（GORM Preload）
+// 聚合查询（SUM、AVG、GROUP BY、HAVING、DISTINCT）
+var total float64
+err := m.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+
+type CatStat struct { Category string; Total float64; Count int }
+var stats []CatStat
+err := m.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Aggregate(&stats)
+
+// 关联查询（GORM Preload — 自动设置 Model() 子句）
 users, err := m.Query().Preload("Orders").Preload("Profile").All()
 user, err := m.Query().Where("id = ?", 1).Preload("Orders").One()
 
-// Join
+// Join（同样自动设置 Model() 子句，v1.0.14）
 users, err := m.Query().Joins("JOIN orders ON orders.user_id = t_user.id").All()
 ```
+
+> **注意**：`Query.One()` 在记录不存在时返回零值和 `nil` 错误——应检查返回值，而非 `gorm.ErrRecordNotFound`。
 
 ### 日常写入
 
@@ -460,7 +474,11 @@ ctx.Post("/upload", func(req *web.Request) (any, error) {
 ### WebSocket
 
 ```go
-ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
     defer stream.Close()
     for {
         typ, msg, err := stream.Read(stream.Context())
@@ -470,6 +488,15 @@ ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
         stream.Write(stream.Context(), typ, msg)  // echo
     }
 })
+```
+
+WebSocket 连接采用延迟初始化——`OpenStream()` 支持通过 `AcceptOptions` 进行配置：
+
+```go
+stream, err := ws.OpenStream(
+    web.WithOriginPatterns([]string{"example.com"}),
+    web.WithCompressionMode(1),  // CompressionNoContextTakeover
+)
 ```
 
 ### Server-Sent Events
@@ -720,7 +747,7 @@ web:
 ├── redis/              # Redis 客户端封装
 ├── config/             # Viper 自动加载
 ├── log/                # Zap + lumberjack 滚动
-├── component/          # cors、cache、rate-limit、captcha、qrcode、cron、validator
+├── component/          # 独立模块：auth、cache、captcha、cors、localcache、qrcode、ratelimit、schedule、validator
 ├── util/               # 加密、文件、字符串工具
 └── example/            # 可运行的示例
     ├── helloworld/     # 最小应用
@@ -738,23 +765,31 @@ web:
 重型依赖拆分为独立子模块，按需安装：
 
 <!-- component-badges -->
+[![auth](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/auth/*&label=auth&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/auth)
 [![cache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cache/*&label=cache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cache)
 [![captcha](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/captcha/*&label=captcha&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/captcha)
-[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![cors](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/cors/*&label=cors&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/cors)
+[![localcache](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/localcache/*&label=localcache&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/localcache)
 [![qrcode](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/qrcode/*&label=qrcode&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/qrcode)
 [![ratelimit](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/ratelimit/*&label=ratelimit&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/ratelimit)
+[![schedule](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/schedule/*&label=schedule&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/schedule)
+[![validator](https://img.shields.io/github/v/tag/chuccp/go-web-frame?filter=component/validator/*&label=validator&color=blue)](https://pkg.go.dev/github.com/chuccp/go-web-frame/component/validator)
 <!-- /component-badges -->
 
 ```bash
-# 核心框架（不含 captcha/qrcode/cron/otter）
+# 核心框架（组件按需安装）
 go get github.com/chuccp/go-web-frame
 
 # 按需安装
-go get github.com/chuccp/go-web-frame/component/captcha@v1.0.7
-go get github.com/chuccp/go-web-frame/component/schedule@v1.0.7
-go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.7
-go get github.com/chuccp/go-web-frame/component/cache@v1.0.7
-go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.7
+go get github.com/chuccp/go-web-frame/component/auth@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/captcha@v1.0.14
+go get github.com/chuccp/go-web-frame/component/cors@v1.0.14
+go get github.com/chuccp/go-web-frame/component/localcache@v1.0.14
+go get github.com/chuccp/go-web-frame/component/qrcode@v1.0.14
+go get github.com/chuccp/go-web-frame/component/ratelimit@v1.0.14
+go get github.com/chuccp/go-web-frame/component/schedule@v1.0.14
+go get github.com/chuccp/go-web-frame/component/validator@v1.0.14
 ```
 
 ### 使用说明
@@ -865,6 +900,87 @@ if r.Allow(req.ClientIP()) {
 return nil, errors.New("请求过于频繁")
 ```
 
+#### Auth — Token 认证过滤器
+
+泛型认证过滤器，提供 `SignIn`/`SignOut`/`User` 方法——为你的用户类型实现 `Authentication[U]` 接口：
+
+```go
+import auth "github.com/chuccp/go-web-frame/component/auth"
+
+// 1. 为用户类型实现 Authentication[U] 接口
+type MyUser struct { Id uint; Name string }
+type MyAuth struct{}
+func (a *MyAuth) Init(ctx *core.Context) error              { return nil }
+func (a *MyAuth) SignIn(v any, r *web.Request) (any, error) { /* 设置 token/cookie */ }
+func (a *MyAuth) SignOut(r *web.Request) (any, error)       { /* 清除 token */ }
+func (a *MyAuth) User(r *web.Request) (*MyUser, error)      { /* 从 token 读取 */ }
+
+// 2. 注册为 Filter
+builder.Filter(auth.NewAuthenticationFilter[*MyUser](&MyAuth{}))
+
+// 3. 标记需要登录的路由
+ctx.Get("/api/profile", profile).WithMeta(auth.WithLogin())
+
+// 4. 在 handler 中获取当前用户
+authFilter := wf.GetFilter[*auth.AuthenticationFilter[*MyUser]](ctx)
+user, err := authFilter.User(req)
+```
+
+#### CORS — 跨域资源共享过滤器
+
+```go
+import "github.com/chuccp/go-web-frame/component/cors"
+
+// 注册 — 自动处理 OPTIONS 预检请求
+builder.Filter(cors.NewCrosFilter())
+```
+
+默认策略：允许所有来源、支持凭证、允许 `Origin`/`Content-Length`/`Content-Type`/`Authorization` 请求头。
+
+#### LocalCache — 文件本地缓存
+
+将生成的文件（图片、PDF、报表）缓存到磁盘，支持懒生成：
+
+```yaml
+# application.yml
+local_cache:
+  open: true        # 启用磁盘缓存
+  path: ./cache     # 缓存目录
+```
+
+```go
+import "github.com/chuccp/go-web-frame/component/localcache"
+
+builder.Service(&localcache.LocalCache{})
+
+// 使用 — 命中缓存则直接返回，未命中则生成并缓存
+lc := core.GetService[*localcache.LocalCache](ctx)
+file, err := lc.GetFile(func(v ...any) ([]byte, error) {
+    return generateReport(v...)  // 仅在缓存未命中时调用
+}, "report", "2026-07")
+```
+
+#### Validator — 结构体验证（含自定义规则）
+
+```go
+import "github.com/chuccp/go-web-frame/component/validator"
+
+builder.Service(&validator.Validator{})
+
+type RegisterInput struct {
+    Name     string `validate:"required,min=2"`
+    Phone    string `validate:"mobile"`      // 中国手机号验证
+    Password string `validate:"password"`    // 强密码（大写+小写+数字，最少 8 位）
+}
+
+v := wf.GetService[*validator.Validator](ctx)
+if err := v.Validate(input); err != nil {
+    // err 为 *validator.ValidationError，可用 errors.Is 判断具体错误码
+    if errors.Is(err, validator.ErrMobileInvalid) { /* ... */ }
+    return nil, err
+}
+```
+
 ### 发布子模块
 
 每个子模块通过 tag 前缀独立版本管理：
@@ -875,7 +991,7 @@ git tag v1.0.1
 git push origin v1.0.1
 
 # 2. 更新各子模块对主模块的依赖
-for mod in captcha schedule qrcode cache ratelimit; do
+for mod in auth cache captcha cors localcache qrcode ratelimit schedule validator; do
   cd component/$mod
   go get github.com/chuccp/go-web-frame@v1.0.1
   go mod edit -dropreplace github.com/chuccp/go-web-frame
@@ -884,11 +1000,15 @@ for mod in captcha schedule qrcode cache ratelimit; do
 done
 
 # 3. 为每个子模块打 tag（格式：component/<name>/vX.Y.Z）
-git tag component/captcha/v1.0.1
-git tag component/schedule/v1.0.1
-git tag component/qrcode/v1.0.1
+git tag component/auth/v1.0.1
 git tag component/cache/v1.0.1
+git tag component/captcha/v1.0.1
+git tag component/cors/v1.0.1
+git tag component/localcache/v1.0.1
+git tag component/qrcode/v1.0.1
 git tag component/ratelimit/v1.0.1
+git tag component/schedule/v1.0.1
+git tag component/validator/v1.0.1
 
 # 4. 推送所有 tag
 git push origin --tags

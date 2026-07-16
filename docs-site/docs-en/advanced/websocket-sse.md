@@ -6,11 +6,15 @@ This document covers WebSocket and Server-Sent Events (SSE) usage in Go Web Fram
 
 ### Basic Usage
 
-Register a WebSocket endpoint using `*web.WebSocketStream` (based on `coder/websocket`):
+Register a WebSocket endpoint. The handler receives a `*web.WebSocket` — call `OpenStream()` to get a readable/writable stream (based on `coder/websocket`):
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+        stream, err := ws.OpenStream()
+        if err != nil {
+            return err
+        }
         defer stream.Close()
         for {
             typ, message, err := stream.Read(stream.Context())
@@ -19,10 +23,43 @@ func (c *MyController) Init(ctx *core.Context) error {
             }
             stream.Write(stream.Context(), typ, message) // echo
         }
+        return nil
     })
     return nil
 }
 ```
+
+> **Changed in v1.0.14**: Handler signature changed from `func(stream *WebSocketStream)` to `func(ws *WebSocket)`. The connection is lazily initialized — the WebSocket handshake only happens on the first `OpenStream()` or `Read`/`Write` call.
+
+### Configuring AcceptOptions
+
+`OpenStream()` accepts variadic `AcceptOptions` to configure WebSocket accept behavior:
+
+```go
+stream, err := ws.OpenStream(
+    web.WithOriginPatterns([]string{"example.com", "*.example.com"}),
+    web.WithSubprotocols("chat"),
+    web.WithCompressionMode(1),              // CompressionNoContextTakeover
+    web.WithCompressionThreshold(128),       // minimum size before compression (bytes)
+    web.WithInsecureSkipVerify(false),       // disable origin verification (not recommended)
+    web.WithOnPingReceived(func(ctx context.Context, payload []byte) bool {
+        return true  // return false to suppress automatic pong response
+    }),
+    web.WithOnPongReceived(func(ctx context.Context, payload []byte) {
+        // callback when a pong frame is received
+    }),
+)
+```
+
+| Option Function | Description |
+|----------------|-------------|
+| `WithOriginPatterns(patterns []string)` | List of host patterns for authorized origins |
+| `WithSubprotocols(protocols ...string)` | Subprotocols to negotiate during accept |
+| `WithInsecureSkipVerify(skip bool)` | Disable origin verification (use OriginPatterns instead) |
+| `WithCompressionMode(mode int)` | Compression mode: 0=Disabled, 1=NoContextTakeover, 2=ContextTakeover |
+| `WithCompressionThreshold(threshold int)` | Minimum message size before compression is applied (bytes) |
+| `WithOnPingReceived(fn)` | Ping frame callback, return false to suppress pong |
+| `WithOnPongReceived(fn)` | Pong frame callback |
 
 ### Full Example (Chat Room)
 
@@ -39,7 +76,12 @@ func (c *ChatController) Init(ctx *core.Context) error {
     return nil
 }
 
-func (c *ChatController) HandleChat(stream *web.WebSocketStream) error {
+func (c *ChatController) HandleChat(ws *web.WebSocket) error {
+    stream, err := ws.OpenStream()
+    if err != nil {
+        return err
+    }
+
     c.mu.Lock()
     c.clients[stream] = true
     c.mu.Unlock()
@@ -66,8 +108,17 @@ func (c *ChatController) HandleChat(stream *web.WebSocketStream) error {
         }
         c.mu.Unlock()
     }
+    return nil
 }
 ```
+
+### WebSocket API
+
+| Method | Description |
+|------|------|
+| `OpenStream(opts ...AcceptOptions) (*WebSocketStream, error)` | Accepts the WebSocket connection and returns the stream (lazy init — handshake on first call) |
+| `Request() *web.Request` | Returns the original HTTP request that initiated the WebSocket upgrade |
+| `Close()` | Closes the WebSocket connection |
 
 ### WebSocketStream API
 

@@ -30,6 +30,8 @@ err := userModel.Save(user)
 users, err := userModel.Query().All()
 
 // 查询单条记录
+// 注意：记录不存在时返回零值和 nil error，不返回 gorm.ErrRecordNotFound
+// 应检查返回值是否为零值来判断记录是否存在
 user, err := userModel.Query().Where("id = ?", 1).One()
 
 // 条件查询
@@ -139,7 +141,7 @@ newModel := userModel.NewEntryModel(tx)
 // 所有记录
 users, err := userModel.Query().All()
 
-// 单条记录
+// 单条记录（记录不存在时返回零值 + nil error）
 user, err := userModel.Query().Where("id = ?", 1).One()
 
 // 计数
@@ -147,6 +149,8 @@ count, err := userModel.Query().Where("status = ?", 1).Count()
 ```
 
 ### 分页
+
+分页参数自动规范化（`PageNo` 默认 1，`PageSize` 默认 10，通过 `util.DefaultPage` 统一处理）：
 
 ```go
 // 分页查询（返回列表和总数）
@@ -175,6 +179,8 @@ users, total, err := userModel.Query().Order("id desc").Size(100)
 
 ### 预加载关联
 
+使用 `Preload` 进行关联预加载。框架自动设置 GORM `Model()` 子句确保关联正确解析：
+
 ```go
 // 预加载关联（GORM eager loading）
 users, err := userModel.Query().Preload("Profile").Preload("Role").All()
@@ -184,9 +190,17 @@ user, err := userModel.Query().Where("id = ?", 1).Preload("Profile").One()
 
 ### JOIN 查询
 
+`Joins` 同样会自动设置 `Model()` 子句（v1.0.14 修复，确保 JOIN 查询中关联正确解析）：
+
 ```go
-// JOIN 查询
+// 关联 JOIN（GORM 自动解析关联名）
 users, err := userModel.Query().Joins("Profile").Where("status = ?", 1).All()
+
+// 原生 JOIN
+users, err := userModel.Query().
+    Joins("JOIN orders ON orders.user_id = t_user.id").
+    Where("status = ?", 1).
+    All()
 ```
 
 ### 链式更新
@@ -205,12 +219,76 @@ err := userModel.Update().
 ```go
 // 原生 SQL 查询（Where 条件自动合并）
 users, err := userModel.Query().Where("status = ?", 1).Exec("SELECT * FROM t_user")
+```
 
-// 原生 SQL 分页查询
-users, total, err := userModel.Query().
-    Where("status = ?", 1).
-    Order("id desc").
-    ExecPage(page, "SELECT * FROM t_user WHERE status = ?")
+> **弃用**：`ExecPage()` 已弃用，推荐使用 `Page()` 或 `PageForWeb()` 进行分页查询。
+
+## Aggregate[T]
+
+`model.Aggregate[T]` 是聚合查询构建器，通过 `model.Aggregate()` 创建。
+
+### 方法
+
+| 方法 | 说明 |
+|------|------|
+| `Select(query, args...)` | 指定聚合表达式（如 `"SUM(amount)"`、`"category, COUNT(*) as cnt"`） |
+| `Where(query, args...)` | 添加 WHERE 条件 |
+| `Group(name)` | 添加 GROUP BY 子句 |
+| `Having(query, args...)` | 添加 HAVING 条件（配合 Group 使用） |
+| `Order(query)` | 添加 ORDER BY 子句 |
+| `Joins(query)` | 添加 JOIN 子句 |
+| `Distinct(args...)` | 添加 DISTINCT（无参数=全行去重，传列名=指定列去重） |
+| `Aggregate(result)` | 执行查询并扫描结果（标量自动加 LIMIT 1，切片返回全部行） |
+| `WithContext(ctx)` | 设置上下文（返回浅拷贝） |
+
+### 标量聚合
+
+```go
+// SUM
+var total float64
+err := orderModel.Aggregate().Select("SUM(amount)").Where("status = ?", 1).Aggregate(&total)
+
+// COUNT
+var count int
+err := orderModel.Aggregate().Select("COUNT(*)").Aggregate(&count)
+
+// AVG
+var avg float64
+err := orderModel.Aggregate().Select("AVG(amount)").Aggregate(&avg)
+
+// 带参数的表达式
+var result float64
+err := orderModel.Aggregate().Select("SUM(amount) * ? + ?", 2, 100).Aggregate(&result)
+```
+
+### 分组聚合
+
+```go
+type CategoryStat struct {
+    Category string  `json:"category"`
+    Total    float64 `json:"total"`
+    Count    int     `json:"count"`
+}
+
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Order("total desc").
+    Aggregate(&stats)
+```
+
+### DISTINCT
+
+```go
+// 去重查询
+var rows []struct{ Category string }
+err := orderModel.Aggregate().Distinct("category").Aggregate(&rows)
+
+// COUNT(DISTINCT ...)
+var cnt int
+err := orderModel.Aggregate().Select("COUNT(DISTINCT category)").Aggregate(&cnt)
 ```
 
 ## Transaction

@@ -216,7 +216,11 @@ func (c *MyController) Init(ctx *core.Context) error {
 
 ```go
 func (c *MyController) Init(ctx *core.Context) error {
-    ctx.WebSocket("/ws", func(stream *web.WebSocketStream) error {
+    ctx.WebSocket("/ws", func(ws *web.WebSocket) error {
+        stream, err := ws.OpenStream()
+        if err != nil {
+            return err
+        }
         defer stream.Close()
         for {
             typ, data, err := stream.Read(stream.Context())

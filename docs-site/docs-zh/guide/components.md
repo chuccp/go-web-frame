@@ -1,6 +1,8 @@
 # 组件
 
-组件是框架中独立的功能模块，实现 `core.IService` 接口，通过 `Service()` 注册，可以注册到应用中供其他组件使用。
+组件是框架中独立的功能模块，实现 `core.IService` 接口，通过 `Service()` 或 `Filter()` 注册。
+
+> **v1.0.14 起**，`component/` 下所有组件均为独立的 Go 模块，各自拥有 `go.mod` 和版本标签。使用前需单独 `go get` 安装对应的组件包。
 
 ## 创建组件
 
@@ -202,13 +204,19 @@ func (r *MyRunner) Init(c *core.Context) error {
 
 ### 其他组件
 
-| 组件 | 包路径 | 说明 |
-|------|--------|------|
-| 内存缓存 | `component/cache` | 基于 Otter 的高性能内存缓存，支持过期时间 |
-| 本地缓存 | `component/localcache` | 基于文件的本地缓存，支持 Base64 文件存储 |
-| 验证码 | `component/captcha` | 滑块验证码生成和验证 |
-| 输入验证 | `component/validator` | 基于 go-playground/validator 的输入验证 |
-| CORS | `component/cors` | 跨域资源共享过滤器 |
+以下组件均为独立的 Go 模块（v1.0.14 起），需单独安装：
+
+| 组件 | 包路径 | 角色 | 安装 |
+|------|--------|------|------|
+| 认证 | `component/auth` | Filter | `go get .../component/auth@v1.0.14` |
+| 内存缓存 | `component/cache` | Service | `go get .../component/cache@v1.0.14` |
+| 验证码 | `component/captcha` | Service | `go get .../component/captcha@v1.0.14` |
+| CORS | `component/cors` | Filter | `go get .../component/cors@v1.0.14` |
+| 本地缓存 | `component/localcache` | Service | `go get .../component/localcache@v1.0.14` |
+| 二维码 | `component/qrcode` | 工具包 | `go get .../component/qrcode@v1.0.14` |
+| 限流 | `component/ratelimit` | Service | `go get .../component/ratelimit@v1.0.14` |
+| 定时任务 | `component/schedule` | Runner | `go get .../component/schedule@v1.0.14` |
+| 输入验证 | `component/validator` | Service | `go get .../component/validator@v1.0.14` |
 
 ### 内存缓存组件（cache）
 

@@ -22,7 +22,7 @@ All notable changes to this project are documented here.
 - **Unsynchronized fast path in `getConn`**: Removed the unsynchronized fast path that could cause concurrent read/write races on WebSocket connections.
 - **Empty slice initialization in `AcceptOptions`**: Slice fields in `AcceptOptions` are now properly initialized to empty slices instead of nil.
 - **GORM Model on Joins**: The GORM `Model()` clause is now set when `Joins` are used, not just `Preloads`, fixing association resolution in join queries.
-- **`Query.One()` error handling**: When no record is found, `Query.One()` now returns a nil error instead of wrapping `gorm.ErrRecordNotFound`, allowing callers to check the sentinel error directly with `errors.Is()`.
+- **`Query.One()` error handling**: When no record is found, `Query.One()` now returns a zero value and nil error instead of wrapping `gorm.ErrRecordNotFound`. Callers should check the return value for zero/nil to determine if a record exists.
 
 ## [1.0.12] - 2026-07-15
 

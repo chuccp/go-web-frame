@@ -1,6 +1,8 @@
 # Components
 
-Components are independent functional modules in the framework. They implement the `core.IService` interface, are registered via `Service()`, and can be used by other components.
+Components are independent functional modules in the framework. They implement the `core.IService` interface and are registered via `Service()` or `Filter()`.
+
+> **Since v1.0.14**, all packages under `component/` are independent Go modules with their own `go.mod` and version tags. You need to `go get` the specific component package before using it.
 
 ## Creating a Component
 
@@ -188,13 +190,19 @@ See the [Runner documentation](runner.md) for usage examples.
 
 ### Other Components
 
-| Component | Package | Description |
-|-----------|---------|-------------|
-| In-memory Cache | `component/cache` | High-performance cache based on Otter, supports TTL |
-| Local Cache | `component/localcache` | File-based local cache, supports Base64 file storage |
-| Captcha | `component/captcha` | Slider captcha generation and verification |
-| Input Validation | `component/validator` | Input validation based on go-playground/validator |
-| CORS | `component/cors` | Cross-origin resource sharing filter |
+All components below are independent Go modules (since v1.0.14) and must be installed separately:
+
+| Component | Package | Role | Install |
+|-----------|---------|------|---------|
+| Auth | `component/auth` | Filter | `go get .../component/auth@v1.0.14` |
+| In-memory Cache | `component/cache` | Service | `go get .../component/cache@v1.0.14` |
+| Captcha | `component/captcha` | Service | `go get .../component/captcha@v1.0.14` |
+| CORS | `component/cors` | Filter | `go get .../component/cors@v1.0.14` |
+| Local Cache | `component/localcache` | Service | `go get .../component/localcache@v1.0.14` |
+| QR Code | `component/qrcode` | Utility | `go get .../component/qrcode@v1.0.14` |
+| Rate Limit | `component/ratelimit` | Service | `go get .../component/ratelimit@v1.0.14` |
+| Schedule | `component/schedule` | Runner | `go get .../component/schedule@v1.0.14` |
+| Validator | `component/validator` | Service | `go get .../component/validator@v1.0.14` |
 
 ### In-Memory Cache (cache)
 

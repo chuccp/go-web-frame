@@ -164,6 +164,68 @@ web:
     conn_max_lifetime: 3600  # seconds
 ```
 
+## Associations (Preload & Joins)
+
+Both `Preload` and `Joins` automatically set the GORM `Model()` clause to ensure associations resolve correctly (v1.0.14 fix for Joins):
+
+```go
+// Preload (eager loading)
+user, err := userModel.Query().
+    Preload("Profile").
+    Preload("Roles").
+    Where("id = ?", 1).
+    One()
+
+// Joins (association name resolved by GORM)
+users, err := userModel.Query().
+    Joins("Profile").
+    Where("status = ?", 1).
+    All()
+
+// Raw JOIN
+users, err := userModel.Query().
+    Joins("JOIN orders ON orders.user_id = t_user.id").
+    Where("t_user.status = ?", 1).
+    All()
+```
+
+> **Not-found handling**: `Query.One()` returns a zero value and `nil` error when no record is found (not `gorm.ErrRecordNotFound`). Check the return value to determine if a record exists. To use `errors.Is(err, gorm.ErrRecordNotFound)`, use raw GORM via `db.GetGorm()`.
+
+## Aggregate Queries
+
+Use `Aggregate()` for SUM, COUNT, AVG, GROUP BY, HAVING, DISTINCT:
+
+```go
+// Scalar aggregate
+var total float64
+err := orderModel.Aggregate().
+    Select("SUM(amount)").
+    Where("status = ?", 1).
+    Aggregate(&total)
+
+// Grouped aggregate
+type CategoryStat struct {
+    Category string  `json:"category"`
+    Total    float64 `json:"total"`
+    Count    int     `json:"count"`
+}
+var stats []CategoryStat
+err := orderModel.Aggregate().
+    Select("category, SUM(amount) as total, COUNT(*) as count").
+    Group("category").
+    Having("SUM(amount) > ?", 200).
+    Order("total desc").
+    Aggregate(&stats)
+
+// DISTINCT
+var cnt int
+err := orderModel.Aggregate().
+    Select("COUNT(DISTINCT category)").
+    Aggregate(&cnt)
+```
+
+> `Aggregate(result)` auto-detects the result type: scalar pointers (e.g. `*float64`) get `LIMIT 1`; slice pointers (e.g. `*[]Stat`) return all rows.
+
 ## Raw SQL
 
 ```go
@@ -171,10 +233,6 @@ web:
 users, err := userModel.Query().
     Where("status = ?", 1).
     Exec("SELECT * FROM t_user WHERE status = ?", 1)
-
-// Raw SQL pagination
-users, total, err := userModel.Query().
-    Where("status = ?", 1).
-    Order("id desc").
-    ExecPage(page, "SELECT * FROM t_user WHERE status = ?", 1)
 ```
+
+> **Deprecated**: `ExecPage()` is deprecated. Use `Page()` or `PageForWeb()` for pagination instead.

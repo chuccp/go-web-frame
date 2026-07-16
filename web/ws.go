@@ -60,6 +60,38 @@ func WithOriginPatterns(OriginPatterns []string) AcceptOptions {
 	return func(c *acceptOptions) { c.OriginPatterns = OriginPatterns }
 }
 
+// WithSubprotocols sets the WebSocket subprotocols to negotiate during Accept.
+func WithSubprotocols(subprotocols ...string) AcceptOptions {
+	return func(c *acceptOptions) { c.Subprotocols = subprotocols }
+}
+
+// WithInsecureSkipVerify disables origin verification during WebSocket Accept.
+func WithInsecureSkipVerify(skip bool) AcceptOptions {
+	return func(c *acceptOptions) { c.InsecureSkipVerify = skip }
+}
+
+// WithCompressionMode sets the WebSocket compression mode.
+// Use CompressionDisabled, CompressionNoContextTakeover, or CompressionContextTakeover.
+func WithCompressionMode(mode int) AcceptOptions {
+	return func(c *acceptOptions) { c.CompressionMode = mode }
+}
+
+// WithCompressionThreshold sets the minimum message size before compression is applied.
+func WithCompressionThreshold(threshold int) AcceptOptions {
+	return func(c *acceptOptions) { c.CompressionThreshold = threshold }
+}
+
+// WithOnPingReceived sets a callback invoked when a ping frame is received.
+// Return false to suppress the automatic pong response.
+func WithOnPingReceived(fn func(ctx context.Context, payload []byte) bool) AcceptOptions {
+	return func(c *acceptOptions) { c.OnPingReceived = fn }
+}
+
+// WithOnPongReceived sets a callback invoked when a pong frame is received.
+func WithOnPongReceived(fn func(ctx context.Context, payload []byte)) AcceptOptions {
+	return func(c *acceptOptions) { c.OnPongReceived = fn }
+}
+
 type WebSocket struct {
 	request *Request
 	stream  *WebSocketStream

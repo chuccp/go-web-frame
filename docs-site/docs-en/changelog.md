@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-## [1.0.13] - 2026-07-16
+## [1.0.14] - 2026-07-16
 
 ### Added
 - **WebSocket Accept option functions**: Added option functions for all fields in `AcceptOptions`, allowing fluent configuration of WebSocket accept behavior (e.g., `SetInsecureSkipVerify`, `SetOriginPatterns`, `SetCompressionMode`).
@@ -13,6 +13,7 @@ All notable changes to this project are documented here.
 ### Refactored
 - **WebSocket lazy initialization**: WebSocket connections are now lazily initialized on first read/write using `sync.Once`, preventing unnecessary resource allocation and fixing connection handoff in `OpenStream`.
 - **WebSocket wrapper**: Introduced `WebSocketStream` wrapper around WebSocket connections with proper connection lifecycle management and thread-safe initialization.
+- **Component independent modules**: All packages under `component/` are now independent Go modules with their own `go.mod` and version tags — `auth`, `cache`, `captcha`, `cors`, `localcache`, `qrcode`, `ratelimit`, `schedule`, `validator` each have `component/<name>/v1.0.14` tags.
 
 ### Fixed
 - **Nil pointer in `AddHandles`**: Added nil check to prevent panic when route handles are missing.
@@ -119,6 +120,7 @@ All notable changes to this project are documented here.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.0.14 | 2026-07-16 | WebSocket AcceptOptions, lazy init, data race fixes, component modules |
 | 1.0.13 | 2026-07-16 | WebSocket AcceptOptions, lazy init, data race fixes, Query.One() fix |
 | 1.0.12 | 2026-07-15 | ExistsFile, Model/Preload associations, core refactor, DefaultPage |
 | 1.0.11 | 2026-07-11 | Self-signed certs, GetHandler for testing, TLS error resilience |

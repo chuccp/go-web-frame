@@ -4,7 +4,7 @@
 
 ## [未发布]
 
-## [1.0.13] - 2026-07-16
+## [1.0.14] - 2026-07-16
 
 ### 新增
 - **WebSocket Accept 选项函数**：为 `AcceptOptions` 的所有字段添加了选项函数，支持流式配置 WebSocket 接受行为（如 `SetInsecureSkipVerify`、`SetOriginPatterns`、`SetCompressionMode`）。
@@ -13,6 +13,7 @@
 ### 重构
 - **WebSocket 延迟初始化**：WebSocket 连接现在通过 `sync.Once` 在首次读写时延迟初始化，避免不必要的资源分配，并修复了 `OpenStream` 中的连接切换问题。
 - **WebSocket 包装器**：引入 `WebSocketStream` 包装器，封装 WebSocket 连接，提供适当的连接生命周期管理和线程安全初始化。
+- **组件独立模块**：`component/` 下所有包现均为独立的 Go 模块，各自拥有 `go.mod` 和版本标签 — `auth`、`cache`、`captcha`、`cors`、`localcache`、`qrcode`、`ratelimit`、`schedule`、`validator` 均有 `component/<name>/v1.0.14` 标签。
 
 ### 修复
 - **`AddHandles` 空指针**：添加 nil 检查，防止路由处理器缺失时发生 panic。
@@ -119,6 +120,7 @@
 
 | 版本 | 发布日期 | 主要变更 |
 |------|----------|----------|
+| 1.0.14 | 2026-07-16 | WebSocket AcceptOptions、延迟初始化、数据竞争修复、组件独立模块 |
 | 1.0.13 | 2026-07-16 | WebSocket AcceptOptions、延迟初始化、数据竞争修复、Query.One() 修复 |
 | 1.0.12 | 2026-07-15 | ExistsFile、Model/Preload 关联、核心重构、DefaultPage |
 | 1.0.11 | 2026-07-11 | 自签证书、GetHandler 测试支持、TLS 容错 |

@@ -184,6 +184,51 @@ curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
 
 ---
 
+## 路由級元資料（WithMeta）
+
+在路由上宣告，Filter 統一處理——不用在每個 handler 裡寫認證邏輯：
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    // 公開介面
+    ctx.Get("/api/login", login).WithMeta(SkipAuth())
+
+    // 需要登入
+    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
+
+    // 需要登入 + 特定權限
+    ctx.Post("/api/admin/users", createUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+```go
+// 定義元資料工廠
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+```
+
+```go
+// 一個 Filter 處理所有認證邏輯
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()
+    }
+
+    token := req.Request().Header.Get("Authorization")
+    if token == "" {
+        return nil, errors.New("未登入")
+    }
+
+    // 驗證 token，檢查權限...
+    return fc.Next()
+}
+```
+
+---
+
 ## 操作資料庫
 
 ### Model 分兩級，按需選擇
@@ -372,49 +417,6 @@ builder.ModelGroup(analyticsGroup)
 ---
 
 ## 認證和中間件
-
-### 路由級元資料（WithMeta）
-
-在路由上宣告，Filter 統一處理——不用在每個 handler 裡寫認證邏輯：
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // 公開介面
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // 需要登入
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // 需要登入 + 特定權限
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// 定義元資料工廠
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// 一個 Filter 處理所有認證邏輯
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("未登入")
-    }
-
-    // 驗證 token，檢查權限...
-    return fc.Next()
-}
-```
 
 ### 全域 Filter
 

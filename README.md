@@ -184,6 +184,51 @@ The table is auto-created. All CRUD works. No SQL written, no ORM wiring code ne
 
 ---
 
+## Per-Route Metadata (WithMeta)
+
+Tag routes declaratively — the filter checks once, not in every handler:
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    // Public
+    ctx.Get("/api/login", login).WithMeta(SkipAuth())
+
+    // Requires login
+    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
+
+    // Requires login + specific permission
+    ctx.Post("/api/admin/users", createUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+```go
+// Define metadata factories
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+```
+
+```go
+// One filter handles all auth logic
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()
+    }
+
+    token := req.Request().Header.Get("Authorization")
+    if token == "" {
+        return nil, errors.New("unauthorized")
+    }
+
+    // Verify token, check permission from meta...
+    return fc.Next()
+}
+```
+
+---
+
 ## Working with Data
 
 ### Model Tier
@@ -372,49 +417,6 @@ builder.ModelGroup(analyticsGroup)
 ---
 
 ## Auth and Middleware
-
-### Per-Route Metadata (WithMeta)
-
-Tag routes declaratively — the filter checks once, not in every handler:
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // Public
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // Requires login
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // Requires login + specific permission
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// Define metadata factories
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// One filter handles all auth logic
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("unauthorized")
-    }
-
-    // Verify token, check permission from meta...
-    return fc.Next()
-}
-```
 
 ### Global Filters
 

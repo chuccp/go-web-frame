@@ -184,6 +184,51 @@ curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
 
 ---
 
+## ルート単位メタデータ（WithMeta）
+
+ルートで宣言し、Filter で一括処理——各ハンドラに認証ロジックを書く必要なし：
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    // 公開
+    ctx.Get("/api/login", login).WithMeta(SkipAuth())
+
+    // 要ログイン
+    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
+
+    // 要ログイン + 権限
+    ctx.Post("/api/admin/users", createUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+```go
+// メタデータファクトリ
+func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
+```
+
+```go
+// 一つの Filter ですべての認証ロジックを処理
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()
+    }
+
+    token := req.Request().Header.Get("Authorization")
+    if token == "" {
+        return nil, errors.New("認証が必要です")
+    }
+
+    // トークン検証、権限チェック...
+    return fc.Next()
+}
+```
+
+---
+
 ## データ操作
 
 ### Model の 2 階層
@@ -372,49 +417,6 @@ builder.ModelGroup(analyticsGroup)
 ---
 
 ## 認証とミドルウェア
-
-### ルート単位メタデータ（WithMeta）
-
-ルートで宣言し、Filter で一括処理——各ハンドラに認証ロジックを書く必要なし：
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // 公開
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // 要ログイン
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // 要ログイン + 権限
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// メタデータファクトリ
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// 一つの Filter ですべての認証ロジックを処理
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("認証が必要です")
-    }
-
-    // トークン検証、権限チェック...
-    return fc.Next()
-}
-```
 
 ### グローバル Filter
 

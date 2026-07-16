@@ -114,9 +114,9 @@ func (c *DefaultConverter) SSEResponse(request *Request, value *SSEResponse) {
 // WSResponse accepts a WebSocket upgrade and invokes the handler.
 func (c *DefaultConverter) WSResponse(request *Request, value *WSResponse) {
 
-	stream := newWebSocketStream(request)
-	defer stream.Close()
-	if err := value.Handler(stream); err != nil {
+	ws := newWebSocket(request)
+	defer ws.Close()
+	if err := value.Handler(ws); err != nil {
 		log.Debug("converter: WebSocket handler error", zap.Error(err))
 	}
 }

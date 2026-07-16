@@ -19,12 +19,16 @@ type WebSocketController struct {
 
 func (c *WebSocketController) Init(ctx *core.Context) error {
 	// WebSocket endpoint - echo server
-	ctx.WebSocket("/ws", func(ws *web.WebSocketStream) error {
+	ctx.WebSocket("/ws", func(webSocket *web.WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 		log.Info("WebSocket client connected")
 		defer log.Info("WebSocket client disconnected")
 
 		for {
-			typ, message, err := ws.Read(ws.Context())
+			typ, message, err := stream.Read(stream.Context())
 			if err != nil {
 				return err
 			}
@@ -32,7 +36,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 			log.Info("WebSocket received", zap.String("message", string(message)))
 
 			// Echo back
-			err = ws.Write(ws.Context(), typ, message)
+			err = stream.Write(stream.Context(), typ, message)
 			if err != nil {
 				return err
 			}
@@ -40,7 +44,11 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 	})
 
 	// WebSocket endpoint with custom settings
-	ctx.WebSocket("/ws/chat", func(ws *web.WebSocketStream) error {
+	ctx.WebSocket("/ws/chat", func(webSocket *web.WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
@@ -50,7 +58,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 		go func() {
 			defer close(done)
 			for {
-				_, message, err := ws.Read(ws.Context())
+				_, message, err := stream.Read(stream.Context())
 				if err != nil {
 					return
 				}
@@ -65,7 +73,7 @@ func (c *WebSocketController) Init(ctx *core.Context) error {
 			case <-done:
 				return nil
 			case <-ticker.C:
-				if err := ws.Ping(ws.Context()); err != nil {
+				if err := stream.Ping(stream.Context()); err != nil {
 					return err
 				}
 			}

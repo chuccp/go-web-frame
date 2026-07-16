@@ -12,7 +12,7 @@ import (
 )
 
 // WebSocketHandler is the function signature for WebSocket stream handlers.
-type WebSocketHandler func(stream *WebSocketStream) error
+type WebSocketHandler func(webSocket *WebSocket) error
 
 // WSResponse is a handler return value that signals the converter
 // to accept the WebSocket upgrade and invoke the handler.
@@ -20,7 +20,7 @@ type WSResponse struct {
 	Handler WebSocketHandler
 }
 
-type AcceptOptions struct {
+type acceptOptions struct {
 	// Subprotocols lists the WebSocket subprotocols that Accept will negotiate
 	// with the client. The empty subprotocol will always be negotiated as per
 	// RFC 6455. If you would like to reject it, close the connection when
@@ -54,15 +54,54 @@ type AcceptOptions struct {
 	OnPongReceived func(ctx context.Context, payload []byte)
 }
 
-// WebSocketStream wraps a coder/websocket connection with web2 Request and context.
+type AcceptOptions func(*acceptOptions)
+
+func WithOriginPatterns(OriginPatterns []string) AcceptOptions {
+	return func(c *acceptOptions) { c.OriginPatterns = OriginPatterns }
+}
+
+type WebSocket struct {
+	request *Request
+	stream  *WebSocketStream
+}
+
+func newWebSocket(r *Request) *WebSocket {
+	return &WebSocket{
+		request: r,
+		stream:  newWebSocketStream(r),
+	}
+}
+
+// OpenStream accepts the WebSocket connection with the given options
+// and returns the ready-to-use stream. Must be called before any Read/Write.
+func (webSocket *WebSocket) OpenStream(opts ...AcceptOptions) (*WebSocketStream, error) {
+	for _, opt := range opts {
+		opt(&webSocket.stream.options)
+	}
+	if err := webSocket.stream.initConnection(); err != nil {
+		return nil, err
+	}
+	return webSocket.stream, nil
+}
+
+// Request returns the original HTTP request that initiated the WebSocket upgrade.
+func (webSocket *WebSocket) Request() *Request {
+	return webSocket.request
+}
+
+func (webSocket *WebSocket) Close() {
+	webSocket.stream.Close()
+}
+
+// WebSocketStream wraps a coder/websocket connection with Request and context.
 type WebSocketStream struct {
-	cancel        context.CancelFunc
-	request       *Request
-	ctx           context.Context
-	conn          *websocket.Conn
-	initErr       error
-	AcceptOptions *AcceptOptions
-	once          sync.Once
+	cancel  context.CancelFunc
+	request *Request
+	ctx     context.Context
+	conn    *websocket.Conn
+	initErr error
+	options acceptOptions
+	once    sync.Once
 }
 
 func newWebSocketStream(r *Request) *WebSocketStream {
@@ -71,7 +110,7 @@ func newWebSocketStream(r *Request) *WebSocketStream {
 		request: r,
 		ctx:     ctx,
 		cancel:  cancel,
-		AcceptOptions: &AcceptOptions{
+		options: acceptOptions{
 			OriginPatterns: []string{},
 			Subprotocols:   []string{},
 		},
@@ -80,16 +119,16 @@ func newWebSocketStream(r *Request) *WebSocketStream {
 
 func (ws *WebSocketStream) initConnection() error {
 	ws.once.Do(func() {
-		acceptOptions := &websocket.AcceptOptions{
-			Subprotocols:         ws.AcceptOptions.Subprotocols,
-			InsecureSkipVerify:   ws.AcceptOptions.InsecureSkipVerify,
-			OriginPatterns:       ws.AcceptOptions.OriginPatterns,
-			CompressionMode:      websocket.CompressionMode(ws.AcceptOptions.CompressionMode),
-			CompressionThreshold: ws.AcceptOptions.CompressionThreshold,
-			OnPingReceived:       ws.AcceptOptions.OnPingReceived,
-			OnPongReceived:       ws.AcceptOptions.OnPongReceived,
+		o := &websocket.AcceptOptions{
+			Subprotocols:         ws.options.Subprotocols,
+			InsecureSkipVerify:   ws.options.InsecureSkipVerify,
+			OriginPatterns:       ws.options.OriginPatterns,
+			CompressionMode:      websocket.CompressionMode(ws.options.CompressionMode),
+			CompressionThreshold: ws.options.CompressionThreshold,
+			OnPingReceived:       ws.options.OnPingReceived,
+			OnPongReceived:       ws.options.OnPongReceived,
 		}
-		conn, err := websocket.Accept(ws.request.response, ws.request.Request(), acceptOptions)
+		conn, err := websocket.Accept(ws.request.response, ws.request.Request(), o)
 		if err != nil {
 			log.Debug("converter: WebSocket accept error", zap.Error(err))
 			if abortErr := ws.request.response.AbortWithError(err); abortErr != nil {
@@ -100,10 +139,7 @@ func (ws *WebSocketStream) initConnection() error {
 		}
 		ws.conn = conn
 	})
-	if ws.initErr != nil {
-		return ws.initErr
-	}
-	return nil
+	return ws.initErr
 }
 
 // Request returns the underlying web2 Request.

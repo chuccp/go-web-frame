@@ -249,7 +249,11 @@ func TestSSE_SetHeader(t *testing.T) {
 
 func TestWebSocket_Echo(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			for {
 				typ, data, err := stream.Read(stream.Context())
 				if err != nil {
@@ -289,7 +293,11 @@ func TestWebSocket_Echo(t *testing.T) {
 
 func TestWebSocket_Binary(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			for {
 				typ, data, err := stream.Read(stream.Context())
 				if err != nil {
@@ -332,7 +340,11 @@ func TestWebSocket_Binary(t *testing.T) {
 
 func TestWebSocket_Ping(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer stream.Close()
 			return stream.Ping(stream.Context())
 		})
@@ -354,7 +366,11 @@ func TestWebSocket_Ping(t *testing.T) {
 
 func TestWebSocket_WriteString(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer stream.Close()
 			return stream.WriteString(stream.Context(), "string-reply")
 		})
@@ -389,7 +405,11 @@ func TestWebSocket_WriteString(t *testing.T) {
 func TestWebSocket_ContextDone(t *testing.T) {
 	handlerDone := make(chan struct{})
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer close(handlerDone)
 			for {
 				_, _, err := stream.Read(stream.Context())
@@ -423,7 +443,11 @@ func TestWebSocket_ContextDone(t *testing.T) {
 
 func TestWebSocket_ReadText(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer stream.Close()
 			data, err := stream.ReadText(stream.Context())
 			if err != nil {
@@ -458,7 +482,11 @@ func TestWebSocket_ReadText(t *testing.T) {
 
 func TestWebSocket_TextAndBinary(t *testing.T) {
 	ts := newTestServer(t, func(server *Server) {
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer stream.Close()
 			for {
 				typ, data, err := stream.Read(stream.Context())
@@ -675,7 +703,11 @@ func TestCombined_SSEAndWS(t *testing.T) {
 			defer stream.Close()
 			return stream.Send("sse", "from-sse")
 		})
-		server.AddWebSocket("/ws", func(stream *WebSocketStream) error {
+		server.AddWebSocket("/ws", func(webSocket *WebSocket) error {
+			stream, err := webSocket.OpenStream()
+			if err != nil {
+				return err
+			}
 			defer stream.Close()
 			return stream.WriteString(stream.Context(), "from-ws")
 		})

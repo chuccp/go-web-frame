@@ -38,8 +38,8 @@ func TestCORS_Init(t *testing.T) {
 	assert.NotNil(t, f.handlerFunc)
 }
 
-func TestCORS_NewCrosFilter(t *testing.T) {
-	f := NewCrosFilter()
+func TestCORS_NewCorsFilter(t *testing.T) {
+	f := NewCorsFilter()
 	assert.NotNil(t, f)
 }
 

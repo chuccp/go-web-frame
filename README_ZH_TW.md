@@ -932,7 +932,7 @@ user, err := authFilter.User(req)
 import "github.com/chuccp/go-web-frame/component/cors"
 
 // 註冊 — 自動處理 OPTIONS 預檢請求
-builder.Filter(cors.NewCrosFilter())
+builder.Filter(cors.NewCorsFilter())
 ```
 
 預設策略：允許所有來源、支援憑證、允許 `Origin`/`Content-Length`/`Content-Type`/`Authorization` 請求標頭。

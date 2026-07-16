@@ -933,7 +933,7 @@ user, err := authFilter.User(req)
 import "github.com/chuccp/go-web-frame/component/cors"
 
 // Register — handles OPTIONS preflight automatically
-builder.Filter(cors.NewCrosFilter())
+builder.Filter(cors.NewCorsFilter())
 ```
 
 Default policy: allows all origins, supports credentials, allows `Origin`/`Content-Length`/`Content-Type`/`Authorization` headers.

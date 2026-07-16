@@ -14,7 +14,7 @@ type Filter struct {
 	handlerFunc gin.HandlerFunc
 }
 
-func (s *Filter) crosHandlerFunc() gin.HandlerFunc {
+func (s *Filter) corsHandlerFunc() gin.HandlerFunc {
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = false
 	config.AllowCredentials = true
@@ -25,12 +25,12 @@ func (s *Filter) crosHandlerFunc() gin.HandlerFunc {
 	return cors.New(config)
 }
 func (s *Filter) Init(ctx *core.Context) error {
-	s.handlerFunc = s.crosHandlerFunc()
+	s.handlerFunc = s.corsHandlerFunc()
 	return nil
 }
 func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any, error) {
 	if s.handlerFunc == nil {
-		s.handlerFunc = s.crosHandlerFunc()
+		s.handlerFunc = s.corsHandlerFunc()
 	}
 	if request.Request().Method == http.MethodOptions {
 		s.handlerFunc(request.GinContext())
@@ -41,7 +41,12 @@ func (s *Filter) Handle(filterChain web.FilterChain, request *web.Request) (any,
 
 }
 
-// NewCrosFilter creates a new CORS filter with permissive defaults.
-func NewCrosFilter() *Filter {
+// NewCorsFilter creates a new CORS filter with permissive defaults.
+func NewCorsFilter() *Filter {
 	return &Filter{}
 }
+
+// NewCrosFilter is deprecated. Use NewCorsFilter instead.
+//
+// Deprecated: Renamed to NewCorsFilter for correct spelling. Will be removed in a future version.
+var NewCrosFilter = NewCorsFilter

@@ -407,7 +407,7 @@ Cross-origin resource sharing filter based on [gin-contrib/cors](https://github.
 import "github.com/chuccp/go-web-frame/component/cors"
 
 // Register CORS filter
-builder.Filter(cors.NewCrosFilter())
+builder.Filter(cors.NewCorsFilter())
 ```
 
 Default policy:

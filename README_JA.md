@@ -933,7 +933,7 @@ user, err := authFilter.User(req)
 import "github.com/chuccp/go-web-frame/component/cors"
 
 // 登録 — OPTIONS プリフライトを自動処理
-builder.Filter(cors.NewCrosFilter())
+builder.Filter(cors.NewCorsFilter())
 ```
 
 デフォルトポリシー：全オリジン許可、クレデンシャル対応、`Origin`/`Content-Length`/`Content-Type`/`Authorization` ヘッダーを許可。

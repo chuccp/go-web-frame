@@ -428,7 +428,7 @@ builder.Service(&validator.Validator{})
 import "github.com/chuccp/go-web-frame/component/cors"
 
 // 注册 CORS 过滤器
-builder.Filter(cors.NewCrosFilter())
+builder.Filter(cors.NewCorsFilter())
 ```
 
 默认策略：

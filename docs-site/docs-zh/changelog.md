@@ -4,6 +4,9 @@
 
 ## [未发布]
 
+### 变更
+- **CORS 拼写修正**：`NewCrosFilter` 重命名为 `NewCorsFilter`，`crosHandlerFunc` 重命名为 `corsHandlerFunc`。旧名称保留为 deprecated 别名，将在未来版本移除。
+
 ## [1.0.14] - 2026-07-16
 
 ### 新增

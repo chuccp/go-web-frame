@@ -4,6 +4,25 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-07-16
+
+### Added
+- **WebSocket Accept option functions**: Added option functions for all fields in `AcceptOptions`, allowing fluent configuration of WebSocket accept behavior (e.g., `SetInsecureSkipVerify`, `SetOriginPatterns`, `SetCompressionMode`).
+- **WebSocket `AcceptOptions` field parity**: All fields from the underlying `websocket.AcceptOptions` are now mirrored in the framework's `AcceptOptions` struct for complete configuration support.
+
+### Refactored
+- **WebSocket lazy initialization**: WebSocket connections are now lazily initialized on first read/write using `sync.Once`, preventing unnecessary resource allocation and fixing connection handoff in `OpenStream`.
+- **WebSocket wrapper**: Introduced `WebSocketStream` wrapper around WebSocket connections with proper connection lifecycle management and thread-safe initialization.
+
+### Fixed
+- **Nil pointer in `AddHandles`**: Added nil check to prevent panic when route handles are missing.
+- **WebSocket data race and context leak**: Fixed a race condition in lazy connection initialization and a context leak from uncanceled background goroutines.
+- **WebSocket retry loop**: Stopped infinite retrying after the first `Accept` failure — now returns the error immediately.
+- **Unsynchronized fast path in `getConn`**: Removed the unsynchronized fast path that could cause concurrent read/write races on WebSocket connections.
+- **Empty slice initialization in `AcceptOptions`**: Slice fields in `AcceptOptions` are now properly initialized to empty slices instead of nil.
+- **GORM Model on Joins**: The GORM `Model()` clause is now set when `Joins` are used, not just `Preloads`, fixing association resolution in join queries.
+- **`Query.One()` error handling**: When no record is found, `Query.One()` now returns a nil error instead of wrapping `gorm.ErrRecordNotFound`, allowing callers to check the sentinel error directly with `errors.Is()`.
+
 ## [1.0.12] - 2026-07-15
 
 ### Added
@@ -100,6 +119,7 @@ All notable changes to this project are documented here.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.0.13 | 2026-07-16 | WebSocket AcceptOptions, lazy init, data race fixes, Query.One() fix |
 | 1.0.12 | 2026-07-15 | ExistsFile, Model/Preload associations, core refactor, DefaultPage |
 | 1.0.11 | 2026-07-11 | Self-signed certs, GetHandler for testing, TLS error resilience |
 | 1.0.0 | 2026-04-07 | Initial release with core features |

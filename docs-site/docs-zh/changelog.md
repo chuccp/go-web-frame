@@ -4,6 +4,25 @@
 
 ## [未发布]
 
+## [1.0.13] - 2026-07-16
+
+### 新增
+- **WebSocket Accept 选项函数**：为 `AcceptOptions` 的所有字段添加了选项函数，支持流式配置 WebSocket 接受行为（如 `SetInsecureSkipVerify`、`SetOriginPatterns`、`SetCompressionMode`）。
+- **WebSocket `AcceptOptions` 字段对齐**：底层 `websocket.AcceptOptions` 的所有字段现在已完整映射到框架的 `AcceptOptions` 结构体，提供完整的配置支持。
+
+### 重构
+- **WebSocket 延迟初始化**：WebSocket 连接现在通过 `sync.Once` 在首次读写时延迟初始化，避免不必要的资源分配，并修复了 `OpenStream` 中的连接切换问题。
+- **WebSocket 包装器**：引入 `WebSocketStream` 包装器，封装 WebSocket 连接，提供适当的连接生命周期管理和线程安全初始化。
+
+### 修复
+- **`AddHandles` 空指针**：添加 nil 检查，防止路由处理器缺失时发生 panic。
+- **WebSocket 数据竞争和上下文泄漏**：修复延迟连接初始化中的竞争条件，以及未取消的后台 goroutine 导致的上下文泄漏。
+- **WebSocket 重试循环**：首次 `Accept` 失败后停止无限重试，立即返回错误。
+- **`getConn` 非同步快速路径**：移除可能导致 WebSocket 连接并发读写竞争的非同步快速路径。
+- **`AcceptOptions` 切片初始化**：`AcceptOptions` 中的切片字段现在正确初始化为空切片（而非 nil）。
+- **GORM Model 与 Joins**：使用 `Joins` 时现在也会设置 GORM 的 `Model()` 子句，而不仅限于 `Preloads`，修复了 join 查询中的关联解析问题。
+- **`Query.One()` 错误处理**：未找到记录时 `Query.One()` 现在返回 nil 错误而非包装过的 `gorm.ErrRecordNotFound`，调用方可直接用 `errors.Is()` 判断哨兵错误。
+
 ## [1.0.12] - 2026-07-15
 
 ### 新增
@@ -100,6 +119,7 @@
 
 | 版本 | 发布日期 | 主要变更 |
 |------|----------|----------|
+| 1.0.13 | 2026-07-16 | WebSocket AcceptOptions、延迟初始化、数据竞争修复、Query.One() 修复 |
 | 1.0.12 | 2026-07-15 | ExistsFile、Model/Preload 关联、核心重构、DefaultPage |
 | 1.0.11 | 2026-07-11 | 自签证书、GetHandler 测试支持、TLS 容错 |
 | 1.0.0 | 2026-04-07 | 初始版本 |

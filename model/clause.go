@@ -36,7 +36,7 @@ func (q *Query[T]) buildTxWith(d *db.DB) (*db.Table, error) {
 	}
 	tx := d.Table(q.tableName)
 	// Set model so GORM can resolve Preload associations (Count without model errors).
-	if len(q.preloads) > 0 {
+	if len(q.preloads) > 0 || len(q.joins) > 0 {
 		tx = tx.Model(q.entry)
 	}
 	for _, w := range q.wheres {

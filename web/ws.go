@@ -56,7 +56,7 @@ type acceptOptions struct {
 
 type AcceptOptions func(*acceptOptions)
 
-func WithOriginPatterns(OriginPatterns []string) AcceptOptions {
+func WithOriginPatterns(OriginPatterns ...string) AcceptOptions {
 	return func(c *acceptOptions) { c.OriginPatterns = OriginPatterns }
 }
 

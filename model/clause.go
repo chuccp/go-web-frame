@@ -177,7 +177,7 @@ func (q *Query[T]) One() (T, error) {
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		var t T
-		return t, errors.WithStackIf(err)
+		return t, nil
 	}
 	return t, errors.WithStackIf(err)
 }

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"emperror.dev/errors"
-	config2 "github.com/chuccp/go-web-frame/config"
+	"github.com/chuccp/go-web-frame/config"
 	"github.com/chuccp/go-web-frame/core"
 	db2 "github.com/chuccp/go-web-frame/db"
 	"github.com/chuccp/go-web-frame/log"
@@ -59,7 +59,7 @@ func (receiver *DefaultRest) Init(ctx *core.Context) error {
 type WebFrame struct {
 	restGroups []*core.RestGroup
 	modelGroup []core.IModelGroup
-	config     config2.IConfig
+	config     config.IConfig
 	models     []core.IModel
 	services   []core.IService
 	rests      []core.IRest
@@ -195,7 +195,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 type Builder struct {
 	restGroups []*core.RestGroup
 	modelGroup []core.IModelGroup
-	config     config2.IConfig
+	config     config.IConfig
 	models     []core.IModel
 	services   []core.IService
 	rests      []core.IRest
@@ -205,7 +205,7 @@ type Builder struct {
 }
 
 // NewBuilder creates a new Builder with the given configuration for constructing a WebFrame.
-func NewBuilder(config config2.IConfig) *Builder {
+func NewBuilder(configs ...config.IConfig) *Builder {
 
 	builder := &Builder{
 		models:     make([]core.IModel, 0),
@@ -216,7 +216,7 @@ func NewBuilder(config config2.IConfig) *Builder {
 		runners:    make([]core.IRunner, 0),
 		filters:    make([]core.IFilter, 0),
 		handles:    web.NewHandles(),
-		config:     config,
+		config:     config.MergeConfig(configs...),
 	}
 	return builder
 }

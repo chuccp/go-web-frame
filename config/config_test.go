@@ -108,6 +108,90 @@ func TestConfig_HasKey(t *testing.T) {
 	assert.False(t, cfg.HasKey("test.missing"))
 }
 
+func TestMergeConfig_Single(t *testing.T) {
+	cfg := NewConfig()
+	cfg.Put("key", "value")
+	cfg.Put("nested.key", 42)
+
+	merged := MergeConfig(cfg)
+	assert.NotNil(t, merged)
+	assert.Equal(t, "value", merged.GetString("key"))
+	assert.Equal(t, 42, merged.GetInt("nested.key"))
+}
+
+func TestMergeConfig_Merge(t *testing.T) {
+	cfg1 := NewConfig()
+	cfg1.Put("shared", "from_first")
+	cfg1.Put("only_in_first", "first")
+
+	cfg2 := NewConfig()
+	cfg2.Put("shared", "from_second")
+	cfg2.Put("only_in_second", "second")
+
+	merged := MergeConfig(cfg1, cfg2)
+
+	// Later config overrides
+	assert.Equal(t, "from_second", merged.GetString("shared"))
+	// Non-overlapping keys preserved
+	assert.Equal(t, "first", merged.GetString("only_in_first"))
+	assert.Equal(t, "second", merged.GetString("only_in_second"))
+}
+
+func TestMergeConfig_Empty(t *testing.T) {
+	merged := MergeConfig()
+	assert.NotNil(t, merged)
+	assert.False(t, merged.HasKey("any"))
+}
+
+func TestMergeConfig_OverridesInOrder(t *testing.T) {
+	cfg1 := NewConfig()
+	cfg1.Put("a", 1)
+	cfg1.Put("b", 2)
+
+	cfg2 := NewConfig()
+	cfg2.Put("b", 20)
+	cfg2.Put("c", 30)
+
+	cfg3 := NewConfig()
+	cfg3.Put("c", 300)
+	cfg3.Put("d", 400)
+
+	merged := MergeConfig(cfg1, cfg2, cfg3)
+	assert.Equal(t, 1, merged.GetInt("a"))   // from cfg1
+	assert.Equal(t, 20, merged.GetInt("b"))  // cfg2 overrides cfg1
+	assert.Equal(t, 300, merged.GetInt("c")) // cfg3 overrides cfg2
+	assert.Equal(t, 400, merged.GetInt("d")) // from cfg3
+}
+
+func TestMergeConfig_NestedSettings(t *testing.T) {
+	cfg1 := NewConfig()
+	cfg1.Put("db.type", "mysql")
+	cfg1.Put("db.host", "localhost")
+
+	cfg2 := NewConfig()
+	cfg2.Put("db.host", "production-host")
+	cfg2.Put("server.port", 8080)
+
+	merged := MergeConfig(cfg1, cfg2)
+	assert.Equal(t, "mysql", merged.GetString("db.type"))
+	assert.Equal(t, "production-host", merged.GetString("db.host"))
+	assert.Equal(t, 8080, merged.GetInt("server.port"))
+}
+
+func TestMergeConfig_DoesNotMutateOriginals(t *testing.T) {
+	cfg1 := NewConfig()
+	cfg1.Put("key", "original")
+
+	cfg2 := NewConfig()
+	cfg2.Put("key", "override")
+
+	MergeConfig(cfg1, cfg2)
+
+	// Originals unchanged
+	assert.Equal(t, "original", cfg1.GetString("key"))
+	assert.Equal(t, "override", cfg2.GetString("key"))
+}
+
 func TestConfig_UnmarshalKey(t *testing.T) {
 	data := []byte(`{"db": {"type": "mysql", "port": 3306}}`)
 	cfg, _ := NewFromBytes(data, "json")

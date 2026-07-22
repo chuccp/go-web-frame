@@ -29,6 +29,7 @@ type IConfig interface {
 	UnmarshalKey(key string, v any) error
 	ReplaceKey(key string, newKey string)
 	WriteConfig() error
+	AllSettings() map[string]any
 }
 
 // Config wraps a Viper configuration instance and implements IConfig.
@@ -191,6 +192,11 @@ func (c *Config) WriteConfig() error {
 	return errors.Errorf("Config doesn't have a file to write to")
 }
 
+// AllSettings returns all configuration settings as a map.
+func (c *Config) AllSettings() map[string]any {
+	return c.v.AllSettings()
+}
+
 // SingleFileConfig extends Config with a file path for write-back support.
 type SingleFileConfig struct {
 	*Config
@@ -260,6 +266,15 @@ func LoadConfig(paths ...string) (*Config, error) {
 // is provided programmatically rather than from files.
 func LoadAutoConfig() *Config {
 	return NewConfig()
+}
+// MergeConfig merges multiple IConfig instances into a single *Config.
+// Later configs take precedence over earlier ones for duplicate keys.
+func MergeConfig(configs ...IConfig) *Config {
+	target := viper.New()
+	for _, cfg := range configs {
+		_ = target.MergeConfigMap(cfg.AllSettings())
+	}
+	return &Config{v: target}
 }
 
 // NewFromBytes creates a Config from raw bytes with the specified format (json, yaml, toml, etc.)

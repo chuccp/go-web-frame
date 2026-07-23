@@ -248,9 +248,13 @@ func LoadConfig(paths ...string) (*Config, error) {
 	}
 	_viper_ := viper.New()
 	for _, path := range paths {
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return nil, errors.WithStackIf(err)
+		}
 		viper2 := viper.NewWithOptions(viper.WithCodecRegistry(registry))
 		viper2.SetConfigFile(path)
-		err := viper2.ReadInConfig()
+		err = viper2.ReadInConfig()
 		if err != nil {
 			return nil, errors.WithStackIf(err)
 		}
@@ -267,6 +271,7 @@ func LoadConfig(paths ...string) (*Config, error) {
 func LoadAutoConfig() *Config {
 	return NewConfig()
 }
+
 // MergeConfig merges multiple IConfig instances into a single *Config.
 // Later configs take precedence over earlier ones for duplicate keys.
 func MergeConfig(configs ...IConfig) *Config {

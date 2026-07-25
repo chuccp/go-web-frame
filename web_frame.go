@@ -103,8 +103,6 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	coreContext := core.NewContext(w.config, ctx)
 	coreContext.AddService(w.services...)
 
-	//
-	//coreContext.AddRunner(w.runners...)
 	if len(w.models) > 0 {
 		modelGroupBuilder := core.NewModelGroupBuilder()
 		if w.config.HasKey(db2.ConfigKey) {
@@ -144,6 +142,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			return nil, nil, errors.WithStackIf(err)
 		}
 	}
+	coreContext.AddRunner(runners...)
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
 		restGroup := core.NewRestGroupBuilder().
 			ServerConfig(defaultServerConfig).

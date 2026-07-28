@@ -63,7 +63,6 @@ type WebFrame struct {
 	models     []core.IModel
 	services   []core.IService
 	rests      []core.IRest
-	runners    []core.IRunner
 	filters    []core.IFilter
 	handles    *web.Handles
 }
@@ -103,7 +102,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	}
 	coreContext := core.NewContext(w.config, ctx)
 	coreContext.AddService(w.services...)
-	coreContext.AddRunner(w.runners...)
+
 	if len(w.models) > 0 {
 		modelGroupBuilder := core.NewModelGroupBuilder()
 		if w.config.HasKey(db2.ConfigKey) {
@@ -129,22 +128,21 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			}
 		}
 	}
-
+	runners := make([]core.IRunner, 0)
 	for _, iService := range w.services {
-		log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(iService)))
+		if v, ok := iService.(core.IRunner); ok {
+			log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(iService)))
+			runners = append(runners, v)
+		} else {
+			log.Debug("Init", zap.String("service", util.GetStructFullQualifiedName(iService)))
+		}
+
 		err := iService.Init(coreContext)
 		if err != nil {
 			return nil, nil, errors.WithStackIf(err)
 		}
 	}
-	for _, runner := range w.runners {
-		log.Debug("Init", zap.String("runner", util.GetStructFullQualifiedName(runner)))
-		err := runner.Init(coreContext)
-		if err != nil {
-			return nil, nil, errors.WithStackIf(err)
-		}
-	}
-
+	coreContext.AddRunner(runners...)
 	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
 		restGroup := core.NewRestGroupBuilder().
 			ServerConfig(defaultServerConfig).
@@ -155,7 +153,7 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		w.restGroups = append(w.restGroups, restGroup)
 	}
 	coreServer := core.NewServer(coreContext)
-	coreServer.AddIRunner(w.runners...)
+	coreServer.AddIRunner(runners...)
 	coreServer.AddRestGroup(w.restGroups...)
 	return coreServer, coreContext, nil
 
@@ -199,7 +197,6 @@ type Builder struct {
 	models     []core.IModel
 	services   []core.IService
 	rests      []core.IRest
-	runners    []core.IRunner
 	filters    []core.IFilter
 	handles    *web.Handles
 }
@@ -213,7 +210,6 @@ func NewBuilder(configs ...config.IConfig) *Builder {
 		restGroups: make([]*core.RestGroup, 0),
 		modelGroup: make([]core.IModelGroup, 0),
 		rests:      make([]core.IRest, 0),
-		runners:    make([]core.IRunner, 0),
 		filters:    make([]core.IFilter, 0),
 		handles:    web.NewHandles(),
 		config:     config.MergeConfig(configs...),
@@ -258,8 +254,10 @@ func (b *Builder) Rest(rest ...core.IRest) *Builder {
 }
 
 // Runner registers one or more background runners and returns the builder for chaining.
-func (b *Builder) Runner(runner ...core.IRunner) *Builder {
-	b.runners = append(b.runners, runner...)
+func (b *Builder) Runner(runners ...core.IRunner) *Builder {
+	for _, runner := range runners {
+		b.services = append(b.services, runner)
+	}
 	return b
 }
 
@@ -302,7 +300,6 @@ func (b *Builder) Build() *WebFrame {
 		restGroups: b.restGroups,
 		modelGroup: b.modelGroup,
 		rests:      b.rests,
-		runners:    b.runners,
 		filters:    b.filters,
 		handles:    b.handles,
 		config:     b.config,

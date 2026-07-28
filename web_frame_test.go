@@ -133,9 +133,8 @@ func TestBuilder_AllMethods(t *testing.T) {
 	// Assert
 	assert.NotNil(t, app)
 	assert.Equal(t, 1, len(app.rests))
-	assert.Equal(t, 1, len(app.runners))
 	assert.Equal(t, 1, len(app.models))
-	assert.Equal(t, 1, len(app.services))
+	assert.Equal(t, 2, len(app.services)) // runner is now part of services
 	assert.Equal(t, 1, len(app.filters))
 }
 

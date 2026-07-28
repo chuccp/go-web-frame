@@ -3,6 +3,7 @@ package db
 import (
 	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
+	"github.com/chuccp/go-web-frame/util"
 	"github.com/libtnb/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -11,7 +12,8 @@ import (
 
 // SQLiteConfig holds SQLite connection configuration.
 type SQLiteConfig struct {
-	FilePath string `mapstructure:"path"`
+	FilePath string `mapstructure:"filePath"`
+	Path     string `mapstructure:"path"`
 	// Connection pool settings
 	MaxOpenConns    int `mapstructure:"max_open_conns"`
 	MaxIdleConns    int `mapstructure:"max_idle_conns"`
@@ -46,8 +48,13 @@ func (sqliteConfig *SQLiteConfig) GetConnMaxLifetime() int {
 
 // Connection creates a SQLite database connection from this config.
 func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
-	log2.Debug("sqlite", zap.String("dsn", sqliteConfig.FilePath))
-	sb, err := gorm.Open(sqlite.Open(sqliteConfig.FilePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+
+	filePath := sqliteConfig.FilePath
+	if util.IsBlank(filePath) {
+		filePath = sqliteConfig.Path
+	}
+	log2.Debug("sqlite", zap.String("dsn", filePath))
+	sb, err := gorm.Open(sqlite.Open(filePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}

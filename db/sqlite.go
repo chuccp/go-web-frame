@@ -1,6 +1,9 @@
 package db
 
 import (
+	"os"
+	"path/filepath"
+
 	"emperror.dev/errors"
 	log2 "github.com/chuccp/go-web-frame/log"
 	"github.com/chuccp/go-web-frame/util"
@@ -54,6 +57,11 @@ func (sqliteConfig *SQLiteConfig) Connection() (db *DB, err error) {
 		filePath = sqliteConfig.Path
 	}
 	log2.Debug("sqlite", zap.String("dsn", filePath))
+	if dir := filepath.Dir(filePath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, errors.Wrap(err, "create sqlite directory")
+		}
+	}
 	sb, err := gorm.Open(sqlite.Open(filePath), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 	if err != nil {
 		return nil, errors.WithStackIf(err)

@@ -16,28 +16,50 @@ import (
 )
 
 // GetService retrieves a service of the specified type from the context.
+// Deprecated
 func GetService[T core.IService](c *core.Context) T {
 	return core.GetService[T](c)
 }
 
+func MustService[T core.IService](c *core.Context) T {
+	return core.MustService[T](c)
+}
+
 // GetModel retrieves a model of the specified type from the context.
+// Deprecated
 func GetModel[T core.IModel](c *core.Context) T {
 	return core.GetModel[T](c)
 }
 
+func MustModel[T core.IModel](c *core.Context) T {
+	return core.MustModel[T](c)
+}
+
 // GetReNewModel retrieves a model and creates a fresh instance with the given database connection.
+// Deprecated
 func GetReNewModel[T core.IModel](db *db2.DB, c *core.Context) T {
 	return core.GetReNewModel[T](db, c)
 }
+func MustReNewModel[T core.IModel](db *db2.DB, c *core.Context) T {
+	return core.MustReNewModel[T](db, c)
+}
 
 // GetRunner retrieves a runner of the specified type from the context.
+// Deprecated
 func GetRunner[T core.IRunner](c *core.Context) T {
 	return core.GetRunner[T](c)
 }
+func MustRunner[T core.IRunner](c *core.Context) T {
+	return core.MustRunner[T](c)
+}
 
 // GetFilter retrieves a filter of the specified type from the context.
+// Deprecated
 func GetFilter[T core.IFilter](c *core.Context) T {
 	return core.GetFilter[T](c)
+}
+func MustFilter[T core.IFilter](c *core.Context) T {
+	return core.MustFilter[T](c)
 }
 
 // UnmarshalKeyConfig unmarshals configuration under the given key into the specified type.

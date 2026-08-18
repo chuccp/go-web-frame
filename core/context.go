@@ -306,8 +306,13 @@ func GetService[T IService](c *Context) T {
 	return t
 }
 
+func MustService[T IService](c *Context) T {
+	return GetService[T](c)
+}
+
 // GetModel retrieves a model of the specified type from the context.
 // Panics if the model is not registered.
+// Deprecated
 func GetModel[T IModel](c *Context) T {
 	t, ok := c.GetModel(func(m IModel) bool {
 		_, ok := m.(T)
@@ -318,9 +323,13 @@ func GetModel[T IModel](c *Context) T {
 	}
 	return t
 }
+func MustModel[T IModel](c *Context) T {
+	return GetModel[T](c)
+}
 
 // GetFilter retrieves a filter of the specified type from the context.
 // Panics if the filter is not registered.
+// Deprecated
 func GetFilter[T IFilter](c *Context) T {
 	t, ok := c.GetFilter(func(m IFilter) bool {
 		_, ok := m.(T)
@@ -331,10 +340,14 @@ func GetFilter[T IFilter](c *Context) T {
 	}
 	return t
 }
+func MustFilter[T IFilter](c *Context) T {
+	return GetFilter[T](c)
+}
 
 // GetReNewModel retrieves a model of the specified type and creates a fresh instance
 // with the given database connection, useful for transaction handling.
 // Panics if the model is not registered.
+// Deprecated
 func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	t, ok := c.GetModel(func(m IModel) bool {
 		_, ok := m.(T)
@@ -349,9 +362,13 @@ func GetReNewModel[T IModel](db *db.DB, c *Context) T {
 	}
 	return renewed
 }
+func MustReNewModel[T IModel](db *db.DB, c *Context) T {
+	return GetReNewModel[T](db, c)
+}
 
 // GetRunner retrieves a runner of the specified type from the context.
 // Panics if the runner is not registered.
+// Deprecated
 func GetRunner[T IRunner](c *Context) T {
 	t, ok := c.GetRunner(func(m IRunner) bool {
 		_, ok := m.(T)
@@ -362,4 +379,6 @@ func GetRunner[T IRunner](c *Context) T {
 	}
 	return t
 }
-
+func MustRunner[T IRunner](c *Context) T {
+	return GetRunner[T](c)
+}

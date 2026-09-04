@@ -118,9 +118,6 @@ func WithValue(key string, value any) MetaOption {
 	return newFunMetaOption(func(o *HandlerMeta) {
 		o.Add(key, value)
 	}, func(o *HandlerMeta) bool {
-		if o.Has(key) {
-			return reflect.DeepEqual(o.Get(key), value)
-		}
-		return false
+		return o.data.HasKeyValue(key, value)
 	})
 }

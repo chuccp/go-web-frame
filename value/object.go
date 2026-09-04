@@ -2,6 +2,7 @@ package value
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"reflect"
 )
@@ -24,6 +25,18 @@ func (o *Object) Get(key string) Value {
 	}
 	return o.data[key]
 }
+
+func (o *Object) HasKeyValue(key string, value any) bool {
+	if o == nil {
+		return false
+	}
+	v, ok := o.data[key]
+	if !ok {
+		return false
+	}
+	return reflect.DeepEqual(v, fromInterface(value))
+}
+
 func (o *Object) IsEmpty() bool {
 	if o == nil {
 		return true
@@ -300,7 +313,7 @@ func fromReflect(v any) Value {
 	case reflect.Float32, reflect.Float64:
 		return NewNumber(rv.Float())
 	default:
-		return NullValue
+		return NewAny(v)
 	}
 }
 
@@ -327,7 +340,37 @@ func toAny(v Value) any {
 		return val.i
 	case *Bool:
 		return val.b
+	case *Any:
+		return val.value
 	default:
 		return nil
 	}
 }
+
+type Any struct {
+	ValueBase
+	value any
+}
+
+func NewAny(value any) *Any {
+	return &Any{
+		value: value,
+	}
+}
+
+func (a *Any) IsAny() bool { return true }
+
+func (a *Any) AsAny() *Any { return a }
+
+func (a *Any) Value() any { return a.value }
+
+func (a *Any) String() string {
+	return fmt.Sprintf("%v", a.value)
+}
+
+func (a *Any) ToJSON() json.RawMessage {
+	data, _ := json.Marshal(a.value)
+	return data
+}
+
+func (a *Any) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }

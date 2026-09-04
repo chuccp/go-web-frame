@@ -13,17 +13,16 @@ type Value interface {
 	IsBool() bool
 	IsNumber() bool
 	IsNull() bool
-
 	IsStream() bool
+	IsAny() bool
 
 	AsObject() *Object
 	AsArray() *Array
 	AsText() *Text
 	AsBool() *Bool
-
 	AsStream() *Stream
-
 	AsNumber() *Number
+	AsAny() *Any
 
 	ToJSON() json.RawMessage
 	String() string
@@ -39,6 +38,7 @@ func (ValueBase) IsBool() bool   { return false }
 func (ValueBase) IsNumber() bool { return false }
 func (ValueBase) IsNull() bool   { return false }
 func (ValueBase) IsStream() bool { return false }
+func (ValueBase) IsAny() bool   { return false }
 
 func (ValueBase) AsObject() *Object       { panic("not an object") }
 func (ValueBase) AsArray() *Array         { panic("not an array") }
@@ -46,6 +46,7 @@ func (ValueBase) AsText() *Text           { panic("not text") }
 func (ValueBase) AsBool() *Bool           { panic("not bool") }
 func (ValueBase) AsNumber() *Number       { panic("not number") }
 func (ValueBase) AsStream() *Stream       { panic("not Stream") }
+func (ValueBase) AsAny() *Any             { panic("not Any") }
 func (ValueBase) ToJSON() json.RawMessage { return json.RawMessage("null") }
 func (ValueBase) String() string          { return "null" }
 
@@ -221,3 +222,4 @@ var _ Value = (*Number)(nil)
 var _ Value = (*Object)(nil)
 var _ Value = (*Array)(nil)
 var _ Value = (*Stream)(nil)
+var _ Value = (*Any)(nil)

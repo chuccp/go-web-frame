@@ -148,3 +148,151 @@ func TestObjectFromJSONNumber(t *testing.T) {
 		t.Errorf("GetInt 应为 3, got %v", got)
 	}
 }
+
+// 自定义类型用于测试 Any 类型的处理。
+type testStatus struct {
+	Code    int
+	Message string
+}
+
+func TestAnyTypeBasic(t *testing.T) {
+	// 测试创建 Any 类型
+	status := testStatus{Code: 200, Message: "ok"}
+	anyVal := NewAny(status)
+
+	if !anyVal.IsAny() {
+		t.Error("Any.IsAny() 应返回 true")
+	}
+
+	if anyVal.AsAny() != anyVal {
+		t.Error("Any.AsAny() 应返回自身")
+	}
+
+	if anyVal.Value() != status {
+		t.Error("Any.Value() 应返回原始值")
+	}
+}
+
+func TestAnyTypeString(t *testing.T) {
+	// 测试 String() 方法
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"struct", testStatus{Code: 200, Message: "ok"}, "{200 ok}"},
+		{"slice", []int{1, 2, 3}, "[1 2 3]"},
+		{"map", map[string]int{"a": 1}, "map[a:1]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			anyVal := NewAny(tt.value)
+			if got := anyVal.String(); got != tt.want {
+				t.Errorf("Any.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAnyTypeJSON(t *testing.T) {
+	// 测试 ToJSON() 方法
+	status := testStatus{Code: 200, Message: "ok"}
+	anyVal := NewAny(status)
+
+	jsonData := anyVal.ToJSON()
+	if len(jsonData) == 0 {
+		t.Error("Any.ToJSON() 不应返回空")
+	}
+
+	// 验证 JSON 可以被解析
+	var parsed testStatus
+	if err := json.Unmarshal(jsonData, &parsed); err != nil {
+		t.Fatalf("Any.ToJSON() 返回的 JSON 无法解析: %v", err)
+	}
+	if parsed.Code != 200 || parsed.Message != "ok" {
+		t.Errorf("JSON 解析结果错误: %+v", parsed)
+	}
+}
+
+func TestAnyTypeInObject(t *testing.T) {
+	// 测试 Any 类型在 Object 中的使用
+	obj := NewObject()
+	status := testStatus{Code: 404, Message: "not found"}
+	obj.PutAny("status", status)
+
+	// 获取值并验证类型
+	v := obj.Get("status")
+	if v == nil {
+		t.Fatal("Get('status') 不应返回 nil")
+	}
+
+	if !v.IsAny() {
+		t.Errorf("期望 Any 类型, got %T", v)
+	}
+
+	anyVal := v.AsAny()
+	if anyVal.Value() != status {
+		t.Errorf("Any.Value() 返回错误值: %+v", anyVal.Value())
+	}
+}
+
+func TestAnyTypeToMap(t *testing.T) {
+	// 测试 Any 类型在 ToMap() 时的处理
+	obj := NewObject()
+	status := testStatus{Code: 500, Message: "error"}
+	obj.PutAny("status", status)
+	obj.PutAny("tags", []string{"a", "b"})
+
+	m := obj.ToMap()
+	if m == nil {
+		t.Fatal("ToMap() 不应返回 nil")
+	}
+
+	// 验证 Any 类型能正确还原
+	parsedStatus, ok := m["status"].(testStatus)
+	if !ok {
+		t.Fatalf("ToMap() 中 status 类型错误: %T", m["status"])
+	}
+	if parsedStatus.Code != 500 || parsedStatus.Message != "error" {
+		t.Errorf("ToMap() 中 status 值错误: %+v", parsedStatus)
+	}
+
+	// 验证切片能正确处理（注意：[]string 会转为 []interface{}）
+	tags, ok := m["tags"].([]interface{})
+	if !ok {
+		t.Fatalf("ToMap() 中 tags 类型错误: %T", m["tags"])
+	}
+	if len(tags) != 2 || tags[0] != "a" || tags[1] != "b" {
+		t.Errorf("ToMap() 中 tags 值错误: %v", tags)
+	}
+}
+
+func TestHasKeyValueWithAny(t *testing.T) {
+	// 测试 HasKeyValue 方法对 Any 类型的支持
+	obj := NewObject()
+	status := testStatus{Code: 200, Message: "ok"}
+	obj.PutAny("status", status)
+
+	// 测试匹配的情况
+	if !obj.HasKeyValue("status", status) {
+		t.Error("HasKeyValue 应匹配相同的 Any 值")
+	}
+
+	// 测试不匹配的情况
+	otherStatus := testStatus{Code: 404, Message: "not found"}
+	if obj.HasKeyValue("status", otherStatus) {
+		t.Error("HasKeyValue 不应匹配不同的值")
+	}
+
+	// 测试不存在的键
+	if obj.HasKeyValue("nonexistent", status) {
+		t.Error("HasKeyValue 不应匹配不存在的键")
+	}
+
+	// 测试 nil 对象
+	var nilObj *Object
+	if nilObj.HasKeyValue("key", "value") {
+		t.Error("nil Object.HasKeyValue 应返回 false")
+	}
+}

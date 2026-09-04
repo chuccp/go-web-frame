@@ -39,7 +39,7 @@ func ToPage[T any](total int64, list []T) *PageAble[T] {
 }
 
 // JSONObject is a convenience type for working with JSON objects as maps.
-// It is an alias for KV, inheriting all helper methods (GetString, GetInt, etc.).
+// It is an alias for value.Object, inheriting all helper methods (GetString, GetInt, etc.).
 type JSONObject = value.Object
 
 // HandlerFunc is the function signature for request handlers.
@@ -292,7 +292,7 @@ func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 }
 
 // BindJSON binds the request JSON body into the provided struct.
-func (r *Request) BindJSON(value any) error {
+func (r *Request) BindJSON(v any) error {
 	if r.IsGet() {
 		return errors.New(GetNotSupportJson)
 	}
@@ -300,11 +300,11 @@ func (r *Request) BindJSON(value any) error {
 	if err != nil {
 		return err
 	}
-	// Convert to map for mapstructure to work properly
+	// Convert value.Object to map for mapstructure compatibility
 	data := jsonObj.ToMap()
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "json",
-		Result:  value,
+		Result:  v,
 	})
 	if err != nil {
 		return err

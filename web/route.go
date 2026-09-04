@@ -5,34 +5,37 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-
-	"github.com/chuccp/go-web-frame/value"
 )
 
 // HandlerMeta holds key-value metadata attached to a route handler.
 type HandlerMeta struct {
-	data *value.Object
+	data KV
 }
 
 // Add sets a key-value pair in the handler metadata.
 func (hm *HandlerMeta) Add(key string, value any) {
-	hm.data.PutAny(key, value)
+	hm.data.Add(key, value)
 }
 
 // Has reports whether the given key exists in the handler metadata.
 func (hm *HandlerMeta) Has(key string) bool {
-	return hm.data.HasKey(key)
+	_, ok := hm.data[key]
+	return ok
 }
 
 // Get returns the value for the given key, or nil if not found.
 func (hm *HandlerMeta) Get(key string) any {
-	return hm.data.GetNative(key)
+	v, ok := hm.data[key]
+	if ok {
+		return v
+	}
+	return nil
 }
 
 // NewHandlerMeta creates a new empty HandlerMeta.
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
-		data: value.NewObject(),
+		data: make(KV),
 	}
 }
 
@@ -114,6 +117,9 @@ func WithValue(key string, value any) MetaOption {
 	return newFunMetaOption(func(o *HandlerMeta) {
 		o.Add(key, value)
 	}, func(o *HandlerMeta) bool {
-		return o.data.HasKeyValue(key, value)
+		if o.Has(key) {
+			return reflect.DeepEqual(o.Get(key), value)
+		}
+		return false
 	})
 }

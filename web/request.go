@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/chuccp/go-web-frame/value"
 	"github.com/gin-gonic/gin"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/cast"
@@ -38,7 +40,7 @@ func ToPage[T any](total int64, list []T) *PageAble[T] {
 
 // JSONObject is a convenience type for working with JSON objects as maps.
 // It is an alias for KV, inheriting all helper methods (GetString, GetInt, etc.).
-type JSONObject = KV
+type JSONObject = value.Object
 
 // HandlerFunc is the function signature for request handlers.
 type HandlerFunc func(*Request) (any, error)
@@ -62,12 +64,9 @@ func (r *Request) HasMeta(mo ...MetaOption) bool {
 	if r.handlerMeta == nil {
 		return false
 	}
-	for _, o := range mo {
-		if o.has(r.handlerMeta) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(mo, func(o MetaOption) bool {
+		return o.has(r.handlerMeta)
+	})
 }
 
 // Ctx returns the context.Context for the current HTTP request.
@@ -286,10 +285,10 @@ func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 	if err != nil {
 		return defaultValue
 	}
-	if _, ok := (*jsonObject)[key]; ok {
-		return jsonObject.GetInt(key)
-	}
-	return defaultValue
+	//if _, ok := (*jsonObject)[key]; ok {
+	//	return jsonObject.GetInt(key)
+	//}
+	return jsonObject.GetIntForDefault(key, defaultValue)
 }
 
 // BindJSON binds the request JSON body into the provided struct.

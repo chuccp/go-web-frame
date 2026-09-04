@@ -4,37 +4,39 @@ package web
 import (
 	"reflect"
 	"runtime"
+	"slices"
+
+	"github.com/chuccp/go-web-frame/value"
 )
 
 // HandlerMeta holds key-value metadata attached to a route handler.
 type HandlerMeta struct {
-	data KV
+	data *value.Object
 }
 
 // Add sets a key-value pair in the handler metadata.
 func (hm *HandlerMeta) Add(key string, value any) {
-	hm.data.Add(key, value)
+	hm.data.PutAny(key, value)
 }
 
 // Has reports whether the given key exists in the handler metadata.
 func (hm *HandlerMeta) Has(key string) bool {
-	_, ok := hm.data[key]
-	return ok
+	return hm.data.HasKey(key)
 }
 
 // Get returns the value for the given key, or nil if not found.
 func (hm *HandlerMeta) Get(key string) any {
-	v, ok := hm.data[key]
-	if ok {
-		return v
+	v := hm.data.Get(key)
+	if v == nil {
+		return nil
 	}
-	return nil
+	return v
 }
 
 // NewHandlerMeta creates a new empty HandlerMeta.
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
-		data: make(KV),
+		data: value.NewObject(),
 	}
 }
 
@@ -84,45 +86,40 @@ type MetaOption interface {
 }
 
 type funcOption struct {
-	a func(oo *HandlerMeta)
-	h func(oo *HandlerMeta) bool
+	a func(o *HandlerMeta)
+	h func(o *HandlerMeta) bool
 }
 
-func (fo *funcOption) add(oo *HandlerMeta) {
-	fo.a(oo)
+func (fo *funcOption) add(o *HandlerMeta) {
+	fo.a(o)
 }
 
-func (fo *funcOption) has(oo *HandlerMeta) bool {
-	return fo.h(oo)
+func (fo *funcOption) has(o *HandlerMeta) bool {
+	return fo.h(o)
 }
 
-func newFunMetaOption(a func(o *HandlerMeta), h func(oo *HandlerMeta) bool) *funcOption {
+func newFunMetaOption(a func(o *HandlerMeta), h func(o *HandlerMeta) bool) *funcOption {
 	return &funcOption{a: a, h: h}
 }
 
 // WithKey creates a MetaOption that sets the given keys to true in the handler metadata.
 func WithKey(keys ...string) MetaOption {
-	return newFunMetaOption(func(oo *HandlerMeta) {
+	return newFunMetaOption(func(o *HandlerMeta) {
 		for _, key := range keys {
-			oo.Add(key, true)
+			o.Add(key, true)
 		}
-	}, func(oo *HandlerMeta) bool {
-		for _, key := range keys {
-			if oo.Has(key) {
-				return true
-			}
-		}
-		return false
+	}, func(o *HandlerMeta) bool {
+		return slices.ContainsFunc(keys, o.Has)
 	})
 }
 
 // WithValue creates a MetaOption that sets a key-value pair in the handler metadata.
 func WithValue(key string, value any) MetaOption {
-	return newFunMetaOption(func(oo *HandlerMeta) {
-		oo.Add(key, value)
-	}, func(oo *HandlerMeta) bool {
-		if oo.Has(key) {
-			return reflect.DeepEqual(oo.Get(key), value)
+	return newFunMetaOption(func(o *HandlerMeta) {
+		o.Add(key, value)
+	}, func(o *HandlerMeta) bool {
+		if o.Has(key) {
+			return reflect.DeepEqual(o.Get(key), value)
 		}
 		return false
 	})

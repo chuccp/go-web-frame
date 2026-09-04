@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -40,10 +41,10 @@ func NewServerWithContext(ctx context.Context) *Servers {
 
 // CreateServerWithContext creates a new Server with the given config and context, checking for port conflicts.
 func (servers *Servers) CreateServerWithContext(serverConfig *ServerConfig, ctx context.Context) (*Server, error) {
-	for _, server := range servers.servers {
-		if server.serverConfig.Port == serverConfig.Port {
-			return nil, errors.New("port already in use")
-		}
+	if slices.ContainsFunc(servers.servers, func(s *Server) bool {
+		return s.serverConfig.Port == serverConfig.Port
+	}) {
+		return nil, errors.New("port already in use")
 	}
 	server := &Server{
 		serverConfig: serverConfig,
@@ -176,9 +177,7 @@ func (server *Server) SetConverter(converter Converter) {
 // AddHandles transfers all routes from the given Handles into this Server.
 func (server *Server) AddHandles(handles *Handles) {
 	if handles != nil {
-		for _, route := range handles.routes {
-			server.routes = append(server.routes, route)
-		}
+		server.routes = append(server.routes, handles.routes...)
 	}
 }
 

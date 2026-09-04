@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+
+	"github.com/go-viper/mapstructure/v2"
 )
 
 type Object struct {
@@ -189,6 +191,23 @@ func (o *Object) ToMap() map[string]any {
 		m[k] = toAny(v)
 	}
 	return m
+}
+
+// Decode decodes the Object into the provided struct using json tags.
+// It converts the Object to a map first, then uses mapstructure for decoding.
+func (o *Object) Decode(v any) error {
+	if o == nil {
+		return nil
+	}
+	m := o.ToMap()
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  v,
+	})
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(m)
 }
 
 func (o *Object) IsObject() bool { return true }

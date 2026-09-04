@@ -16,7 +16,6 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/chuccp/go-web-frame/value"
 	"github.com/gin-gonic/gin"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/cast"
 )
 
@@ -300,16 +299,7 @@ func (r *Request) BindJSON(v any) error {
 	if err != nil {
 		return err
 	}
-	// Convert value.Object to map for mapstructure compatibility
-	data := jsonObj.ToMap()
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName: "json",
-		Result:  v,
-	})
-	if err != nil {
-		return err
-	}
-	return decoder.Decode(data)
+	return jsonObj.Decode(v)
 }
 
 // ContentType returns the request Content-Type header.

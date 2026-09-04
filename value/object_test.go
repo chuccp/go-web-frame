@@ -296,3 +296,117 @@ func TestHasKeyValueWithAny(t *testing.T) {
 		t.Error("nil Object.HasKeyValue 应返回 false")
 	}
 }
+
+func TestObjectDecode(t *testing.T) {
+	// 测试 Decode 方法 - 将 Object 转换为结构体
+	type User struct {
+		Name  string `json:"name"`
+		Age   int    `json:"age"`
+		Email string `json:"email"`
+	}
+
+	obj := NewObject()
+	obj.PutAny("name", "张三")
+	obj.PutAny("age", 25)
+	obj.PutAny("email", "zhangsan@example.com")
+
+	var user User
+	err := obj.Decode(&user)
+	if err != nil {
+		t.Fatalf("Decode 失败: %v", err)
+	}
+
+	if user.Name != "张三" {
+		t.Errorf("Name 错误: got %q, want %q", user.Name, "张三")
+	}
+	if user.Age != 25 {
+		t.Errorf("Age 错误: got %d, want %d", user.Age, 25)
+	}
+	if user.Email != "zhangsan@example.com" {
+		t.Errorf("Email 错误: got %q, want %q", user.Email, "zhangsan@example.com")
+	}
+}
+
+func TestObjectDecodeNested(t *testing.T) {
+	// 测试嵌套结构体的 Decode
+	type Address struct {
+		City  string `json:"city"`
+		Phone string `json:"phone"`
+	}
+	type User struct {
+		Name    string  `json:"name"`
+		Address Address `json:"address"`
+	}
+
+	obj := NewObject()
+	obj.PutAny("name", "李四")
+	addressObj := NewObject()
+	addressObj.PutAny("city", "北京")
+	addressObj.PutAny("phone", "12345678901")
+	obj.Put("address", addressObj)
+
+	var user User
+	err := obj.Decode(&user)
+	if err != nil {
+		t.Fatalf("Decode 失败: %v", err)
+	}
+
+	if user.Name != "李四" {
+		t.Errorf("Name 错误: got %q, want %q", user.Name, "李四")
+	}
+	if user.Address.City != "北京" {
+		t.Errorf("Address.City 错误: got %q, want %q", user.Address.City, "北京")
+	}
+	if user.Address.Phone != "12345678901" {
+		t.Errorf("Address.Phone 错误: got %q, want %q", user.Address.Phone, "12345678901")
+	}
+}
+
+func TestObjectDecodeNil(t *testing.T) {
+	// 测试 nil Object 的 Decode
+	var nilObj *Object
+	type User struct {
+		Name string `json:"name"`
+	}
+	var user User
+	err := nilObj.Decode(&user)
+	if err != nil {
+		t.Errorf("nil Object.Decode 应返回 nil, got %v", err)
+	}
+}
+
+func TestObjectDecodeToMap(t *testing.T) {
+	// 测试 Decode 到 map
+	obj := NewObject()
+	obj.PutAny("key1", "value1")
+	obj.PutAny("key2", 42)
+
+	var m map[string]any
+	err := obj.Decode(&m)
+	if err != nil {
+		t.Fatalf("Decode 失败: %v", err)
+	}
+
+	if m["key1"] != "value1" {
+		t.Errorf("key1 错误: got %v, want %q", m["key1"], "value1")
+	}
+	// 验证数字类型能正确解码
+	key2Val := m["key2"]
+	if key2Val == nil {
+		t.Error("key2 不应为 nil")
+	} else {
+		// 尝试转换为 int64 或 float64
+		switch v := key2Val.(type) {
+		case int64:
+			if v != 42 {
+				t.Errorf("key2 值错误: got %v, want 42", v)
+			}
+		case float64:
+			if v != 42 {
+				t.Errorf("key2 值错误: got %v, want 42", v)
+			}
+		default:
+			t.Errorf("key2 类型错误: got %T, want int64 or float64", key2Val)
+		}
+	}
+}

@@ -26,6 +26,19 @@ func (o *Object) Get(key string) Value {
 	return o.data[key]
 }
 
+// GetNative returns the native Go value for the given key.
+// It converts Value types back to their original Go types (e.g., *Text -> string, *Number -> int/float64).
+func (o *Object) GetNative(key string) any {
+	if o == nil {
+		return nil
+	}
+	v, ok := o.data[key]
+	if !ok {
+		return nil
+	}
+	return toAny(v)
+}
+
 func (o *Object) HasKeyValue(key string, value any) bool {
 	if o == nil {
 		return false
@@ -198,6 +211,11 @@ func (o *Object) ToJSON() json.RawMessage {
 }
 
 func (o *Object) MarshalJSON() ([]byte, error) { return o.ToJSON(), nil }
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (o *Object) UnmarshalJSON(data []byte) error {
+	return o.PutJson(data)
+}
 
 // PutJson 解析 JSON 并填充到对象中。
 func (o *Object) PutJson(dataJson []byte) error {

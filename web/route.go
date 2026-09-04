@@ -26,11 +26,7 @@ func (hm *HandlerMeta) Has(key string) bool {
 
 // Get returns the value for the given key, or nil if not found.
 func (hm *HandlerMeta) Get(key string) any {
-	v := hm.data.Get(key)
-	if v == nil {
-		return nil
-	}
-	return v
+	return hm.data.GetNative(key)
 }
 
 // NewHandlerMeta creates a new empty HandlerMeta.

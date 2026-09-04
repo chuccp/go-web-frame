@@ -296,10 +296,12 @@ func (r *Request) BindJSON(value any) error {
 	if r.IsGet() {
 		return errors.New(GetNotSupportJson)
 	}
-	json, err := r.Json()
+	jsonObj, err := r.Json()
 	if err != nil {
 		return err
 	}
+	// Convert to map for mapstructure to work properly
+	data := jsonObj.ToMap()
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "json",
 		Result:  value,
@@ -307,7 +309,7 @@ func (r *Request) BindJSON(value any) error {
 	if err != nil {
 		return err
 	}
-	return decoder.Decode(json)
+	return decoder.Decode(data)
 }
 
 // ContentType returns the request Content-Type header.

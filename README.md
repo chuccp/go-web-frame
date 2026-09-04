@@ -414,6 +414,57 @@ analyticsGroup := wf.NewModelGroupBuilder().
 builder.ModelGroup(analyticsGroup)
 ```
 
+### Value Package — Type-Safe Dynamic Values
+
+The `value` package provides a type-safe way to work with dynamic JSON-like data:
+
+```go
+import "github.com/chuccp/go-web-frame/value"
+
+// Create an Object (like a JSON object)
+obj := value.NewObject()
+obj.PutAny("name", "张三")
+obj.PutAny("age", 25)
+obj.PutAny("active", true)
+
+// Type-safe getters
+name := obj.GetString("name")      // "张三"
+age := obj.GetInt("age")           // 25
+active := obj.GetBool("active")    // true
+count := obj.GetIntForDefault("count", 0)  // 0 (default)
+
+// Nested objects
+address := value.NewObject()
+address.PutAny("city", "北京")
+obj.Put("address", address)
+
+city := obj.GetObject("address").GetString("city")  // "北京"
+
+// Decode to struct
+type User struct {
+    Name    string `json:"name"`
+    Age     int    `json:"age"`
+    Active  bool   `json:"active"`
+}
+
+var user User
+err := obj.Decode(&user)
+
+// Convert to map
+m := obj.ToMap()  // map[string]any
+
+// JSON serialization
+jsonBytes := obj.ToJSON()
+
+// Any type for non-standard values (structs, custom types)
+type Status struct {
+    Code    int
+    Message string
+}
+obj.PutAny("status", Status{Code: 200, Message: "ok"})
+status := obj.Get("status").AsAny().Value().(Status)
+```
+
 ---
 
 ## Auth and Middleware

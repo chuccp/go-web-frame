@@ -133,6 +133,7 @@ nav:
       - Filter: guide/filter.md
       - Converter: guide/converter.md
       - Error Code: guide/error-code.md
+      - Value Package: guide/value.md
   - Configuration & Ops:
       - Configuration: guide/configuration.md
       - Logging: guide/logging.md

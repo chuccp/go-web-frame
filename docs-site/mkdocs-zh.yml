@@ -133,6 +133,7 @@ nav:
       - 过滤器: guide/filter.md
       - 响应转换器: guide/converter.md
       - 错误码: guide/error-code.md
+      - Value 包: guide/value.md
   - 配置与运维:
       - 配置管理: guide/configuration.md
       - 日志: guide/logging.md

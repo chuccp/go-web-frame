@@ -12,12 +12,12 @@ import (
 // This test now verifies basic Route construction compiles.
 
 func TestRoute(t *testing.T) {
-	// Verify that web.NewHandlerMeta() still works
 	meta := web.NewHandlerMeta()
 	assert.NotNil(t, meta)
-	assert.False(t, meta.Has("key"))
+	assert.False(t, meta.HasAnyKey("key"))
 
 	meta.Add("key", "value")
-	assert.True(t, meta.Has("key"))
-	assert.Equal(t, "value", meta.Get("key"))
+	assert.True(t, meta.HasAnyKey("key"))
+	assert.True(t, meta.HasKeyValue("key", "value"))
+	assert.False(t, meta.HasKeyValue("key", "other"))
 }

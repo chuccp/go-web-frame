@@ -27,6 +27,8 @@ type Value interface {
 
 	ToJSON() json.RawMessage
 	String() string
+
+	Equal(Value) bool
 }
 
 // ValueBase 提供 Value 接口的默认实现，具体类型只需覆写自身对应的 IsXxx / AsXxx 方法。
@@ -50,6 +52,7 @@ func (ValueBase) AsStream() *Stream       { panic("not Stream") }
 func (ValueBase) AsAny() *Any             { panic("not Any") }
 func (ValueBase) ToJSON() json.RawMessage { return json.RawMessage("null") }
 func (ValueBase) String() string          { return "null" }
+func (ValueBase) Equal(Value) bool        { return false }
 
 type Stream struct {
 	ValueBase
@@ -97,6 +100,13 @@ func (s *Stream) Reset() {
 	s.text.Reset()
 }
 
+func (s *Stream) Equal(other Value) bool {
+	if o, ok := other.(*Stream); ok {
+		return s.text.String() == o.text.String()
+	}
+	return false
+}
+
 type Text struct {
 	ValueBase
 	text string
@@ -114,6 +124,13 @@ func (t *Text) ToJSON() json.RawMessage {
 }
 
 func (t *Text) MarshalJSON() ([]byte, error) { return t.ToJSON(), nil }
+
+func (t *Text) Equal(other Value) bool {
+	if o, ok := other.(*Text); ok {
+		return t.text == o.text
+	}
+	return false
+}
 
 func NewText(text string) *Text {
 	return &Text{text: text}
@@ -166,6 +183,20 @@ func (n *Number) ToJSON() json.RawMessage {
 
 func (n *Number) MarshalJSON() ([]byte, error) { return n.ToJSON(), nil }
 
+func (n *Number) Equal(other Value) bool {
+	o, ok := other.(*Number)
+	if !ok {
+		return false
+	}
+	if n.isFloat != o.isFloat {
+		return false
+	}
+	if n.isFloat {
+		return n.f == o.f
+	}
+	return n.i == o.i
+}
+
 // NewNumber 从 float64 创建浮点数值。
 func NewNumber(f float64) *Number {
 	return &Number{f: f, isFloat: true}
@@ -196,6 +227,13 @@ func (b *Bool) ToJSON() json.RawMessage {
 
 func (b *Bool) MarshalJSON() ([]byte, error) { return b.ToJSON(), nil }
 
+func (b *Bool) Equal(other Value) bool {
+	if o, ok := other.(*Bool); ok {
+		return b.b == o.b
+	}
+	return false
+}
+
 func NewBool(b bool) *Bool {
 	return &Bool{b: b}
 }
@@ -212,6 +250,11 @@ func (n *Null) ToJSON() json.RawMessage { return json.RawMessage("null") }
 
 func (n *Null) MarshalJSON() ([]byte, error) { return n.ToJSON(), nil }
 
+func (n *Null) Equal(other Value) bool {
+	_, ok := other.(*Null)
+	return ok
+}
+
 // NullValue 空值单例。
 var NullValue = &Null{}
 
@@ -225,26 +268,20 @@ var _ Value = (*Array)(nil)
 var _ Value = (*Stream)(nil)
 var _ Value = (*Any)(nil)
 
-// Decoder 配置选项
-var (
-	// EnableDecoderUseNumber 使用 json.Number 而不是 float64 来解码数字
-	EnableDecoderUseNumber = false
-	// EnableDecoderDisallowUnknownFields 禁止未知字段
-	EnableDecoderDisallowUnknownFields = false
-)
-
-// DecodeJSON 从 io.Reader 解码 JSON，返回 Value（可能是 Object 或 Array）。
+// DecodeJSON 从 io.Reader 解码 JSON，返回 Value
 func DecodeJSON(r io.Reader) (Value, error) {
-	var raw any
-	decoder := json.NewDecoder(r)
-	if EnableDecoderUseNumber {
-		decoder.UseNumber()
-	}
-	if EnableDecoderDisallowUnknownFields {
-		decoder.DisallowUnknownFields()
-	}
-	if err := decoder.Decode(&raw); err != nil {
+	var v any
+	if err := json.NewDecoder(r).Decode(&v); err != nil {
 		return nil, err
 	}
-	return fromInterface(raw), nil
+	return fromInterface(v), nil
+}
+
+// ParseJSON 从 json.RawMessage 解析 JSON，返回 Value
+func ParseJSON(message json.RawMessage) (Value, error) {
+	var v any
+	if err := json.Unmarshal(message, &v); err != nil {
+		return nil, err
+	}
+	return fromInterface(v), nil
 }

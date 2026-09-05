@@ -49,7 +49,8 @@ type HandlerFunc func(*Request) (any, error)
 type Request struct {
 	c            *gin.Context
 	cookie       *Cookie
-	jsonBody     *JSONObject
+	body         value.Value
+	bodyErr      error
 	handlerMeta  *HandlerMeta
 	response     Response
 	serverConfig *ServerConfig
@@ -157,20 +158,35 @@ func (r *Request) ParamUint(key string) uint {
 // The result is cached on subsequent calls.
 // The body size is limited by ServerConfig.MaxBodySize (default 10 MB).
 func (r *Request) Json() (*JSONObject, error) {
-	if r.IsGet() {
-		return nil, errors.New(GetNotSupportJson)
-	}
-	if r.jsonBody != nil {
-		return r.jsonBody, nil
-	}
-	r.limitBody()
-	var jsonObject JSONObject
-	err := r.c.BindJSON(&jsonObject)
+	body, err := r.Value()
 	if err != nil {
 		return nil, err
 	}
-	r.jsonBody = &jsonObject
-	return &jsonObject, nil
+	if body != nil {
+		if body.IsObject() {
+			return body.AsObject(), nil
+		}
+		return nil, errors.New("invalid json object body")
+	}
+	return nil, errors.New("invalid json object")
+}
+
+func (r *Request) Value() (value.Value, error) {
+	if r.IsGet() {
+		return nil, errors.New(GetNotSupportJson)
+	}
+	if r.bodyErr != nil {
+		return nil, r.bodyErr
+	}
+	if r.body != nil {
+		return r.body, nil
+	}
+	r.limitBody()
+	r.body, r.bodyErr = value.DecodeJSON(r.c.Request.Body)
+	if r.bodyErr != nil {
+		return nil, r.bodyErr
+	}
+	return r.body, nil
 }
 
 // limitBody wraps the request body with MaxBytesReader if MaxBodySize is configured.
@@ -221,11 +237,11 @@ func (r *Request) Page() (*Page, error) {
 
 // GetFormParam returns a form parameter value by key.
 func (r *Request) GetFormParam(key string) string {
-	if value := r.c.Request.Form.Get(key); len(value) > 0 {
-		return value
+	if val := r.c.Request.Form.Get(key); len(val) > 0 {
+		return val
 	}
-	if value := r.c.Request.FormValue(key); len(value) > 0 {
-		return value
+	if val := r.c.Request.FormValue(key); len(val) > 0 {
+		return val
 	}
 	return ""
 }
@@ -263,8 +279,8 @@ func (r *Request) GetJsonStringValue(key string) (string, error) {
 
 // GetJsonStringValueOrDefault returns a string value from the JSON body, or defaultValue if empty.
 func (r *Request) GetJsonStringValueOrDefault(key string, defaultValue string) string {
-	if value, _ := r.GetJsonStringValue(key); len(value) > 0 {
-		return value
+	if val, _ := r.GetJsonStringValue(key); len(val) > 0 {
+		return val
 	}
 	return defaultValue
 }

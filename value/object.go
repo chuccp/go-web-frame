@@ -49,7 +49,7 @@ func (o *Object) HasKeyValue(key string, value any) bool {
 	if !ok {
 		return false
 	}
-	return reflect.DeepEqual(v, fromInterface(value))
+	return fromInterface(value).Equal(v)
 }
 
 func (o *Object) IsEmpty() bool {
@@ -91,6 +91,18 @@ func (o *Object) HasKey(key string) bool {
 	}
 	_, ok := o.data[key]
 	return ok
+}
+
+func (o *Object) HasAnyKey(key ...string) bool {
+	if o == nil {
+		return false
+	}
+	for _, k := range key {
+		if _, ok := o.data[k]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (o *Object) GetIntForDefault(key string, defaultValue int) int {
@@ -230,6 +242,32 @@ func (o *Object) ToJSON() json.RawMessage {
 }
 
 func (o *Object) MarshalJSON() ([]byte, error) { return o.ToJSON(), nil }
+
+func (o *Object) Equal(other Value) bool {
+	obj, ok := other.(*Object)
+	if !ok {
+		return false
+	}
+	if len(o.data) != len(obj.data) {
+		return false
+	}
+	for k, v := range o.data {
+		ov, exists := obj.data[k]
+		if !exists {
+			return false
+		}
+		if v == nil && ov == nil {
+			continue
+		}
+		if v == nil || ov == nil {
+			return false
+		}
+		if !v.Equal(ov) {
+			return false
+		}
+	}
+	return true
+}
 
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (o *Object) UnmarshalJSON(data []byte) error {
@@ -411,3 +449,10 @@ func (a *Any) ToJSON() json.RawMessage {
 }
 
 func (a *Any) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }
+
+func (a *Any) Equal(other Value) bool {
+	if o, ok := other.(*Any); ok {
+		return reflect.DeepEqual(a.value, o.value)
+	}
+	return false
+}

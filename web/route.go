@@ -4,38 +4,47 @@ package web
 import (
 	"reflect"
 	"runtime"
-	"slices"
+	"sync"
+
+	"github.com/chuccp/go-web-frame/value"
 )
 
 // HandlerMeta holds key-value metadata attached to a route handler.
 type HandlerMeta struct {
-	data KV
+	meta *value.Object
+	lock sync.RWMutex
 }
 
 // Add sets a key-value pair in the handler metadata.
 func (hm *HandlerMeta) Add(key string, value any) {
-	hm.data.Add(key, value)
+	hm.lock.Lock()
+	defer hm.lock.Unlock()
+	hm.meta.PutAny(key, value)
 }
 
-// Has reports whether the given key exists in the handler metadata.
-func (hm *HandlerMeta) Has(key string) bool {
-	_, ok := hm.data[key]
-	return ok
-}
-
-// Get returns the value for the given key, or nil if not found.
-func (hm *HandlerMeta) Get(key string) any {
-	v, ok := hm.data[key]
-	if ok {
-		return v
+func (hm *HandlerMeta) AddKeys(keys ...string) {
+	hm.lock.Lock()
+	defer hm.lock.Unlock()
+	for _, key := range keys {
+		hm.meta.PutAny(key, true)
 	}
-	return nil
+}
+
+func (hm *HandlerMeta) HasAnyKey(key ...string) bool {
+	hm.lock.RLock()
+	defer hm.lock.RUnlock()
+	return hm.meta.HasAnyKey(key...)
+}
+func (hm *HandlerMeta) HasKeyValue(key string, value any) bool {
+	hm.lock.RLock()
+	defer hm.lock.RUnlock()
+	return hm.meta.HasKeyValue(key, value)
 }
 
 // NewHandlerMeta creates a new empty HandlerMeta.
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{
-		data: make(KV),
+		meta: value.NewObject(),
 	}
 }
 
@@ -104,11 +113,10 @@ func newFunMetaOption(a func(o *HandlerMeta), h func(o *HandlerMeta) bool) *func
 // WithKey creates a MetaOption that sets the given keys to true in the handler metadata.
 func WithKey(keys ...string) MetaOption {
 	return newFunMetaOption(func(o *HandlerMeta) {
-		for _, key := range keys {
-			o.Add(key, true)
-		}
+
+		o.AddKeys(keys...)
 	}, func(o *HandlerMeta) bool {
-		return slices.ContainsFunc(keys, o.Has)
+		return o.HasAnyKey(keys...)
 	})
 }
 
@@ -117,9 +125,7 @@ func WithValue(key string, value any) MetaOption {
 	return newFunMetaOption(func(o *HandlerMeta) {
 		o.Add(key, value)
 	}, func(o *HandlerMeta) bool {
-		if o.Has(key) {
-			return reflect.DeepEqual(o.Get(key), value)
-		}
-		return false
+
+		return o.HasKeyValue(key, value)
 	})
 }

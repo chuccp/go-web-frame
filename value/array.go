@@ -28,6 +28,29 @@ func (a *Array) ToJSON() json.RawMessage {
 
 func (a *Array) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }
 
+func (a *Array) Equal(other Value) bool {
+	arr, ok := other.(*Array)
+	if !ok {
+		return false
+	}
+	if len(a.data) != len(arr.data) {
+		return false
+	}
+	for i, v := range a.data {
+		ov := arr.data[i]
+		if v == nil && ov == nil {
+			continue
+		}
+		if v == nil || ov == nil {
+			return false
+		}
+		if !v.Equal(ov) {
+			return false
+		}
+	}
+	return true
+}
+
 func (a *Array) Add(value ...Value) {
 	a.data = append(a.data, value...)
 }

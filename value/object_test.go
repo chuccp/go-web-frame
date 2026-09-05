@@ -46,6 +46,9 @@ func TestObjectNilSafe(t *testing.T) {
 	o.Delete("x")
 	o.ForEach(func(k string, v Value) bool { return true })
 	o.Iter(func(k string, v Value) bool { return true })
+	if o.HasAnyKey("x", "y") {
+		t.Error("nil Object.HasAnyKey 应返回 false")
+	}
 	if got := o.ToMap(); got != nil {
 		t.Errorf("nil Object.ToMap 应返回 nil, got %#v", got)
 	}
@@ -298,6 +301,66 @@ func TestHasKeyValueWithAny(t *testing.T) {
 	}
 }
 
+func TestHasKeyValuePrimitives(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("name", "alice")
+	obj.PutAny("age", 30)
+	obj.PutAny("score", 95.5)
+	obj.PutAny("active", true)
+	obj.PutAny("note", nil)
+
+	tests := []struct {
+		key   string
+		value any
+		want  bool
+	}{
+		{"name", "alice", true},
+		{"name", "bob", false},
+		{"age", 30, true},
+		{"age", 99, false},
+		{"score", 95.5, true},
+		{"score", 1.0, false},
+		{"active", true, true},
+		{"active", false, false},
+		{"note", nil, true},
+		{"note", "x", false},
+		{"missing", "x", false},
+	}
+	for _, tt := range tests {
+		got := obj.HasKeyValue(tt.key, tt.value)
+		if got != tt.want {
+			t.Errorf("HasKeyValue(%q, %v) = %v, want %v", tt.key, tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestHasKeyValueMap(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("info", map[string]any{"city": "beijing", "zip": "100000"})
+
+	if !obj.HasKeyValue("info", map[string]any{"city": "beijing", "zip": "100000"}) {
+		t.Error("HasKeyValue 应匹配相同的 map")
+	}
+	if obj.HasKeyValue("info", map[string]any{"city": "shanghai"}) {
+		t.Error("HasKeyValue 不应匹配不同的 map")
+	}
+	if obj.HasKeyValue("info", map[string]any{"city": "beijing", "zip": "100000", "extra": 1}) {
+		t.Error("HasKeyValue 不应匹配不同长度的 map")
+	}
+}
+
+func TestHasKeyValueSlice(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("tags", []string{"go", "web"})
+
+	if !obj.HasKeyValue("tags", []string{"go", "web"}) {
+		t.Error("HasKeyValue 应匹配相同的 slice")
+	}
+	if obj.HasKeyValue("tags", []string{"go", "rust"}) {
+		t.Error("HasKeyValue 不应匹配不同的 slice")
+	}
+}
+
 func TestObjectDecode(t *testing.T) {
 	// 测试 Decode 方法 - 将 Object 转换为结构体
 	type User struct {
@@ -499,5 +562,249 @@ func TestDecodeJSONNested(t *testing.T) {
 	tags := obj.GetArray("tags")
 	if tags == nil || tags.Len() != 2 {
 		t.Fatalf("tags 错误: %v", tags)
+	}
+}
+
+func TestParseJSONObject(t *testing.T) {
+	raw := json.RawMessage(`{"name":"张三","age":25,"active":true}`)
+	val, err := ParseJSON(raw)
+	if err != nil {
+		t.Fatalf("ParseJSON 失败: %v", err)
+	}
+	if !val.IsObject() {
+		t.Fatalf("期望 Object 类型, got %T", val)
+	}
+	obj := val.AsObject()
+	if obj.GetString("name") != "张三" {
+		t.Errorf("name 错误: got %q", obj.GetString("name"))
+	}
+	if obj.GetInt("age") != 25 {
+		t.Errorf("age 错误: got %d", obj.GetInt("age"))
+	}
+	if !obj.GetBool("active") {
+		t.Error("active 应为 true")
+	}
+}
+
+func TestParseJSONArray(t *testing.T) {
+	raw := json.RawMessage(`["a","b","c"]`)
+	val, err := ParseJSON(raw)
+	if err != nil {
+		t.Fatalf("ParseJSON 失败: %v", err)
+	}
+	if !val.IsArray() {
+		t.Fatalf("期望 Array 类型, got %T", val)
+	}
+	arr := val.AsArray()
+	if arr.Len() != 3 {
+		t.Fatalf("数组长度错误: got %d, want 3", arr.Len())
+	}
+	if arr.Get(0).String() != "a" {
+		t.Errorf("第一个元素错误: got %q", arr.Get(0).String())
+	}
+}
+
+func TestParseJSONNested(t *testing.T) {
+	raw := json.RawMessage(`{"user":{"name":"李四","address":{"city":"北京"}},"tags":["go","web"]}`)
+	val, err := ParseJSON(raw)
+	if err != nil {
+		t.Fatalf("ParseJSON 失败: %v", err)
+	}
+	obj := val.AsObject()
+	user := obj.GetObject("user")
+	if user == nil {
+		t.Fatal("user 不应为 nil")
+	}
+	if user.GetString("name") != "李四" {
+		t.Errorf("user.name 错误: got %q", user.GetString("name"))
+	}
+	address := user.GetObject("address")
+	if address == nil {
+		t.Fatal("address 不应为 nil")
+	}
+	if address.GetString("city") != "北京" {
+		t.Errorf("address.city 错误: got %q", address.GetString("city"))
+	}
+	tags := obj.GetArray("tags")
+	if tags == nil || tags.Len() != 2 {
+		t.Fatalf("tags 错误: %v", tags)
+	}
+}
+
+func TestParseJSONPrimitives(t *testing.T) {
+	tests := []struct {
+		name  string
+		input json.RawMessage
+		check func(Value) bool
+	}{
+		{"string", json.RawMessage(`"hello"`), func(v Value) bool { return v.IsText() && v.String() == "hello" }},
+		{"number", json.RawMessage(`42`), func(v Value) bool { return v.IsNumber() && v.AsNumber().Int64() == 42 }},
+		{"float", json.RawMessage(`3.14`), func(v Value) bool { return v.IsNumber() && v.AsNumber().Float64() == 3.14 }},
+		{"bool", json.RawMessage(`true`), func(v Value) bool { return v.IsBool() && v.AsBool().String() == "true" }},
+		{"null", json.RawMessage(`null`), func(v Value) bool { return v.IsNull() }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, err := ParseJSON(tt.input)
+			if err != nil {
+				t.Fatalf("ParseJSON 失败: %v", err)
+			}
+			if !tt.check(val) {
+				t.Errorf("类型或值校验失败: %T %v", val, val)
+			}
+		})
+	}
+}
+
+func TestParseJSONInvalid(t *testing.T) {
+	_, err := ParseJSON(json.RawMessage(`{invalid`))
+	if err == nil {
+		t.Error("无效 JSON 应返回错误")
+	}
+}
+
+func TestEqualText(t *testing.T) {
+	if !NewText("hello").Equal(NewText("hello")) {
+		t.Error("相同文本应相等")
+	}
+	if NewText("hello").Equal(NewText("world")) {
+		t.Error("不同文本不应相等")
+	}
+	if NewText("hello").Equal(NewInt(1)) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestEqualNumber(t *testing.T) {
+	if !NewInt(42).Equal(NewInt(42)) {
+		t.Error("相同整数应相等")
+	}
+	if NewInt(42).Equal(NewInt(99)) {
+		t.Error("不同整数不应相等")
+	}
+	if !NewNumber(3.14).Equal(NewNumber(3.14)) {
+		t.Error("相同浮点数应相等")
+	}
+	if NewInt(1).Equal(NewNumber(1.0)) {
+		t.Error("int 与 float 不应相等")
+	}
+	if NewInt(1).Equal(NewText("1")) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestEqualBool(t *testing.T) {
+	if !NewBool(true).Equal(NewBool(true)) {
+		t.Error("相同布尔值应相等")
+	}
+	if NewBool(true).Equal(NewBool(false)) {
+		t.Error("不同布尔值不应相等")
+	}
+	if NewBool(true).Equal(NewText("true")) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestEqualNull(t *testing.T) {
+	if !NullValue.Equal(NullValue) {
+		t.Error("null 与 null 应相等")
+	}
+	if NullValue.Equal(NewText("")) {
+		t.Error("null 与 text 不应相等")
+	}
+}
+
+func TestEqualObject(t *testing.T) {
+	a := NewObject()
+	a.PutAny("name", "alice")
+	a.PutAny("age", 30)
+
+	b := NewObject()
+	b.PutAny("name", "alice")
+	b.PutAny("age", 30)
+
+	if !a.Equal(b) {
+		t.Error("相同对象应相等")
+	}
+
+	c := NewObject()
+	c.PutAny("name", "bob")
+	if a.Equal(c) {
+		t.Error("不同对象不应相等")
+	}
+
+	d := NewObject()
+	d.PutAny("name", "alice")
+	if a.Equal(d) {
+		t.Error("不同长度对象不应相等")
+	}
+
+	if a.Equal(NewText("x")) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestEqualArray(t *testing.T) {
+	a := NewArray(NewText("a"), NewText("b"))
+	b := NewArray(NewText("a"), NewText("b"))
+	if !a.Equal(b) {
+		t.Error("相同数组应相等")
+	}
+
+	c := NewArray(NewText("a"), NewText("c"))
+	if a.Equal(c) {
+		t.Error("不同数组不应相等")
+	}
+
+	d := NewArray(NewText("a"))
+	if a.Equal(d) {
+		t.Error("不同长度数组不应相等")
+	}
+
+	if a.Equal(NewText("x")) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestEqualNested(t *testing.T) {
+	a := NewObject()
+	a.Put("user", NewObject())
+	a.AsObject().GetObject("user").PutAny("name", "alice")
+	a.Put("tags", NewArray(NewText("go"), NewText("web")))
+
+	b := NewObject()
+	b.Put("user", NewObject())
+	b.AsObject().GetObject("user").PutAny("name", "alice")
+	b.Put("tags", NewArray(NewText("go"), NewText("web")))
+
+	if !a.Equal(b) {
+		t.Error("嵌套结构相同应相等")
+	}
+
+	b.AsObject().GetObject("user").PutAny("name", "bob")
+	if a.Equal(b) {
+		t.Error("嵌套结构不同不应相等")
+	}
+}
+
+func TestHasAnyKey(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("name", "alice")
+	obj.PutAny("age", 30)
+
+	if !obj.HasAnyKey("name") {
+		t.Error("单个存在的 key 应返回 true")
+	}
+	if !obj.HasAnyKey("name", "age") {
+		t.Error("多个存在的 key 应返回 true")
+	}
+	if !obj.HasAnyKey("missing", "age") {
+		t.Error("部分存在的 key 应返回 true")
+	}
+	if obj.HasAnyKey("x", "y", "z") {
+		t.Error("全部不存在的 key 应返回 false")
+	}
+	if obj.HasAnyKey() {
+		t.Error("无参数应返回 false")
 	}
 }

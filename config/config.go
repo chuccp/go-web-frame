@@ -137,6 +137,10 @@ type SingleFileConfig struct {
 
 // WriteConfig writes the configuration back to the file.
 func (c *SingleFileConfig) WriteConfig() error {
+	err := c.v.MergeConfigMap(c.object.ToMap())
+	if err != nil {
+		return err
+	}
 	return c.v.WriteConfig()
 }
 
@@ -163,7 +167,9 @@ func LoadSingleFileConfig(path string) (*SingleFileConfig, error) {
 	if err != nil {
 		return nil, errors.WithStackIf(err)
 	}
-	return &SingleFileConfig{Config: NewConfig(), v: _viper_, path: absPath}, nil
+	cfg := NewConfig()
+	cfg.object.PutMap(_viper_.AllSettings())
+	return &SingleFileConfig{Config: cfg, v: _viper_, path: absPath}, nil
 }
 
 // NewConfig creates a new empty Config with a fresh Viper instance.

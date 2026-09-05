@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -206,4 +208,58 @@ func TestConfig_UnmarshalKey(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "mysql", dbConfig.Type)
 	assert.Equal(t, 3306, dbConfig.Port)
+}
+
+func TestSingleFileConfig_WriteConfig(t *testing.T) {
+	// Create a temp config file
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.json")
+	initial := []byte(`{"server":{"port":8080},"db":{"type":"sqlite"}}`)
+	err := os.WriteFile(path, initial, 0644)
+	assert.NoError(t, err)
+
+	// Load the config
+	sfc, err := LoadSingleFileConfig(path)
+	assert.NoError(t, err)
+	assert.NotNil(t, sfc)
+
+	// Verify initial values
+	assert.Equal(t, 8080, sfc.GetInt("server.port"))
+	assert.Equal(t, "sqlite", sfc.GetString("db.type"))
+
+	// Modify config
+	sfc.Put("server.port", 9090)
+	sfc.Put("db.host", "localhost")
+
+	// Write back
+	err = sfc.WriteConfig()
+	assert.NoError(t, err)
+
+	// Reload and verify changes persisted
+	sfc2, err := LoadSingleFileConfig(path)
+	assert.NoError(t, err)
+	assert.Equal(t, 9090, sfc2.GetInt("server.port"))
+	assert.Equal(t, "sqlite", sfc2.GetString("db.type"))
+	assert.Equal(t, "localhost", sfc2.GetString("db.host"))
+}
+
+func TestSingleFileConfig_WriteConfig_JSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	initial := []byte(`{"app":{"name":"test"}}`)
+	err := os.WriteFile(path, initial, 0644)
+	assert.NoError(t, err)
+
+	sfc, err := LoadSingleFileConfig(path)
+	assert.NoError(t, err)
+
+	sfc.Put("app.version", "1.0.0")
+	err = sfc.WriteConfig()
+	assert.NoError(t, err)
+
+	// Reload and verify
+	sfc2, err := LoadSingleFileConfig(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "test", sfc2.GetString("app.name"))
+	assert.Equal(t, "1.0.0", sfc2.GetString("app.version"))
 }

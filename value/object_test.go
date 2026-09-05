@@ -808,3 +808,723 @@ func TestHasAnyKey(t *testing.T) {
 		t.Error("无参数应返回 false")
 	}
 }
+
+// --- Object.GetByPath / PutByPath ---
+
+func TestObjectGetByPath(t *testing.T) {
+	obj := NewObject()
+	dbObj := NewObject()
+	dbObj.PutAny("type", "mysql")
+	dbObj.PutAny("host", "localhost")
+	obj.Put("db", dbObj)
+
+	// Simple key
+	if got := obj.GetByPath("db"); got == nil || !got.IsObject() {
+		t.Error("GetByPath('db') 应返回 Object")
+	}
+
+	// Nested key
+	if got := obj.GetByPath("db.type"); got == nil || got.String() != "mysql" {
+		t.Errorf("GetByPath('db.type') 应返回 'mysql', got %v", got)
+	}
+	if got := obj.GetByPath("db.host"); got == nil || got.String() != "localhost" {
+		t.Errorf("GetByPath('db.host') 应返回 'localhost', got %v", got)
+	}
+
+	// Missing key
+	if got := obj.GetByPath("db.missing"); got != nil {
+		t.Errorf("GetByPath('db.missing') 应返回 nil, got %v", got)
+	}
+
+	// Missing top-level key
+	if got := obj.GetByPath("missing.key"); got != nil {
+		t.Errorf("GetByPath('missing.key') 应返回 nil, got %v", got)
+	}
+
+	// Deep nested
+	serverObj := NewObject()
+	sslObj := NewObject()
+	sslObj.PutAny("enabled", true)
+	serverObj.Put("ssl", sslObj)
+	obj.Put("server", serverObj)
+	if got := obj.GetByPath("server.ssl.enabled"); got == nil || got.String() != "true" {
+		t.Errorf("GetByPath('server.ssl.enabled') 应返回 true, got %v", got)
+	}
+}
+
+func TestObjectGetByPathNilSafe(t *testing.T) {
+	var obj *Object
+	if got := obj.GetByPath("any.path"); got != nil {
+		t.Errorf("nil Object.GetByPath 应返回 nil, got %v", got)
+	}
+}
+
+func TestObjectPutByPath(t *testing.T) {
+	obj := NewObject()
+
+	// Simple key
+	obj.PutByPath("name", "alice")
+	if got := obj.GetString("name"); got != "alice" {
+		t.Errorf("PutByPath('name') 失败, got %q", got)
+	}
+
+	// Nested key - creates intermediate objects
+	obj.PutByPath("db.type", "sqlite")
+	obj.PutByPath("db.path", ":memory:")
+
+	dbVal := obj.GetByPath("db")
+	if dbVal == nil || !dbVal.IsObject() {
+		t.Fatal("db 应为 Object")
+	}
+	db := dbVal.AsObject()
+	if db.GetString("type") != "sqlite" {
+		t.Errorf("db.type 应为 'sqlite', got %q", db.GetString("type"))
+	}
+	if db.GetString("path") != ":memory:" {
+		t.Errorf("db.path 应为 ':memory:', got %q", db.GetString("path"))
+	}
+
+	// Deep nested
+	obj.PutByPath("server.ssl.cert", "/path/to/cert")
+	if got := obj.GetByPath("server.ssl.cert"); got == nil || got.String() != "/path/to/cert" {
+		t.Errorf("PutByPath deep nested 失败, got %v", got)
+	}
+
+	// Overwrite existing
+	obj.PutByPath("db.type", "mysql")
+	if got := obj.GetByPath("db.type"); got == nil || got.String() != "mysql" {
+		t.Errorf("PutByPath overwrite 失败, got %v", got)
+	}
+	// Verify other keys in db preserved
+	if got := obj.GetByPath("db.path"); got == nil || got.String() != ":memory:" {
+		t.Errorf("PutByPath overwrite 不应影响其他 key, got %v", got)
+	}
+}
+
+// --- Object.AddAll deep merge ---
+
+func TestObjectAddAll_Shallow(t *testing.T) {
+	a := NewObject()
+	a.PutAny("x", 1)
+
+	b := NewObject()
+	b.PutAny("y", 2)
+
+	a.AddAll(b)
+	if a.GetInt("x") != 1 || a.GetInt("y") != 2 {
+		t.Errorf("AddAll shallow 合并错误: %+v", a.ToMap())
+	}
+}
+
+func TestObjectAddAll_DeepMerge(t *testing.T) {
+	a := NewObject()
+	dbA := NewObject()
+	dbA.PutAny("type", "mysql")
+	dbA.PutAny("host", "localhost")
+	a.Put("db", dbA)
+
+	b := NewObject()
+	dbB := NewObject()
+	dbB.PutAny("host", "production")
+	dbB.PutAny("port", 3306)
+	b.Put("db", dbB)
+
+	a.AddAll(b)
+
+	db := a.GetObject("db")
+	if db == nil {
+		t.Fatal("db 不应为 nil")
+	}
+	// type preserved from a
+	if db.GetString("type") != "mysql" {
+		t.Errorf("db.type 应保留 'mysql', got %q", db.GetString("type"))
+	}
+	// host overwritten by b
+	if db.GetString("host") != "production" {
+		t.Errorf("db.host 应被覆盖为 'production', got %q", db.GetString("host"))
+	}
+	// port added from b
+	if db.GetInt("port") != 3306 {
+		t.Errorf("db.port 应为 3306, got %d", db.GetInt("port"))
+	}
+}
+
+func TestObjectAddAll_NilSafe(t *testing.T) {
+	a := NewObject()
+	a.PutAny("x", 1)
+	a.AddAll(nil) // should not panic
+	if a.GetInt("x") != 1 {
+		t.Error("AddAll(nil) 不应影响原对象")
+	}
+}
+
+// --- Object.GetNative ---
+
+func TestObjectGetNative(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("name", "alice")
+	obj.PutAny("age", 30)
+	obj.PutAny("score", 95.5)
+	obj.PutAny("active", true)
+
+	if got := obj.GetNative("name"); got != "alice" {
+		t.Errorf("GetNative('name') = %v, want 'alice'", got)
+	}
+	if got := obj.GetNative("age"); got != int64(30) {
+		t.Errorf("GetNative('age') = %v (type %T), want int64(30)", got, got)
+	}
+	if got := obj.GetNative("score"); got != 95.5 {
+		t.Errorf("GetNative('score') = %v, want 95.5", got)
+	}
+	if got := obj.GetNative("active"); got != true {
+		t.Errorf("GetNative('active') = %v, want true", got)
+	}
+	if got := obj.GetNative("missing"); got != nil {
+		t.Errorf("GetNative('missing') = %v, want nil", got)
+	}
+}
+
+func TestObjectGetNativeNilSafe(t *testing.T) {
+	var obj *Object
+	if got := obj.GetNative("any"); got != nil {
+		t.Errorf("nil GetNative 应返回 nil, got %v", got)
+	}
+}
+
+// --- Object.ForEach / Iter ---
+
+func TestObjectForEach(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("a", 1)
+	obj.PutAny("b", 2)
+	obj.PutAny("c", 3)
+
+	collected := make(map[string]int)
+	obj.ForEach(func(k string, v Value) bool {
+		collected[k] = int(v.AsNumber().Int64())
+		return true
+	})
+	if len(collected) != 3 {
+		t.Errorf("ForEach 应遍历 3 个 key, got %d", len(collected))
+	}
+	if collected["a"] != 1 || collected["b"] != 2 || collected["c"] != 3 {
+		t.Errorf("ForEach 值错误: %v", collected)
+	}
+}
+
+func TestObjectForEach_Break(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("a", 1)
+	obj.PutAny("b", 2)
+	obj.PutAny("c", 3)
+
+	count := 0
+	obj.ForEach(func(k string, v Value) bool {
+		count++
+		return false // break after first
+	})
+	if count != 1 {
+		t.Errorf("ForEach break 应只迭代 1 次, got %d", count)
+	}
+}
+
+// --- Object.ReplaceKey ---
+
+func TestObjectReplaceKey(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("old_name", "alice")
+
+	obj.ReplaceKey("old_name", "new_name")
+	// new key should have the value
+	if obj.GetString("new_name") != "alice" {
+		t.Errorf("ReplaceKey 应复制值到 new_name, got %q", obj.GetString("new_name"))
+	}
+	// old key still exists (ReplaceKey copies, doesn't move)
+	if !obj.HasKey("old_name") {
+		t.Error("ReplaceKey 后 old_name 应仍存在")
+	}
+	if obj.GetString("old_name") != "alice" {
+		t.Errorf("old_name 值应保留, got %q", obj.GetString("old_name"))
+	}
+}
+
+func TestObjectReplaceKey_NotExist(t *testing.T) {
+	obj := NewObject()
+	obj.ReplaceKey("missing", "new")
+	if obj.HasKey("new") {
+		t.Error("ReplaceKey 对不存在的 key 不应创建新 key")
+	}
+}
+
+// --- Array.Add / AddAny / Set ---
+
+func TestArrayAdd(t *testing.T) {
+	arr := NewArray(NewText("a"))
+	arr.Add(NewText("b"), NewText("c"))
+	if arr.Len() != 3 {
+		t.Fatalf("Add 后长度应为 3, got %d", arr.Len())
+	}
+	if arr.Get(1).String() != "b" || arr.Get(2).String() != "c" {
+		t.Errorf("Add 值错误: [%s, %s]", arr.Get(1).String(), arr.Get(2).String())
+	}
+}
+
+func TestArrayAddAny(t *testing.T) {
+	arr := NewArray()
+	arr.AddAny("hello")
+	arr.AddAny(42)
+	arr.AddAny(true)
+
+	if arr.Len() != 3 {
+		t.Fatalf("AddAny 后长度应为 3, got %d", arr.Len())
+	}
+	if !arr.Get(0).IsText() || arr.Get(0).String() != "hello" {
+		t.Errorf("AddAny string 错误: %T %v", arr.Get(0), arr.Get(0))
+	}
+	if !arr.Get(1).IsNumber() || arr.Get(1).AsNumber().Int64() != 42 {
+		t.Errorf("AddAny int 错误: %T %v", arr.Get(1), arr.Get(1))
+	}
+	if !arr.Get(2).IsBool() {
+		t.Errorf("AddAny bool 错误: %T", arr.Get(2))
+	}
+}
+
+func TestArraySet(t *testing.T) {
+	arr := NewArray(NewText("a"), NewText("b"), NewText("c"))
+	arr.Set(1, NewText("X"))
+	if arr.Get(1).String() != "X" {
+		t.Errorf("Set 后值应为 'X', got %q", arr.Get(1).String())
+	}
+	// Out of bounds should not panic
+	arr.Set(10, NewText("y"))
+	arr.Set(-1, NewText("z"))
+}
+
+// --- Array.Get out of bounds ---
+
+func TestArrayGetOutOfBounds(t *testing.T) {
+	arr := NewArray(NewText("a"))
+	if got := arr.Get(5); got != NullValue {
+		t.Errorf("越界 Get 应返回 NullValue, got %v", got)
+	}
+	if got := arr.Get(-1); got != NullValue {
+		t.Errorf("负数 Get 应返回 NullValue, got %v", got)
+	}
+}
+
+// --- Array.ToJSON ---
+
+func TestArrayToJSON(t *testing.T) {
+	arr := NewArray(NewText("a"), NewInt(1), NewBool(true), NullValue)
+	data := arr.ToJSON()
+	var out []any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("ToJSON 解析失败: %v", err)
+	}
+	if len(out) != 4 {
+		t.Fatalf("长度应为 4, got %d", len(out))
+	}
+	if out[0] != "a" {
+		t.Errorf("元素 0 应为 'a', got %v", out[0])
+	}
+	// JSON numbers default to float64
+	if out[1] != float64(1) {
+		t.Errorf("元素 1 应为 1, got %v", out[1])
+	}
+	if out[2] != true {
+		t.Errorf("元素 2 应为 true, got %v", out[2])
+	}
+	if out[3] != nil {
+		t.Errorf("元素 3 应为 nil, got %v", out[3])
+	}
+}
+
+// --- Stream ---
+
+func TestStreamBasic(t *testing.T) {
+	s := NewStream()
+	if !s.IsStream() {
+		t.Error("IsStream 应返回 true")
+	}
+	if !s.IsEmpty() {
+		t.Error("新 Stream 应为空")
+	}
+	if s.Len() != 0 {
+		t.Errorf("新 Stream 长度应为 0, got %d", s.Len())
+	}
+
+	s.WriteString("hello")
+	s.WriteString(" world")
+	if s.Text() != "hello world" {
+		t.Errorf("Text() = %q, want 'hello world'", s.Text())
+	}
+	if s.Len() != 11 {
+		t.Errorf("Len() = %d, want 11", s.Len())
+	}
+	if s.IsEmpty() {
+		t.Error("写入后不应为空")
+	}
+	if s.String() != "hello world" {
+		t.Errorf("String() = %q, want 'hello world'", s.String())
+	}
+}
+
+func TestStreamReset(t *testing.T) {
+	s := NewStream()
+	s.WriteString("data")
+	s.Reset()
+	if !s.IsEmpty() {
+		t.Error("Reset 后应为空")
+	}
+	if s.Text() != "" {
+		t.Errorf("Reset 后 Text() = %q, want ''", s.Text())
+	}
+}
+
+func TestStreamToJSON(t *testing.T) {
+	s := NewStream()
+	s.WriteString(`{"key":"value"}`)
+	data := s.ToJSON()
+	if string(data) != `{"key":"value"}` {
+		t.Errorf("ToJSON = %q", string(data))
+	}
+}
+
+func TestStreamEqual(t *testing.T) {
+	a := NewStream()
+	a.WriteString("hello")
+	b := NewStream()
+	b.WriteString("hello")
+	c := NewStream()
+	c.WriteString("world")
+
+	if !a.Equal(b) {
+		t.Error("相同 Stream 应相等")
+	}
+	if a.Equal(c) {
+		t.Error("不同 Stream 不应相等")
+	}
+	if a.Equal(NewText("hello")) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestStreamUnmarshal(t *testing.T) {
+	s := NewStream()
+	s.WriteString(`{"name":"alice","age":30}`)
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+	var u User
+	err := s.Unmarshal(&u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "alice" || u.Age != 30 {
+		t.Errorf("got %+v", u)
+	}
+}
+
+// --- Text ---
+
+func TestTextBasic(t *testing.T) {
+	text := NewText("hello")
+	if !text.IsText() {
+		t.Error("IsText 应返回 true")
+	}
+	if text.AsText() != text {
+		t.Error("AsText 应返回自身")
+	}
+	if text.String() != "hello" {
+		t.Errorf("String() = %q, want 'hello'", text.String())
+	}
+}
+
+func TestTextToJSON(t *testing.T) {
+	text := NewText(`he said "hi"`)
+	data := text.ToJSON()
+	// Should be JSON-escaped
+	if string(data) != `"he said \"hi\""` {
+		t.Errorf("ToJSON = %q", string(data))
+	}
+}
+
+func TestTextEqual(t *testing.T) {
+	if !NewText("x").Equal(NewText("x")) {
+		t.Error("相同 Text 应相等")
+	}
+	if NewText("x").Equal(NewText("y")) {
+		t.Error("不同 Text 不应相等")
+	}
+	if NewText("x").Equal(NewInt(1)) {
+		t.Error("不同类型不应相等")
+	}
+}
+
+func TestTextUnmarshal(t *testing.T) {
+	text := NewText(`{"key":"value"}`)
+	var m map[string]string
+	err := text.Unmarshal(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m["key"] != "value" {
+		t.Errorf("got %+v", m)
+	}
+}
+
+// --- Number ---
+
+func TestNumberString(t *testing.T) {
+	if NewInt(42).String() != "42" {
+		t.Errorf("NewInt(42).String() = %q", NewInt(42).String())
+	}
+	if NewNumber(3.14).String() != "3.14" {
+		t.Errorf("NewNumber(3.14).String() = %q", NewNumber(3.14).String())
+	}
+}
+
+func TestNumberInt64Float64(t *testing.T) {
+	n := NewInt(42)
+	if n.Int64() != 42 {
+		t.Errorf("Int64() = %d", n.Int64())
+	}
+	if n.Float64() != 42.0 {
+		t.Errorf("Float64() = %f", n.Float64())
+	}
+
+	f := NewNumber(3.5)
+	if f.Int64() != 3 {
+		t.Errorf("Float Int64() = %d", f.Int64())
+	}
+	if f.Float64() != 3.5 {
+		t.Errorf("Float64() = %f", f.Float64())
+	}
+}
+
+func TestNumberMarshalJSON(t *testing.T) {
+	n := NewInt(42)
+	data, err := n.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "42" {
+		t.Errorf("MarshalJSON = %q", string(data))
+	}
+
+	f := NewNumber(3.14)
+	data, err = f.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "3.14" {
+		t.Errorf("MarshalJSON = %q", string(data))
+	}
+}
+
+// --- Bool ---
+
+func TestBoolBasic(t *testing.T) {
+	if !NewBool(true).IsBool() {
+		t.Error("IsBool 应返回 true")
+	}
+	if NewBool(true).String() != "true" {
+		t.Errorf("String() = %q", NewBool(true).String())
+	}
+	if NewBool(false).String() != "false" {
+		t.Errorf("String() = %q", NewBool(false).String())
+	}
+}
+
+func TestBoolToJSON(t *testing.T) {
+	if string(NewBool(true).ToJSON()) != "true" {
+		t.Errorf("ToJSON = %q", string(NewBool(true).ToJSON()))
+	}
+	if string(NewBool(false).ToJSON()) != "false" {
+		t.Errorf("ToJSON = %q", string(NewBool(false).ToJSON()))
+	}
+}
+
+// --- Null ---
+
+func TestNullBasic(t *testing.T) {
+	if !NullValue.IsNull() {
+		t.Error("IsNull 应返回 true")
+	}
+	if NullValue.String() != "null" {
+		t.Errorf("String() = %q", NullValue.String())
+	}
+	if string(NullValue.ToJSON()) != "null" {
+		t.Errorf("ToJSON = %q", string(NullValue.ToJSON()))
+	}
+}
+
+func TestNullEqual(t *testing.T) {
+	if !NullValue.Equal(NullValue) {
+		t.Error("NullValue 应等于自身")
+	}
+	if NullValue.Equal(NewText("")) {
+		t.Error("Null 不应等于 Text")
+	}
+}
+
+// --- Object.PutJson ---
+
+func TestObjectPutJson(t *testing.T) {
+	obj := NewObject()
+	err := obj.PutJson([]byte(`{"name":"alice","age":30}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obj.GetString("name") != "alice" {
+		t.Errorf("name = %q", obj.GetString("name"))
+	}
+	if obj.GetInt("age") != 30 {
+		t.Errorf("age = %d", obj.GetInt("age"))
+	}
+}
+
+func TestObjectPutJson_Invalid(t *testing.T) {
+	obj := NewObject()
+	err := obj.PutJson([]byte(`{invalid`))
+	if err == nil {
+		t.Error("无效 JSON 应返回错误")
+	}
+}
+
+// --- NewObjectFromMap ---
+
+func TestNewObjectFromMap(t *testing.T) {
+	m := map[string]any{
+		"name":   "alice",
+		"age":    30,
+		"active": true,
+	}
+	obj := NewObjectFromMap(m)
+	if obj.GetString("name") != "alice" {
+		t.Errorf("name = %q", obj.GetString("name"))
+	}
+	if obj.GetInt("age") != 30 {
+		t.Errorf("age = %d", obj.GetInt("age"))
+	}
+	if !obj.GetBool("active") {
+		t.Error("active 应为 true")
+	}
+}
+
+// --- Object.MarshalJSON ---
+
+func TestObjectMarshalJSON(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("name", "alice")
+	obj.PutAny("count", 5)
+
+	data, err := obj.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["name"] != "alice" {
+		t.Errorf("name = %v", m["name"])
+	}
+	if m["count"] != float64(5) {
+		t.Errorf("count = %v", m["count"])
+	}
+}
+
+// --- Object.Delete ---
+
+func TestObjectDelete(t *testing.T) {
+	obj := NewObject()
+	obj.PutAny("name", "alice")
+	obj.PutAny("age", 30)
+
+	obj.Delete("name")
+	if obj.HasKey("name") {
+		t.Error("Delete 后 key 不应存在")
+	}
+	if obj.GetString("name") != "" {
+		t.Errorf("Delete 后 GetString 应返回空, got %q", obj.GetString("name"))
+	}
+	// Other key preserved
+	if obj.GetInt("age") != 30 {
+		t.Errorf("Delete 不应影响其他 key, age = %d", obj.GetInt("age"))
+	}
+}
+
+// --- Object.IsEmpty ---
+
+func TestObjectIsEmpty(t *testing.T) {
+	obj := NewObject()
+	if !obj.IsEmpty() {
+		t.Error("新 Object 应为空")
+	}
+	obj.PutAny("key", "value")
+	if obj.IsEmpty() {
+		t.Error("有 key 后不应为空")
+	}
+}
+
+// --- Type assertion panics ---
+
+func TestValueBaseAsPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("AsObject on non-Object should panic")
+		}
+	}()
+	NewText("x").AsObject()
+}
+
+// --- Array nil safety extended ---
+
+func TestArrayNilSafeExtended(t *testing.T) {
+	var arr *Array
+	// These should not panic
+	arr.Set(0, NewText("x"))
+	if arr.Len() != 0 {
+		t.Errorf("nil Array.Len 应为 0, got %d", arr.Len())
+	}
+	if arr.Get(0) != NullValue {
+		t.Error("nil Array.Get 应返回 NullValue")
+	}
+	arr.ForEach(func(i int, v Value) bool { return true })
+	arr.Iter(func(i int, v Value) bool { return true })
+}
+
+// --- Object with null value ---
+
+func TestObjectNullValue(t *testing.T) {
+	obj := NewObject()
+	obj.Put("key", NullValue)
+
+	if !obj.Get("key").IsNull() {
+		t.Error("Get('key') 应为 Null")
+	}
+	if obj.GetString("key") != "" {
+		t.Errorf("Null GetString 应返回空, got %q", obj.GetString("key"))
+	}
+}
+
+// --- NewArraySize ---
+
+func TestNewArraySize(t *testing.T) {
+	arr := NewArraySize(5)
+	if arr.Len() != 5 {
+		t.Errorf("NewArraySize(5).Len() = %d, want 5", arr.Len())
+	}
+	// Elements should be nil initially
+	if arr.Get(0) != nil {
+		t.Errorf("初始元素应为 nil, got %v", arr.Get(0))
+	}
+	// Can set values
+	arr.Set(0, NewText("hello"))
+	if arr.Get(0).String() != "hello" {
+		t.Errorf("Set 后值应为 'hello', got %q", arr.Get(0).String())
+	}
+}

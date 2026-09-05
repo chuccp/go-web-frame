@@ -6,7 +6,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/go-viper/mapstructure/v2"
+	"github.com/chuccp/go-web-frame/util"
 )
 
 type Object struct {
@@ -17,7 +17,11 @@ type Object struct {
 func (o *Object) PutAny(key string, value any) {
 	o.data[key] = fromInterface(value)
 }
-
+func (o *Object) PutMap(data map[string]any) {
+	for k, v := range data {
+		o.data[k] = fromInterface(v)
+	}
+}
 func (o *Object) Put(key string, value Value) {
 	o.data[key] = value
 }
@@ -113,6 +117,21 @@ func (o *Object) GetIntForDefault(key string, defaultValue int) int {
 	return int(v.AsNumber().Int64())
 }
 
+func (o *Object) GetStringOrDefault(key string, defaultValue string) string {
+	v := o.GetString(key)
+	if util.IsBlank(v) {
+		return defaultValue
+	}
+	return v
+}
+
+func (o *Object) GetBoolOrDefault(key string, defaultValue bool) bool {
+	if o.HasKey(key) {
+		return defaultValue
+	}
+	return o.GetBool(key)
+}
+
 func (o *Object) GetBool(key string) bool {
 	v := o.Get(key)
 	if v == nil || !v.IsBool() {
@@ -206,20 +225,14 @@ func (o *Object) ToMap() map[string]any {
 }
 
 // Decode decodes the Object into the provided struct using json tags.
-// It converts the Object to a map first, then uses mapstructure for decoding.
-func (o *Object) Decode(v any) error {
+// It converts the Object to a map first, then uses the value decoder.
+func (o *Object) Decode(v any, opts ...DecoderConfigOption) error {
 	if o == nil {
 		return nil
 	}
 	m := o.ToMap()
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName: "json",
-		Result:  v,
-	})
-	if err != nil {
-		return err
-	}
-	return decoder.Decode(m)
+	cfg := newDecoderConfig(opts...)
+	return decodeValue(m, v, cfg)
 }
 
 func (o *Object) IsObject() bool { return true }
@@ -242,6 +255,15 @@ func (o *Object) ToJSON() json.RawMessage {
 }
 
 func (o *Object) MarshalJSON() ([]byte, error) { return o.ToJSON(), nil }
+
+func (o *Object) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	if o == nil {
+		return nil
+	}
+	cfg := newDecoderConfig(opts...)
+	m := o.ToMap()
+	return decodeValue(m, v, cfg)
+}
 
 func (o *Object) Equal(other Value) bool {
 	obj, ok := other.(*Object)
@@ -267,6 +289,12 @@ func (o *Object) Equal(other Value) bool {
 		}
 	}
 	return true
+}
+
+func (o *Object) ReplaceKey(key string, newKey string) {
+	if o.HasKey(key) {
+		o.PutAny(newKey, o.Get(key))
+	}
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface.
@@ -449,6 +477,10 @@ func (a *Any) ToJSON() json.RawMessage {
 }
 
 func (a *Any) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }
+
+func (a *Any) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal(a.ToJSON(), v)
+}
 
 func (a *Any) Equal(other Value) bool {
 	if o, ok := other.(*Any); ok {

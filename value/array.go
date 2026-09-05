@@ -1,6 +1,9 @@
 package value
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 type Array struct {
 	ValueBase
@@ -27,6 +30,27 @@ func (a *Array) ToJSON() json.RawMessage {
 }
 
 func (a *Array) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }
+
+func (a *Array) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	if a == nil {
+		return nil
+	}
+	cfg := newDecoderConfig(opts...)
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Slice {
+		return setSlice(rv.Elem(), a.toNativeSlice(), cfg)
+	}
+	raw, _ := json.Marshal(a.toNativeSlice())
+	return json.Unmarshal(raw, v)
+}
+
+func (a *Array) toNativeSlice() []any {
+	out := make([]any, len(a.data))
+	for i, item := range a.data {
+		out[i] = toAny(item)
+	}
+	return out
+}
 
 func (a *Array) Equal(other Value) bool {
 	arr, ok := other.(*Array)

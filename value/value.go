@@ -27,7 +27,7 @@ type Value interface {
 
 	ToJSON() json.RawMessage
 	String() string
-
+	Unmarshal(any, ...DecoderConfigOption) error
 	Equal(Value) bool
 }
 
@@ -50,9 +50,10 @@ func (ValueBase) AsBool() *Bool           { panic("not bool") }
 func (ValueBase) AsNumber() *Number       { panic("not number") }
 func (ValueBase) AsStream() *Stream       { panic("not Stream") }
 func (ValueBase) AsAny() *Any             { panic("not Any") }
-func (ValueBase) ToJSON() json.RawMessage { return json.RawMessage("null") }
-func (ValueBase) String() string          { return "null" }
-func (ValueBase) Equal(Value) bool        { return false }
+func (ValueBase) ToJSON() json.RawMessage   { return json.RawMessage("null") }
+func (ValueBase) String() string            { return "null" }
+func (ValueBase) Equal(Value) bool          { return false }
+func (ValueBase) Unmarshal(any, ...DecoderConfigOption) error { return nil }
 
 type Stream struct {
 	ValueBase
@@ -107,6 +108,10 @@ func (s *Stream) Equal(other Value) bool {
 	return false
 }
 
+func (s *Stream) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal([]byte(s.text.String()), v)
+}
+
 type Text struct {
 	ValueBase
 	text string
@@ -124,6 +129,10 @@ func (t *Text) ToJSON() json.RawMessage {
 }
 
 func (t *Text) MarshalJSON() ([]byte, error) { return t.ToJSON(), nil }
+
+func (t *Text) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal([]byte(t.text), v)
+}
 
 func (t *Text) Equal(other Value) bool {
 	if o, ok := other.(*Text); ok {
@@ -183,6 +192,10 @@ func (n *Number) ToJSON() json.RawMessage {
 
 func (n *Number) MarshalJSON() ([]byte, error) { return n.ToJSON(), nil }
 
+func (n *Number) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal(n.ToJSON(), v)
+}
+
 func (n *Number) Equal(other Value) bool {
 	o, ok := other.(*Number)
 	if !ok {
@@ -227,6 +240,10 @@ func (b *Bool) ToJSON() json.RawMessage {
 
 func (b *Bool) MarshalJSON() ([]byte, error) { return b.ToJSON(), nil }
 
+func (b *Bool) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal(b.ToJSON(), v)
+}
+
 func (b *Bool) Equal(other Value) bool {
 	if o, ok := other.(*Bool); ok {
 		return b.b == o.b
@@ -249,6 +266,10 @@ func (n *Null) String() string { return "null" }
 func (n *Null) ToJSON() json.RawMessage { return json.RawMessage("null") }
 
 func (n *Null) MarshalJSON() ([]byte, error) { return n.ToJSON(), nil }
+
+func (n *Null) Unmarshal(v any, opts ...DecoderConfigOption) error {
+	return json.Unmarshal([]byte("null"), v)
+}
 
 func (n *Null) Equal(other Value) bool {
 	_, ok := other.(*Null)

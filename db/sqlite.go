@@ -15,12 +15,12 @@ import (
 
 // SQLiteConfig holds SQLite connection configuration.
 type SQLiteConfig struct {
-	FilePath string `mapstructure:"filePath"`
-	Path     string `mapstructure:"path"`
+	FilePath string
+	Path     string
 	// Connection pool settings
-	MaxOpenConns    int `mapstructure:"max_open_conns"`
-	MaxIdleConns    int `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"` // in seconds
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime int
 }
 
 // ConnectionSQLite creates a new SQLite database connection.

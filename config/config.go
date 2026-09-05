@@ -35,33 +35,45 @@ type Config struct {
 	object *value.Object
 }
 
-// GetString returns the string value for the given key.
+// GetString returns the string value for the given key. Supports dot-separated paths.
 func (c *Config) GetString(key string) string {
-	return c.object.GetString(key)
+	v := c.object.GetByPath(key)
+	if v == nil {
+		return ""
+	}
+	if v.IsNull() {
+		return ""
+	}
+	return v.String()
 }
 
-// Put sets a configuration value.
-func (c *Config) Put(key string, value any) {
-	c.object.PutAny(key, value)
+// Put sets a configuration value. Supports dot-separated key paths (e.g. "web.db.type").
+func (c *Config) Put(key string, val any) {
+	c.object.PutByPath(key, val)
 }
 
 // GetStringOrDefault returns the string value for the given key, or defaultValue if blank.
 func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
-	return c.object.GetStringOrDefault(key, defaultValue)
-
+	s := c.GetString(key)
+	if util.IsBlank(s) {
+		return defaultValue
+	}
+	return s
 }
 
-// HasKey reports whether the given key exists in the configuration.
+// HasKey reports whether the given key exists in the configuration. Supports dot-separated paths.
 func (c *Config) HasKey(key string) bool {
-	return c.object.HasKey(key)
+	return c.object.GetByPath(key) != nil
 }
 
 // UnmarshalKey unmarshals configuration under the given key into the target struct.
 // Supports both camelCase and snake_case keys in config files.
 func (c *Config) UnmarshalKey(key string, v any) error {
-
-	return errors.WithStackIf(c.object.Get(key).Unmarshal(v))
-
+	val := c.object.GetByPath(key)
+	if val == nil {
+		return nil
+	}
+	return errors.WithStackIf(val.Unmarshal(v))
 }
 
 // Unmarshal unmarshals the entire configuration into the target struct.
@@ -70,24 +82,44 @@ func (c *Config) Unmarshal(v any) error {
 	return errors.WithStackIf(c.object.Unmarshal(v))
 }
 
-// GetInt returns the int value for the given key.
+// GetInt returns the int value for the given key. Supports dot-separated paths.
 func (c *Config) GetInt(key string) int {
-	return c.object.GetInt(key)
+	v := c.object.GetByPath(key)
+	if v == nil || !v.IsNumber() {
+		return 0
+	}
+	return int(v.AsNumber().Int64())
 }
 
 // GetIntOrDefault returns the int value for the given key, or defaultValue if not set.
 func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
-	return c.object.GetIntForDefault(key, defaultValue)
+	v := c.object.GetByPath(key)
+	if v == nil || !v.IsNumber() {
+		return defaultValue
+	}
+	return int(v.AsNumber().Int64())
 }
 
 // GetBoolOrDefault returns the bool value for the given key, or defaultValue if not set.
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
-	return c.object.GetBoolOrDefault(key, defaultValue)
+	v := c.object.GetByPath(key)
+	if v == nil || !v.IsBool() {
+		return defaultValue
+	}
+	return v.String() == "true"
 }
 
-// ReplaceKey copies the value from key to newKey if key is set.
+// ReplaceKey copies the value from key to newKey if key is set. Supports dot-separated paths.
 func (c *Config) ReplaceKey(key string, newKey string) {
-	c.object.ReplaceKey(key, newKey)
+	v := c.object.GetByPath(key)
+	if v != nil {
+		c.object.PutByPath(newKey, v)
+	}
+}
+
+// AllSettings returns the underlying configuration object.
+func (c *Config) AllSettings() *value.Object {
+	return c.object
 }
 
 // WriteConfig is a no-op for Config; use SingleFileConfig for file-backed writes.

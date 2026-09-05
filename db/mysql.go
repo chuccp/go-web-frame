@@ -23,9 +23,9 @@ type MysqlConfig struct {
 	Host     string
 	Port     int
 	// Connection pool settings
-	MaxOpenConns    int `mapstructure:"max_open_conns"`
-	MaxIdleConns    int `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"` // in seconds
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime int // in seconds
 }
 
 // ConnectionMysql creates a new MySQL database connection.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/chuccp/go-web-frame/util"
 )
@@ -30,6 +31,36 @@ func (o *Object) Get(key string) Value {
 		return nil
 	}
 	return o.data[key]
+}
+func (o *Object) GetByPath(path string) Value {
+	parts := strings.Split(path, ".")
+	var current Value = o
+	for _, part := range parts {
+		obj, ok := current.(*Object)
+		if !ok {
+			return nil
+		}
+		current = obj.Get(part)
+		if current == nil {
+			return nil
+		}
+	}
+	return current
+}
+
+func (o *Object) PutByPath(path string, value any) {
+	parts := strings.Split(path, ".")
+	current := o
+	for i := 0; i < len(parts)-1; i++ {
+		child := current.Get(parts[i])
+		childObj, ok := child.(*Object)
+		if !ok {
+			childObj = NewObject()
+			current.Put(parts[i], childObj)
+		}
+		current = childObj
+	}
+	current.PutAny(parts[len(parts)-1], value)
 }
 
 // GetNative returns the native Go value for the given key.
@@ -177,6 +208,14 @@ func (o *Object) AddAll(other *Object) {
 		return
 	}
 	for k, v := range other.data {
+		if existing, ok := o.data[k]; ok {
+			if eObj, ok1 := existing.(*Object); ok1 {
+				if vObj, ok2 := v.(*Object); ok2 {
+					eObj.AddAll(vObj)
+					continue
+				}
+			}
+		}
 		o.data[k] = v
 	}
 }

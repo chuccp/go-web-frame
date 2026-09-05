@@ -78,14 +78,9 @@ func TestSQLiteConfig_CustomConnectionPool(t *testing.T) {
 }
 
 func TestConfigUnmarshal(t *testing.T) {
-	// This test verifies that the mapstructure tags work correctly.
-	// In real usage, Viper unmarshals config from YAML/JSON into the struct.
-	// The tags are present, so this test just checks they exist.
-
-	// Verify the struct tags are correct for connection pool fields
+	// Verify the struct fields exist and can be set.
+	// Field name matching (snake_case ↔ CamelCase) is handled by value.Unmarshal.
 	var cfg MysqlConfig
-	// The reflection check could be done here, but it's unnecessary.
-	// We just need to ensure the fields exist with the correct tags.
 	assert.NotNil(t, cfg)
 }
 

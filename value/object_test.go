@@ -2,6 +2,7 @@ package value
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -408,5 +409,95 @@ func TestObjectDecodeToMap(t *testing.T) {
 		default:
 			t.Errorf("key2 类型错误: got %T, want int64 or float64", key2Val)
 		}
+	}
+}
+
+func TestDecodeJSONObject(t *testing.T) {
+	// 测试解码 JSON 对象
+	jsonStr := `{"name":"张三","age":25,"active":true}`
+	r := strings.NewReader(jsonStr)
+
+	val, err := DecodeJSON(r)
+	if err != nil {
+		t.Fatalf("DecodeJSON 失败: %v", err)
+	}
+
+	if !val.IsObject() {
+		t.Fatalf("期望 Object 类型, got %T", val)
+	}
+
+	obj := val.AsObject()
+	if obj.GetString("name") != "张三" {
+		t.Errorf("name 错误: got %q", obj.GetString("name"))
+	}
+	if obj.GetInt("age") != 25 {
+		t.Errorf("age 错误: got %d", obj.GetInt("age"))
+	}
+	if !obj.GetBool("active") {
+		t.Error("active 应为 true")
+	}
+}
+
+func TestDecodeJSONArray(t *testing.T) {
+	// 测试解码 JSON 数组
+	jsonStr := `["a","b","c"]`
+	r := strings.NewReader(jsonStr)
+
+	val, err := DecodeJSON(r)
+	if err != nil {
+		t.Fatalf("DecodeJSON 失败: %v", err)
+	}
+
+	if !val.IsArray() {
+		t.Fatalf("期望 Array 类型, got %T", val)
+	}
+
+	arr := val.AsArray()
+	if arr.Len() != 3 {
+		t.Fatalf("数组长度错误: got %d, want 3", arr.Len())
+	}
+	if arr.Get(0).String() != "a" {
+		t.Errorf("第一个元素错误: got %q", arr.Get(0).String())
+	}
+}
+
+func TestDecodeJSONNested(t *testing.T) {
+	// 测试解码嵌套 JSON
+	jsonStr := `{
+		"user": {
+			"name": "李四",
+			"address": {
+				"city": "北京"
+			}
+		},
+		"tags": ["go", "web"]
+	}`
+	r := strings.NewReader(jsonStr)
+
+	val, err := DecodeJSON(r)
+	if err != nil {
+		t.Fatalf("DecodeJSON 失败: %v", err)
+	}
+
+	obj := val.AsObject()
+	user := obj.GetObject("user")
+	if user == nil {
+		t.Fatal("user 不应为 nil")
+	}
+	if user.GetString("name") != "李四" {
+		t.Errorf("user.name 错误: got %q", user.GetString("name"))
+	}
+
+	address := user.GetObject("address")
+	if address == nil {
+		t.Fatal("address 不应为 nil")
+	}
+	if address.GetString("city") != "北京" {
+		t.Errorf("address.city 错误: got %q", address.GetString("city"))
+	}
+
+	tags := obj.GetArray("tags")
+	if tags == nil || tags.Len() != 2 {
+		t.Fatalf("tags 错误: %v", tags)
 	}
 }

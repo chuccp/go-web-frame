@@ -3,6 +3,7 @@ package value
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -38,7 +39,7 @@ func (ValueBase) IsBool() bool   { return false }
 func (ValueBase) IsNumber() bool { return false }
 func (ValueBase) IsNull() bool   { return false }
 func (ValueBase) IsStream() bool { return false }
-func (ValueBase) IsAny() bool   { return false }
+func (ValueBase) IsAny() bool    { return false }
 
 func (ValueBase) AsObject() *Object       { panic("not an object") }
 func (ValueBase) AsArray() *Array         { panic("not an array") }
@@ -223,3 +224,27 @@ var _ Value = (*Object)(nil)
 var _ Value = (*Array)(nil)
 var _ Value = (*Stream)(nil)
 var _ Value = (*Any)(nil)
+
+// Decoder 配置选项
+var (
+	// EnableDecoderUseNumber 使用 json.Number 而不是 float64 来解码数字
+	EnableDecoderUseNumber = false
+	// EnableDecoderDisallowUnknownFields 禁止未知字段
+	EnableDecoderDisallowUnknownFields = false
+)
+
+// DecodeJSON 从 io.Reader 解码 JSON，返回 Value（可能是 Object 或 Array）。
+func DecodeJSON(r io.Reader) (Value, error) {
+	var raw any
+	decoder := json.NewDecoder(r)
+	if EnableDecoderUseNumber {
+		decoder.UseNumber()
+	}
+	if EnableDecoderDisallowUnknownFields {
+		decoder.DisallowUnknownFields()
+	}
+	if err := decoder.Decode(&raw); err != nil {
+		return nil, err
+	}
+	return fromInterface(raw), nil
+}

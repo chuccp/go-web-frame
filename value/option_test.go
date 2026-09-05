@@ -557,3 +557,164 @@ func TestArrayUnmarshal_StructsCaseInsensitive(t *testing.T) {
 		t.Errorf("got %+v", out)
 	}
 }
+
+// --- Any.Unmarshal basic (no opts, falls back to json.Unmarshal) ---
+
+func TestAnyUnmarshal_Basic(t *testing.T) {
+	a := NewAny(map[string]any{"name": "alice", "age": float64(30)})
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+	var u User
+	err := a.Unmarshal(&u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "alice" || u.Age != 30 {
+		t.Errorf("got %+v", u)
+	}
+}
+
+// --- Any.Unmarshal with custom json tag ---
+
+func TestAnyUnmarshal_WithJsonTag(t *testing.T) {
+	a := NewAny(map[string]any{"user_name": "bob"})
+	type User struct {
+		Name string `json:"user_name"`
+	}
+	var u User
+	err := a.Unmarshal(&u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "bob" {
+		t.Errorf("got %+v", u)
+	}
+}
+
+// --- Any.Unmarshal with custom tag via opts ---
+
+func TestAnyUnmarshal_WithCustomTag(t *testing.T) {
+	a := NewAny(map[string]any{"name": "carol"})
+	type User struct {
+		Name string `yaml:"name"`
+	}
+	var u User
+	err := a.Unmarshal(&u, WithTagName("yaml"), WithMatchFieldName(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "carol" {
+		t.Errorf("got %+v", u)
+	}
+}
+
+// --- Any.Unmarshal with snake_case field matching ---
+
+func TestAnyUnmarshal_SnakeCase(t *testing.T) {
+	a := NewAny(map[string]any{"max_open_conns": 50})
+	type Config struct {
+		MaxOpenConns int
+	}
+	var cfg Config
+	err := a.Unmarshal(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxOpenConns != 50 {
+		t.Errorf("got %+v", cfg)
+	}
+}
+
+// --- Any.Unmarshal with case insensitive keys ---
+
+func TestAnyUnmarshal_CaseInsensitive(t *testing.T) {
+	a := NewAny(map[string]any{"MAX_OPEN_CONNS": 25})
+	type Config struct {
+		MaxOpenConns int
+	}
+	var cfg Config
+	err := a.Unmarshal(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxOpenConns != 25 {
+		t.Errorf("got %+v", cfg)
+	}
+}
+
+// --- Any.Unmarshal with weakly typed input ---
+
+func TestAnyUnmarshal_WeaklyTyped(t *testing.T) {
+	a := NewAny(map[string]any{"name": "alice", "age": "25", "active": "true"})
+	type User struct {
+		Name   string `json:"name"`
+		Age    int    `json:"age"`
+		Active bool   `json:"active"`
+	}
+	var u User
+	err := a.Unmarshal(&u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "alice" || u.Age != 25 || !u.Active {
+		t.Errorf("got %+v", u)
+	}
+}
+
+// --- Any.Unmarshal with strict mode ---
+
+func TestAnyUnmarshal_StrictMode(t *testing.T) {
+	a := NewAny(map[string]any{"age": "not_a_number"})
+	type User struct {
+		Age int `json:"age"`
+	}
+	var u User
+	err := a.Unmarshal(&u, WithWeaklyTypedInput(false))
+	if err == nil {
+		t.Error("expected error in strict mode")
+	}
+}
+
+// --- Any.Unmarshal nil ---
+
+func TestAnyUnmarshal_Nil(t *testing.T) {
+	var a *Any
+	type User struct {
+		Name string
+	}
+	var u User
+	err := a.Unmarshal(&u)
+	if err != nil {
+		t.Errorf("nil any should return nil error, got %v", err)
+	}
+}
+
+// --- Any.Unmarshal nil value ---
+
+func TestAnyUnmarshal_NilValue(t *testing.T) {
+	a := NewAny(nil)
+	type User struct {
+		Name string
+	}
+	var u User
+	err := a.Unmarshal(&u)
+	if err != nil {
+		t.Errorf("nil value should return nil error, got %v", err)
+	}
+}
+
+// --- Any.Unmarshal without opts uses json.Unmarshal ---
+
+func TestAnyUnmarshal_NoOptsJsonFallback(t *testing.T) {
+	a := NewAny(map[string]any{"count": float64(42)})
+	var out map[string]any
+	err := a.Unmarshal(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["count"] != float64(42) {
+		t.Errorf("got %+v", out)
+	}
+}

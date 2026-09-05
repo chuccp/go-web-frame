@@ -518,7 +518,26 @@ func (a *Any) ToJSON() json.RawMessage {
 func (a *Any) MarshalJSON() ([]byte, error) { return a.ToJSON(), nil }
 
 func (a *Any) Unmarshal(v any, opts ...DecoderConfigOption) error {
-	return json.Unmarshal(a.ToJSON(), v)
+	if a == nil || a.value == nil {
+		return nil
+	}
+	m, err := a.toMap()
+	if err != nil {
+		return err
+	}
+	cfg := newDecoderConfig(opts...)
+	return decodeValue(m, v, cfg)
+}
+
+func (a *Any) toMap() (map[string]any, error) {
+	if m, ok := a.value.(map[string]any); ok {
+		return m, nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(a.ToJSON(), &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (a *Any) Equal(other Value) bool {

@@ -53,6 +53,7 @@ func (o *Object) GetByPath(path string) Value {
 	}
 	return current
 }
+
 func (o *Object) matchKey(key string) (Value, bool) {
 	if v, ok := o.data[key]; ok {
 		return v, true
@@ -71,6 +72,12 @@ func (o *Object) matchKey(key string) (Value, bool) {
 	}
 	for k, v := range o.data {
 		if strings.ToLower(k) == lowerKey {
+			return v, true
+		}
+	}
+	camel := strings.ToLower(snakeToCamel(key))
+	for k, v := range o.data {
+		if strings.ToLower(k) == camel {
 			return v, true
 		}
 	}

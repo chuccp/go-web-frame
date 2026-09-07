@@ -42,6 +42,60 @@ func (o *Object) GetByPath(path string) Value {
 		}
 		current = obj.Get(part)
 		if current == nil {
+			lowerPart := strings.ToLower(part)
+			if lowerPart != part {
+				current = obj.Get(lowerPart)
+			}
+		}
+		if current == nil {
+			return nil
+		}
+	}
+	return current
+}
+func (o *Object) matchKey(key string, matchFieldName bool) (Value, bool) {
+	if v, ok := o.data[key]; ok {
+		return v, true
+	}
+	if !matchFieldName {
+		return nil, false
+	}
+	lowerKey := strings.ToLower(key)
+	if lowerKey != key {
+		if v, ok := o.data[lowerKey]; ok {
+			return v, true
+		}
+	}
+	snakeKey := camelToSnake(key)
+	if snakeKey != key && snakeKey != lowerKey {
+		if v, ok := o.data[snakeKey]; ok {
+			return v, true
+		}
+	}
+	for k, v := range o.data {
+		if strings.ToLower(k) == lowerKey {
+			return v, true
+		}
+	}
+	return nil, false
+}
+func (o *Object) GetMatch(key string, matchFieldName bool) Value {
+	if o == nil {
+		return nil
+	}
+	v, _ := o.matchKey(key, matchFieldName)
+	return v
+}
+func (o *Object) GetByPathMatch(path string, matchFieldName bool) Value {
+	parts := strings.Split(path, ".")
+	var current Value = o
+	for _, part := range parts {
+		obj, ok := current.(*Object)
+		if !ok {
+			return nil
+		}
+		current = obj.GetMatch(part, matchFieldName)
+		if current == nil {
 			return nil
 		}
 	}

@@ -53,12 +53,9 @@ func (o *Object) GetByPath(path string) Value {
 	}
 	return current
 }
-func (o *Object) matchKey(key string, matchFieldName bool) (Value, bool) {
+func (o *Object) matchKey(key string) (Value, bool) {
 	if v, ok := o.data[key]; ok {
 		return v, true
-	}
-	if !matchFieldName {
-		return nil, false
 	}
 	lowerKey := strings.ToLower(key)
 	if lowerKey != key {
@@ -79,14 +76,14 @@ func (o *Object) matchKey(key string, matchFieldName bool) (Value, bool) {
 	}
 	return nil, false
 }
-func (o *Object) GetMatch(key string, matchFieldName bool) Value {
+func (o *Object) Lookup(key string) Value {
 	if o == nil {
 		return nil
 	}
-	v, _ := o.matchKey(key, matchFieldName)
+	v, _ := o.matchKey(key)
 	return v
 }
-func (o *Object) GetByPathMatch(path string, matchFieldName bool) Value {
+func (o *Object) LookupByPath(path string) Value {
 	parts := strings.Split(path, ".")
 	var current Value = o
 	for _, part := range parts {
@@ -94,7 +91,7 @@ func (o *Object) GetByPathMatch(path string, matchFieldName bool) Value {
 		if !ok {
 			return nil
 		}
-		current = obj.GetMatch(part, matchFieldName)
+		current = obj.Lookup(part)
 		if current == nil {
 			return nil
 		}

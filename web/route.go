@@ -41,6 +41,13 @@ func (hm *HandlerMeta) HasKeyValue(key string, value any) bool {
 	return hm.meta.HasKeyValue(key, value)
 }
 
+func (hm *HandlerMeta) Has(key string) bool {
+	hm.lock.RLock()
+	defer hm.lock.RUnlock()
+	return hm.meta.HasKey(key)
+
+}
+
 // NewHandlerMeta creates a new empty HandlerMeta.
 func NewHandlerMeta() *HandlerMeta {
 	return &HandlerMeta{

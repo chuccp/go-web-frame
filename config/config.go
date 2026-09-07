@@ -37,7 +37,7 @@ type Config struct {
 
 // GetString returns the string value for the given key. Supports dot-separated paths.
 func (c *Config) GetString(key string) string {
-	v := c.object.GetByPath(key)
+	v := c.object.LookupByPath(key)
 	if v == nil {
 		return ""
 	}
@@ -63,13 +63,13 @@ func (c *Config) GetStringOrDefault(key string, defaultValue string) string {
 
 // HasKey reports whether the given key exists in the configuration. Supports dot-separated paths.
 func (c *Config) HasKey(key string) bool {
-	return c.object.GetByPath(key) != nil
+	return c.object.LookupByPath(key) != nil
 }
 
 // UnmarshalKey unmarshals configuration under the given key into the target struct.
 // Supports both camelCase and snake_case keys in config files.
 func (c *Config) UnmarshalKey(key string, v any) error {
-	val := c.object.GetByPath(key)
+	val := c.object.LookupByPath(key)
 	if val == nil {
 		return nil
 	}
@@ -84,7 +84,7 @@ func (c *Config) Unmarshal(v any) error {
 
 // GetInt returns the int value for the given key. Supports dot-separated paths.
 func (c *Config) GetInt(key string) int {
-	v := c.object.GetByPath(key)
+	v := c.object.LookupByPath(key)
 	if v == nil || !v.IsNumber() {
 		return 0
 	}
@@ -93,7 +93,7 @@ func (c *Config) GetInt(key string) int {
 
 // GetIntOrDefault returns the int value for the given key, or defaultValue if not set.
 func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
-	v := c.object.GetByPath(key)
+	v := c.object.LookupByPath(key)
 	if v == nil || !v.IsNumber() {
 		return defaultValue
 	}
@@ -102,7 +102,7 @@ func (c *Config) GetIntOrDefault(key string, defaultValue int) int {
 
 // GetBoolOrDefault returns the bool value for the given key, or defaultValue if not set.
 func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
-	v := c.object.GetByPath(key)
+	v := c.object.LookupByPath(key)
 	if v == nil || !v.IsBool() {
 		return defaultValue
 	}
@@ -111,7 +111,7 @@ func (c *Config) GetBoolOrDefault(key string, defaultValue bool) bool {
 
 // ReplaceKey copies the value from key to newKey if key is set. Supports dot-separated paths.
 func (c *Config) ReplaceKey(key string, newKey string) {
-	v := c.object.GetByPath(key)
+	v := c.object.LookupByPath(key)
 	if v != nil {
 		c.object.PutByPath(newKey, v)
 	}

@@ -54,56 +54,14 @@ func (o *Object) GetByPath(path string) Value {
 	return current
 }
 
-func (o *Object) matchKey(key string) (Value, bool) {
-	if v, ok := o.data[key]; ok {
-		return v, true
-	}
-	lowerKey := strings.ToLower(key)
-	if lowerKey != key {
-		if v, ok := o.data[lowerKey]; ok {
-			return v, true
-		}
-	}
-	snakeKey := camelToSnake(key)
-	if snakeKey != key && snakeKey != lowerKey {
-		if v, ok := o.data[snakeKey]; ok {
-			return v, true
-		}
-	}
-	for k, v := range o.data {
-		if strings.ToLower(k) == lowerKey {
-			return v, true
-		}
-	}
-	camel := strings.ToLower(snakeToCamel(key))
-	for k, v := range o.data {
-		if strings.ToLower(k) == camel {
-			return v, true
-		}
-	}
-	return nil, false
-}
 func (o *Object) Lookup(key string) Value {
 	if o == nil {
 		return nil
 	}
-	v, _ := o.matchKey(key)
-	return v
+	return matchKey(o, key, defaultLookupOption)
 }
 func (o *Object) LookupByPath(path string) Value {
-	parts := strings.Split(path, ".")
-	var current Value = o
-	for _, part := range parts {
-		obj, ok := current.(*Object)
-		if !ok {
-			return nil
-		}
-		current = obj.Lookup(part)
-		if current == nil {
-			return nil
-		}
-	}
-	return current
+	return Lookup(o, path)
 }
 
 func (o *Object) PutByPath(path string, value any) {

@@ -64,6 +64,14 @@ func (o *Object) LookupByPath(path string) Value {
 	return Lookup(o, path)
 }
 
+func (o *Object) GetUint(key string) uint {
+	v := o.Get(key)
+	if v == nil || !v.IsNumber() {
+		return 0
+	}
+	return uint(v.AsNumber().Int64())
+}
+
 func (o *Object) PutByPath(path string, value any) {
 	parts := strings.Split(path, ".")
 	current := o

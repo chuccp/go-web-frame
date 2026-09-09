@@ -363,13 +363,19 @@ app.Run(ctx)
 
 ```go
 // 在任何 Init() 或 handler 中，按型別取得：
-userModel := wf.GetModel[*UserModel](ctx)
-userService := wf.GetService[*UserService](ctx)
-authFilter := wf.GetFilter[*AuthFilter](ctx)
-cleanupTask := wf.GetRunner[*CleanupTask](ctx)
+userModel := wf.MustModel[*UserModel](ctx)
+userService := wf.MustService[*UserService](ctx)
+authFilter := wf.MustFilter[*AuthFilter](ctx)
+cleanupTask := wf.MustRunner[*CleanupTask](ctx)
 ```
 
-沒有字串 key，不做型別斷言。泛型函式直接處理。
+`Must*` 變體在型別未註冊時直接 panic ——能在啟動時就發現装配錯誤，而不是等到請求時才暴露。舊的 `Get*` 函式仍然可用，但已標記為 deprecated。
+
+對於需要綁定不同資料庫的 Model（如交易中）：
+
+```go
+txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+```
 
 ### Service 層：共享業務邏輯
 
@@ -412,6 +418,122 @@ analyticsGroup := wf.NewModelGroupBuilder().
     AutoCreateTable(true).
     Build()
 builder.ModelGroup(analyticsGroup)
+```
+
+### Value 套件 —— 型別安全的動態值
+
+`value` 套件提供了一種型別安全的方式來處理動態 JSON 類似的資料，包括 JSONPath 風格的導航：
+
+```go
+import "github.com/chuccp/go-web-frame/value"
+
+// 建立 Object（類似 JSON 物件）
+obj := value.NewObject()
+obj.PutAny("name", "張三")
+obj.PutAny("age", 25)
+obj.PutAny("active", true)
+
+// 型別安全的取值
+name := obj.GetString("name")      // "張三"
+age := obj.GetInt("age")           // 25
+active := obj.GetBool("active")    // true
+count := obj.GetIntForDefault("count", 0)  // 0（預設值）
+
+// 巢狀物件
+address := value.NewObject()
+address.PutAny("city", "北京")
+obj.Put("address", address)
+
+city := obj.GetObject("address").GetString("city")  // "北京"
+
+// 深度相等比較
+obj2 := value.NewObject()
+obj2.PutAny("name", "張三")
+obj.Equal(obj2)  // true（深度結構比較）
+
+// 解碼到 struct（遵循 json tag）
+type User struct {
+    Name    string `json:"name"`
+    Age     int    `json:"age"`
+    Active  bool   `json:"active"`
+}
+
+var user User
+err := obj.Decode(&user)
+
+// 轉為 map
+m := obj.ToMap()  // map[string]any
+
+// JSON 序列化
+jsonBytes := obj.ToJSON()
+
+// 解析 JSON 到 Value
+v, _ := value.ParseJSON(jsonBytes)
+
+// Any 型別 —— 非標準值（struct、自定義型別）
+type Status struct {
+    Code    int
+    Message string
+}
+obj.PutAny("status", Status{Code: 200, Message: "ok"})
+status := obj.Get("status").AsAny().Value().(Status)
+```
+
+#### JSONPath 風格的 Lookup
+
+透過點分路徑、陣列下標、萬用字元和遞迴下降來導航巢狀結構：
+
+```go
+data := value.NewObjectFromMap(map[string]any{
+    "store": map[string]any{
+        "books": []any{
+            map[string]any{"title": "Go", "price": 30},
+            map[string]any{"title": "Rust", "price": 40},
+        },
+    },
+})
+
+// 點分路徑導航
+title := data.LookupByPath("store.books.0.title")  // "Go"
+
+// 萬用字元 —— 收集所有符合項
+prices := value.LookupAll(data, "store.books[*].price")  // [30, 40]
+
+// 遞迴下降 —— 在任意深度查找 "title"
+titles := value.LookupAll(data, "..title")  // ["Go", "Rust"]
+
+// 負索引 —— 從末尾開始
+last := value.LookupByPath("store.books[-1].title")  // "Rust"
+
+// 回退 —— 第一個非空路徑生效
+v := value.LookupFirst(data, "store.magazines", "store.books")  // books 陣列
+
+// 靈活的 key 匹配（預設：大小寫不敏感 + snakeCase + camelCase）
+v := value.Lookup(data, "store_book")   // 也能匹配 "storeBook"
+v := value.Lookup(data, "StoreBook", value.MatchExact())  // 僅精確匹配
+```
+
+#### 遍歷
+
+```go
+// Go 1.23+ 迭代器
+for k, v := range obj.Iter {
+    fmt.Println(k, v)
+}
+
+// 回呼方式，可中斷
+obj.ForEach(func(key string, val value.Value) bool {
+    fmt.Println(key, val)
+    return true // 返回 false 停止遍歷
+})
+```
+
+#### PutByPath —— 設定巢狀值
+
+```go
+obj := value.NewObject()
+obj.PutByPath("user.address.city", "北京")
+// obj → {"user":{"address":{"city":"北京"}}}
 ```
 
 ---
@@ -665,10 +787,10 @@ db:
   database: mydb
   sslmode: disable
 
-# SQLite
+# SQLite（自動建立父目錄）
 db:
   type: sqlite
-  path: ./data.db
+  path: ./data/app.db    # ./data/ 不存在時自動建立
 ```
 
 支援 JSON、YAML、TOML 格式。

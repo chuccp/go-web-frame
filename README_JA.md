@@ -363,13 +363,19 @@ app.Run(ctx)
 
 ```go
 // 任意の Init() またはハンドラ内で型指定で取得：
-userModel := wf.GetModel[*UserModel](ctx)
-userService := wf.GetService[*UserService](ctx)
-authFilter := wf.GetFilter[*AuthFilter](ctx)
-cleanupTask := wf.GetRunner[*CleanupTask](ctx)
+userModel := wf.MustModel[*UserModel](ctx)
+userService := wf.MustService[*UserService](ctx)
+authFilter := wf.MustFilter[*AuthFilter](ctx)
+cleanupTask := wf.MustRunner[*CleanupTask](ctx)
 ```
 
-文字列キーなし、型アサーションなし。ジェネリック関数がすべて処理します。
+`Must*` バリアントは型が未登録の場合に即座に panic します ——起動時に配線エラーを検出でき、リクエスト時に露呈するのを防ぎます。旧来の `Get*` 関数は引き続き利用できますが、deprecated としてマークされています。
+
+別の DB にバインドする必要がある Model（トランザクション内など）：
+
+```go
+txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+```
 
 ### Service 層：ビジネスロジックの共有
 
@@ -412,6 +418,122 @@ analyticsGroup := wf.NewModelGroupBuilder().
     AutoCreateTable(true).
     Build()
 builder.ModelGroup(analyticsGroup)
+```
+
+### Value パッケージ —— 型安全な動的値
+
+`value` パッケージは、JSONPath スタイルのナビゲーションを含む、動的な JSON データを型安全に扱う手段を提供します：
+
+```go
+import "github.com/chuccp/go-web-frame/value"
+
+// Object の作成（JSON オブジェクトと同様）
+obj := value.NewObject()
+obj.PutAny("name", "太郎")
+obj.PutAny("age", 25)
+obj.PutAny("active", true)
+
+// 型安全なゲッター
+name := obj.GetString("name")      // "太郎"
+age := obj.GetInt("age")           // 25
+active := obj.GetBool("active")    // true
+count := obj.GetIntForDefault("count", 0)  // 0（デフォルト値）
+
+// ネストされたオブジェクト
+address := value.NewObject()
+address.PutAny("city", "東京")
+obj.Put("address", address)
+
+city := obj.GetObject("address").GetString("city")  // "東京"
+
+// 深い等価比較
+obj2 := value.NewObject()
+obj2.PutAny("name", "太郎")
+obj.Equal(obj2)  // true（深い構造比較）
+
+// struct へのデコード（json tag に従う）
+type User struct {
+    Name    string `json:"name"`
+    Age     int    `json:"age"`
+    Active  bool   `json:"active"`
+}
+
+var user User
+err := obj.Decode(&user)
+
+// map に変換
+m := obj.ToMap()  // map[string]any
+
+// JSON シリアライゼーション
+jsonBytes := obj.ToJSON()
+
+// JSON を Value にパース
+v, _ := value.ParseJSON(jsonBytes)
+
+// Any 型 —— 非標準値（struct、カスタム型）
+type Status struct {
+    Code    int
+    Message string
+}
+obj.PutAny("status", Status{Code: 200, Message: "ok"})
+status := obj.Get("status").AsAny().Value().(Status)
+```
+
+#### JSONPath スタイルの Lookup
+
+ドット区切りパス、配列インデックス、ワイルドカード、再帰下降でネストされた構造をナビゲート：
+
+```go
+data := value.NewObjectFromMap(map[string]any{
+    "store": map[string]any{
+        "books": []any{
+            map[string]any{"title": "Go", "price": 30},
+            map[string]any{"title": "Rust", "price": 40},
+        },
+    },
+})
+
+// ドット区切りパスナビゲーション
+title := data.LookupByPath("store.books.0.title")  // "Go"
+
+// ワイルドカード —— すべての一致を収集
+prices := value.LookupAll(data, "store.books[*].price")  // [30, 40]
+
+// 再帰下降 —— 任意の深さで "title" を検索
+titles := value.LookupAll(data, "..title")  // ["Go", "Rust"]
+
+// 負のインデックス —— 末尾から
+last := value.LookupByPath("store.books[-1].title")  // "Rust"
+
+// フォールバック —— 最初の非空パスが有効
+v := value.LookupFirst(data, "store.magazines", "store.books")  // books 配列
+
+// 柔軟なキー照合（デフォルト：大文字小文字不区別 + snakeCase + camelCase）
+v := value.Lookup(data, "store_book")   // "storeBook" もマッチ
+v := value.Lookup(data, "StoreBook", value.MatchExact())  // 完全一致のみ
+```
+
+#### イテレーション
+
+```go
+// Go 1.23+ イテレータ
+for k, v := range obj.Iter {
+    fmt.Println(k, v)
+}
+
+// コールバック方式、中断可能
+obj.ForEach(func(key string, val value.Value) bool {
+    fmt.Println(key, val)
+    return true // false を返すと停止
+})
+```
+
+#### PutByPath —— ネストされた値の設定
+
+```go
+obj := value.NewObject()
+obj.PutByPath("user.address.city", "東京")
+// obj → {"user":{"address":{"city":"東京"}}}
 ```
 
 ---
@@ -665,10 +787,10 @@ db:
   database: mydb
   sslmode: disable
 
-# SQLite
+# SQLite（親ディレクトリを自動作成）
 db:
   type: sqlite
-  path: ./data.db
+  path: ./data/app.db    # ./data/ が存在しない場合は自動作成
 ```
 
 JSON、YAML、TOML 形式に対応。

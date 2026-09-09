@@ -363,13 +363,19 @@ Registration order matters: filters initialize first, then models, then services
 
 ```go
 // In any Init() or handler, get what you need by type:
-userModel := wf.GetModel[*UserModel](ctx)
-userService := wf.GetService[*UserService](ctx)
-authFilter := wf.GetFilter[*AuthFilter](ctx)
-cleanupTask := wf.GetRunner[*CleanupTask](ctx)
+userModel := wf.MustModel[*UserModel](ctx)
+userService := wf.MustService[*UserService](ctx)
+authFilter := wf.MustFilter[*AuthFilter](ctx)
+cleanupTask := wf.MustRunner[*CleanupTask](ctx)
 ```
 
-No string keys, no type assertions. The generic function handles it.
+`Must*` variants panic if the type was not registered — catches wiring errors at startup instead of at request time. The old `Get*` functions still work but are deprecated.
+
+For models that need a different DB (e.g. inside a transaction):
+
+```go
+txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+```
 
 ### Service Layer: Shared Business Logic
 
@@ -416,7 +422,7 @@ builder.ModelGroup(analyticsGroup)
 
 ### Value Package — Type-Safe Dynamic Values
 
-The `value` package provides a type-safe way to work with dynamic JSON-like data:
+The `value` package provides a type-safe way to work with dynamic JSON-like data, including JSONPath-like navigation:
 
 ```go
 import "github.com/chuccp/go-web-frame/value"
@@ -440,7 +446,12 @@ obj.Put("address", address)
 
 city := obj.GetObject("address").GetString("city")  // "北京"
 
-// Decode to struct
+// Deep equality comparison
+obj2 := value.NewObject()
+obj2.PutAny("name", "张三")
+obj.Equal(obj2)  // true (deep structural comparison)
+
+// Decode to struct (respects json tags)
 type User struct {
     Name    string `json:"name"`
     Age     int    `json:"age"`
@@ -456,6 +467,9 @@ m := obj.ToMap()  // map[string]any
 // JSON serialization
 jsonBytes := obj.ToJSON()
 
+// Parse JSON into Value
+v, _ := value.ParseJSON(jsonBytes)
+
 // Any type for non-standard values (structs, custom types)
 type Status struct {
     Code    int
@@ -463,6 +477,63 @@ type Status struct {
 }
 obj.PutAny("status", Status{Code: 200, Message: "ok"})
 status := obj.Get("status").AsAny().Value().(Status)
+```
+
+#### JSONPath-like Lookup
+
+Navigate nested structures with dot paths, array indices, wildcards, and recursive descent:
+
+```go
+data := value.NewObjectFromMap(map[string]any{
+    "store": map[string]any{
+        "books": []any{
+            map[string]any{"title": "Go", "price": 30},
+            map[string]any{"title": "Rust", "price": 40},
+        },
+    },
+})
+
+// Dot-path navigation
+title := data.LookupByPath("store.books.0.title")  // "Go"
+
+// Wildcard — collect all matches
+prices := value.LookupAll(data, "store.books[*].price")  // [30, 40]
+
+// Recursive descent — find "title" at any depth
+titles := value.LookupAll(data, "..title")  // ["Go", "Rust"]
+
+// Negative index — from end
+last := value.LookupByPath("store.books[-1].title")  // "Rust"
+
+// Fallback — first non-empty path wins
+v := value.LookupFirst(data, "store.magazines", "store.books")  // books array
+
+// Flexible key matching (default: case-insensitive + snakeCase + camelCase)
+v := value.Lookup(data, "store_book")   // matches "storeBook" too
+v := value.Lookup(data, "StoreBook", value.MatchExact())  // exact only
+```
+
+#### Iteration
+
+```go
+// Go 1.23+ iterator
+for k, v := range obj.Iter {
+    fmt.Println(k, v)
+}
+
+// Callback with break
+obj.ForEach(func(key string, val value.Value) bool {
+    fmt.Println(key, val)
+    return true // return false to stop
+})
+```
+
+#### PutByPath — Set Nested Values
+
+```go
+obj := value.NewObject()
+obj.PutByPath("user.address.city", "北京")
+// obj → {"user":{"address":{"city":"北京"}}}
 ```
 
 ---
@@ -717,10 +788,10 @@ db:
   database: mydb
   sslmode: disable
 
-# SQLite
+# SQLite (parent directory is created automatically)
 db:
   type: sqlite
-  path: ./data.db
+  path: ./data/app.db    # ./data/ created if missing
 ```
 
 Format support: JSON, YAML, TOML. Call `config.LoadAutoConfig()` for zero-config auto-discovery, or pass a path explicitly.

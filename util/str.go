@@ -194,6 +194,15 @@ func AnyArrayContainsIgnoreCase(s []string, strs ...string) bool {
 	return false
 }
 
+func AnyArrayEqualsIgnoreCase(s []string, strs ...string) bool {
+	for _, sourceStr := range s {
+		if EqualsAnyIgnoreCase(sourceStr, strs...) {
+			return true
+		}
+	}
+	return false
+}
+
 func EqualsAnyIgnoreCase(s string, strs ...string) bool {
 	sLower := strings.ToLower(s)
 	for _, str := range strs {

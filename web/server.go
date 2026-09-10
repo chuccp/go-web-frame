@@ -257,6 +257,14 @@ func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Rout
 
 // Handlers registers a handler for multiple HTTP methods on this server.
 func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
+
+	for _, r := range server.routes {
+		if util.EqualsAnyIgnoreCase(r.relativePath, relativePath) {
+			if util.AnyArrayEqualsIgnoreCase(r.httpMethods, httpMethods...) {
+				log.Panic("duplicate route", zap.String("path", relativePath), zap.Strings("methods", httpMethods))
+			}
+		}
+	}
 	route := route(relativePath, httpMethods, handlers...)
 	server.routes = append(server.routes, route)
 	return route

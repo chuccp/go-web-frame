@@ -130,6 +130,18 @@ func (r *Request) IsPost() bool {
 func (r *Request) Query(key string) string {
 	return r.c.Query(key)
 }
+func (r *Request) QueryUint(key string) uint {
+	s := r.c.Query(key)
+	return cast.ToUint(s)
+}
+func (r *Request) QueryInt(key string) int {
+	s := r.c.Query(key)
+	return cast.ToInt(s)
+}
+func (r *Request) QueryUint64(key string) uint64 {
+	s := r.c.Query(key)
+	return cast.ToUint64(s)
+}
 
 // Param returns the path parameter value for the given key.
 func (r *Request) Param(key string) string {

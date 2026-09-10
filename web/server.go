@@ -211,6 +211,10 @@ func (server *Server) Any(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers(allMethods, relativePath, handlers...)
 }
 
+func (server *Server) Standard(relativePath string, handlers ...HandlerFunc) *Route {
+	return server.Handlers(standardMethods, relativePath, handlers...)
+}
+
 // Handle registers a handler for a single HTTP method on this server.
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
@@ -218,17 +222,19 @@ func (server *Server) Handle(httpMethod string, relativePath string, handlers ..
 
 // AddSSE registers a Server-Sent Events endpoint on this server.
 func (server *Server) AddSSE(relativePath string, handler SSEHandler) *Route {
-	return server.Any(relativePath, func(r *Request) (any, error) {
+	return server.Standard(relativePath, func(r *Request) (any, error) {
 		return &SSEResponse{Handler: handler}, nil
 	})
 }
 
 // AddWebSocket registers a WebSocket endpoint on this server.
 func (server *Server) AddWebSocket(relativePath string, handler WebSocketHandler) *Route {
-	return server.Any(relativePath, func(r *Request) (any, error) {
+	return server.Standard(relativePath, func(r *Request) (any, error) {
 		return &WSResponse{Handler: handler}, nil
 	})
 }
+
+var standardMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete}
 
 var allMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions, http.MethodConnect, http.MethodTrace}
 

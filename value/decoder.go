@@ -198,13 +198,15 @@ func setField(fv reflect.Value, val any, cfg *DecoderConfig) error {
 		}
 	}
 
-	if fv.Kind() == reflect.Pointer && fv.Type().Elem().Kind() == reflect.Struct {
-		if m, ok := val.(map[string]any); ok {
-			if fv.IsNil() {
-				fv.Set(reflect.New(fv.Type().Elem()))
-			}
-			return decodeStruct(m, fv.Elem(), cfg)
+	// 指针字段：分配新元素后递归解码，成功后写回，因此 *int / *bool / *string / *struct / *slice 等均可用。
+	// 解码失败时不修改原字段（val 为 nil 的情况已在上面处理）。
+	if fv.Kind() == reflect.Pointer {
+		elem := reflect.New(fv.Type().Elem())
+		if err := setField(elem.Elem(), val, cfg); err != nil {
+			return err
 		}
+		fv.Set(elem)
+		return nil
 	}
 
 	if fv.Kind() == reflect.Slice {

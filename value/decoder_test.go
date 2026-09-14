@@ -1,7 +1,9 @@
 package value
 
 import (
+	"math"
 	"testing"
+	"time"
 )
 
 // --- snakeToCamel / camelToSnake ---
@@ -37,40 +39,6 @@ func TestCamelToSnake(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("camelToSnake(%q) = %q, want %q", tt.in, got, tt.want)
 		}
-	}
-}
-
-// --- lookupKey ---
-
-func TestLookupKey_ExactMatch(t *testing.T) {
-	data := map[string]any{"name": "alice"}
-	val, ok := lookupKey(data, []string{"name"})
-	if !ok || val != "alice" {
-		t.Errorf("expected alice, got %v (ok=%v)", val, ok)
-	}
-}
-
-func TestLookupKey_CaseInsensitive(t *testing.T) {
-	data := map[string]any{"Name": "alice"}
-	val, ok := lookupKey(data, []string{"name"})
-	if !ok || val != "alice" {
-		t.Errorf("expected alice, got %v (ok=%v)", val, ok)
-	}
-}
-
-func TestLookupKey_SnakeToCamel(t *testing.T) {
-	data := map[string]any{"MaxOpenConns": 10}
-	val, ok := lookupKey(data, []string{"max_open_conns"})
-	if !ok || val != 10 {
-		t.Errorf("expected 10, got %v (ok=%v)", val, ok)
-	}
-}
-
-func TestLookupKey_CamelToSnake(t *testing.T) {
-	data := map[string]any{"max_open_conns": 10}
-	val, ok := lookupKey(data, []string{"MaxOpenConns"})
-	if !ok || val != 10 {
-		t.Errorf("expected 10, got %v (ok=%v)", val, ok)
 	}
 }
 
@@ -794,5 +762,420 @@ func TestAnyUnmarshal_NoOptsJsonFallback(t *testing.T) {
 	}
 	if out["count"] != float64(42) {
 		t.Errorf("got %+v", out)
+	}
+}
+
+// --- 非 string key 的 map：按 key 类型解析，不 panic ---
+
+func TestUnmarshal_MapNonStringKey(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"m":{"1":"a","2":"b"}}`))
+	type Config struct {
+		M map[int]string `json:"m"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.M[1] != "a" || cfg.M[2] != "b" {
+		t.Errorf("got %+v", cfg.M)
+	}
+}
+
+func TestUnmarshal_MapUint64Key(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"m":{"10":true}}`))
+	type Config struct {
+		M map[uint64]bool `json:"m"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.M[10] {
+		t.Errorf("got %+v", cfg.M)
+	}
+}
+
+func TestUnmarshal_MapInvalidKey(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"m":{"abc":"a"}}`))
+	type Config struct {
+		M map[int]string `json:"m"`
+	}
+	var cfg Config
+	err := obj.Unmarshal(&cfg)
+	if err == nil {
+		t.Fatalf("非法 key 应返回错误，got %+v", cfg.M)
+	}
+}
+
+// --- bool 弱类型转换 ---
+
+func TestUnmarshal_BoolWeaklyTyped(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want bool
+	}{
+		{`{"b":true}`, true},
+		{`{"b":false}`, false},
+		{`{"b":1}`, true},
+		{`{"b":0}`, false},
+		{`{"b":1.5}`, true},
+		{`{"b":"1"}`, true},
+		{`{"b":"0"}`, false},
+		{`{"b":"true"}`, true},
+		{`{"b":"True"}`, true},
+		{`{"b":"TRUE"}`, true},
+		{`{"b":"false"}`, false},
+		{`{"b":"yes"}`, true},
+		{`{"b":"no"}`, false},
+		{`{"b":"on"}`, true},
+		{`{"b":"off"}`, false},
+		{`{"b":""}`, false},
+	}
+	type Config struct {
+		B bool `json:"b"`
+	}
+	for _, tt := range tests {
+		var cfg Config
+		obj, _ := ParseJSON([]byte(tt.raw))
+		if err := obj.Unmarshal(&cfg); err != nil {
+			t.Errorf("%s: unexpected error %v", tt.raw, err)
+			continue
+		}
+		if cfg.B != tt.want {
+			t.Errorf("%s: got %v, want %v", tt.raw, cfg.B, tt.want)
+		}
+	}
+}
+
+func TestUnmarshal_BoolInvalid(t *testing.T) {
+	type Config struct {
+		B bool `json:"b"`
+	}
+	for _, raw := range []string{`{"b":"abc"}`, `{"b":[]}`, `{"b":{}}`} {
+		var cfg Config
+		obj, _ := ParseJSON([]byte(raw))
+		if err := obj.Unmarshal(&cfg); err == nil {
+			t.Errorf("%s: 期望报错，got %v", raw, cfg.B)
+		}
+	}
+}
+
+// --- time.Duration 字符串解析 ---
+
+func TestUnmarshal_DurationFromString(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"timeout":"30s","idle":"1m30s","zero":"0"}`))
+	type Config struct {
+		Timeout time.Duration `json:"timeout"`
+		Idle    time.Duration `json:"idle"`
+		Zero    time.Duration `json:"zero"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Timeout != 30*time.Second {
+		t.Errorf("Timeout: got %v", cfg.Timeout)
+	}
+	if cfg.Idle != 90*time.Second {
+		t.Errorf("Idle: got %v", cfg.Idle)
+	}
+	if cfg.Zero != 0 {
+		t.Errorf("Zero: got %v", cfg.Zero)
+	}
+}
+
+func TestUnmarshal_PointerDurationFromString(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"timeout":"5m"}`))
+	type Config struct {
+		Timeout *time.Duration `json:"timeout"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Timeout == nil || *cfg.Timeout != 5*time.Minute {
+		t.Errorf("got %v", cfg.Timeout)
+	}
+}
+
+func TestUnmarshal_DurationFromNumber(t *testing.T) {
+	// 数字仍按纳秒处理（与 time.Duration 字面量一致）
+	obj, _ := ParseJSON([]byte(`{"timeout":1500000000}`))
+	type Config struct {
+		Timeout time.Duration `json:"timeout"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Timeout != 1500*time.Millisecond {
+		t.Errorf("got %v", cfg.Timeout)
+	}
+}
+
+func TestUnmarshal_DurationInvalid(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"timeout":"abc"}`))
+	type Config struct {
+		Timeout time.Duration `json:"timeout"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err == nil {
+		t.Errorf("期望报错，got %v", cfg.Timeout)
+	}
+}
+
+// --- 整数写入 string 字段按十进制格式化，而非 rune ---
+
+func TestUnmarshal_IntToString(t *testing.T) {
+	type Config struct {
+		Name  string `json:"name"`
+		Count string `json:"count"`
+	}
+	// 程序化构造的 map（如数据库返回的 int64）不能变成 rune
+	var cfg Config
+	a := NewAny(map[string]any{"name": 65, "count": int64(1024)})
+	if err := a.Unmarshal(&cfg, WithTagName("json")); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Name != "65" {
+		t.Errorf("Name: got %q, want %q", cfg.Name, "65")
+	}
+	if cfg.Count != "1024" {
+		t.Errorf("Count: got %q, want %q", cfg.Count, "1024")
+	}
+}
+
+func TestUnmarshal_IntToStringStrict(t *testing.T) {
+	type Config struct {
+		Name string `json:"name"`
+	}
+	var cfg Config
+	a := NewAny(map[string]any{"name": 65})
+	if err := a.Unmarshal(&cfg, WithTagName("json"), WithWeaklyTypedInput(false)); err == nil {
+		t.Errorf("严格模式下应报错，got %q", cfg.Name)
+	}
+}
+
+// --- 无符号字段不接受负数、越界值 ---
+
+func TestUnmarshal_NegativeToUint(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"u":-5}`))
+	type Config struct {
+		U uint `json:"u"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err == nil {
+		t.Errorf("负数写入 uint 应报错，got %d", cfg.U)
+	}
+}
+
+func TestUnmarshal_UintOverflow(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"u8":300}`))
+	type Config struct {
+		U8 uint8 `json:"u8"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err == nil {
+		t.Errorf("300 写入 uint8 应报错，got %d", cfg.U8)
+	}
+}
+
+func TestUnmarshal_Uint64Large(t *testing.T) {
+	// uint64 上限值写入 uint64 字段应正常
+	type Config struct {
+		U uint64 `json:"u"`
+	}
+	var cfg Config
+	a := NewAny(map[string]any{"u": uint64(math.MaxUint64)})
+	if err := a.Unmarshal(&cfg, WithTagName("json")); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.U != math.MaxUint64 {
+		t.Errorf("got %d", cfg.U)
+	}
+}
+
+func TestUnmarshal_Uint64ToInt64Overflow(t *testing.T) {
+	type Config struct {
+		I int64 `json:"i"`
+	}
+	var cfg Config
+	a := NewAny(map[string]any{"i": uint64(1) << 63})
+	if err := a.Unmarshal(&cfg, WithTagName("json")); err == nil {
+		t.Errorf("溢出写入 int64 应报错，got %d", cfg.I)
+	}
+}
+
+func TestUnmarshal_Float32Overflow(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"f":1e40}`))
+	type Config struct {
+		F float32 `json:"f"`
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err == nil {
+		t.Errorf("1e40 写入 float32 应报错，got %v", cfg.F)
+	}
+}
+
+// --- 具名数值类型（如 type UserID int64）按底层类型处理 ---
+
+func TestUnmarshal_NamedNumericTypes(t *testing.T) {
+	type UserID int64
+	type Level uint8
+	type Ratio float32
+	type Status string
+
+	type Config struct {
+		ID     int64  `json:"id"`
+		UID    UserID `json:"uid"`
+		Level  Level  `json:"level"`
+		Ratio  Ratio  `json:"ratio"`
+		Status Status `json:"status"`
+	}
+	var cfg Config
+	a := NewAny(map[string]any{
+		"id":     UserID(7),  // 具名 int64 → int64
+		"uid":    int32(9),   // int32 → 具名 int64
+		"level":  float64(3), // float64 → 具名 uint8
+		"ratio":  int(2),     // int → 具名 float32
+		"status": "active",   // string → 具名 string
+	})
+	if err := a.Unmarshal(&cfg, WithTagName("json")); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ID != 7 || cfg.UID != 9 || cfg.Level != 3 || cfg.Ratio != 2 || cfg.Status != "active" {
+		t.Errorf("got %+v", cfg)
+	}
+}
+
+func TestUnmarshal_DurationToInt64(t *testing.T) {
+	// time.Duration 作为来源值也应可写入普通整数字段
+	type Config struct {
+		N int64 `json:"n"`
+	}
+	var cfg Config
+	a := NewAny(map[string]any{"n": 3 * time.Second})
+	if err := a.Unmarshal(&cfg, WithTagName("json")); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.N != int64(3*time.Second) {
+		t.Errorf("got %d", cfg.N)
+	}
+}
+
+// --- 字符串数字解析：拒绝尾随垃圾 ---
+
+func TestUnmarshal_NumberStringStrict(t *testing.T) {
+	type Config struct {
+		A int     `json:"a"`
+		F float64 `json:"f"`
+	}
+	for _, raw := range []string{`{"a":"12abc"}`, `{"a":"1.9"}`} {
+		var cfg Config
+		obj, _ := ParseJSON([]byte(raw))
+		if err := obj.Unmarshal(&cfg); err == nil {
+			t.Errorf("%s: 期望报错，got %d", raw, cfg.A)
+		}
+	}
+	var cfg Config
+	obj, _ := ParseJSON([]byte(`{"f":"1.5e3"}`))
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.F != 1500 {
+		t.Errorf("got %v", cfg.F)
+	}
+}
+
+// --- 匿名内嵌结构体：提升字段可直接匹配 ---
+
+func TestUnmarshal_EmbeddedStruct(t *testing.T) {
+	type Base struct {
+		Id int `json:"id"`
+	}
+	type Config struct {
+		Base
+		Name string `json:"name"`
+	}
+	var cfg Config
+	obj, _ := ParseJSON([]byte(`{"id":7,"name":"alice"}`))
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Id != 7 || cfg.Name != "alice" {
+		t.Errorf("got %+v", cfg)
+	}
+}
+
+func TestUnmarshal_EmbeddedPointerStruct(t *testing.T) {
+	type Base struct {
+		Id int `json:"id"`
+	}
+	type Config struct {
+		*Base
+		Name string `json:"name"`
+	}
+
+	// 有字段命中：分配并写入
+	var cfg Config
+	obj, _ := ParseJSON([]byte(`{"id":7,"name":"alice"}`))
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Base == nil || cfg.Id != 7 || cfg.Name != "alice" {
+		t.Errorf("got %+v", cfg)
+	}
+
+	// 无字段命中：保持 nil，不凭空分配
+	var cfg2 Config
+	obj2, _ := ParseJSON([]byte(`{"name":"bob"}`))
+	if err := obj2.Unmarshal(&cfg2); err != nil {
+		t.Fatal(err)
+	}
+	if cfg2.Base != nil {
+		t.Errorf("内嵌指针应保持 nil, got %+v", cfg2.Base)
+	}
+	if cfg2.Name != "bob" {
+		t.Errorf("got %+v", cfg2)
+	}
+}
+
+// --- time.Time 从字符串解析 ---
+
+func TestUnmarshal_TimeFromString(t *testing.T) {
+	type Config struct {
+		When time.Time `json:"when"`
+	}
+	var cfg Config
+	obj, _ := ParseJSON([]byte(`{"when":"2026-09-14T10:00:00Z"}`))
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 9, 14, 10, 0, 0, 0, time.UTC)
+	if !cfg.When.Equal(want) {
+		t.Errorf("got %v, want %v", cfg.When, want)
+	}
+}
+
+// --- encoding.TextUnmarshaler ---
+
+type textStatus string
+
+func (s *textStatus) UnmarshalText(b []byte) error {
+	*s = textStatus("text:" + string(b))
+	return nil
+}
+
+func TestUnmarshal_TextUnmarshaler(t *testing.T) {
+	type Config struct {
+		Status textStatus `json:"status"`
+	}
+	var cfg Config
+	obj, _ := ParseJSON([]byte(`{"status":"active"}`))
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Status != "text:active" {
+		t.Errorf("got %q", cfg.Status)
 	}
 }

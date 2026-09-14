@@ -153,6 +153,71 @@ func TestObjectFromJSONNumber(t *testing.T) {
 	}
 }
 
+func TestObjectNumberGettersAcceptNumericText(t *testing.T) {
+	// 前端把 URL query 里的 id 原样 POST 时是字符串（{"scheduleId":"502"}），
+	// 弱类型访问器应解析为 502，而不是静默返回 0。
+	raw := json.RawMessage(`{
+		"intText": "502",
+		"uintText": "7",
+		"floatText": "10.50",
+		"spaced": " 8 ",
+		"negative": "-3",
+		"garbage": "12abc",
+		"empty": "",
+		"boolText": "true",
+		"number": 42,
+		"float": 1.5
+	}`)
+	obj, err := NewObjectFromJson(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	intTests := []struct {
+		name string
+		key  string
+		want int
+	}{
+		{"数字字符串", "intText", 502},
+		{"两端空格", "spaced", 8},
+		{"负数", "negative", -3},
+		{"JSON 数字", "number", 42},
+		{"小数取整", "float", 1},
+		{"带小数点的字符串", "floatText", 10},
+		{"尾随垃圾应拒绝", "garbage", 0},
+		{"空串", "empty", 0},
+		{"布尔字符串", "boolText", 0},
+		{"不存在的 key", "missing", 0},
+	}
+	for _, tt := range intTests {
+		t.Run("GetInt/"+tt.name, func(t *testing.T) {
+			if got := obj.GetInt(tt.key); got != tt.want {
+				t.Errorf("GetInt(%q) = %v, want %v", tt.key, got, tt.want)
+			}
+		})
+	}
+
+	if got := obj.GetUint("uintText"); got != 7 {
+		t.Errorf("GetUint(\"uintText\") = %v, want 7", got)
+	}
+	if got := obj.GetNumber("floatText"); got != 10.5 {
+		t.Errorf("GetNumber(\"floatText\") = %v, want 10.5", got)
+	}
+	if got := obj.GetNumber("intText"); got != 502 {
+		t.Errorf("GetNumber(\"intText\") = %v, want 502", got)
+	}
+
+	if got := obj.GetIntForDefault("intText", -1); got != 502 {
+		t.Errorf("GetIntForDefault 对数字字符串应返回 502, got %v", got)
+	}
+	if got := obj.GetIntForDefault("missing", -1); got != -1 {
+		t.Errorf("GetIntForDefault 对缺失 key 应返回默认值, got %v", got)
+	}
+	if got := obj.GetIntForDefault("garbage", -1); got != -1 {
+		t.Errorf("GetIntForDefault 对非法字符串应返回默认值, got %v", got)
+	}
+}
+
 // 自定义类型用于测试 Any 类型的处理。
 type testStatus struct {
 	Code    int

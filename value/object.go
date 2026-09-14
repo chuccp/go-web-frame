@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/chuccp/go-web-frame/util"
+	"github.com/spf13/cast"
 )
 
 type Object struct {
@@ -65,11 +66,41 @@ func (o *Object) LookupByPath(path string) Value {
 }
 
 func (o *Object) GetUint(key string) uint {
-	v := o.Get(key)
-	if v == nil || !v.IsNumber() {
+	n, ok := numberValue(o.Get(key))
+	if !ok {
 		return 0
 	}
-	return uint(v.AsNumber().Int64())
+	return uint(n.Int64())
+}
+
+// numberValue 取出 key 对应的数值。JSON 数字直接返回；Text 交给 cast 转换
+// （URL query 里的 id 经前端原样转发就是这种形态，与 web.Request 的 query/form
+// 参数走同一套 cast 语义）。用 E 变体是为了拒绝 "12abc" 这类尾随垃圾，
+// 而不是静默取 0；bool / object / array 等非文本类型返回 false。
+func numberValue(v Value) (*Number, bool) {
+	if v == nil {
+		return nil, false
+	}
+	if v.IsNumber() {
+		return v.AsNumber(), true
+	}
+	if !v.IsText() {
+		return nil, false
+	}
+	s := strings.TrimSpace(v.String())
+	if s == "" {
+		return nil, false
+	}
+	f, err := cast.ToFloat64E(s)
+	if err != nil {
+		return nil, false
+	}
+	// cast.ToInt64E 会把 "10.50" 截断成 10，所以先按浮点解析：
+	// 整数形态（"502"、"10.0"）仍返回整型 Number，带小数的保留小数位。
+	if n, err := cast.ToInt64E(s); err == nil && float64(n) == f {
+		return NewInt(n), true
+	}
+	return NewNumber(f), true
 }
 
 func (o *Object) PutByPath(path string, value any) {
@@ -165,11 +196,11 @@ func (o *Object) HasAnyKey(key ...string) bool {
 }
 
 func (o *Object) GetIntForDefault(key string, defaultValue int) int {
-	v := o.Get(key)
-	if v == nil || !v.IsNumber() {
+	n, ok := numberValue(o.Get(key))
+	if !ok {
 		return defaultValue
 	}
-	return int(v.AsNumber().Int64())
+	return int(n.Int64())
 }
 
 func (o *Object) GetStringOrDefault(key string, defaultValue string) string {
@@ -196,19 +227,19 @@ func (o *Object) GetBool(key string) bool {
 }
 
 func (o *Object) GetNumber(key string) float64 {
-	v := o.Get(key)
-	if v == nil || !v.IsNumber() {
+	n, ok := numberValue(o.Get(key))
+	if !ok {
 		return 0
 	}
-	return v.AsNumber().Float64()
+	return n.Float64()
 }
 
 func (o *Object) GetInt(key string) int {
-	v := o.Get(key)
-	if v == nil || !v.IsNumber() {
+	n, ok := numberValue(o.Get(key))
+	if !ok {
 		return 0
 	}
-	return int(v.AsNumber().Int64())
+	return int(n.Int64())
 }
 
 func (o *Object) GetObject(key string) *Object {

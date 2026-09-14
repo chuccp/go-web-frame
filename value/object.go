@@ -203,6 +203,14 @@ func (o *Object) GetIntForDefault(key string, defaultValue int) int {
 	return int(n.Int64())
 }
 
+func (o *Object) GetNumberForDefault(key string, defaultValue float64) float64 {
+	n, ok := numberValue(o.Get(key))
+	if !ok {
+		return defaultValue
+	}
+	return n.Float64()
+}
+
 func (o *Object) GetStringOrDefault(key string, defaultValue string) string {
 	v := o.GetString(key)
 	if util.IsBlank(v) {

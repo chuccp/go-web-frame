@@ -216,6 +216,19 @@ func TestObjectNumberGettersAcceptNumericText(t *testing.T) {
 	if got := obj.GetIntForDefault("garbage", -1); got != -1 {
 		t.Errorf("GetIntForDefault 对非法字符串应返回默认值, got %v", got)
 	}
+
+	if got := obj.GetNumberForDefault("floatText", -1); got != 10.5 {
+		t.Errorf("GetNumberForDefault 对带小数点的字符串应返回 10.5, got %v", got)
+	}
+	if got := obj.GetNumberForDefault("number", -1); got != 42 {
+		t.Errorf("GetNumberForDefault 对 JSON 数字应返回 42, got %v", got)
+	}
+	if got := obj.GetNumberForDefault("missing", -1); got != -1 {
+		t.Errorf("GetNumberForDefault 对缺失 key 应返回默认值, got %v", got)
+	}
+	if got := obj.GetNumberForDefault("garbage", -1); got != -1 {
+		t.Errorf("GetNumberForDefault 对非法字符串应返回默认值, got %v", got)
+	}
 }
 
 // 自定义类型用于测试 Any 类型的处理。

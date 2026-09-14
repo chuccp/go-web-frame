@@ -455,6 +455,9 @@ func ArrayIntContains(arr []int, str int) bool {
 // 返回值:
 //
 //	截取/填充后的指定长度字符串
+//
+// 注意：按字节截取，用于 AES 密钥/IV 这类需要固定字节长度的场景。
+// 按字符截取文本请使用 SubStringMaxLength。
 func SubStringAndPadSpace(value string, length int) string {
 	value = Trim(value)
 	strLen := len(value)
@@ -465,21 +468,26 @@ func SubStringAndPadSpace(value string, length int) string {
 	return value + padding
 }
 
+// SubStringMaxLength 按字符截取字符串到指定长度，不足则原样返回。
+// 以 rune 为单位，避免汉字、emoji 等多字节字符被截断成乱码。
 func SubStringMaxLength(value string, maxLength int) string {
 	value = Trim(value)
-	strLen := len(value)
-	if strLen <= maxLength {
+	runes := []rune(value)
+	if len(runes) <= maxLength {
 		return value
 	}
-	return value[:maxLength]
+	return string(runes[:maxLength])
 }
+
+// SubStringLastMaxLength 按字符截取字符串末尾指定长度，不足则原样返回。
+// 以 rune 为单位，避免汉字、emoji 等多字节字符被截断成乱码。
 func SubStringLastMaxLength(value string, maxLength int) string {
 	value = Trim(value)
-	strLen := len(value)
-	if strLen <= maxLength {
+	runes := []rune(value)
+	if len(runes) <= maxLength {
 		return value
 	}
-	return value[strLen-maxLength:]
+	return string(runes[len(runes)-maxLength:])
 }
 
 // TextSimilarity 计算两个文本的相似度得分（0-100）

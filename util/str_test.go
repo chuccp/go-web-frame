@@ -2,6 +2,7 @@ package util
 
 import (
 	"testing"
+	"unicode/utf8"
 )
 
 func TestRemovePunctuation(t *testing.T) {
@@ -161,5 +162,70 @@ func TestEqualsAnyIgnorePunctuationAndCase(t *testing.T) {
 				t.Errorf("EqualsAnyIgnorePunctuationAndCase(%q, %v) = %v, want %v", tt.s, tt.strs, result, tt.expected)
 			}
 		})
+	}
+}
+func TestSubStringMaxLength(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		maxLength int
+		expected  string
+	}{
+		{name: "汉字不截断", value: "中国人民万岁", maxLength: 2, expected: "中国"},
+		{name: "汉字正好", value: "中国人民", maxLength: 4, expected: "中国人民"},
+		{name: "汉字不足", value: "中国", maxLength: 5, expected: "中国"},
+		{name: "中英混合", value: "ab中国cd", maxLength: 4, expected: "ab中国"},
+		{name: "emoji 不截断", value: "a😀b😀c", maxLength: 3, expected: "a😀b"},
+		{name: "纯 ASCII", value: "abcdef", maxLength: 3, expected: "abc"},
+		{name: "长度 0", value: "中国", maxLength: 0, expected: ""},
+		{name: "带空格会被 Trim", value: "  中国  ", maxLength: 2, expected: "中国"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SubStringMaxLength(tt.value, tt.maxLength)
+			if result != tt.expected {
+				t.Errorf("SubStringMaxLength(%q, %d) = %q, want %q", tt.value, tt.maxLength, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSubStringLastMaxLength(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		maxLength int
+		expected  string
+	}{
+		{name: "汉字不截断", value: "中国人民万岁", maxLength: 2, expected: "万岁"},
+		{name: "汉字正好", value: "中国人民", maxLength: 4, expected: "中国人民"},
+		{name: "汉字不足", value: "中国", maxLength: 5, expected: "中国"},
+		{name: "中英混合", value: "ab中国cd", maxLength: 4, expected: "中国cd"},
+		{name: "emoji 不截断", value: "a😀b😀c", maxLength: 3, expected: "b😀c"},
+		{name: "纯 ASCII", value: "abcdef", maxLength: 3, expected: "def"},
+		{name: "长度 0", value: "中国", maxLength: 0, expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SubStringLastMaxLength(tt.value, tt.maxLength)
+			if result != tt.expected {
+				t.Errorf("SubStringLastMaxLength(%q, %d) = %q, want %q", tt.value, tt.maxLength, result, tt.expected)
+			}
+		})
+	}
+}
+
+// 截断后的结果必须是合法 UTF-8（按字节截断会产生乱码）
+func TestSubStringMaxLength_ValidUTF8(t *testing.T) {
+	value := "中文字符串测试"
+	for i := 0; i <= len([]rune(value))+1; i++ {
+		if result := SubStringMaxLength(value, i); !utf8.ValidString(result) {
+			t.Errorf("SubStringMaxLength(%q, %d) = %q, 不是合法 UTF-8", value, i, result)
+		}
+		if result := SubStringLastMaxLength(value, i); !utf8.ValidString(result) {
+			t.Errorf("SubStringLastMaxLength(%q, %d) = %q, 不是合法 UTF-8", value, i, result)
+		}
 	}
 }

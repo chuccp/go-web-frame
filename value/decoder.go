@@ -544,8 +544,12 @@ func toInt64(val any) (int64, error) {
 	case float32:
 		return toInt64(float64(v))
 	case float64:
-		if v > math.MaxInt64 || v < math.MinInt64 {
+		if math.IsNaN(v) || v > math.MaxInt64 || v < math.MinInt64 {
 			return 0, fmt.Errorf("cannot convert %v to int64 (out of range)", v)
+		}
+		// 带小数的值不静默截断："2.9" 写进 int 字段会让用户以为存的是 2.9。
+		if v != math.Trunc(v) {
+			return 0, fmt.Errorf("cannot convert %v to int64 (would lose decimal part)", v)
 		}
 		return int64(v), nil
 	case json.Number:
@@ -586,11 +590,18 @@ func toUint64(val any) (uint64, error) {
 	case float32:
 		return toUint64(float64(v))
 	case float64:
+		if math.IsNaN(v) {
+			return 0, fmt.Errorf("cannot convert %v to uint64", v)
+		}
 		if v < 0 {
 			return 0, fmt.Errorf("cannot convert %v to unsigned (negative value)", v)
 		}
 		if v > math.MaxUint64 {
 			return 0, fmt.Errorf("cannot convert %v to unsigned (out of range)", v)
+		}
+		// 同 toInt64：带小数的值不静默截断。
+		if v != math.Trunc(v) {
+			return 0, fmt.Errorf("cannot convert %v to uint64 (would lose decimal part)", v)
 		}
 		return uint64(v), nil
 	case json.Number:

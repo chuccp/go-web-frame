@@ -980,6 +980,56 @@ func TestUnmarshal_UintOverflow(t *testing.T) {
 	}
 }
 
+func TestUnmarshal_DecimalToIntRejected(t *testing.T) {
+	// 前端 el-input-number 没限制精度时可能提交小数（如调整天数 0.5）。
+	// 写进整数字段必须报错，而不是静默截断成 0 —— 用户会以为存进去的是 0.5。
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"正小数", `{"i":2.5}`},
+		{"小于1的小数", `{"i":0.5}`},
+		{"负小数", `{"i":-0.5}`},
+		{"长小数", `{"i":2.999999}`},
+	}
+	type Config struct {
+		I int `json:"i"`
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, _ := ParseJSON([]byte(tt.raw))
+			var cfg Config
+			if err := obj.Unmarshal(&cfg); err == nil {
+				t.Errorf("%s 写入 int 应报错，got %d", tt.raw, cfg.I)
+			}
+		})
+	}
+
+	// uint 同样不静默截断
+	obj, _ := ParseJSON([]byte(`{"u":1.5}`))
+	var ucfg struct {
+		U uint `json:"u"`
+	}
+	if err := obj.Unmarshal(&ucfg); err == nil {
+		t.Errorf("小数写入 uint 应报错，got %d", ucfg.U)
+	}
+}
+
+func TestUnmarshal_WholeFloatToIntAllowed(t *testing.T) {
+	// 整数形态的浮点（JSON 里的 10.0）不应被误伤
+	obj, _ := ParseJSON([]byte(`{"i":10.0,"j":10}`))
+	var cfg struct {
+		I int `json:"i"`
+		J int `json:"j"`
+	}
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatalf("整数形态的浮点应正常转换: %v", err)
+	}
+	if cfg.I != 10 || cfg.J != 10 {
+		t.Errorf("got i=%d j=%d, want 10 10", cfg.I, cfg.J)
+	}
+}
+
 func TestUnmarshal_Uint64Large(t *testing.T) {
 	// uint64 上限值写入 uint64 字段应正常
 	type Config struct {

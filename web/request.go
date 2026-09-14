@@ -142,6 +142,10 @@ func (r *Request) QueryUint64(key string) uint64 {
 	s := r.c.Query(key)
 	return cast.ToUint64(s)
 }
+func (r *Request) QueryFloat64(key string) float64 {
+	s := r.c.Query(key)
+	return cast.ToFloat64(s)
+}
 
 // Param returns the path parameter value for the given key.
 func (r *Request) Param(key string) string {
@@ -316,6 +320,24 @@ func (r *Request) GetJsonIntValueOrDefault(key string, defaultValue int) int {
 	//	return jsonObject.GetInt(key)
 	//}
 	return jsonObject.GetIntForDefault(key, defaultValue)
+}
+
+// GetJsonFloat64Value returns a float64 value from the JSON body.
+func (r *Request) GetJsonFloat64Value(key string) (float64, error) {
+	jsonObject, err := r.Json()
+	if err != nil {
+		return 0, err
+	}
+	return jsonObject.GetNumber(key), nil
+}
+
+// GetJsonFloat64ValueOrDefault returns a float64 value from the JSON body, or defaultValue if the key is not present.
+func (r *Request) GetJsonFloat64ValueOrDefault(key string, defaultValue float64) float64 {
+	jsonObject, err := r.Json()
+	if err != nil {
+		return defaultValue
+	}
+	return jsonObject.GetNumberForDefault(key, defaultValue)
 }
 
 // BindJSON binds the request JSON body into the provided struct.

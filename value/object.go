@@ -219,11 +219,14 @@ func (o *Object) GetStringOrDefault(key string, defaultValue string) string {
 	return v
 }
 
+// GetBoolOrDefault 取 key 对应的 bool，缺失或不是 bool 时返回 defaultValue。
+// 与 GetIntForDefault / GetNumberForDefault 的语义保持一致。
 func (o *Object) GetBoolOrDefault(key string, defaultValue bool) bool {
-	if o.HasKey(key) {
+	v := o.Get(key)
+	if v == nil || !v.IsBool() {
 		return defaultValue
 	}
-	return o.GetBool(key)
+	return v.AsBool().b
 }
 
 func (o *Object) GetBool(key string) bool {

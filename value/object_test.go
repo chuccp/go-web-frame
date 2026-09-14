@@ -231,6 +231,42 @@ func TestObjectNumberGettersAcceptNumericText(t *testing.T) {
 	}
 }
 
+func TestObjectGetBoolOrDefault(t *testing.T) {
+	// 回归：曾经把 HasKey 判断写反，导致 key 存在时反而返回默认值。
+	obj, err := NewObjectFromJson(json.RawMessage(`{
+		"yes": true,
+		"no": false,
+		"text": "true",
+		"num": 1,
+		"nil": null
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		key  string
+		def  bool
+		want bool
+	}{
+		{"存在且为 true，不受默认值影响", "yes", false, true},
+		{"存在且为 false，不受默认值影响", "no", true, false},
+		{"缺失回退默认 true", "missing", true, true},
+		{"缺失回退默认 false", "missing", false, false},
+		{"字符串不当作 bool，回退默认", "text", true, true},
+		{"数字不当作 bool，回退默认", "num", true, true},
+		{"null 回退默认", "nil", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := obj.GetBoolOrDefault(tt.key, tt.def); got != tt.want {
+				t.Errorf("GetBoolOrDefault(%q, %v) = %v, want %v", tt.key, tt.def, got, tt.want)
+			}
+		})
+	}
+}
+
 // 自定义类型用于测试 Any 类型的处理。
 type testStatus struct {
 	Code    int

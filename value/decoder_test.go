@@ -506,6 +506,84 @@ func TestUnmarshal_NilPointerField(t *testing.T) {
 	}
 }
 
+// --- Object.Unmarshal with pointer-to-scalar fields ---
+
+func TestUnmarshal_PointerScalarFields(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"settingStatus":2,"enabled":true,"note":"hi","ratio":1.5}`))
+	type Req struct {
+		SettingStatus *int     `json:"settingStatus"`
+		Enabled       *bool    `json:"enabled"`
+		Note          *string  `json:"note"`
+		Ratio         *float64 `json:"ratio"`
+	}
+	var r Req
+	err := obj.Unmarshal(&r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SettingStatus == nil || *r.SettingStatus != 2 {
+		t.Errorf("SettingStatus: got %v", r.SettingStatus)
+	}
+	if r.Enabled == nil || !*r.Enabled {
+		t.Errorf("Enabled: got %v", r.Enabled)
+	}
+	if r.Note == nil || *r.Note != "hi" {
+		t.Errorf("Note: got %v", r.Note)
+	}
+	if r.Ratio == nil || *r.Ratio != 1.5 {
+		t.Errorf("Ratio: got %v", r.Ratio)
+	}
+}
+
+// --- Object.Unmarshal 缺省与 null 的指针字段保持 nil ---
+
+func TestUnmarshal_PointerScalarNil(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"settingStatus":null,"other":1}`))
+	type Req struct {
+		SettingStatus *int `json:"settingStatus"`
+		StoryStatus   *int `json:"storyStatus"`
+	}
+	var r Req
+	if err := obj.Unmarshal(&r); err != nil {
+		t.Fatal(err)
+	}
+	if r.SettingStatus != nil {
+		t.Errorf("null 应保持 nil, got %v", *r.SettingStatus)
+	}
+	if r.StoryStatus != nil {
+		t.Errorf("缺省应保持 nil, got %v", *r.StoryStatus)
+	}
+}
+
+// --- Object.Unmarshal 弱类型转换到指针字段 ---
+
+func TestUnmarshal_PointerScalarWeaklyTyped(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{"settingStatus":"2"}`))
+	type Req struct {
+		SettingStatus *int `json:"settingStatus"`
+	}
+	var r Req
+	if err := obj.Unmarshal(&r); err != nil {
+		t.Fatal(err)
+	}
+	if r.SettingStatus == nil || *r.SettingStatus != 2 {
+		t.Errorf("got %v", r.SettingStatus)
+	}
+}
+
+// --- Array.Unmarshal 指针元素 ---
+
+func TestArrayUnmarshal_PointerElements(t *testing.T) {
+	arr, _ := ParseJSON([]byte(`[1,2,3]`))
+	var out []*int
+	if err := arr.Unmarshal(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 3 || out[0] == nil || *out[0] != 1 || *out[2] != 3 {
+		t.Errorf("got %+v", out)
+	}
+}
+
 // --- Object.Unmarshal with MatchFieldName disabled ---
 
 func TestUnmarshal_MatchFieldNameDisabled(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"strings"
 )
 
@@ -144,114 +143,6 @@ func (t *Text) Equal(other Value) bool {
 
 func NewText(text string) *Text {
 	return &Text{text: text}
-}
-
-type Number struct {
-	ValueBase
-	i       int64
-	f       float64
-	isFloat bool
-}
-
-func (n *Number) IsNumber() bool { return true }
-
-func (n *Number) AsNumber() *Number { return n }
-
-func (n *Number) IsFloat() bool { return n.isFloat }
-
-// Int64 返回整数值。若为浮点数则截断小数部分；
-// 超出 int64 范围或为 NaN 时返回 0，避免 int64() 的实现相关结果
-// （amd64 上 int64(1e30) 会得到 MinInt64）。
-func (n *Number) Int64() int64 {
-	if n.isFloat {
-		if math.IsNaN(n.f) || n.f >= int64Upper || n.f < math.MinInt64 {
-			return 0
-		}
-		return int64(n.f)
-	}
-	return n.i
-}
-
-// Float64 返回浮点值。若为整数则转换为 float64。
-func (n *Number) Float64() float64 {
-	if n.isFloat {
-		return n.f
-	}
-	return float64(n.i)
-}
-
-func (n *Number) String() string {
-	if n.isFloat {
-		return fmt.Sprintf("%v", n.f)
-	}
-	return fmt.Sprintf("%d", n.i)
-}
-
-func (n *Number) ToJSON() json.RawMessage {
-	if n.isFloat {
-		data, _ := json.Marshal(n.f)
-		return data
-	}
-	data, _ := json.Marshal(n.i)
-	return data
-}
-
-func (n *Number) MarshalJSON() ([]byte, error) { return n.ToJSON(), nil }
-
-func (n *Number) Unmarshal(v any, opts ...DecoderConfigOption) error {
-	return json.Unmarshal(n.ToJSON(), v)
-}
-
-func (n *Number) Equal(other Value) bool {
-	o, ok := other.(*Number)
-	if !ok {
-		return false
-	}
-	if n.isFloat != o.isFloat {
-		return false
-	}
-	if n.isFloat {
-		return n.f == o.f
-	}
-	return n.i == o.i
-}
-
-// NewNumber 从 float64 创建浮点数值。
-func NewNumber(f float64) *Number {
-	return &Number{f: f, isFloat: true}
-}
-
-// ToNumberE 把任意输入转换为 Number：整数形态优先走 int64 保精度，
-// 带小数或超出 int64 范围的走 float64；无法识别的类型或文本返回错误。
-func ToNumberE(val any) (*Number, error) {
-	switch v := val.(type) {
-	case float32:
-		return NewNumber(float64(v)), nil
-	case float64:
-		// JSON 数字解码后就是 float64，整数值也保持浮点（与 fromInterface 一致）。
-		return NewNumber(v), nil
-	default:
-		// 其余全部复用 decoder 的 toInt64 / toFloat64：int/int8/…/uint64、
-		// string、json.Number 及具名数值类型它俩都已覆盖，不在这里另写一套解析。
-		if i, err := toInt64(val); err == nil {
-			return NewInt(i), nil
-		}
-		f, err := toFloat64(val)
-		if err != nil {
-			return nil, fmt.Errorf("cannot convert %v (%T) to Number", val, val)
-		}
-		// "10.0"、"1e5" 这类整数值文本仍返回整型 Number（与 JSON 数字路径一致）；
-		// 恰好 2^63 的保持浮点，否则 int64(f) 会回绕。
-		if f == math.Trunc(f) && f >= math.MinInt64 && f < int64Upper {
-			return NewInt(int64(f)), nil
-		}
-		return NewNumber(f), nil
-	}
-}
-
-// NewInt 从 int64 创建整数值。
-func NewInt(i int64) *Number {
-	return &Number{i: i}
 }
 
 type Bool struct {

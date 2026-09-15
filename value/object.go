@@ -32,26 +32,11 @@ func (o *Object) Get(key string) Value {
 	}
 	return o.data[key]
 }
+
+// GetByPath 按点号路径取值，即 LookupByPath 的别名（保留旧名）。
+// 走同一套匹配：精确 → 小写 → snake/camel，并支持数组下标与通配符。
 func (o *Object) GetByPath(path string) Value {
-	parts := strings.Split(path, ".")
-	var current Value = o
-	for _, part := range parts {
-		obj, ok := current.(*Object)
-		if !ok {
-			return nil
-		}
-		current = obj.Get(part)
-		if current == nil {
-			lowerPart := strings.ToLower(part)
-			if lowerPart != part {
-				current = obj.Get(lowerPart)
-			}
-		}
-		if current == nil {
-			return nil
-		}
-	}
-	return current
+	return Lookup(o, path)
 }
 
 func (o *Object) Lookup(key string) Value {
@@ -65,11 +50,7 @@ func (o *Object) LookupByPath(path string) Value {
 }
 
 func (o *Object) GetUint(key string) uint {
-	n, ok := ToNumber(o.Get(key))
-	if !ok {
-		return 0
-	}
-	i := n.Int64()
+	i := o.GetInt(key)
 	if i < 0 { // 负数不静默回绕成巨大值
 		return 0
 	}
@@ -202,29 +183,14 @@ func (o *Object) GetBoolOrDefault(key string, defaultValue bool) bool {
 	return v.AsBool().b
 }
 
-func (o *Object) GetBool(key string) bool {
-	v := o.Get(key)
-	if v == nil || !v.IsBool() {
-		return false
-	}
-	return v.AsBool().b
-}
+// GetBool 取 key 对应的 bool，缺失或不是 bool 时返回 false。
+func (o *Object) GetBool(key string) bool { return o.GetBoolOrDefault(key, false) }
 
-func (o *Object) GetNumber(key string) float64 {
-	n, ok := ToNumber(o.Get(key))
-	if !ok {
-		return 0
-	}
-	return n.Float64()
-}
+// GetNumber 取 key 对应的 float64，缺失或不是数值时返回 0。
+func (o *Object) GetNumber(key string) float64 { return o.GetNumberForDefault(key, 0) }
 
-func (o *Object) GetInt(key string) int {
-	n, ok := ToNumber(o.Get(key))
-	if !ok {
-		return 0
-	}
-	return int(n.Int64())
-}
+// GetInt 取 key 对应的 int，缺失或不是数值时返回 0。
+func (o *Object) GetInt(key string) int { return o.GetIntForDefault(key, 0) }
 
 func (o *Object) GetObject(key string) *Object {
 	v := o.Get(key)
@@ -426,11 +392,7 @@ func fromInterface(v any) Value {
 	case bool:
 		return NewBool(val)
 	case map[string]any:
-		obj := NewObject()
-		for k, item := range val {
-			obj.data[k] = fromInterface(item)
-		}
-		return obj
+		return NewObjectFromMap(val)
 	case []any:
 		arr := make([]Value, len(val))
 		for index, item := range val {
@@ -443,6 +405,10 @@ func fromInterface(v any) Value {
 			arr[index] = &Text{text: item}
 		}
 		return NewArray(arr...)
+	case string:
+		return &Text{text: val}
+	// 数值类型直连构造，不绕 ToNumberE / fromReflect：这两条路都要多一层
+	// 类型 switch 或 reflect，实测每个值慢 1~2ns。
 	case float64:
 		return NewNumber(val)
 	case float32:
@@ -467,16 +433,14 @@ func fromInterface(v any) Value {
 		return NewInt(int64(val))
 	case uint64:
 		return newUintValue(val)
-	case string:
-		return &Text{text: val}
 	default:
 		return fromReflect(v)
 	}
 }
 
-// fromReflect 处理底层为原生类型的命名类型（如 ThinkingLevel、Role 等自定义 string/int 类型）。
-// 类型 switch 只做精确匹配，命名类型会漏进 default；这里按 Kind 兜底转换为对应 Value，
-// 无法识别的类型返回 NullValue。
+// fromReflect 处理底层为原生类型的命名类型（如 ThinkingLevel、Role 等自定义
+// string/int 类型）。类型 switch 只做精确匹配，命名类型会漏进 default；
+// 这里按 Kind 兜底转换为对应 Value，无法识别的类型包成 Any。
 func fromReflect(v any) Value {
 	rv := reflect.ValueOf(v)
 	if !rv.IsValid() {

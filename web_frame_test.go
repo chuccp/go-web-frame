@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -667,4 +670,108 @@ type MockError struct {
 
 func (m *MockError) Error() string {
 	return m.message
+}
+
+// restartTestRunner records how many lifecycle generations started and how
+// many of them exited after the application context was cancelled.
+type restartTestRunner struct {
+	core.IService
+	ctx     *core.Context
+	started int32
+	exited  int32
+}
+
+func (r *restartTestRunner) Init(ctx *core.Context) error {
+	r.ctx = ctx
+	return nil
+}
+
+func (r *restartTestRunner) Run() error {
+	ctx := r.ctx
+	atomic.AddInt32(&r.started, 1)
+	<-ctx.Done()
+	atomic.AddInt32(&r.exited, 1)
+	return nil
+}
+
+// waitForBody polls url until the response body equals want.
+func waitForBody(t *testing.T, url string, want string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var last string
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err == nil {
+			b, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			last = string(b)
+			if last == want {
+				return
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("waiting for %q from %s, last body %q", want, url, last)
+}
+
+func TestWebFrame_ReStart(t *testing.T) {
+	cfg := config2.NewConfig()
+	cfg.Put("web.server.port", 19014)
+
+	var version atomic.Int32
+	version.Store(1)
+
+	builder := NewBuilder(cfg)
+	builder.Get("/", func(c *web.Request) (any, error) {
+		return fmt.Sprintf("v%d", version.Load()), nil
+	})
+	runner := &restartTestRunner{}
+	builder.Runner(runner)
+	app := builder.Build()
+
+	runDone := make(chan error, 1)
+	go func() { runDone <- app.Run(context.Background()) }()
+
+	url := "http://127.0.0.1:19014/"
+	waitForBody(t, url, "v1", 5*time.Second)
+
+	version.Store(2)
+	app.ReStart()
+
+	// The old generation must tear down and a new one must come up.
+	for i := 0; i < 100 && atomic.LoadInt32(&runner.started) < 2; i++ {
+		time.Sleep(50 * time.Millisecond)
+	}
+	assert.Equal(t, int32(2), atomic.LoadInt32(&runner.started))
+	assert.Equal(t, int32(1), atomic.LoadInt32(&runner.exited))
+	waitForBody(t, url, "v2", 5*time.Second)
+
+	select {
+	case err := <-runDone:
+		t.Fatalf("Run() returned during restart: %v", err)
+	default:
+	}
+}
+
+func TestWebFrame_Run_ShutdownReturnsNil(t *testing.T) {
+	cfg := config2.NewConfig()
+	cfg.Put("web.server.port", 19015)
+
+	builder := NewBuilder(cfg)
+	builder.Get("/", func(c *web.Request) (any, error) { return "ok", nil })
+	app := builder.Build()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	runDone := make(chan error, 1)
+	go func() { runDone <- app.Run(ctx) }()
+
+	waitForBody(t, "http://127.0.0.1:19015/", "ok", 5*time.Second)
+	cancel()
+
+	select {
+	case err := <-runDone:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not return after the context was cancelled")
+	}
 }

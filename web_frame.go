@@ -3,6 +3,7 @@ package wf
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/config"
@@ -79,18 +80,18 @@ func (receiver *DefaultRest) Init(ctx *core.Context) error {
 // WebFrame is the main application struct that holds all components, services, models,
 // REST groups, and configuration for a web application.
 type WebFrame struct {
-	ctx           context.Context
+	mu            sync.Mutex // guards ctxCancelFunc and restart
 	ctxCancelFunc context.CancelFunc
-	pCtx          context.Context
-	restGroups    []*core.RestGroup
-	modelGroups   []core.IModelGroup
-	config        config.IConfig
-	models        []core.IModel
-	services      []core.IService
-	rests         []core.IRest
-	filters       []core.IFilter
-	handles       *web.Handles
 	restart       bool
+
+	restGroups  []*core.RestGroup
+	modelGroups []core.IModelGroup
+	config      config.IConfig
+	models      []core.IModel
+	services    []core.IService
+	rests       []core.IRest
+	filters     []core.IFilter
+	handles     *web.Handles
 }
 
 // Start initializes and runs the web application with a background context.
@@ -188,27 +189,50 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	return coreServer, coreContext, nil
 
 }
-func (w *WebFrame) ReStart() {
-	w.restart = true
-	w.ctxCancelFunc()
-}
-func (w *WebFrame) Run(pCtx context.Context) error {
-	w.pCtx = pCtx
-	for {
-		w.restart = false
-		err := w.run(pCtx)
-		if !w.restart {
-			return err
-		}
-	}
 
+// ReStart stops the running application so that Run starts it again with the
+// same parent context. It is safe to call from another goroutine (signal
+// handler, admin route) and is a no-op when the application is not running yet.
+func (w *WebFrame) ReStart() {
+	w.mu.Lock()
+	w.restart = true
+	cancel := w.ctxCancelFunc
+	w.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
 
 // Run initializes the logger, sets up all components, services, models, and REST groups,
 // then starts the HTTP servers and background runners. The provided context controls
-// the application lifecycle for graceful shutdown.
+// the application lifecycle for graceful shutdown. When ReStart is called, Run
+// re-initializes and serves again instead of returning.
+func (w *WebFrame) Run(pCtx context.Context) error {
+	for {
+		w.mu.Lock()
+		w.restart = false
+		w.mu.Unlock()
+
+		err := w.run(pCtx)
+
+		w.mu.Lock()
+		restart := w.restart
+		w.mu.Unlock()
+		if !restart {
+			return err
+		}
+	}
+}
+
+// run is a single lifecycle generation of Run: initialize, serve, and return
+// when the server stops.
 func (w *WebFrame) run(pCtx context.Context) error {
-	w.ctx, w.ctxCancelFunc = context.WithCancel(pCtx)
+	ctx, cancel := context.WithCancel(pCtx)
+	defer cancel()
+	w.mu.Lock()
+	w.ctxCancelFunc = cancel
+	w.mu.Unlock()
+
 	var logConfig = &log.Config{
 		Level: "debug",
 	}
@@ -223,13 +247,25 @@ func (w *WebFrame) run(pCtx context.Context) error {
 		}
 	}()
 	log.InitLogger(logConfig)
-	server, _, err := w.init(w.ctx)
+	server, _, err := w.init(ctx)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
 	err = server.Run()
-	log.Error("Start the WebFrame", zap.Error(err))
+	if isShutdown(err) {
+		// A cancelled context (shutdown or ReStart) is not a failure.
+		return nil
+	}
+	if err != nil {
+		log.Error("Start the WebFrame", zap.Error(err))
+	}
 	return errors.WithStackIf(err)
+}
+
+// isShutdown reports whether err is the expected result of stopping the
+// application (cancelled context or closed listener) rather than a failure.
+func isShutdown(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, http.ErrServerClosed)
 }
 
 // Builder provides a fluent API for constructing a WebFrame application.

@@ -118,7 +118,7 @@ func (server *Server) GetHandler() http.Handler {
 func NewServer(ctx *Context) *Server {
 	return &Server{
 		ctx:        ctx,
-		servers:    web.NewServers(),
+		servers:    web.NewServerWithContext(ctx),
 		restGroups: make([]*RestGroup, 0),
 		lock:       new(sync.RWMutex),
 		runners:    make([]IRunner, 0),

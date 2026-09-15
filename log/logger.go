@@ -1,10 +1,12 @@
 package log
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -106,7 +108,14 @@ func (l *logger) panic(msg string, fields ...zap.Field) {
 }
 
 func (l *logger) sync() error {
-	return l.zap.Sync()
+	err := l.zap.Sync()
+	// Syncing a terminal or pipe is unsupported: fsync on stdout/stderr returns
+	// EINVAL/ENOTTY (or EBADF on macOS). zap does not buffer writes, so those
+	// are not real failures.
+	if errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOTTY) || errors.Is(err, syscall.EBADF) {
+		return nil
+	}
+	return err
 }
 
 var lock *sync.RWMutex = new(sync.RWMutex)

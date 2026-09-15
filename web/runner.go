@@ -89,7 +89,7 @@ func (sr *ServerRunner) startHTTPChallengeServer(ctx context.Context) error {
 	}
 	go func() {
 		<-sr.ctx.Done()
-		if err := server.Shutdown(ctx); err != nil {
+		if err := shutdownServer(sr.ctx, server); err != nil {
 			log.Error("Failed to shutdown ACME HTTP-01 challenge server", zap.Error(err))
 		}
 	}()
@@ -119,7 +119,7 @@ func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
 	}
 	go func() {
 		<-sr.ctx.Done()
-		if err := server.Shutdown(ctx); err != nil {
+		if err := shutdownServer(sr.ctx, server); err != nil {
 			log.Error("Failed to shutdown ACME TLS challenge server", zap.Error(err))
 		}
 	}()

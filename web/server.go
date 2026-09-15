@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"emperror.dev/errors"
 	"github.com/chuccp/go-web-frame/log"
@@ -402,12 +403,26 @@ func (server *Server) Listen(ctx context.Context, certs *certStore) error {
 	}
 	go func() {
 		<-ctx.Done()
-		if err := httpServer.Shutdown(ctx); err != nil {
+		if err := shutdownServer(ctx, httpServer); err != nil {
 			log.Error("Failed to shutdown HTTP server", zap.Error(err))
 		}
 	}()
 	log.Info("server listening", zap.String("url", "http://localhost"+addr))
 	return errors.WithStackIf(httpServer.ListenAndServe())
+}
+
+// shutdownDrainTimeout bounds how long a listener keeps draining in-flight
+// requests after its context was cancelled.
+const shutdownDrainTimeout = 30 * time.Second
+
+// shutdownServer drains the HTTP server once ctx is done. The cancelled
+// context only triggers the drain, so it is detached before being handed to
+// Shutdown — passing the cancelled context on would abort the drain
+// immediately and log a spurious "context canceled".
+func shutdownServer(ctx context.Context, server *http.Server) error {
+	drainCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownDrainTimeout)
+	defer cancel()
+	return server.Shutdown(drainCtx)
 }
 
 func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
@@ -442,7 +457,7 @@ func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
 	}
 	go func() {
 		<-ctx.Done()
-		if err := httpServer.Shutdown(ctx); err != nil {
+		if err := shutdownServer(ctx, httpServer); err != nil {
 			log.Error("Failed to shutdown HTTPS server", zap.Error(err))
 		}
 	}()

@@ -66,7 +66,7 @@ func (o *Object) LookupByPath(path string) Value {
 }
 
 func (o *Object) GetUint(key string) uint {
-	n, ok := numberValue(o.Get(key))
+	n, ok := ToNumber(o.Get(key))
 	if !ok {
 		return 0
 	}
@@ -77,11 +77,11 @@ func (o *Object) GetUint(key string) uint {
 	return uint(i)
 }
 
-// numberValue 取出 key 对应的数值。JSON 数字直接返回；Text 交给 ToNumberE 转换
+// ToNumber 取出 key 对应的数值。JSON 数字直接返回；Text 交给 ToNumberE 转换
 // （URL query 里的 id 经前端原样转发就是这种形态，与 web.Request 的 query/form
 // 参数走同一套解析语义）。转换失败是为了拒绝 "12abc" 这类尾随垃圾，
 // 而不是静默取 0；bool / object / array 等非文本类型返回 false。
-func numberValue(v Value) (*Number, bool) {
+func ToNumber(v Value) (*Number, bool) {
 	if v == nil {
 		return nil, false
 	}
@@ -196,7 +196,7 @@ func (o *Object) HasAnyKey(key ...string) bool {
 }
 
 func (o *Object) GetIntForDefault(key string, defaultValue int) int {
-	n, ok := numberValue(o.Get(key))
+	n, ok := ToNumber(o.Get(key))
 	if !ok {
 		return defaultValue
 	}
@@ -204,7 +204,7 @@ func (o *Object) GetIntForDefault(key string, defaultValue int) int {
 }
 
 func (o *Object) GetNumberForDefault(key string, defaultValue float64) float64 {
-	n, ok := numberValue(o.Get(key))
+	n, ok := ToNumber(o.Get(key))
 	if !ok {
 		return defaultValue
 	}
@@ -238,7 +238,7 @@ func (o *Object) GetBool(key string) bool {
 }
 
 func (o *Object) GetNumber(key string) float64 {
-	n, ok := numberValue(o.Get(key))
+	n, ok := ToNumber(o.Get(key))
 	if !ok {
 		return 0
 	}
@@ -246,7 +246,7 @@ func (o *Object) GetNumber(key string) float64 {
 }
 
 func (o *Object) GetInt(key string) int {
-	n, ok := numberValue(o.Get(key))
+	n, ok := ToNumber(o.Get(key))
 	if !ok {
 		return 0
 	}

@@ -240,13 +240,16 @@ func (w *WebFrame) run(pCtx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	logger := log.InitLogger(logConfig)
 	defer func() {
-		err := log.Sync()
+		log.Init()
+		err := logger.Sync()
 		if err != nil {
 			log.Error("Failed to close the service", zap.Error(err))
 		}
 	}()
-	log.InitLogger(logConfig)
+
 	server, _, err := w.init(ctx)
 	if err != nil {
 		return errors.WithStackIf(err)

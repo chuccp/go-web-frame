@@ -45,6 +45,10 @@ func defaultConfig() *Config {
 var TimestampFormat = "2006-01-02 15:04:05"
 var defaultLogger = getDefaultLogger()
 
+func Init() {
+	defaultLogger = getDefaultLogger()
+}
+
 func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(TimestampFormat)
@@ -83,31 +87,31 @@ func getStdoutLogWriter() zapcore.Core {
 	return core
 }
 
-type logger struct {
+type Logger struct {
 	zap       *zap.Logger
 	logConfig *Config
 }
 
-func (l *logger) info(msg string, fields ...zap.Field) {
+func (l *Logger) info(msg string, fields ...zap.Field) {
 	l.zap.Info(msg, fields...)
 }
-func (l *logger) error(msg string, fields ...zap.Field) {
+func (l *Logger) error(msg string, fields ...zap.Field) {
 	l.zap.Error(msg, fields...)
 }
-func (l *logger) debug(msg string, fields ...zap.Field) {
+func (l *Logger) debug(msg string, fields ...zap.Field) {
 	l.zap.Debug(msg, fields...)
 }
-func (l *logger) warn(msg string, fields ...zap.Field) {
+func (l *Logger) warn(msg string, fields ...zap.Field) {
 	l.zap.Warn(msg, fields...)
 }
-func (l *logger) fatal(msg string, fields ...zap.Field) {
+func (l *Logger) fatal(msg string, fields ...zap.Field) {
 	l.zap.Fatal(msg, fields...)
 }
-func (l *logger) panic(msg string, fields ...zap.Field) {
+func (l *Logger) panic(msg string, fields ...zap.Field) {
 	l.zap.Panic(msg, fields...)
 }
 
-func (l *logger) sync() error {
+func (l *Logger) Sync() error {
 	err := l.zap.Sync()
 	// Syncing a terminal or pipe is unsupported: fsync on stdout/stderr returns
 	// EINVAL/ENOTTY (or EBADF on macOS). zap does not buffer writes, so those
@@ -214,19 +218,19 @@ func PrintPanic(errs ...error) {
 func Sync() error {
 	lock.RLock()
 	defer lock.RUnlock()
-	return defaultLogger.sync()
+	return defaultLogger.Sync()
 }
 
-func getDefaultLogger() *logger {
+func getDefaultLogger() *Logger {
 	cores := zapcore.NewTee(getStdoutLogWriter())
 	l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2))
-	return &logger{
+	return &Logger{
 		zap: l,
 	}
 }
 
 // InitLogger initializes or reconfigures the global logger with the given config.
-func InitLogger(logConfig *Config) {
+func InitLogger(logConfig *Config) *Logger {
 
 	level, err := zapcore.ParseLevel(logConfig.Level)
 	if err != nil {
@@ -244,10 +248,10 @@ func InitLogger(logConfig *Config) {
 				l := zap.New(cores, zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level))
 				lock.Lock()
 				defer lock.Unlock()
-				defaultLogger = &logger{
+				defaultLogger = &Logger{
 					zap: l,
 				}
-				return
+				return defaultLogger
 			}
 			Error("log file path", zap.Error(err))
 		} else {
@@ -256,7 +260,8 @@ func InitLogger(logConfig *Config) {
 	}
 	lock.Lock()
 	defer lock.Unlock()
-	defaultLogger = &logger{
+	defaultLogger = &Logger{
 		zap: zap.New(getStdoutLogWriter(), zap.AddCaller(), zap.AddCallerSkip(2), zap.IncreaseLevel(level)),
 	}
+	return defaultLogger
 }

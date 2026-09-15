@@ -129,9 +129,12 @@ func DefaultServer() *Server {
 	}
 	return server
 }
+
+// GetHandler returns the underlying handler for embedding or testing.
+// It runs the same initialization as Start/Listen, including the NoRoute handler
+// that serves static files and the SPA fallback.
 func (server *Server) GetHandler() http.Handler {
-	server.optionsMiddleware()
-	server.justInitRoute()
+	server.initRoute()
 	return server.engine
 }
 

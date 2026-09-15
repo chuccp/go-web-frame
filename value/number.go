@@ -126,11 +126,11 @@ func newUintValue(u uint64) *Number {
 	return NewInt(int64(u))
 }
 
-// ToNumber 把 Value 转成 Number。JSON 数字直接返回；Text 交给 ToNumberE 转换
+// value2Number 把 Value 转成 Number。JSON 数字直接返回；Text 交给 ToNumberE 转换
 // （URL query 里的 id 经前端原样转发就是这种形态，与 web.Request 的 query/form
 // 参数走同一套解析语义）。转换失败是为了拒绝 "12abc" 这类尾随垃圾，
 // 而不是静默取 0；bool / object / array 等非文本类型返回 false。
-func ToNumber(v Value) (*Number, bool) {
+func value2Number(v Value) (*Number, bool) {
 	if v == nil {
 		return nil, false
 	}

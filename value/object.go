@@ -150,7 +150,7 @@ func (o *Object) HasAnyKey(key ...string) bool {
 }
 
 func (o *Object) GetIntForDefault(key string, defaultValue int) int {
-	n, ok := ToNumber(o.Get(key))
+	n, ok := value2Number(o.Get(key))
 	if !ok {
 		return defaultValue
 	}
@@ -158,7 +158,7 @@ func (o *Object) GetIntForDefault(key string, defaultValue int) int {
 }
 
 func (o *Object) GetNumberForDefault(key string, defaultValue float64) float64 {
-	n, ok := ToNumber(o.Get(key))
+	n, ok := value2Number(o.Get(key))
 	if !ok {
 		return defaultValue
 	}

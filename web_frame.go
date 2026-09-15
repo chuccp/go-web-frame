@@ -224,7 +224,19 @@ type Builder struct {
 }
 
 // NewBuilder creates a new Builder with the given configuration for constructing a WebFrame.
+//
+// A single config is used as-is so that a file-backed config keeps its write-back support:
+// MergeConfig returns a plain *Config with no file to write to, which makes WriteConfig
+// fail for every caller that passes a SingleFileConfig.
 func NewBuilder(configs ...config.IConfig) *Builder {
+	var cfg config.IConfig
+	if len(configs) == 1 {
+		// Use the config as-is: MergeConfig returns a plain *Config with no file to write
+		// to, so a SingleFileConfig passed through it can never WriteConfig.
+		cfg = configs[0]
+	} else {
+		cfg = config.MergeConfig(configs...)
+	}
 
 	builder := &Builder{
 		models:     make([]core.IModel, 0),
@@ -234,7 +246,7 @@ func NewBuilder(configs ...config.IConfig) *Builder {
 		rests:      make([]core.IRest, 0),
 		filters:    make([]core.IFilter, 0),
 		handles:    web.NewHandles(),
-		config:     config.MergeConfig(configs...),
+		config:     cfg,
 	}
 	return builder
 }

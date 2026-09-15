@@ -318,11 +318,13 @@ func (server *Server) noRoute() {
 	fs := DefaultMemFileSystem(server.serverConfig.Locations)
 	server.engine.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		// 去除 ContextPath 前缀，memfs 中的路径不带 ContextPath
+		// 去除 ContextPath 前缀，memfs 中的路径不带 ContextPath。
+		// 只有请求确实带前缀时才剥离：路由挂在 ContextPath 下，而静态资源（SPA 产物）
+		// 通常从根路径提供。此前前缀不匹配会直接返回，导致带 ContextPath 的服务端
+		// 无法在根路径托管前端，例如 API 在 /api、界面在 /。
 		if cp := server.serverConfig.ContextPath; len(cp) > 0 {
-			var ok bool
-			if path, ok = stripContextPath(cp, path); !ok {
-				return
+			if stripped, ok := stripContextPath(cp, path); ok {
+				path = stripped
 			}
 		}
 		if server.tryServeFile(c, fs, path) {
@@ -333,7 +335,16 @@ func (server *Server) noRoute() {
 		if strings.Contains(accept, "html") && !util.IsImagePath(path) {
 			if len(server.serverConfig.Page404) > 0 {
 				if exists, _ := fs.ExistsFile(server.serverConfig.Page404); exists {
-					c.FileFromFS(server.serverConfig.Page404, fs)
+					// 直接写入文件内容，不走 FileFromFS：gin 会把请求路径改写成文件名，
+					// 而 http.FileServer 对以 "/index.html" 结尾的路径一律 301 到 "./"，
+					// 会把浏览器送回站点根目录、丢掉当前深链接（SPA 路由失效）。
+					if f, err := fs.Open(server.serverConfig.Page404); err == nil {
+						defer func() { _ = f.Close() }()
+						if info, statErr := f.Stat(); statErr == nil && !info.IsDir() {
+							http.ServeContent(c.Writer, c.Request, server.serverConfig.Page404, info.ModTime(), f)
+							return
+						}
+					}
 				}
 			}
 		}

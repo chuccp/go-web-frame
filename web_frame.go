@@ -83,7 +83,7 @@ type WebFrame struct {
 	ctxCancelFunc context.CancelFunc
 	pCtx          context.Context
 	restGroups    []*core.RestGroup
-	modelGroup    []core.IModelGroup
+	modelGroups   []core.IModelGroup
 	config        config.IConfig
 	models        []core.IModel
 	services      []core.IService
@@ -129,6 +129,8 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	coreContext := core.NewContext(w.config, ctx)
 	coreContext.AddService(w.services...)
 
+	iModelGroups := make([]core.IModelGroup, 0)
+	iModelGroups = append(iModelGroups, w.modelGroups...)
 	if len(w.models) > 0 {
 		modelGroupBuilder := core.NewModelGroupBuilder()
 		if w.config.HasKey(db2.ConfigKey) {
@@ -141,12 +143,12 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 		}
 		modelGroupBuilder.Model(w.models...)
 		modelGroup := modelGroupBuilder.Build()
-		w.modelGroup = append(w.modelGroup, modelGroup)
+		iModelGroups = append(iModelGroups, modelGroup)
 	}
 
-	if len(w.modelGroup) > 0 {
-		coreContext.AddModelGroup(w.modelGroup...)
-		for _, modelGroup := range w.modelGroup {
+	if len(iModelGroups) > 0 {
+		coreContext.AddModelGroup(iModelGroups...)
+		for _, modelGroup := range iModelGroups {
 			coreContext.AddModel(modelGroup.GetModel()...)
 			err := modelGroup.Init(coreContext)
 			if err != nil {
@@ -168,19 +170,21 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 			return nil, nil, errors.WithStackIf(err)
 		}
 	}
+	restGroups := make([]*core.RestGroup, 0)
+	restGroups = append(restGroups, w.restGroups...)
 	coreContext.AddRunner(runners...)
-	if w.config.HasKey(web.ServerConfigKey) || len(w.restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
+	if w.config.HasKey(web.ServerConfigKey) || len(restGroups) == 0 || len(w.rests) > 0 || !w.handles.Empty() {
 		restGroup := core.NewRestGroupBuilder().
 			ServerConfig(defaultServerConfig).
 			Rest(w.rests...).
 			Filter(w.filters...).
 			Handles(w.handles).
 			Build()
-		w.restGroups = append(w.restGroups, restGroup)
+		restGroups = append(restGroups, restGroup)
 	}
 	coreServer := core.NewServer(coreContext)
 	coreServer.AddIRunner(runners...)
-	coreServer.AddRestGroup(w.restGroups...)
+	coreServer.AddRestGroup(restGroups...)
 	return coreServer, coreContext, nil
 
 }
@@ -232,14 +236,14 @@ func (w *WebFrame) run(pCtx context.Context) error {
 // Register routes, REST controllers, models, services, filters,
 // and runners, then call Build() to create the application.
 type Builder struct {
-	restGroups []*core.RestGroup
-	modelGroup []core.IModelGroup
-	config     config.IConfig
-	models     []core.IModel
-	services   []core.IService
-	rests      []core.IRest
-	filters    []core.IFilter
-	handles    *web.Handles
+	restGroups  []*core.RestGroup
+	modelGroups []core.IModelGroup
+	config      config.IConfig
+	models      []core.IModel
+	services    []core.IService
+	rests       []core.IRest
+	filters     []core.IFilter
+	handles     *web.Handles
 }
 
 // NewBuilder creates a new Builder with the given configuration for constructing a WebFrame.
@@ -258,14 +262,14 @@ func NewBuilder(configs ...config.IConfig) *Builder {
 	}
 
 	builder := &Builder{
-		models:     make([]core.IModel, 0),
-		services:   make([]core.IService, 0),
-		restGroups: make([]*core.RestGroup, 0),
-		modelGroup: make([]core.IModelGroup, 0),
-		rests:      make([]core.IRest, 0),
-		filters:    make([]core.IFilter, 0),
-		handles:    web.NewHandles(),
-		config:     cfg,
+		models:      make([]core.IModel, 0),
+		services:    make([]core.IService, 0),
+		restGroups:  make([]*core.RestGroup, 0),
+		modelGroups: make([]core.IModelGroup, 0),
+		rests:       make([]core.IRest, 0),
+		filters:     make([]core.IFilter, 0),
+		handles:     web.NewHandles(),
+		config:      cfg,
 	}
 	return builder
 }
@@ -340,7 +344,7 @@ func (b *Builder) RestGroup(restGroups ...*core.RestGroup) *Builder {
 
 // ModelGroup registers one or more model groups and returns the builder for chaining.
 func (b *Builder) ModelGroup(modelGroups ...core.IModelGroup) *Builder {
-	b.modelGroup = append(b.modelGroup, modelGroups...)
+	b.modelGroups = append(b.modelGroups, modelGroups...)
 	return b
 }
 
@@ -348,14 +352,14 @@ func (b *Builder) ModelGroup(modelGroups ...core.IModelGroup) *Builder {
 // The returned application can be started with Run or Test.
 func (b *Builder) Build() *WebFrame {
 	w := &WebFrame{
-		models:     b.models,
-		services:   b.services,
-		restGroups: b.restGroups,
-		modelGroup: b.modelGroup,
-		rests:      b.rests,
-		filters:    b.filters,
-		handles:    b.handles,
-		config:     b.config,
+		models:      b.models,
+		services:    b.services,
+		restGroups:  b.restGroups,
+		modelGroups: b.modelGroups,
+		rests:       b.rests,
+		filters:     b.filters,
+		handles:     b.handles,
+		config:      b.config,
 	}
 	return w
 }

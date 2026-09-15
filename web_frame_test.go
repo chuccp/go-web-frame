@@ -164,7 +164,7 @@ func TestBuilder_ModelGroup(t *testing.T) {
 	app := builder.Build()
 
 	// Assert
-	assert.Equal(t, 1, len(app.modelGroup))
+	assert.Equal(t, 1, len(app.modelGroups))
 }
 
 func TestWebFrame_Start(t *testing.T) {

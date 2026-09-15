@@ -79,14 +79,18 @@ func (receiver *DefaultRest) Init(ctx *core.Context) error {
 // WebFrame is the main application struct that holds all components, services, models,
 // REST groups, and configuration for a web application.
 type WebFrame struct {
-	restGroups []*core.RestGroup
-	modelGroup []core.IModelGroup
-	config     config.IConfig
-	models     []core.IModel
-	services   []core.IService
-	rests      []core.IRest
-	filters    []core.IFilter
-	handles    *web.Handles
+	ctx           context.Context
+	ctxCancelFunc context.CancelFunc
+	pCtx          context.Context
+	restGroups    []*core.RestGroup
+	modelGroup    []core.IModelGroup
+	config        config.IConfig
+	models        []core.IModel
+	services      []core.IService
+	rests         []core.IRest
+	filters       []core.IFilter
+	handles       *web.Handles
+	restart       bool
 }
 
 // Start initializes and runs the web application with a background context.
@@ -180,11 +184,27 @@ func (w *WebFrame) init(ctx context.Context) (*core.Server, *core.Context, error
 	return coreServer, coreContext, nil
 
 }
+func (w *WebFrame) ReStart() {
+	w.restart = true
+	w.ctxCancelFunc()
+}
+func (w *WebFrame) Run(pCtx context.Context) error {
+	w.pCtx = pCtx
+	for {
+		w.restart = false
+		err := w.run(pCtx)
+		if !w.restart {
+			return err
+		}
+	}
+
+}
 
 // Run initializes the logger, sets up all components, services, models, and REST groups,
 // then starts the HTTP servers and background runners. The provided context controls
 // the application lifecycle for graceful shutdown.
-func (w *WebFrame) Run(ctx context.Context) error {
+func (w *WebFrame) run(pCtx context.Context) error {
+	w.ctx, w.ctxCancelFunc = context.WithCancel(pCtx)
 	var logConfig = &log.Config{
 		Level: "debug",
 	}
@@ -199,8 +219,7 @@ func (w *WebFrame) Run(ctx context.Context) error {
 		}
 	}()
 	log.InitLogger(logConfig)
-
-	server, _, err := w.init(ctx)
+	server, _, err := w.init(w.ctx)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}

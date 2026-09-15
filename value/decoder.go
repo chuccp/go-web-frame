@@ -516,6 +516,16 @@ func isNumericKind(k reflect.Kind) bool {
 	return isIntegerKind(k) || k == reflect.Float32 || k == reflect.Float64
 }
 
+// int64Upper / uint64Upper 是两个上界的浮点表示（2^63 / 2^64）。
+// math.MaxInt64、math.MaxUint64 转成 float64 时会进位到这两个值，
+// 若用 v > math.MaxInt64 判断，恰好等于上界的输入会被放过，随后的
+// int64()/uint64() 转换结果由实现决定（amd64 上是 MinInt64 / 0），
+// 因此浮点分支的边界必须写成 >=。
+const (
+	int64Upper  = float64(1 << 63)
+	uint64Upper = float64(1 << 64)
+)
+
 func toInt64(val any) (int64, error) {
 	switch v := val.(type) {
 	case int:
@@ -529,6 +539,10 @@ func toInt64(val any) (int64, error) {
 	case int64:
 		return v, nil
 	case uint:
+		// 32 位平台上 uint 放得下，64 位平台上可能超过 int64 上限。
+		if v > math.MaxInt64 {
+			return 0, fmt.Errorf("cannot convert %d to int64 (out of range)", v)
+		}
 		return int64(v), nil
 	case uint8:
 		return int64(v), nil
@@ -544,7 +558,7 @@ func toInt64(val any) (int64, error) {
 	case float32:
 		return toInt64(float64(v))
 	case float64:
-		if math.IsNaN(v) || v > math.MaxInt64 || v < math.MinInt64 {
+		if math.IsNaN(v) || v >= int64Upper || v < math.MinInt64 {
 			return 0, fmt.Errorf("cannot convert %v to int64 (out of range)", v)
 		}
 		// 带小数的值不静默截断："2.9" 写进 int 字段会让用户以为存的是 2.9。
@@ -596,7 +610,7 @@ func toUint64(val any) (uint64, error) {
 		if v < 0 {
 			return 0, fmt.Errorf("cannot convert %v to unsigned (negative value)", v)
 		}
-		if v > math.MaxUint64 {
+		if v >= uint64Upper {
 			return 0, fmt.Errorf("cannot convert %v to unsigned (out of range)", v)
 		}
 		// 同 toInt64：带小数的值不静默截断。

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"reflect"
 	"strings"
 
 	"github.com/chuccp/go-web-frame/util"
-	"github.com/spf13/cast"
 )
 
 type Object struct {
@@ -70,12 +70,16 @@ func (o *Object) GetUint(key string) uint {
 	if !ok {
 		return 0
 	}
-	return uint(n.Int64())
+	i := n.Int64()
+	if i < 0 { // 负数不静默回绕成巨大值
+		return 0
+	}
+	return uint(i)
 }
 
-// numberValue 取出 key 对应的数值。JSON 数字直接返回；Text 交给 cast 转换
+// numberValue 取出 key 对应的数值。JSON 数字直接返回；Text 交给 ToNumberE 转换
 // （URL query 里的 id 经前端原样转发就是这种形态，与 web.Request 的 query/form
-// 参数走同一套 cast 语义）。用 E 变体是为了拒绝 "12abc" 这类尾随垃圾，
+// 参数走同一套解析语义）。转换失败是为了拒绝 "12abc" 这类尾随垃圾，
 // 而不是静默取 0；bool / object / array 等非文本类型返回 false。
 func numberValue(v Value) (*Number, bool) {
 	if v == nil {
@@ -91,16 +95,12 @@ func numberValue(v Value) (*Number, bool) {
 	if s == "" {
 		return nil, false
 	}
-	f, err := cast.ToFloat64E(s)
+	// 整数形态（"502"、"10.0"）返回整型 Number，带小数的（"10.50"）保留小数位。
+	n, err := ToNumberE(s)
 	if err != nil {
 		return nil, false
 	}
-	// cast.ToInt64E 会把 "10.50" 截断成 10，所以先按浮点解析：
-	// 整数形态（"502"、"10.0"）仍返回整型 Number，带小数的保留小数位。
-	if n, err := cast.ToInt64E(s); err == nil && float64(n) == f {
-		return NewInt(n), true
-	}
-	return NewNumber(f), true
+	return n, true
 }
 
 func (o *Object) PutByPath(path string, value any) {
@@ -485,7 +485,7 @@ func fromInterface(v any) Value {
 	case int64:
 		return NewInt(val)
 	case uint:
-		return NewInt(int64(val))
+		return newUintValue(uint64(val))
 	case uint8:
 		return NewInt(int64(val))
 	case uint16:
@@ -493,12 +493,23 @@ func fromInterface(v any) Value {
 	case uint32:
 		return NewInt(int64(val))
 	case uint64:
-		return NewInt(int64(val))
+		return newUintValue(val)
 	case string:
 		return &Text{text: val}
 	default:
 		return fromReflect(v)
 	}
+}
+
+// newUintValue 把无符号整数转成 Number。32 位及以下的类型放得下 int64，
+// 只有 uint/uint64 在 64 位平台上可能超过 int64 上限：此时降级为 float64
+// （丢精度但保留数量级），而不是 int64() 回绕成负数（上限值会变成 -1）。
+// 与 ToNumberE 对超范围输入的处理保持一致。
+func newUintValue(u uint64) *Number {
+	if u > math.MaxInt64 {
+		return NewNumber(float64(u))
+	}
+	return NewInt(int64(u))
 }
 
 // fromReflect 处理底层为原生类型的命名类型（如 ThinkingLevel、Role 等自定义 string/int 类型）。
@@ -517,7 +528,7 @@ func fromReflect(v any) Value {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return NewInt(rv.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return NewInt(int64(rv.Uint()))
+		return newUintValue(rv.Uint())
 	case reflect.Float32, reflect.Float64:
 		return NewNumber(rv.Float())
 	default:

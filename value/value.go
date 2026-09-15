@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -43,16 +44,16 @@ func (ValueBase) IsNull() bool   { return false }
 func (ValueBase) IsStream() bool { return false }
 func (ValueBase) IsAny() bool    { return false }
 
-func (ValueBase) AsObject() *Object       { panic("not an object") }
-func (ValueBase) AsArray() *Array         { panic("not an array") }
-func (ValueBase) AsText() *Text           { panic("not text") }
-func (ValueBase) AsBool() *Bool           { panic("not bool") }
-func (ValueBase) AsNumber() *Number       { panic("not number") }
-func (ValueBase) AsStream() *Stream       { panic("not Stream") }
-func (ValueBase) AsAny() *Any             { panic("not Any") }
-func (ValueBase) ToJSON() json.RawMessage   { return json.RawMessage("null") }
-func (ValueBase) String() string            { return "null" }
-func (ValueBase) Equal(Value) bool          { return false }
+func (ValueBase) AsObject() *Object                           { panic("not an object") }
+func (ValueBase) AsArray() *Array                             { panic("not an array") }
+func (ValueBase) AsText() *Text                               { panic("not text") }
+func (ValueBase) AsBool() *Bool                               { panic("not bool") }
+func (ValueBase) AsNumber() *Number                           { panic("not number") }
+func (ValueBase) AsStream() *Stream                           { panic("not Stream") }
+func (ValueBase) AsAny() *Any                                 { panic("not Any") }
+func (ValueBase) ToJSON() json.RawMessage                     { return json.RawMessage("null") }
+func (ValueBase) String() string                              { return "null" }
+func (ValueBase) Equal(Value) bool                            { return false }
 func (ValueBase) Unmarshal(any, ...DecoderConfigOption) error { return nil }
 
 type Stream struct {
@@ -158,9 +159,14 @@ func (n *Number) AsNumber() *Number { return n }
 
 func (n *Number) IsFloat() bool { return n.isFloat }
 
-// Int64 返回整数值。若为浮点数则截断小数部分。
+// Int64 返回整数值。若为浮点数则截断小数部分；
+// 超出 int64 范围或为 NaN 时返回 0，避免 int64() 的实现相关结果
+// （amd64 上 int64(1e30) 会得到 MinInt64）。
 func (n *Number) Int64() int64 {
 	if n.isFloat {
+		if math.IsNaN(n.f) || n.f >= int64Upper || n.f < math.MinInt64 {
+			return 0
+		}
 		return int64(n.f)
 	}
 	return n.i
@@ -213,6 +219,34 @@ func (n *Number) Equal(other Value) bool {
 // NewNumber 从 float64 创建浮点数值。
 func NewNumber(f float64) *Number {
 	return &Number{f: f, isFloat: true}
+}
+
+// ToNumberE 把任意输入转换为 Number：整数形态优先走 int64 保精度，
+// 带小数或超出 int64 范围的走 float64；无法识别的类型或文本返回错误。
+func ToNumberE(val any) (*Number, error) {
+	switch v := val.(type) {
+	case float32:
+		return NewNumber(float64(v)), nil
+	case float64:
+		// JSON 数字解码后就是 float64，整数值也保持浮点（与 fromInterface 一致）。
+		return NewNumber(v), nil
+	default:
+		// 其余全部复用 decoder 的 toInt64 / toFloat64：int/int8/…/uint64、
+		// string、json.Number 及具名数值类型它俩都已覆盖，不在这里另写一套解析。
+		if i, err := toInt64(val); err == nil {
+			return NewInt(i), nil
+		}
+		f, err := toFloat64(val)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert %v (%T) to Number", val, val)
+		}
+		// "10.0"、"1e5" 这类整数值文本仍返回整型 Number（与 JSON 数字路径一致）；
+		// 恰好 2^63 的保持浮点，否则 int64(f) 会回绕。
+		if f == math.Trunc(f) && f >= math.MinInt64 && f < int64Upper {
+			return NewInt(int64(f)), nil
+		}
+		return NewNumber(f), nil
+	}
 }
 
 // NewInt 从 int64 创建整数值。

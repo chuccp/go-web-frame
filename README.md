@@ -1,6 +1,6 @@
 # Go Web Frame
 
-**Build a CRUD backend in Go with zero ORM boilerplate. Define a struct, embed a generic Model — typed queries, pagination, and context propagation come with it.**
+**Declare policy on the route, not in the handler. Tag a route with `.WithMeta(...)` — auth, permissions, rate limits — and one filter enforces it for every route that opted in. Typed generic ORM included.**
 
 ---
 
@@ -13,7 +13,16 @@
 
 Go Web Frame is an integrated backend toolkit. Routing, ORM, and caching are pre-integrated — no need to pick and wire them separately.
 
-The core is **a generic Model layer that eliminates CRUD boilerplate.** Define an entity struct, embed `Model[T]`, and the compiler checks types from database to handler. No `interface{}`, no code generation.
+Its central idea is **declarative routing**. Most policy is per-route, not global: `/login` must not require a token, `/admin/*` needs a permission, `/upload` deserves a tighter rate limit. Instead of repeating that check in every handler — or splitting controllers apart just to get a different middleware chain — declare it on the route and enforce it once:
+
+```go
+ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
+ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
+ctx.Post("/api/admin/users", c.CreateUser).
+    WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+```
+
+The data layer is **a generic Model that eliminates CRUD boilerplate.** Define an entity struct, embed `Model[T]`, and the compiler checks types from database to handler. No `interface{}`, no code generation.
 
 ```go
 // Define once, use everywhere
@@ -42,6 +51,129 @@ userModel.DeleteByPK(1)
 ```
 
 Also included: routing (Gin), auth filters, WebSocket, SSE, CORS, rate limiting, cron, validation, caching, HTTPS (Let's Encrypt auto-cert or local certificates), multi-DB (MySQL / PostgreSQL / SQLite / Redis) — all wired up and configured from one YAML file.
+
+---
+
+## Per-Route Metadata (WithMeta)
+
+`WithMeta` attaches metadata to a route when it is registered. Filters read it back per request with `req.HasMeta(...)`. The route declares *what it is*; the filter decides *what to do about it* — and one filter serves every route.
+
+### Declare on the route
+
+`ctx.Get(...)` and the other registration methods return a `*web.Route`, so `.WithMeta()` chains straight off the call:
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())         // public
+    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())  // needs a token
+
+    ctx.Post("/api/admin/users", c.CreateUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+Factories are plain functions returning `web.MetaOption`. Keep them next to the filter that consumes them:
+
+```go
+func RequireAuth() web.MetaOption                { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption                   { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption  { return web.WithValue("require_permission", p) }
+```
+
+### Enforce in one filter
+
+Registered once with `builder.Filter(&AuthFilter{})`, it runs for every request but only acts on routes that opted in:
+
+```go
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()                                    // route didn't opt in
+    }
+
+    token := req.GetHeader("Authorization")
+    if token == "" {
+        return nil, errors.New("unauthorized")
+    }
+    claims, err := verifyToken(token)
+    if err != nil {
+        return nil, err
+    }
+
+    if req.HasMeta(RequirePermission("admin:create_user")) && !claims.Has("admin:create_user") {
+        return nil, web.NewForbidden()
+    }
+    return fc.Next()
+}
+```
+
+All three questions — is auth required, is there a token, does it carry the permission — live in one place. Protecting a new endpoint is one `.WithMeta(...)` at its route, and a handler can never forget the check.
+
+### API
+
+| Call | Where | Meaning |
+|---|---|---|
+| `route.WithMeta(opts...)` | registration | Attach metadata. Variadic and chainable — call it repeatedly. |
+| `web.WithValue(key, value)` | registration | Set one key to a value. |
+| `web.WithKey(keys...)` | registration | Set each key to `true`. |
+| `req.HasMeta(opts...)` | filter / handler | `true` if **any** of the options matches this route. |
+| `req.HandlerMeta()` | filter / handler | The underlying `*HandlerMeta` (`Has`, `HasAnyKey`, `HasKeyValue`) for direct reads. |
+
+Semantics worth knowing:
+
+- **`HasMeta` is OR across its arguments**, not AND. For two independent conditions, make two calls: `req.HasMeta(A) && req.HasMeta(B)`.
+- **`WithValue` matches on value.** `RequirePermission("admin:create_user")` matches only a route that declared exactly that string.
+- **`WithKey` matches on presence.** `req.HasMeta(web.WithKey("a", "b"))` is true if the route has `a` *or* `b`.
+- **A route with no metadata matches nothing.** `HasMeta` returns `false`, which is why unannotated routes pass through the filter untouched.
+- **Metadata is match-only.** There is no getter — you assert with `Has` / `HasKeyValue` rather than reading values out. Design factories as predicates (one per tier or flag) instead of as data to be retrieved.
+- `MetaOption`'s methods are unexported, so options come from `WithKey` / `WithValue`; wrap them in your own named factories.
+- Metadata is stored at registration time, so a lookup is a map read — no per-request parsing.
+
+### More than auth
+
+Metadata is just key-value, so the same mechanism carries anything a filter might branch on:
+
+```go
+// Rate-limit tiers — the filter asks which tier the route declared
+func (f *RateLimitFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    switch {
+    case req.HasMeta(web.WithValue("rate_limit", "upload")):
+        // 2 req/s
+    case req.HasMeta(web.WithValue("rate_limit", "search")):
+        // 20 req/s
+    }
+    return fc.Next()
+}
+
+// Audit trail — the filter logs the action together with the actor
+ctx.Delete("/api/users/:id", c.DeleteUser).WithMeta(web.WithValue("audit", "user.delete"))
+
+// Feature flags / gradual rollout
+ctx.Get("/api/checkout", c.Checkout).WithMeta(web.WithValue("feature", "new_checkout"))
+
+// Tenant scoping
+ctx.Get("/api/reports", c.Reports).WithMeta(web.WithKey("tenant_scoped"))
+```
+
+None of it leaks into the handlers.
+
+### With RestGroup
+
+`RestGroup` covers the coarse case — every route in the group sits behind a filter. `WithMeta` covers the exceptions, which is why the two compose: put the group behind auth, then mark the handful of public routes inside it.
+
+```go
+apiGroup := core.NewRestGroupBuilder().
+    ServerConfig(web.DefaultServerConfig()).
+    ContextPath("/api/v1").
+    Build()
+apiGroup.AddFilter(&AuthFilter{})    // every route in the group now goes through AuthFilter
+apiGroup.AddRest(&ApiController{})
+
+// ...and the exceptions opt out at the route:
+ctx.Get("/api/v1/login", c.Login).WithMeta(SkipAuth())
+```
+
+> The `auth` component ships this pattern ready-made — `auth.WithLogin()` plus `auth.AuthenticationFilter[U]` (see [Auth](#auth--token-based-authentication-filter) below).
 
 ---
 
@@ -181,51 +313,6 @@ curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
 ```
 
 The table is auto-created. All CRUD works. No SQL written, no ORM wiring code needed.
-
----
-
-## Per-Route Metadata (WithMeta)
-
-Tag routes declaratively — the filter checks once, not in every handler:
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // Public
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // Requires login
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // Requires login + specific permission
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// Define metadata factories
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// One filter handles all auth logic
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("unauthorized")
-    }
-
-    // Verify token, check permission from meta...
-    return fc.Next()
-}
-```
 
 ---
 

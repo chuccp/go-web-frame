@@ -1,6 +1,6 @@
 # Go Web Frame
 
-**用 Go 寫 CRUD 後端，零 ORM 樣板程式碼。定義 struct，嵌入泛型 Model——型別安全的查詢、分頁、context 傳播都包含在內。**
+**在路由上宣告策略，而不是在 handler 裡重複。用 `.WithMeta(...)` 標註路由——認證、權限、限流——一個 Filter 統一執行，沒標註的路由自動放行。泛型 ORM 同樣包含在內。**
 
 ---
 
@@ -13,7 +13,16 @@
 
 Go Web Frame 是一個整合好的後端工具箱。路由、ORM、快取等組件已預先整合，不需要分別選型再手動組裝。
 
-核心是**一個消除 CRUD 樣板程式碼的泛型 Model 層。** 定義實體 struct，嵌入 `Model[T]`，編譯器從資料庫到 handler 全程檢查資料型別。沒有 `interface{}`，不用程式碼生成。
+核心思路是**宣告式路由**。大多數策略是「按路由」而非「全域」的：`/login` 不該要求 token，`/admin/*` 需要權限，`/upload` 該有更嚴的限流。與其在每個 handler 裡重複這段判斷——或者為了換一條中間件鏈而拆分 Controller——不如在路由上宣告，然後只實作一次：
+
+```go
+ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
+ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
+ctx.Post("/api/admin/users", c.CreateUser).
+    WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+```
+
+資料層是**一個消除 CRUD 樣板程式碼的泛型 Model。** 定義實體 struct，嵌入 `Model[T]`，編譯器從資料庫到 handler 全程檢查資料型別。沒有 `interface{}`，不用程式碼生成。
 
 ```go
 // 定義一次，到處使用
@@ -42,6 +51,129 @@ userModel.DeleteByPK(1)
 ```
 
 還附帶：路由（Gin）、認證過濾器、WebSocket、SSE、CORS、限流、定時任務、校驗、快取、Let's Encrypt HTTPS、多資料庫（MySQL / PostgreSQL / SQLite / Redis）——一個 YAML 配好全跑起來。
+
+---
+
+## 路由級元資料（WithMeta）
+
+`WithMeta` 在路由註冊時替它掛上元資料，Filter 在每次請求中用 `req.HasMeta(...)` 讀回來。路由負責宣告「我是什麼」，Filter 決定「據此做什麼」——一個 Filter 就能服務所有路由。
+
+### 在路由上宣告
+
+`ctx.Get(...)` 等註冊方法回傳 `*web.Route`，所以 `.WithMeta()` 可以直接鏈在註冊呼叫後面：
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())         // 公開介面
+    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())  // 需要 token
+
+    ctx.Post("/api/admin/users", c.CreateUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+工廠函式就是回傳 `web.MetaOption` 的普通函式，建議和消費它的 Filter 放在一起：
+
+```go
+func RequireAuth() web.MetaOption                { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption                   { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption  { return web.WithValue("require_permission", p) }
+```
+
+### 一個 Filter 統一執行
+
+用 `builder.Filter(&AuthFilter{})` 註冊一次，它對每個請求都生效，但只處理標註過的路由：
+
+```go
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()                                    // 該路由未標註
+    }
+
+    token := req.GetHeader("Authorization")
+    if token == "" {
+        return nil, errors.New("未登入")
+    }
+    claims, err := verifyToken(token)
+    if err != nil {
+        return nil, err
+    }
+
+    if req.HasMeta(RequirePermission("admin:create_user")) && !claims.Has("admin:create_user") {
+        return nil, web.NewForbidden()
+    }
+    return fc.Next()
+}
+```
+
+「要不要認證、有沒有 token、有沒有權限」這三個判斷集中在一處。新增受保護介面 = 在它的路由上加一行 `.WithMeta(...)`，handler 裡再也不會漏寫檢查。
+
+### API
+
+| 呼叫 | 位置 | 含義 |
+|---|---|---|
+| `route.WithMeta(opts...)` | 路由註冊 | 掛載元資料。可變參數、可鏈式，可多次呼叫。 |
+| `web.WithValue(key, value)` | 路由註冊 | 設定一個鍵值對。 |
+| `web.WithKey(keys...)` | 路由註冊 | 把每個鍵設為 `true`。 |
+| `req.HasMeta(opts...)` | Filter / handler | 傳入的選項中**任意一個**匹配即回傳 `true`。 |
+| `req.HandlerMeta()` | Filter / handler | 底層的 `*HandlerMeta`（`Has`、`HasAnyKey`、`HasKeyValue`），用於直接讀取。 |
+
+幾個必須知道的語意：
+
+- **`HasMeta` 在多個參數之間是「或」**，不是「與」。要判斷兩個條件就呼叫兩次：`req.HasMeta(A) && req.HasMeta(B)`。
+- **`WithValue` 按值匹配。** `RequirePermission("admin:create_user")` 只匹配明確宣告了該字串的路由。
+- **`WithKey` 按存在性匹配。** `req.HasMeta(web.WithKey("a", "b"))` 在路由帶有 `a` *或* `b` 時為真。
+- **沒有元資料的路由不匹配任何選項。** `HasMeta` 回傳 `false`，所以未標註的路由會直接穿過 Filter。
+- **元資料只能匹配，不能取值。** 框架沒有提供 getter，只能用 `Has` / `HasKeyValue` 去斷言。因此工廠函式應設計成「述詞」（predicate，一個檔位或開關一個函式），而不是等著被讀出的資料。
+- `MetaOption` 的方法是未匯出的，所以選項只能由 `WithKey` / `WithValue` 產生；用你自己的具名工廠把它們包起來。
+- 元資料在註冊時就寫入，查詢只是一次 map 讀取，沒有逐請求的解析開銷。
+
+### 不只是認證
+
+元資料本質就是鍵值對，所以同一個機制可以承載任何 Filter 想分支的東西：
+
+```go
+// 限流檔位——Filter 詢問路由宣告了哪一檔
+func (f *RateLimitFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    switch {
+    case req.HasMeta(web.WithValue("rate_limit", "upload")):
+        // 2 次/秒
+    case req.HasMeta(web.WithValue("rate_limit", "search")):
+        // 20 次/秒
+    }
+    return fc.Next()
+}
+
+// 稽核日誌——Filter 連同操作者一起記錄動作名
+ctx.Delete("/api/users/:id", c.DeleteUser).WithMeta(web.WithValue("audit", "user.delete"))
+
+// 功能開關 / 灰度發布
+ctx.Get("/api/checkout", c.Checkout).WithMeta(web.WithValue("feature", "new_checkout"))
+
+// 租戶隔離
+ctx.Get("/api/reports", c.Reports).WithMeta(web.WithKey("tenant_scoped"))
+```
+
+這些都不會滲進 handler。
+
+### 與 RestGroup 配合
+
+`RestGroup` 解決粗粒度的場景——整組路由都走同一條 Filter 鏈。`WithMeta` 解決例外，兩者正好互補：把整組放到認證後面，再標註組內那幾個公開路由。
+
+```go
+apiGroup := core.NewRestGroupBuilder().
+    ServerConfig(web.DefaultServerConfig()).
+    ContextPath("/api/v1").
+    Build()
+apiGroup.AddFilter(&AuthFilter{})    // 組內所有路由都會經過 AuthFilter
+apiGroup.AddRest(&ApiController{})
+
+// ……例外在路由上宣告退出：
+ctx.Get("/api/v1/login", c.Login).WithMeta(SkipAuth())
+```
+
+> `auth` 組件已經把這套模式做好了——`auth.WithLogin()` 配合 `auth.AuthenticationFilter[U]`（見下文 Auth 組件）。
 
 ---
 
@@ -181,51 +313,6 @@ curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
 ```
 
 資料表自動建立，CRUD 全通。不需要寫 SQL，不需要寫 ORM 樣板程式碼。
-
----
-
-## 路由級元資料（WithMeta）
-
-在路由上宣告，Filter 統一處理——不用在每個 handler 裡寫認證邏輯：
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // 公開介面
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // 需要登入
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // 需要登入 + 特定權限
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// 定義元資料工廠
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// 一個 Filter 處理所有認證邏輯
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("未登入")
-    }
-
-    // 驗證 token，檢查權限...
-    return fc.Next()
-}
-```
 
 ---
 

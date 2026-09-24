@@ -1,6 +1,6 @@
 # Go Web Frame
 
-**Go で CRUD バックエンドを構築する際の ORM ボイラープレートをゼロに。struct を定義し、ジェネリック Model を埋め込むだけ——型安全なクエリ、ページネーション、コンテキスト伝播が含まれています。**
+**ポリシーはハンドラではなくルートで宣言する。`.WithMeta(...)` でルートに認証・権限・レート制限をタグ付けし、1 つの Filter がまとめて適用——タグのないルートは素通りします。型付きジェネリック ORM も同梱。**
 
 ---
 
@@ -13,7 +13,16 @@
 
 Go Web Frame は統合されたバックエンドツールキットです。ルーター、ORM、キャッシュを個別に選んで配線する必要はありません——すべて事前統合済みです。
 
-最大の特徴：**CRUD ボイラープレートを排除するジェネリック Model 層。** エンティティ struct を定義し、`Model[T]` を埋め込むだけで、コンパイラがデータベースからハンドラまで型をチェックします。`interface{}` もコード生成も不要です。
+中心となる考え方は**宣言的ルーティング**です。ポリシーの多くはグローバルではなくルート単位です——`/login` にトークンを要求してはいけない、`/admin/*` には権限が必要、`/upload` にはより厳しいレート制限をかけたい。その判定をすべてのハンドラに繰り返し書く代わりに、あるいはミドルウェアチェーンを変えるためだけに Controller を分割する代わりに、ルートで宣言して 1 か所で適用します：
+
+```go
+ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())
+ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())
+ctx.Post("/api/admin/users", c.CreateUser).
+    WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+```
+
+データ層は**CRUD ボイラープレートを排除するジェネリック Model** です。エンティティ struct を定義し、`Model[T]` を埋め込むだけで、コンパイラがデータベースからハンドラまで型をチェックします。`interface{}` もコード生成も不要です。
 
 ```go
 // 一度定義すれば、どこでも使える
@@ -42,6 +51,129 @@ userModel.DeleteByPK(1)
 ```
 
 さらに同梱：ルーティング（Gin）、認証フィルター、WebSocket、SSE、CORS、レート制限、cron、バリデーション、キャッシュ、Let's Encrypt HTTPS、マルチ DB（MySQL / PostgreSQL / SQLite / Redis）——すべて 1 つの YAML で設定できます。
+
+---
+
+## ルート単位メタデータ（WithMeta）
+
+`WithMeta` はルート登録時にメタデータを付与し、Filter がリクエストごとに `req.HasMeta(...)` で読み返します。ルートは「自分が何であるか」を宣言し、Filter が「それに応じて何をするか」を決めます——1 つの Filter ですべてのルートを扱えます。
+
+### ルートで宣言する
+
+`ctx.Get(...)` などの登録メソッドは `*web.Route` を返すので、`.WithMeta()` を登録呼び出しに直接チェーンできます：
+
+```go
+func (c *ApiController) Init(ctx *core.Context) error {
+    ctx.Get("/api/login", c.Login).WithMeta(SkipAuth())         // 公開
+    ctx.Get("/api/profile", c.Profile).WithMeta(RequireAuth())  // トークン必須
+
+    ctx.Post("/api/admin/users", c.CreateUser).
+        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
+    return nil
+}
+```
+
+ファクトリは `web.MetaOption` を返すただの関数です。利用する Filter の隣に置いておきましょう：
+
+```go
+func RequireAuth() web.MetaOption                { return web.WithValue("require_auth", true) }
+func SkipAuth() web.MetaOption                   { return web.WithValue("skip_auth", true) }
+func RequirePermission(p string) web.MetaOption  { return web.WithValue("require_permission", p) }
+```
+
+### 1 つの Filter で適用する
+
+`builder.Filter(&AuthFilter{})` で一度登録すればすべてのリクエストに適用されますが、実際に処理するのはタグ付けされたルートだけです：
+
+```go
+func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
+        return fc.Next()                                    // このルートは対象外
+    }
+
+    token := req.GetHeader("Authorization")
+    if token == "" {
+        return nil, errors.New("認証が必要です")
+    }
+    claims, err := verifyToken(token)
+    if err != nil {
+        return nil, err
+    }
+
+    if req.HasMeta(RequirePermission("admin:create_user")) && !claims.Has("admin:create_user") {
+        return nil, web.NewForbidden()
+    }
+    return fc.Next()
+}
+```
+
+「認証が必要か、トークンはあるか、権限を持っているか」という 3 つの判定が 1 か所に集まります。保護したいエンドポイントを追加するときはルートに `.WithMeta(...)` を 1 行足すだけで、ハンドラ側でチェックを書き忘れることはありません。
+
+### API
+
+| 呼び出し | 場所 | 意味 |
+|---|---|---|
+| `route.WithMeta(opts...)` | ルート登録 | メタデータを付与。可変長・チェーン可能で、何度でも呼べます。 |
+| `web.WithValue(key, value)` | ルート登録 | キーと値のペアを設定。 |
+| `web.WithKey(keys...)` | ルート登録 | 各キーを `true` に設定。 |
+| `req.HasMeta(opts...)` | Filter / ハンドラ | 渡したオプションのうち**いずれか**が一致すれば `true`。 |
+| `req.HandlerMeta()` | Filter / ハンドラ | 基底の `*HandlerMeta`（`Has`、`HasAnyKey`、`HasKeyValue`）。直接読み取る用。 |
+
+押さえておきたい仕様：
+
+- **`HasMeta` は引数間で OR** です（AND ではありません）。2 つの条件を判定するには 2 回呼びます：`req.HasMeta(A) && req.HasMeta(B)`。
+- **`WithValue` は値で一致します。** `RequirePermission("admin:create_user")` は、まさにその文字列を宣言したルートだけに一致します。
+- **`WithKey` は存在で一致します。** `req.HasMeta(web.WithKey("a", "b"))` は `a` *または* `b` があれば true。
+- **メタデータのないルートは何にも一致しません。** `HasMeta` が `false` を返すため、タグのないルートは Filter を素通りします。
+- **メタデータは照合のみで、値の取り出しはできません。** getter は用意されておらず、`Has` / `HasKeyValue` でアサートする形になります。ファクトリは「読み出されるデータ」ではなく「述語（predicate）」として、段階やフラグごとに 1 つ設計してください。
+- `MetaOption` のメソッドは非公開のため、オプションは `WithKey` / `WithValue` からのみ生成できます。名前付きファクトリで包むと読みやすくなります。
+- メタデータは登録時に書き込まれるので、照合は map の読み取りだけです（リクエストごとのパースはありません）。
+
+### 認証以外にも
+
+メタデータはただのキーと値なので、Filter が分岐に使うものなら何でも載せられます：
+
+```go
+// レート制限の段階——Filter がルートの宣言した段階を尋ねる
+func (f *RateLimitFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
+    switch {
+    case req.HasMeta(web.WithValue("rate_limit", "upload")):
+        // 2 req/s
+    case req.HasMeta(web.WithValue("rate_limit", "search")):
+        // 20 req/s
+    }
+    return fc.Next()
+}
+
+// 監査ログ——Filter が操作者と一緒にアクション名を記録
+ctx.Delete("/api/users/:id", c.DeleteUser).WithMeta(web.WithValue("audit", "user.delete"))
+
+// フィーチャーフラグ / 段階リリース
+ctx.Get("/api/checkout", c.Checkout).WithMeta(web.WithValue("feature", "new_checkout"))
+
+// テナント分離
+ctx.Get("/api/reports", c.Reports).WithMeta(web.WithKey("tenant_scoped"))
+```
+
+いずれもハンドラには漏れ出しません。
+
+### RestGroup との組み合わせ
+
+`RestGroup` は「粗い粒度」——グループ内の全ルートを同じ Filter チェーンに通す——を担当します。`WithMeta` はその例外を担当するので、両者は補完関係にあります。グループ全体を認証の背後に置き、その中の少数の公開ルートに印を付けます。
+
+```go
+apiGroup := core.NewRestGroupBuilder().
+    ServerConfig(web.DefaultServerConfig()).
+    ContextPath("/api/v1").
+    Build()
+apiGroup.AddFilter(&AuthFilter{})    // グループ内の全ルートが AuthFilter を通る
+apiGroup.AddRest(&ApiController{})
+
+// ……例外はルート側で宣言して外す：
+ctx.Get("/api/v1/login", c.Login).WithMeta(SkipAuth())
+```
+
+> `auth` コンポーネントにはこのパターンがそのまま用意されています——`auth.WithLogin()` と `auth.AuthenticationFilter[U]`（下記の Auth を参照）。
 
 ---
 
@@ -181,51 +313,6 @@ curl -X POST ... -d '{"Name":"bob"}'          # → {"Id":2,"Name":"bob"}
 ```
 
 テーブルは自動作成。CRUD はすべて動作。SQL も ORM 配線コードも不要です。
-
----
-
-## ルート単位メタデータ（WithMeta）
-
-ルートで宣言し、Filter で一括処理——各ハンドラに認証ロジックを書く必要なし：
-
-```go
-func (c *ApiController) Init(ctx *core.Context) error {
-    // 公開
-    ctx.Get("/api/login", login).WithMeta(SkipAuth())
-
-    // 要ログイン
-    ctx.Get("/api/profile", profile).WithMeta(RequireAuth())
-
-    // 要ログイン + 権限
-    ctx.Post("/api/admin/users", createUser).
-        WithMeta(RequireAuth(), RequirePermission("admin:create_user"))
-    return nil
-}
-```
-
-```go
-// メタデータファクトリ
-func RequireAuth() web.MetaOption      { return web.WithValue("require_auth", true) }
-func SkipAuth() web.MetaOption          { return web.WithValue("skip_auth", true) }
-func RequirePermission(p string) web.MetaOption { return web.WithValue("require_permission", p) }
-```
-
-```go
-// 一つの Filter ですべての認証ロジックを処理
-func (f *AuthFilter) Handle(fc web.FilterChain, req *web.Request) (any, error) {
-    if !req.HasMeta(RequireAuth()) || req.HasMeta(SkipAuth()) {
-        return fc.Next()
-    }
-
-    token := req.Request().Header.Get("Authorization")
-    if token == "" {
-        return nil, errors.New("認証が必要です")
-    }
-
-    // トークン検証、権限チェック...
-    return fc.Next()
-}
-```
 
 ---
 

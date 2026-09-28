@@ -7,7 +7,6 @@ import (
 
 	config2 "github.com/chuccp/go-web-frame/config"
 	"github.com/maypok86/otter/v2"
-	"github.com/maypok86/otter/v2/stats"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,12 +44,7 @@ func (c *Cache) initWithConfig(lConfig *Config, ctx context.Context) error {
 }
 
 func newCacheForTest(lConfig *Config) (*otter.Cache[string, any], error) {
-	counter := stats.NewCounter()
-	return otter.New(&otter.Options[string, any]{
-		MaximumSize:      lConfig.MaxSize,
-		ExpiryCalculator: otter.ExpiryAccessing[string, any](time.Duration(lConfig.Expiry) * time.Second),
-		StatsRecorder:    counter,
-	})
+	return newStore(lConfig.MaxSize, time.Duration(lConfig.Expiry)*time.Second)
 }
 
 func TestCache_SetAndGet(t *testing.T) {

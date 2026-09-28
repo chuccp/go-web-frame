@@ -13,11 +13,21 @@ import (
 // Config holds cache configuration settings.
 type Config struct {
 	MaxSize int // Maximum number of cached entries
-	Expiry  int // Cache TTL in seconds
+	// Expiry 是**从写入算起**的存活秒数：读一次不给它续命。
+	// 别换回 ExpiryAccessing（距上次访问）——那样 SetNX 显式给的过期会被一次读顶掉，
+	// 「到点就重取」变成「一直有人读就永不重取」（2026-09-28 发现并修的，
+	// 见 cache_bug_test.go 的 TestSetNXExpiryHonored）。
+	Expiry int
 }
 
 // ConfigKey is the configuration key under which cache settings are stored.
 const ConfigKey = "cache"
+
+// 没配（或配了非法值）时的默认：100 万条、1 小时。
+const (
+	defaultMaxSize = 1000_000
+	defaultExpiry  = time.Hour
+)
 
 // Cache provides a high-performance in-memory cache backed by Otter.
 type Cache struct {
@@ -81,12 +91,7 @@ func (c *Cache) Init(context *core.Context) error {
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
-	counter := stats.NewCounter()
-	cache, err := otter.New(&otter.Options[string, any]{
-		MaximumSize:      lConfig.MaxSize,
-		ExpiryCalculator: otter.ExpiryAccessing[string, any](time.Duration(lConfig.Expiry) * time.Second),
-		StatsRecorder:    counter,
-	})
+	cache, err := newStore(lConfig.MaxSize, time.Duration(lConfig.Expiry)*time.Second)
 	if err != nil {
 		return errors.WithStackIf(err)
 	}
@@ -97,6 +102,33 @@ func (c *Cache) Init(context *core.Context) error {
 		log.Errors("cache destroy", err)
 	}()
 	return nil
+}
+
+// New 直接构造一个缓存（不经过 DI 容器）：给单测、以及"我就想自己持有一个缓存"的用法。
+// 过期语义和 Init 一致——从写入算起、读不续命；maxSize/expiry 非正时用上面那两个默认值。
+func New(maxSize int, expiry time.Duration) (*Cache, error) {
+	if maxSize <= 0 {
+		maxSize = defaultMaxSize
+	}
+	if expiry <= 0 {
+		expiry = defaultExpiry
+	}
+	store, err := newStore(maxSize, expiry)
+	if err != nil {
+		return nil, err
+	}
+	return &Cache{cache: store}, nil
+}
+
+// newStore 建底层 Otter 实例：Init 和 New 都走这里，免得过期策略两处各写一遍走岔。
+func newStore(maxSize int, expiry time.Duration) (*otter.Cache[string, any], error) {
+	return otter.New(&otter.Options[string, any]{
+		MaximumSize: maxSize,
+		// ExpiryWriting：TTL 从写入算起、**读不续命**，这样 SetNX 第三参给的硬过期才算数；
+		// 换成 ExpiryAccessing 的话，读一次就把过期推后一次，高频键永不过期。
+		ExpiryCalculator: otter.ExpiryWriting[string, any](expiry),
+		StatsRecorder:    stats.NewCounter(),
+	})
 }
 
 func (c *Cache) destroy() error {

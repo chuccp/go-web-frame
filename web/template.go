@@ -29,7 +29,7 @@ type Template struct {
 	headers      http.Header
 	redirectCode int
 	redirectTo   string
-	devReload    bool
+	reload       bool
 }
 
 // Request returns the HTTP request associated with this page.
@@ -42,8 +42,12 @@ func (t *Template) View(name string) *Template {
 	t.view = name
 	return t
 }
-func (t *Template) DevReload(devReload bool) *Template {
-	t.devReload = devReload
+
+// Reload overrides the template set's default reload behavior for this response.
+// When enabled, the selected page, layout and partials are parsed from the source
+// filesystem again instead of using the compiled cache.
+func (t *Template) Reload(reload bool) *Template {
+	t.reload = reload
 	return t
 }
 
@@ -91,6 +95,7 @@ func newTemplate(request *Request) *Template {
 		t.templateSet = request.templateSet
 		if t.templateSet != nil {
 			t.layout = t.templateSet.defaultLayout
+			t.reload = t.templateSet.defaultReload
 		}
 	}
 	return t
@@ -113,7 +118,7 @@ func (t *Template) render() ([]byte, error) {
 		return nil, fmt.Errorf("invalid template status code %d", t.status)
 	}
 
-	tmpl, err := t.templateSet.templateFor(t.view, t.layout)
+	tmpl, err := t.templateSet.templateFor(t.view, t.layout, t.reload)
 	if err != nil {
 		return nil, err
 	}
@@ -131,10 +136,10 @@ type templateKey struct {
 }
 
 type templateOptions struct {
-	funcs     template.FuncMap
-	layouts   []string
-	partials  []string
-	devReload bool
+	funcs         template.FuncMap
+	layouts       []string
+	partials      []string
+	defaultReload bool
 }
 
 // TemplateOption configures a TemplateSet before templates are parsed.
@@ -167,12 +172,12 @@ func WithPartials(names ...string) TemplateOption {
 	}
 }
 
-// WithDevReload reparses the selected page and layout on every render. It is
-// intended for development with an os.DirFS and should be disabled in
-// production.
+// WithDevReload sets the default reload behavior for all Template responses. A
+// handler can override it per request with Template.Reload. Reloading is intended
+// for development with an os.DirFS and should be disabled in production.
 func WithDevReload(enabled bool) TemplateOption {
 	return func(options *templateOptions) {
-		options.devReload = enabled
+		options.defaultReload = enabled
 	}
 }
 
@@ -188,7 +193,7 @@ type TemplateSet struct {
 	partials      []string
 	views         map[string]struct{}
 	byKey         map[templateKey]*template.Template
-	devReload     bool
+	defaultReload bool
 }
 
 // LoadTemplates parses every page together with each registered layout and the
@@ -251,7 +256,7 @@ func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 		partials:      partials,
 		views:         make(map[string]struct{}, len(views)),
 		byKey:         make(map[templateKey]*template.Template, len(views)*len(layouts)),
-		devReload:     config.devReload,
+		defaultReload: config.defaultReload,
 	}
 	for _, layout := range layouts {
 		set.layouts[layout] = struct{}{}
@@ -397,14 +402,14 @@ func (s *TemplateSet) parse(view string, layout string) (*template.Template, err
 	return tmpl, nil
 }
 
-func (s *TemplateSet) templateFor(view string, layout string) (*template.Template, error) {
+func (s *TemplateSet) templateFor(view string, layout string, reload bool) (*template.Template, error) {
 	if _, ok := s.views[view]; !ok {
 		return nil, fmt.Errorf("template page %q is not registered", view)
 	}
 	if _, ok := s.layouts[layout]; !ok {
 		return nil, fmt.Errorf("template layout %q is not registered", layout)
 	}
-	if s.devReload {
+	if reload {
 		return s.parse(view, layout)
 	}
 	tmpl, ok := s.byKey[templateKey{view: view, layout: layout}]

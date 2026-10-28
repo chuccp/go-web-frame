@@ -343,6 +343,12 @@ func (b *Builder) Any(relativePath string, handlers ...web.HandlerFunc) *Builder
 	return b
 }
 
+// AddEmbedFs registers an embedded static file route and returns the builder.
+func (b *Builder) AddEmbedFs(relativePath string, fs *web.EmbedFileSystem) *Builder {
+	b.handles.AddEmbedFs(relativePath, fs)
+	return b
+}
+
 // Rest registers one or more REST controllers and returns the builder for chaining.
 func (b *Builder) Rest(rest ...core.IRest) *Builder {
 	b.rests = append(b.rests, rest...)

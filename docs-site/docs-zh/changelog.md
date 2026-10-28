@@ -4,6 +4,10 @@
 
 ## [未发布]
 
+### 新增
+- **模板按请求重载**：`Template.Reload(bool)` 可覆盖 `TemplateSet` 的默认重载设置，由框架重新解析当前页面、布局和公共片段。
+- **嵌入式静态文件**：`EmbedFs` / `AddEmbedFs` 支持同一个静态目录在嵌入文件和开发磁盘目录之间切换，`ReloadPath` 可指定开发目录。
+
 ### 变更
 - **CORS 拼写修正**：`NewCrosFilter` 重命名为 `NewCorsFilter`，`crosHandlerFunc` 重命名为 `corsHandlerFunc`。旧名称保留为 deprecated 别名，将在未来版本移除。
 

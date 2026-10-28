@@ -223,6 +223,11 @@ func (c *Context) StaticFs(relativePath string, fs http.FileSystem) *web.Route {
 	return c.server.AddStaticFs(relativePath, fs)
 }
 
+// AddEmbedFs registers a static file route backed by an embedded filesystem.
+func (c *Context) AddEmbedFs(relativePath string, fs *web.EmbedFileSystem) *web.Route {
+	return c.server.AddEmbedFs(relativePath, fs)
+}
+
 // WebSocket registers a WebSocket endpoint and returns the route.
 func (c *Context) WebSocket(relativePath string, handler web.WebSocketHandler) *web.Route {
 	return c.server.AddWebSocket(relativePath, handler)

@@ -32,6 +32,24 @@ func (c *MyController) Init(ctx *core.Context) error {
 }
 ```
 
+### 嵌入式静态文件
+
+`EmbedFs` 把一个目录和可选的 `fs.FS` 绑定为静态资源。开启 `Reload(true)` 后，
+框架在每次请求时从工作目录读取同名目录，适合开发模式；关闭时使用内嵌副本：
+
+```go
+//go:embed static
+var staticFS embed.FS
+
+func (c *MyController) Init(ctx *core.Context) error {
+    assets := web.EmbedFs("static", staticFS).
+        Reload(developmentMode).
+        ReloadPath("./webui/static")
+    ctx.AddEmbedFs("/static", assets)
+    return nil
+}
+```
+
 ### 通过配置注册静态文件
 
 在配置文件中指定静态文件目录：

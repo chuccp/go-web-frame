@@ -2,12 +2,84 @@
 package web
 
 import (
+	"fmt"
+	"io/fs"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strings"
 )
 
-// File represents a downloadable file response.
+// EmbedFileSystem describes a file tree that can be served either from an
+// embedded filesystem or from a directory on disk. Name is the tree's root,
+// relative to fsys when embedded and to the working directory when reloading.
+type EmbedFileSystem struct {
+	reload     bool
+	name       string
+	reloadPath string
+	fsys       fs.FS
+}
+
+// Reload switches the file source at each request. With reloading enabled, Name
+// or ReloadPath is opened as a directory on disk so edits are visible without
+// rebuilding.
+func (e *EmbedFileSystem) Reload(reload bool) *EmbedFileSystem {
+	e.reload = reload
+	return e
+}
+
+// ReloadPath overrides the disk directory used when Reload(true) is enabled.
+// It is useful when the embedded root differs from the source-tree directory.
+func (e *EmbedFileSystem) ReloadPath(path string) *EmbedFileSystem {
+	e.reloadPath = path
+	return e
+}
+
+// EmbedFs creates a file tree rooted at name. An optional fsys supplies the
+// embedded copy; without one, the tree is read from the working directory.
+func EmbedFs(name string, fsys ...fs.FS) *EmbedFileSystem {
+	e := &EmbedFileSystem{name: name}
+	if len(fsys) > 0 {
+		e.fsys = fsys[0]
+	}
+	return e
+}
+
+// FileSystem returns the active filesystem for the current reload setting.
+func (e *EmbedFileSystem) FileSystem() (http.FileSystem, error) {
+	if e == nil {
+		return nil, fmt.Errorf("embedded filesystem is nil")
+	}
+
+	name := e.name
+	if name == "" {
+		name = "."
+	}
+	if e.reload {
+		root := e.reloadPath
+		if root == "" {
+			root = name
+		}
+		return http.Dir(root), nil
+	}
+	if e.fsys == nil {
+		return http.Dir(name), nil
+	}
+	if !fs.ValidPath(name) {
+		return nil, fmt.Errorf("invalid embedded filesystem root %q", name)
+	}
+	name = path.Clean(name)
+	if name == "." {
+		return http.FS(e.fsys), nil
+	}
+	sub, err := fs.Sub(e.fsys, name)
+	if err != nil {
+		return nil, fmt.Errorf("open embedded filesystem root %q: %w", name, err)
+	}
+	return http.FS(sub), nil
+}
+
+// FileResponse represents a downloadable file response.
 // Path is the file system path, FileName is the download name,
 // and Suffix is an optional suffix appended to the filename.
 type FileResponse struct {
@@ -16,7 +88,7 @@ type FileResponse struct {
 	Suffix   string // Optional suffix appended to the filename
 }
 
-// CreateFile creates a File from a path, auto-extracting the filename and suffix.
+// CreateFileResponse creates a downloadable file response from a path.
 func CreateFileResponse(path string) *FileResponse {
 	fileName := filepath.Base(path)
 	suffix := ""
@@ -30,7 +102,7 @@ func CreateFileResponse(path string) *FileResponse {
 	}
 }
 
-// CreateFileWithName creates a File from a path with a custom download filename.
+// CreateFileResponseWithName creates a downloadable file response with a custom filename.
 func CreateFileResponseWithName(path string, fileName string) *FileResponse {
 	suffix := ""
 	if idx := strings.LastIndex(fileName, "."); idx != -1 {
@@ -47,4 +119,10 @@ func CreateFileResponseWithName(path string, fileName string) *FileResponse {
 type FileSystemResponse struct {
 	Filepath string
 	FS       http.FileSystem
+}
+
+// EmbedFileSystemResponse serves a request from an EmbedFileSystem.
+type EmbedFileSystemResponse struct {
+	filepath string
+	fs       *EmbedFileSystem
 }

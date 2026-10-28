@@ -84,7 +84,7 @@ webui/templates/
 | 渲染时机 | Converter 收到 `TemplateResponse` 后调用 `TemplateHandler` 并渲染 |
 | 输出方式 | 先渲染到 `bytes.Buffer`，成功后一次写入响应 |
 | 缓存 | release 模式永久复用编译结果 |
-| 开发模式 | 显式开启 `WithDevReload(true)`，按请求重新解析当前页面 |
+| 开发模式 | `WithDevReload(true)` 设置默认值，`Template.Reload` 可按请求覆盖 |
 | 静态资源 | 使用 `fs.Sub + http.FS` 或 `http.Dir`，沿用现有静态路由 |
 | 错误 | 预留数据准备失败、模板不存在、执行失败三个阶段 |
 
@@ -129,6 +129,10 @@ func (t *Template) Header(key, value string) *Template
 
 // Redirect 让当前响应改为重定向，不再渲染页面。
 func (t *Template) Redirect(code int, location string) *Template
+
+// Reload 覆盖 TemplateSet 的默认重载设置。
+// true 时重新解析当前页面、布局和公共片段，false 时复用预编译结果。
+func (t *Template) Reload(reload bool) *Template
 ```
 
 ### 4.2 模板集合
@@ -152,7 +156,8 @@ func WithLayouts(defaultLayout string, others ...string) TemplateOption
 // WithPartials 注册所有页面都会加载的公共片段。
 func WithPartials(names ...string) TemplateOption
 
-// WithDevReload 设置每次渲染当前页面时重新读取并解析模板。
+// WithDevReload 设置所有模板响应的默认重载行为。
+// 页面 Handler 可通过 Template.Reload 单独覆盖。
 func WithDevReload(enabled bool) TemplateOption
 
 func LoadTemplates(
@@ -389,6 +394,20 @@ t.Redirect(http.StatusFound, "/dashboard")
 
 Converter 检测到重定向状态后，只写 `Location` 和状态码，不执行模板。
 
+### 7.5 按请求重载
+
+重载由框架执行。`WithDevReload` 提供默认值，页面 Handler 可以按当前请求覆盖：
+
+```go
+view.View("dashboard").
+    Layout("layout").
+    Reload(developmentMode).
+    Data(data)
+```
+
+`Reload(true)` 会重新读取并解析当前页面、布局和公共片段；`Reload(false)` 使用
+`TemplateSet` 中已经编译的版本。该开关只控制模板解析，不会重新扫描新增页面文件。
+
 ## 8. `http2smtp/webui` 接入示例
 
 ### 8.1 保留现有 embed 声明
@@ -605,7 +624,7 @@ ctx.StaticFs("/static", http.Dir("webui/static"))
 - release 模式不访问磁盘，也不需要每个请求重新解析模板。
 - 当前 webui 有约 20 个页面和 2 个布局，预编译几十个模板集合的内存成本可接受。
 - `TemplateSet` 与实际 `Server` 分离，可以在应用重启、重建 Server 时复用。
-- `WithDevReload(true)` 只用于开发模式，不应用于 release 构建。
+- `Template.Reload(true)` 只用于开发模式，不应用于 release 构建。
 
 ## 12. 与现有 Converter 的关系
 
@@ -700,7 +719,8 @@ case *web.TemplateResponse:
 4. 多个页面可以同时定义 `content`，且不会互相覆盖。
 5. 页面渲染失败时不会写出半页 HTML。
 6. release 模式每个模板组合只编译一次。
-7. 开发模式可通过 `WithDevReload(true)` 在刷新页面后看到模板修改。
+7. 开发模式可通过 `WithDevReload(true)` 设置默认重载，并由
+   `Template.Reload(bool)` 按请求覆盖。
 8. 默认 Converter、Filter、路由元数据和错误码行为保持向后兼容。
 
 ## 16. 后续可扩展项

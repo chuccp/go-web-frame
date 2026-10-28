@@ -31,6 +31,25 @@ func (c *MyController) Init(ctx *core.Context) error {
 }
 ```
 
+### Embedded Static Files
+
+`EmbedFs` binds a directory to an optional `fs.FS`. With `Reload(true)`, the framework
+reads the matching directory from the working tree on each request, which is useful in
+development; otherwise it serves the embedded copy:
+
+```go
+//go:embed static
+var staticFS embed.FS
+
+func (c *MyController) Init(ctx *core.Context) error {
+    assets := web.EmbedFs("static", staticFS).
+        Reload(developmentMode).
+        ReloadPath("./webui/static")
+    ctx.AddEmbedFs("/static", assets)
+    return nil
+}
+```
+
 ### Register via Configuration
 
 Specify static file directories in the configuration file:

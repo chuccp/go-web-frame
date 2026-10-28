@@ -44,6 +44,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.FileResponse(request, t)
 			case *FileSystemResponse:
 				c.FileSystemResponse(request, t)
+			case *EmbedFileSystemResponse:
+				c.EmbedFileSystemResponse(request, t)
 			case *SSEResponse:
 				c.SSEResponse(request, t)
 			case *WSResponse:
@@ -101,6 +103,21 @@ func (c *DefaultConverter) FileResponse(request *Request, value *FileResponse) {
 // FileSystemResponse serves a file from an http.FileSystem.
 func (c *DefaultConverter) FileSystemResponse(request *Request, value *FileSystemResponse) {
 	request.GinContext().FileFromFS(value.Filepath, value.FS)
+}
+
+// EmbedFileSystemResponse serves a file from an embedded filesystem or its
+// development-time disk source.
+func (c *DefaultConverter) EmbedFileSystemResponse(request *Request, value *EmbedFileSystemResponse) {
+	if value == nil || value.fs == nil {
+		c.Error(request, nil, fmt.Errorf("embedded filesystem response is nil"))
+		return
+	}
+	filesystem, err := value.fs.FileSystem()
+	if err != nil {
+		c.Error(request, nil, err)
+		return
+	}
+	request.GinContext().FileFromFS(value.filepath, filesystem)
 }
 
 // SSEResponse sets up an SSE stream and invokes the handler.

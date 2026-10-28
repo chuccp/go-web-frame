@@ -318,6 +318,71 @@ func TestTemplateDevReloadReadsCurrentFiles(t *testing.T) {
 	}
 }
 
+func TestTemplateReloadOverridesSetDefault(t *testing.T) {
+	views := templateTestFS()
+	views["templates/reload.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
+	}
+	server := DefaultServer()
+	server.SetTemplates(loadTemplateTestSet(t, views, WithDevReload(true)))
+	server.Template(http.MethodGet, "/reload", func(view *Template) error {
+		view.View("reload").Layout("bare")
+		if view.Request().Query("reload") != "1" {
+			view.Reload(false)
+		}
+		return nil
+	})
+	handler := server.GetHandler()
+
+	cachedBefore := templateTestRequest(handler, http.MethodGet, "/reload")
+	if !strings.Contains(cachedBefore.Body.String(), "before") {
+		t.Fatalf("initial body = %q, want before", cachedBefore.Body.String())
+	}
+
+	views["templates/reload.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}<p>after</p>{{end}}`),
+	}
+	cachedAfter := templateTestRequest(handler, http.MethodGet, "/reload")
+	if !strings.Contains(cachedAfter.Body.String(), "before") {
+		t.Errorf("Reload(false) body = %q, want cached before", cachedAfter.Body.String())
+	}
+	reloaded := templateTestRequest(handler, http.MethodGet, "/reload?reload=1")
+	if !strings.Contains(reloaded.Body.String(), "after") || strings.Contains(reloaded.Body.String(), "before") {
+		t.Errorf("Reload(true) body = %q, want only after", reloaded.Body.String())
+	}
+}
+
+func TestTemplateReloadCanBeEnabledPerRequest(t *testing.T) {
+	views := templateTestFS()
+	views["templates/reload.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
+	}
+	server := DefaultServer()
+	server.SetTemplates(loadTemplateTestSet(t, views))
+	server.Template(http.MethodGet, "/reload", func(view *Template) error {
+		view.View("reload").Layout("bare").Reload(view.Request().Query("reload") == "1")
+		return nil
+	})
+	handler := server.GetHandler()
+
+	cached := templateTestRequest(handler, http.MethodGet, "/reload")
+	if !strings.Contains(cached.Body.String(), "before") {
+		t.Fatalf("initial body = %q, want before", cached.Body.String())
+	}
+
+	views["templates/reload.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}<p>after</p>{{end}}`),
+	}
+	stillCached := templateTestRequest(handler, http.MethodGet, "/reload")
+	if !strings.Contains(stillCached.Body.String(), "before") {
+		t.Errorf("cached body = %q, want before", stillCached.Body.String())
+	}
+	reloaded := templateTestRequest(handler, http.MethodGet, "/reload?reload=1")
+	if !strings.Contains(reloaded.Body.String(), "after") {
+		t.Errorf("reloaded body = %q, want after", reloaded.Body.String())
+	}
+}
+
 func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 	views := templateTestFS()
 	views["templates/invalid.html"] = &fstest.MapFile{

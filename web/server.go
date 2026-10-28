@@ -295,6 +295,14 @@ func (server *Server) AddStaticFs(relativePath string, fs http.FileSystem) *Rout
 	})
 }
 
+// AddEmbedFs registers a file tree served from an embedded filesystem, with an
+// optional development-time disk fallback.
+func (server *Server) AddEmbedFs(relativePath string, fs *EmbedFileSystem) *Route {
+	return server.Get(relativePath+"/*filepath", func(r *Request) (any, error) {
+		return &EmbedFileSystemResponse{filepath: r.Param("filepath"), fs: fs}, nil
+	})
+}
+
 // Handlers registers a handler for multiple HTTP methods on this server.
 func (server *Server) Handlers(httpMethods []string, relativePath string, handlers ...HandlerFunc) *Route {
 

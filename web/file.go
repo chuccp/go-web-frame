@@ -66,7 +66,25 @@ func (e *EmbedFileSystem) Open(name string) (fs.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return active.Open(name)
+	file, err := active.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("open %q from %s: %w", name, e.sourceDescription(), err)
+	}
+	return file, nil
+}
+
+func (e *EmbedFileSystem) sourceDescription() string {
+	if e.reload {
+		root := e.reloadPath
+		if root == "" {
+			root = e.name
+		}
+		return fmt.Sprintf("development directory %q", root)
+	}
+	if e.fsys == nil {
+		return fmt.Sprintf("local directory %q", e.name)
+	}
+	return fmt.Sprintf("embedded root %q", e.name)
 }
 
 func (e *EmbedFileSystem) activeFS() (fs.FS, error) {

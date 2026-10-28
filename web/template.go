@@ -333,6 +333,15 @@ func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 	return set, nil
 }
 
+// LoadTemplateOption compiles a template set and returns it as a route option.
+func LoadTemplateOption(fsys fs.FS, root string, options ...TemplateOption) (TemplateOption, error) {
+	set, err := LoadTemplates(fsys, root, options...)
+	if err != nil {
+		return nil, err
+	}
+	return WithTemplateSet(set), nil
+}
+
 func normalizeTemplateRoot(root string) (string, error) {
 	if root == "" {
 		return ".", nil

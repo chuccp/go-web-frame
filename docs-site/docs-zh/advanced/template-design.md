@@ -170,6 +170,12 @@ func LoadTemplates(
     options ...TemplateOption,
 ) (*TemplateSet, error)
 
+func LoadTemplateOption(
+    fsys fs.FS,
+    root string,
+    options ...TemplateOption,
+) (TemplateOption, error)
+
 func WithTemplateSet(set *TemplateSet) TemplateOption
 
 func (c *Context) GetTemplate(
@@ -442,7 +448,7 @@ var staticFS embed.FS
 ### 8.2 加载模板集合
 
 ```go
-templateSet, err := web.LoadTemplates(
+templateOption, err := web.LoadTemplateOption(
     web.EmbedFs("templates", templatesFS).
         Reload(devMode).
         ReloadPath("webui/templates"),
@@ -482,8 +488,6 @@ func (p *Pages) Init(ctx *core.Context) error {
     if err != nil {
         return err
     }
-    templateOption := web.WithTemplateSet(templates)
-
     // 页面路由继续使用与当前相同的根路径。
     ctx.Template(http.MethodGet, "/dashboard", p.dashboardPage, templateOption)
     ctx.Template(http.MethodGet, "/smtp", p.smtpListPage, templateOption)

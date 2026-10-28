@@ -380,6 +380,31 @@ func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
 	}
 }
 
+func TestLoadTemplateOptionReturnsRouteOption(t *testing.T) {
+	templateOption, err := LoadTemplateOption(
+		templateTestFS(),
+		"templates",
+		WithLayouts("layout", "bare"),
+		WithPartials("partials"),
+	)
+	if err != nil {
+		t.Fatalf("LoadTemplateOption() error = %v", err)
+	}
+	if templateOption == nil {
+		t.Fatal("LoadTemplateOption() returned a nil option")
+	}
+
+	server := DefaultServer()
+	server.Template(http.MethodGet, "/option", func(view *Template) error {
+		view.View("two").Layout("bare").Data(templateTestData{Title: "Loaded"})
+		return nil
+	}, templateOption)
+	recorder := templateTestRequest(server.GetHandler(), http.MethodGet, "/option")
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "<h2>Loaded</h2>") {
+		t.Fatalf("option response = %d %q", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestTemplateReloadOverridesSetDefault(t *testing.T) {
 	views := templateTestFS()
 	views["templates/reload.html"] = &fstest.MapFile{

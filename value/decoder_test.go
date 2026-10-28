@@ -31,6 +31,12 @@ func TestCamelToSnake(t *testing.T) {
 		{"FilePath", "file_path"},
 		{"Name", "name"},
 		{"ConnMaxLifetime", "conn_max_lifetime"},
+		{"BindHTTP", "bind_http"},
+		{"HTTPServer", "http_server"},
+		{"HTTP2Server", "http2_server"},
+		{"UserID", "user_id"},
+		{"JSON2XML", "json2_xml"},
+		{"bind_http", "bind_http"},
 		{"", ""},
 		{"A", "a"},
 	}
@@ -109,6 +115,29 @@ func TestUnmarshal_CamelCaseKeyMatchSnakeField(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.MaxOpenConns != 20 {
+		t.Errorf("got %+v", cfg)
+	}
+}
+
+func TestUnmarshal_CamelCaseWithInitialisms(t *testing.T) {
+	obj, _ := ParseJSON([]byte(`{
+		"bind_http": true,
+		"http2_enabled": true,
+		"user_id": 42,
+		"api_client_url": "https://example.com"
+	}`))
+	type Config struct {
+		BindHTTP     bool
+		HTTP2Enabled bool
+		UserID       int
+		APIClientURL string
+	}
+	var cfg Config
+	if err := obj.Unmarshal(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.BindHTTP || !cfg.HTTP2Enabled || cfg.UserID != 42 ||
+		cfg.APIClientURL != "https://example.com" {
 		t.Errorf("got %+v", cfg)
 	}
 }
@@ -348,7 +377,7 @@ func TestArrayUnmarshal_Floats(t *testing.T) {
 func TestArrayUnmarshal_Structs(t *testing.T) {
 	arr, _ := ParseJSON([]byte(`[{"user_name":"alice","max_open_conns":10},{"user_name":"bob","max_open_conns":20}]`))
 	type Item struct {
-		UserName    string `json:"user_name"`
+		UserName     string `json:"user_name"`
 		MaxOpenConns int
 	}
 	var out []Item

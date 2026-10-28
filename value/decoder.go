@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // durationType 用于在弱类型转换中单独识别 time.Duration。
@@ -234,18 +235,26 @@ func snakeToCamel(s string) string {
 
 // camelToSnake 将 CamelCase 转换为 snake_case（如 MaxOpenConns → max_open_conns）。
 func camelToSnake(s string) string {
-	var result []byte
-	for i, r := range s {
-		if r >= 'A' && r <= 'Z' {
+	runes := []rune(s)
+	var result strings.Builder
+	result.Grow(len(s) + len(s)/4)
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
 			if i > 0 {
-				result = append(result, '_')
+				previous := runes[i-1]
+				nextStartsWord := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+				if unicode.IsLower(previous) ||
+					unicode.IsDigit(previous) ||
+					(unicode.IsUpper(previous) && nextStartsWord) {
+					result.WriteByte('_')
+				}
 			}
-			result = append(result, byte(r-'A'+'a'))
+			result.WriteRune(unicode.ToLower(r))
 		} else {
-			result = append(result, byte(r))
+			result.WriteRune(r)
 		}
 	}
-	return string(result)
+	return result.String()
 }
 
 func parseTagKey(tag string) string {

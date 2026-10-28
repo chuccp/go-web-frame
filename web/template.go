@@ -29,6 +29,7 @@ type Template struct {
 	headers      http.Header
 	redirectCode int
 	redirectTo   string
+	devReload    bool
 }
 
 // Request returns the HTTP request associated with this page.
@@ -39,6 +40,10 @@ func (t *Template) Request() *Request {
 // View selects a logical page name, without its .html extension.
 func (t *Template) View(name string) *Template {
 	t.view = name
+	return t
+}
+func (t *Template) DevReload(devReload bool) *Template {
+	t.devReload = devReload
 	return t
 }
 

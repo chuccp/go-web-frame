@@ -49,6 +49,10 @@ func loadTemplateTestSet(t *testing.T, fsys fstest.MapFS, options ...TemplateOpt
 	return set
 }
 
+func registerTemplate(server *Server, set *TemplateSet, method string, relativePath string, handler TemplateHandler) *Route {
+	return server.Template(method, relativePath, handler, WithTemplateSet(set))
+}
+
 func templateTestRequest(handler http.Handler, method string, target string) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
@@ -57,8 +61,8 @@ func templateTestRequest(handler http.Handler, method string, target string) *ht
 
 func TestTemplateRouteRendersLayoutAndPartials(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
-	server.Template(http.MethodGet, "/one", func(view *Template) error {
+	set := loadTemplateTestSet(t, templateTestFS())
+	registerTemplate(server, set, http.MethodGet, "/one", func(view *Template) error {
 		view.View("one").Data(templateTestData{Title: "Dashboard"})
 		return nil
 	})
@@ -80,17 +84,27 @@ func TestTemplateRouteRendersLayoutAndPartials(t *testing.T) {
 
 func TestTemplateMethodRouteHelpers(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
+	set := loadTemplateTestSet(t, templateTestFS())
 
 	routes := []struct {
 		method   string
-		register func(*Server, string, TemplateHandler) *Route
+		register func(*Server, string, TemplateHandler, ...TemplateOption) *Route
 	}{
-		{method: http.MethodGet, register: (*Server).GetTemplate},
-		{method: http.MethodPost, register: (*Server).PostTemplate},
-		{method: http.MethodPut, register: (*Server).PutTemplate},
-		{method: http.MethodDelete, register: (*Server).DeleteTemplate},
-		{method: http.MethodPatch, register: (*Server).PatchTemplate},
+		{method: http.MethodGet, register: func(server *Server, path string, handler TemplateHandler, options ...TemplateOption) *Route {
+			return server.GetTemplate(path, handler, options...)
+		}},
+		{method: http.MethodPost, register: func(server *Server, path string, handler TemplateHandler, options ...TemplateOption) *Route {
+			return server.PostTemplate(path, handler, options...)
+		}},
+		{method: http.MethodPut, register: func(server *Server, path string, handler TemplateHandler, options ...TemplateOption) *Route {
+			return server.PutTemplate(path, handler, options...)
+		}},
+		{method: http.MethodDelete, register: func(server *Server, path string, handler TemplateHandler, options ...TemplateOption) *Route {
+			return server.DeleteTemplate(path, handler, options...)
+		}},
+		{method: http.MethodPatch, register: func(server *Server, path string, handler TemplateHandler, options ...TemplateOption) *Route {
+			return server.PatchTemplate(path, handler, options...)
+		}},
 	}
 	for _, route := range routes {
 		method := route.method
@@ -99,7 +113,7 @@ func TestTemplateMethodRouteHelpers(t *testing.T) {
 				Layout("bare").
 				Data(templateTestData{Title: method})
 			return nil
-		})
+		}, WithTemplateSet(set))
 	}
 	handler := server.GetHandler()
 
@@ -117,12 +131,12 @@ func TestTemplateMethodRouteHelpers(t *testing.T) {
 
 func TestTemplatePagesAndLayoutsAreIsolated(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
-	server.Template(http.MethodGet, "/one", func(view *Template) error {
+	set := loadTemplateTestSet(t, templateTestFS())
+	registerTemplate(server, set, http.MethodGet, "/one", func(view *Template) error {
 		view.View("one").Data(templateTestData{Title: "Page one"})
 		return nil
 	})
-	server.Template(http.MethodGet, "/two", func(view *Template) error {
+	registerTemplate(server, set, http.MethodGet, "/two", func(view *Template) error {
 		view.View("two").Layout("bare").Data(templateTestData{Title: "Page two"})
 		return nil
 	})
@@ -141,9 +155,9 @@ func TestTemplatePagesAndLayoutsAreIsolated(t *testing.T) {
 
 func TestTemplateHandlerConfiguresPage(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
+	set := loadTemplateTestSet(t, templateTestFS())
 	calls := 0
-	server.Template(http.MethodGet, "/configured", func(view *Template) error {
+	registerTemplate(server, set, http.MethodGet, "/configured", func(view *Template) error {
 		calls++
 		view.View("two").Data(templateTestData{Title: "Configured"})
 		return nil
@@ -158,10 +172,38 @@ func TestTemplateHandlerConfiguresPage(t *testing.T) {
 	}
 }
 
+func TestTemplateOptionOverridesLayoutAndFunctions(t *testing.T) {
+	views := templateTestFS()
+	views["templates/option.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}<p>{{upper .Title}}</p>{{end}}`),
+	}
+	server := DefaultServer()
+	set := loadTemplateTestSet(t, views, WithTemplateFuncs(template.FuncMap{
+		"upper": func(value string) string { return value },
+	}))
+	registerTemplate(server, set, http.MethodGet, "/option", func(view *Template) error {
+		view.View("option").
+			Option(
+				WithLayouts("bare", "layout"),
+				WithTemplateFuncs(template.FuncMap{"upper": strings.ToUpper}),
+			).
+			Data(templateTestData{Title: "option"})
+		return nil
+	})
+
+	recorder := templateTestRequest(server.GetHandler(), http.MethodGet, "/option")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, `<main class="bare"><p>OPTION</p></main>`) {
+		t.Errorf("runtime template options were not applied: %s", body)
+	}
+}
+
 func TestTemplateHandlerErrorStopsRendering(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
-	server.Template(http.MethodGet, "/error", func(view *Template) error {
+	set := loadTemplateTestSet(t, templateTestFS())
+	registerTemplate(server, set, http.MethodGet, "/error", func(view *Template) error {
 		view.View("one")
 		return errors.New("prepare failed")
 	})
@@ -177,15 +219,15 @@ func TestTemplateHandlerErrorStopsRendering(t *testing.T) {
 
 func TestTemplateStatusHeaderAndRedirect(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
-	server.Template(http.MethodGet, "/status", func(view *Template) error {
+	set := loadTemplateTestSet(t, templateTestFS())
+	registerTemplate(server, set, http.MethodGet, "/status", func(view *Template) error {
 		view.View("one").
 			Data(templateTestData{Title: "Unauthorized"}).
 			Status(http.StatusUnauthorized).
 			Header("X-Template", "rendered")
 		return nil
 	})
-	server.Template(http.MethodGet, "/redirect", func(view *Template) error {
+	registerTemplate(server, set, http.MethodGet, "/redirect", func(view *Template) error {
 		view.Redirect(http.StatusFound, "/login")
 		return nil
 	})
@@ -219,12 +261,12 @@ func TestTemplateEscapesHTMLAndRegistersFunctions(t *testing.T) {
 		Data: []byte(`{{define "content"}}<p>{{upper .Title}}</p>{{end}}`),
 	}
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(
+	set := loadTemplateTestSet(
 		t,
 		views,
 		WithTemplateFuncs(template.FuncMap{"upper": strings.ToUpper}),
-	))
-	server.Template(http.MethodGet, "/escaped", func(view *Template) error {
+	)
+	registerTemplate(server, set, http.MethodGet, "/escaped", func(view *Template) error {
 		view.View("escaped").Layout("bare").Data(templateTestData{Title: `<script>alert(1)</script>`})
 		return nil
 	})
@@ -245,8 +287,8 @@ func TestTemplateFailuresDoNotWritePartialHTML(t *testing.T) {
 	views["templates/broken.html"] = &fstest.MapFile{
 		Data: []byte(`{{define "content"}}SHOULD_NOT_LEAK{{.Missing}}{{end}}`),
 	}
-	server.SetTemplates(loadTemplateTestSet(t, views))
-	server.Template(http.MethodGet, "/broken", func(view *Template) error {
+	set := loadTemplateTestSet(t, views)
+	registerTemplate(server, set, http.MethodGet, "/broken", func(view *Template) error {
 		view.View("broken").Data(templateTestData{})
 		return nil
 	})
@@ -275,13 +317,14 @@ func TestTemplateMissingConfigurationAndViewReturnServerError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := DefaultServer()
+			var options []TemplateOption
 			if tt.configure {
-				server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
+				options = append(options, WithTemplateSet(loadTemplateTestSet(t, templateTestFS())))
 			}
 			server.Template(http.MethodGet, "/failure", func(view *Template) error {
 				view.View(tt.view)
 				return nil
-			})
+			}, options...)
 
 			recorder := templateTestRequest(server.GetHandler(), http.MethodGet, "/failure")
 			if recorder.Code != http.StatusInternalServerError {
@@ -297,8 +340,8 @@ func TestTemplateDevReloadReadsCurrentFiles(t *testing.T) {
 		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
 	}
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, views, WithDevReload(true)))
-	server.Template(http.MethodGet, "/reload", func(view *Template) error {
+	set := loadTemplateTestSet(t, views, WithDevReload(true))
+	registerTemplate(server, set, http.MethodGet, "/reload", func(view *Template) error {
 		view.View("reload").Layout("bare")
 		return nil
 	})
@@ -318,14 +361,33 @@ func TestTemplateDevReloadReadsCurrentFiles(t *testing.T) {
 	}
 }
 
+func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
+	views := templateTestFS()
+	templateFS := EmbedFs("templates", views).
+		Reload(true).
+		ReloadPath("testdata/template-embed/templates")
+	set, err := LoadTemplates(
+		templateFS,
+		".",
+		WithLayouts("layout"),
+		WithPartials("partials"),
+	)
+	if err != nil {
+		t.Fatalf("LoadTemplates() error = %v", err)
+	}
+	if !set.defaultReload {
+		t.Fatal("LoadTemplates() ignored the filesystem reload state")
+	}
+}
+
 func TestTemplateReloadOverridesSetDefault(t *testing.T) {
 	views := templateTestFS()
 	views["templates/reload.html"] = &fstest.MapFile{
 		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
 	}
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, views, WithDevReload(true)))
-	server.Template(http.MethodGet, "/reload", func(view *Template) error {
+	set := loadTemplateTestSet(t, views, WithDevReload(true))
+	registerTemplate(server, set, http.MethodGet, "/reload", func(view *Template) error {
 		view.View("reload").Layout("bare")
 		if view.Request().Query("reload") != "1" {
 			view.Reload(false)
@@ -358,8 +420,8 @@ func TestTemplateReloadCanBeEnabledPerRequest(t *testing.T) {
 		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
 	}
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, views))
-	server.Template(http.MethodGet, "/reload", func(view *Template) error {
+	set := loadTemplateTestSet(t, views)
+	registerTemplate(server, set, http.MethodGet, "/reload", func(view *Template) error {
 		view.View("reload").Layout("bare").Reload(view.Request().Query("reload") == "1")
 		return nil
 	})
@@ -404,8 +466,8 @@ func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 
 func TestTemplateSetConcurrentRendering(t *testing.T) {
 	server := DefaultServer()
-	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
-	server.Template(http.MethodGet, "/concurrent", func(view *Template) error {
+	set := loadTemplateTestSet(t, templateTestFS())
+	registerTemplate(server, set, http.MethodGet, "/concurrent", func(view *Template) error {
 		view.View("one").Data(templateTestData{Title: view.Request().Query("title")})
 		return nil
 	})

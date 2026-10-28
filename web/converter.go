@@ -175,6 +175,7 @@ func (c *DefaultConverter) TemplateResponse(request *Request, value *TemplateRes
 		return
 	}
 	view := newTemplate(request)
+	view.Option(value.Options...)
 	if err := value.Handler(view); err != nil {
 		c.Error(request, nil, err)
 		return

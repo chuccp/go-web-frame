@@ -34,12 +34,12 @@ func (r *templateIntegrationRest) Init(ctx *core.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx.Server().SetTemplates(templates)
+	templateOption := web.WithTemplateSet(templates)
 
 	ctx.GetTemplate("/template-get", func(view *web.Template) error {
 		view.View("page").Data(templateIntegrationData{Name: view.Request().Query("name")})
 		return nil
-	})
+	}, templateOption)
 	ctx.PostTemplate("/template-post", func(view *web.Template) error {
 		view.View("page").
 			Layout("bare").
@@ -47,7 +47,7 @@ func (r *templateIntegrationRest) Init(ctx *core.Context) error {
 			Header("X-Template-Integration", "ok").
 			Data(templateIntegrationData{Name: view.Request().GetFormParam("name")})
 		return nil
-	})
+	}, templateOption)
 	return nil
 }
 

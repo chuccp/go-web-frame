@@ -117,7 +117,6 @@ type Server struct {
 	engine       *gin.Engine
 	converter    Converter
 	filters      []Filter
-	templateSet  *TemplateSet
 	httpHandler  http.Handler
 }
 
@@ -222,37 +221,38 @@ func (server *Server) Standard(relativePath string, handlers ...HandlerFunc) *Ro
 	return server.Handlers(standardMethods, relativePath, handlers...)
 }
 
-func (server *Server) Template(httpMethod string, relativePath string, handlers TemplateHandler) *Route {
+func (server *Server) Template(httpMethod string, relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
 	return server.Handle(httpMethod, relativePath, func(r *Request) (any, error) {
 		return &TemplateResponse{
-			Handler: handlers,
+			Handler: handler,
+			Options: options,
 		}, nil
 	})
 }
 
 // GetTemplate registers a GET route handled by a TemplateHandler.
-func (server *Server) GetTemplate(relativePath string, handlers TemplateHandler) *Route {
-	return server.Template(http.MethodGet, relativePath, handlers)
+func (server *Server) GetTemplate(relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
+	return server.Template(http.MethodGet, relativePath, handler, options...)
 }
 
 // PostTemplate registers a POST route handled by a TemplateHandler.
-func (server *Server) PostTemplate(relativePath string, handlers TemplateHandler) *Route {
-	return server.Template(http.MethodPost, relativePath, handlers)
+func (server *Server) PostTemplate(relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
+	return server.Template(http.MethodPost, relativePath, handler, options...)
 }
 
 // PutTemplate registers a PUT route handled by a TemplateHandler.
-func (server *Server) PutTemplate(relativePath string, handlers TemplateHandler) *Route {
-	return server.Template(http.MethodPut, relativePath, handlers)
+func (server *Server) PutTemplate(relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
+	return server.Template(http.MethodPut, relativePath, handler, options...)
 }
 
 // DeleteTemplate registers a DELETE route handled by a TemplateHandler.
-func (server *Server) DeleteTemplate(relativePath string, handlers TemplateHandler) *Route {
-	return server.Template(http.MethodDelete, relativePath, handlers)
+func (server *Server) DeleteTemplate(relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
+	return server.Template(http.MethodDelete, relativePath, handler, options...)
 }
 
 // PatchTemplate registers a PATCH route handled by a TemplateHandler.
-func (server *Server) PatchTemplate(relativePath string, handlers TemplateHandler) *Route {
-	return server.Template(http.MethodPatch, relativePath, handlers)
+func (server *Server) PatchTemplate(relativePath string, handler TemplateHandler, options ...TemplateOption) *Route {
+	return server.Template(http.MethodPatch, relativePath, handler, options...)
 }
 
 // Handle registers a handler for a single HTTP method on this server.
@@ -632,7 +632,6 @@ func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
 func (server *Server) toSingleGinHandlerFunc(route *Route, handler HandlerFunc) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		req := request(ctx, route, server.serverConfig)
-		req.templateSet = server.templateSet
 		mock := newFilterChain(req, server.converter, server.filters, handler)
 		mock.next()
 	}

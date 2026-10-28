@@ -21,7 +21,7 @@ type TemplateHandler func(view *Template) error
 // HTML response after its TemplateHandler has prepared the page.
 type Template struct {
 	request      *Request
-	templateSet  *TemplateSet
+	options      []TemplateOption
 	view         string
 	layout       string
 	data         any
@@ -30,6 +30,7 @@ type Template struct {
 	redirectCode int
 	redirectTo   string
 	reload       bool
+	reloadSet    bool
 }
 
 // Request returns the HTTP request associated with this page.
@@ -43,11 +44,19 @@ func (t *Template) View(name string) *Template {
 	return t
 }
 
+// Option adds runtime template options to this response. Options are applied
+// after the handler returns and before the template is rendered.
+func (t *Template) Option(options ...TemplateOption) *Template {
+	t.options = append(t.options, options...)
+	return t
+}
+
 // Reload overrides the template set's default reload behavior for this response.
 // When enabled, the selected page, layout and partials are parsed from the source
 // filesystem again instead of using the compiled cache.
 func (t *Template) Reload(reload bool) *Template {
 	t.reload = reload
+	t.reloadSet = true
 	return t
 }
 
@@ -91,22 +100,48 @@ func newTemplate(request *Request) *Template {
 		status:  http.StatusOK,
 		headers: make(http.Header),
 	}
-	if request != nil {
-		t.templateSet = request.templateSet
-		if t.templateSet != nil {
-			t.layout = t.templateSet.defaultLayout
-			t.reload = t.templateSet.defaultReload
+	return t
+}
+
+func (t *Template) resolveOptions() (*TemplateSet, error) {
+	config := templateOptions{}
+	for _, option := range t.options {
+		if option != nil {
+			option(&config)
 		}
 	}
-	return t
+
+	set := config.templateSet
+	if set == nil {
+		return nil, fmt.Errorf("templates are not configured")
+	}
+	if config.funcsSet || config.layoutsSet || config.partialsSet {
+		var err error
+		set, err = set.withOptions(config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if t.layout == "" {
+		t.layout = set.defaultLayout
+	}
+	if !t.reloadSet {
+		if config.reloadSet {
+			t.reload = config.defaultReload
+		} else if config.templateSet != nil {
+			t.reload = set.defaultReload
+		}
+	}
+	return set, nil
 }
 
 func (t *Template) render() ([]byte, error) {
 	if t == nil {
 		return nil, fmt.Errorf("template response is nil")
 	}
-	if t.templateSet == nil {
-		return nil, fmt.Errorf("templates are not configured")
+	set, err := t.resolveOptions()
+	if err != nil {
+		return nil, err
 	}
 	if t.view == "" {
 		return nil, fmt.Errorf("template view is not set")
@@ -118,7 +153,7 @@ func (t *Template) render() ([]byte, error) {
 		return nil, fmt.Errorf("invalid template status code %d", t.status)
 	}
 
-	tmpl, err := t.templateSet.templateFor(t.view, t.layout, t.reload)
+	tmpl, err := set.templateFor(t.view, t.layout, t.reload)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +174,11 @@ type templateOptions struct {
 	funcs         template.FuncMap
 	layouts       []string
 	partials      []string
+	templateSet   *TemplateSet
+	funcsSet      bool
+	layoutsSet    bool
+	partialsSet   bool
+	reloadSet     bool
 	defaultReload bool
 }
 
@@ -149,6 +189,7 @@ type TemplateOption func(*templateOptions)
 // calls are merged; later functions replace earlier ones with the same name.
 func WithTemplateFuncs(funcs template.FuncMap) TemplateOption {
 	return func(options *templateOptions) {
+		options.funcsSet = true
 		if options.funcs == nil {
 			options.funcs = make(template.FuncMap)
 		}
@@ -161,6 +202,7 @@ func WithTemplateFuncs(funcs template.FuncMap) TemplateOption {
 // WithLayouts registers the available layouts. The first layout is the default.
 func WithLayouts(defaultLayout string, others ...string) TemplateOption {
 	return func(options *templateOptions) {
+		options.layoutsSet = true
 		options.layouts = append([]string{defaultLayout}, others...)
 	}
 }
@@ -168,7 +210,15 @@ func WithLayouts(defaultLayout string, others ...string) TemplateOption {
 // WithPartials registers files that are parsed with every page and layout.
 func WithPartials(names ...string) TemplateOption {
 	return func(options *templateOptions) {
+		options.partialsSet = true
 		options.partials = append([]string(nil), names...)
+	}
+}
+
+// WithTemplateSet selects an already compiled template set for a response.
+func WithTemplateSet(set *TemplateSet) TemplateOption {
+	return func(options *templateOptions) {
+		options.templateSet = set
 	}
 }
 
@@ -177,6 +227,7 @@ func WithPartials(names ...string) TemplateOption {
 // for development with an os.DirFS and should be disabled in production.
 func WithDevReload(enabled bool) TemplateOption {
 	return func(options *templateOptions) {
+		options.reloadSet = true
 		options.defaultReload = enabled
 	}
 }
@@ -189,6 +240,7 @@ type TemplateSet struct {
 	root          string
 	funcs         template.FuncMap
 	layouts       map[string]struct{}
+	layoutNames   []string
 	defaultLayout string
 	partials      []string
 	views         map[string]struct{}
@@ -211,6 +263,9 @@ func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 	config := templateOptions{
 		funcs:   make(template.FuncMap),
 		layouts: []string{"layout"},
+	}
+	if reloadFS, ok := fsys.(interface{ ReloadEnabled() bool }); ok {
+		config.defaultReload = reloadFS.ReloadEnabled()
 	}
 	for _, option := range options {
 		if option != nil {
@@ -252,6 +307,7 @@ func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 		root:          root,
 		funcs:         cloneTemplateFuncs(config.funcs),
 		layouts:       make(map[string]struct{}, len(layouts)),
+		layoutNames:   append([]string(nil), layouts...),
 		defaultLayout: defaultLayout,
 		partials:      partials,
 		views:         make(map[string]struct{}, len(views)),
@@ -371,6 +427,39 @@ func cloneTemplateFuncs(funcs template.FuncMap) template.FuncMap {
 	return result
 }
 
+func (s *TemplateSet) withOptions(config templateOptions) (*TemplateSet, error) {
+	funcs := cloneTemplateFuncs(s.funcs)
+	if funcs == nil {
+		funcs = make(template.FuncMap)
+	}
+	for name, fn := range config.funcs {
+		funcs[name] = fn
+	}
+	layouts := append([]string(nil), s.layoutNames...)
+	if config.layoutsSet {
+		layouts = append([]string(nil), config.layouts...)
+	}
+	if len(layouts) == 0 {
+		return nil, fmt.Errorf("at least one template layout is required")
+	}
+	partials := append([]string(nil), s.partials...)
+	if config.partialsSet {
+		partials = append([]string(nil), config.partials...)
+	}
+	reload := s.defaultReload
+	if config.reloadSet {
+		reload = config.defaultReload
+	}
+	return LoadTemplates(
+		s.fsys,
+		s.root,
+		WithTemplateFuncs(funcs),
+		WithLayouts(layouts[0], layouts[1:]...),
+		WithPartials(partials...),
+		WithDevReload(reload),
+	)
+}
+
 func (s *TemplateSet) filePath(name string) string {
 	file := name + templateExtension
 	if s.root == "." {
@@ -419,14 +508,9 @@ func (s *TemplateSet) templateFor(view string, layout string, reload bool) (*tem
 	return tmpl, nil
 }
 
-// SetTemplates installs the template set used by Template routes on this server.
-// It should be called during application initialization, before serving requests.
-func (server *Server) SetTemplates(set *TemplateSet) {
-	server.templateSet = set
-}
-
 // TemplateResponse defers rendering to the response converter so template
 // preparation errors and rendering errors use the normal response pipeline.
 type TemplateResponse struct {
 	Handler TemplateHandler
+	Options []TemplateOption
 }

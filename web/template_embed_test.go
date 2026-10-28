@@ -21,8 +21,7 @@ func TestLoadTemplatesFromEmbedFS(t *testing.T) {
 	}
 
 	server := DefaultServer()
-	server.SetTemplates(set)
-	server.Template(http.MethodGet, "/embedded", func(view *Template) error {
+	registerTemplate(server, set, http.MethodGet, "/embedded", func(view *Template) error {
 		view.View("embedded").Data(templateTestData{Title: "Embedded"})
 		return nil
 	})

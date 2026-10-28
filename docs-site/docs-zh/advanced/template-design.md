@@ -108,12 +108,16 @@ type TemplateHandler func(view *Template) error
 // TemplateResponse 保存页面 Handler，交给 Converter 执行。
 type TemplateResponse struct {
     Handler TemplateHandler
+    Options []TemplateOption
 }
 
 func (t *Template) Request() *Request
 
 // View 选择逻辑页面名，不含扩展名，例如 "dashboard"。
 func (t *Template) View(name string) *Template
+
+// Option 为当前响应追加运行时模板选项。
+func (t *Template) Option(options ...TemplateOption) *Template
 
 // Layout 选择布局名，不含扩展名，例如 "layout" 或 "bare"。
 func (t *Template) Layout(name string) *Template
@@ -166,7 +170,13 @@ func LoadTemplates(
     options ...TemplateOption,
 ) (*TemplateSet, error)
 
-func (server *Server) SetTemplates(set *TemplateSet)
+func WithTemplateSet(set *TemplateSet) TemplateOption
+
+func (c *Context) GetTemplate(
+    relativePath string,
+    handler web.TemplateHandler,
+    options ...TemplateOption,
+) *web.Route
 ```
 
 根目录为 `templates` 时，逻辑名称和文件的对应关系如下：
@@ -408,6 +418,9 @@ view.View("dashboard").
 `Reload(true)` 会重新读取并解析当前页面、布局和公共片段；`Reload(false)` 使用
 `TemplateSet` 中已经编译的版本。该开关只控制模板解析，不会重新扫描新增页面文件。
 
+如果传入 `LoadTemplates` 的 `fs.FS` 同时实现 `ReloadEnabled() bool`（例如
+`web.EmbedFs(...).Reload(...)`），框架会自动把它作为默认重载设置。
+
 ## 8. `http2smtp/webui` 接入示例
 
 ### 8.1 保留现有 embed 声明
@@ -429,35 +442,15 @@ var staticFS embed.FS
 ### 8.2 加载模板集合
 
 ```go
-var (
-    templateSetOnce sync.Once
-    templateSet     *web.TemplateSet
-    templateSetErr  error
+templateSet, err := web.LoadTemplates(
+    web.EmbedFs("templates", templatesFS).
+        Reload(devMode).
+        ReloadPath("webui/templates"),
+    ".",
+    web.WithTemplateFuncs(templateFuncs),
+    web.WithLayouts("layout", "bare"),
+    web.WithPartials("partials"),
 )
-
-func loadTemplateSet() (*web.TemplateSet, error) {
-    templateSetOnce.Do(func() {
-        var fsys fs.FS = templatesFS
-        root := "templates"
-
-        if devMode {
-            fsys = os.DirFS("webui/templates")
-            root = "."
-        }
-
-        options := []web.TemplateOption{
-            web.WithTemplateFuncs(templateFuncs),
-            web.WithLayouts("layout", "bare"),
-            web.WithPartials("partials"),
-        }
-        if devMode {
-            options = append(options, web.WithDevReload(true))
-        }
-
-        templateSet, templateSetErr = web.LoadTemplates(fsys, root, options...)
-    })
-    return templateSet, templateSetErr
-}
 ```
 
 模板函数仍使用 `webui/templateFuncs`：
@@ -478,20 +471,30 @@ var templateFuncs = template.FuncMap{
 
 ```go
 func (p *Pages) Init(ctx *core.Context) error {
-    templates, err := loadTemplateSet()
+    templates, err := web.LoadTemplates(
+        web.EmbedFs("templates", templatesFS).
+            Reload(developmentMode).
+            ReloadPath("webui/templates"),
+        ".",
+        web.WithLayouts("layout", "bare"),
+        web.WithPartials("partials"),
+    )
     if err != nil {
         return err
     }
-    server := ctx.Server()
-    server.SetTemplates(templates)
+    templateOption := web.WithTemplateSet(templates)
 
     // 页面路由继续使用与当前相同的根路径。
-    ctx.Template(http.MethodGet, "/dashboard", p.dashboardPage)
-    ctx.Template(http.MethodGet, "/smtp", p.smtpListPage)
+    ctx.Template(http.MethodGet, "/dashboard", p.dashboardPage, templateOption)
+    ctx.Template(http.MethodGet, "/smtp", p.smtpListPage, templateOption)
 
     return nil
 }
 ```
+
+模板集合通过 `WithTemplateSet` 作为路由选项显式传入；Server、Context 和 Request
+都不保存全局模板状态。页面 Handler 还可以通过 `view.Option(...)` 为当前响应追加
+布局、函数或模板集合选项。
 
 ### 8.4 将现有 render 适配为 TemplateHandler
 

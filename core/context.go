@@ -283,33 +283,33 @@ func (c *Context) Handle(httpMethod string, relativePath string, handlers ...web
 }
 
 // Template registers an HTML template route.
-func (c *Context) Template(httpMethod string, relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.Template(httpMethod, relativePath, handler)
+func (c *Context) Template(httpMethod string, relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.Template(httpMethod, relativePath, handler, options...)
 }
 
 // GetTemplate registers a GET route handled by a TemplateHandler.
-func (c *Context) GetTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.GetTemplate(relativePath, handler)
+func (c *Context) GetTemplate(relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.GetTemplate(relativePath, handler, options...)
 }
 
 // PostTemplate registers a POST route handled by a TemplateHandler.
-func (c *Context) PostTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.PostTemplate(relativePath, handler)
+func (c *Context) PostTemplate(relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.PostTemplate(relativePath, handler, options...)
 }
 
 // PutTemplate registers a PUT route handled by a TemplateHandler.
-func (c *Context) PutTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.PutTemplate(relativePath, handler)
+func (c *Context) PutTemplate(relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.PutTemplate(relativePath, handler, options...)
 }
 
 // DeleteTemplate registers a DELETE route handled by a TemplateHandler.
-func (c *Context) DeleteTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.DeleteTemplate(relativePath, handler)
+func (c *Context) DeleteTemplate(relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.DeleteTemplate(relativePath, handler, options...)
 }
 
 // PatchTemplate registers a PATCH route handled by a TemplateHandler.
-func (c *Context) PatchTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
-	return c.server.PatchTemplate(relativePath, handler)
+func (c *Context) PatchTemplate(relativePath string, handler web.TemplateHandler, options ...web.TemplateOption) *web.Route {
+	return c.server.PatchTemplate(relativePath, handler, options...)
 }
 
 // GetConfig returns the configuration object associated with this context.

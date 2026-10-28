@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,11 @@ func (e *EmbedFileSystem) Reload(reload bool) *EmbedFileSystem {
 	return e
 }
 
+// ReloadEnabled reports whether the filesystem currently reloads from disk.
+func (e *EmbedFileSystem) ReloadEnabled() bool {
+	return e != nil && e.reload
+}
+
 // ReloadPath overrides the disk directory used when Reload(true) is enabled.
 // It is useful when the embedded root differs from the source-tree directory.
 func (e *EmbedFileSystem) ReloadPath(path string) *EmbedFileSystem {
@@ -47,6 +53,23 @@ func EmbedFs(name string, fsys ...fs.FS) *EmbedFileSystem {
 
 // FileSystem returns the active filesystem for the current reload setting.
 func (e *EmbedFileSystem) FileSystem() (http.FileSystem, error) {
+	active, err := e.activeFS()
+	if err != nil {
+		return nil, err
+	}
+	return http.FS(active), nil
+}
+
+// Open implements fs.FS using the active embedded or disk source.
+func (e *EmbedFileSystem) Open(name string) (fs.File, error) {
+	active, err := e.activeFS()
+	if err != nil {
+		return nil, err
+	}
+	return active.Open(name)
+}
+
+func (e *EmbedFileSystem) activeFS() (fs.FS, error) {
 	if e == nil {
 		return nil, fmt.Errorf("embedded filesystem is nil")
 	}
@@ -60,23 +83,23 @@ func (e *EmbedFileSystem) FileSystem() (http.FileSystem, error) {
 		if root == "" {
 			root = name
 		}
-		return http.Dir(root), nil
+		return os.DirFS(root), nil
 	}
 	if e.fsys == nil {
-		return http.Dir(name), nil
+		return os.DirFS(name), nil
 	}
 	if !fs.ValidPath(name) {
 		return nil, fmt.Errorf("invalid embedded filesystem root %q", name)
 	}
 	name = path.Clean(name)
 	if name == "." {
-		return http.FS(e.fsys), nil
+		return e.fsys, nil
 	}
 	sub, err := fs.Sub(e.fsys, name)
 	if err != nil {
 		return nil, fmt.Errorf("open embedded filesystem root %q: %w", name, err)
 	}
-	return http.FS(sub), nil
+	return sub, nil
 }
 
 // FileResponse represents a downloadable file response.

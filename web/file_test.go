@@ -1,6 +1,7 @@
 package web
 
 import (
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -42,6 +43,22 @@ func TestEmbedFsRejectsInvalidEmbeddedRoot(t *testing.T) {
 	embedded := EmbedFs("../static", fstest.MapFS{})
 	if _, err := embedded.FileSystem(); err == nil {
 		t.Fatal("FileSystem() accepted an invalid embedded root")
+	}
+}
+
+func TestEmbedFsImplementsFS(t *testing.T) {
+	embedded := fstest.MapFS{
+		"static/app.css": {
+			Data: []byte("embedded"),
+		},
+	}
+	active := EmbedFs("static", embedded)
+	data, err := fs.ReadFile(active, "app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "embedded" {
+		t.Fatalf("file = %q, want embedded", data)
 	}
 }
 

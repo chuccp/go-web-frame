@@ -233,7 +233,7 @@ func WithDevReload(enabled bool) TemplateOption {
 }
 
 // TemplateSet contains the compiled page/layout combinations loaded from an
-// fs.FS. A TemplateSet is immutable after LoadTemplates returns and can be
+// fs.FS. A TemplateSet is immutable after loadTemplates returns and can be
 // shared by multiple servers and requests.
 type TemplateSet struct {
 	fsys          fs.FS
@@ -248,9 +248,9 @@ type TemplateSet struct {
 	defaultReload bool
 }
 
-// LoadTemplates parses every page together with each registered layout and the
+// loadTemplates parses every page together with each registered layout and the
 // configured partials. Logical names omit the .html extension.
-func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*TemplateSet, error) {
+func loadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*TemplateSet, error) {
 	if fsys == nil {
 		return nil, fmt.Errorf("template filesystem is nil")
 	}
@@ -335,7 +335,7 @@ func LoadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 
 // LoadTemplateOption compiles a template set and returns it as a route option.
 func LoadTemplateOption(fsys fs.FS, root string, options ...TemplateOption) (TemplateOption, error) {
-	set, err := LoadTemplates(fsys, root, options...)
+	set, err := loadTemplates(fsys, root, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +459,7 @@ func (s *TemplateSet) withOptions(config templateOptions) (*TemplateSet, error) 
 	if config.reloadSet {
 		reload = config.defaultReload
 	}
-	return LoadTemplates(
+	return loadTemplates(
 		s.fsys,
 		s.root,
 		WithTemplateFuncs(funcs),

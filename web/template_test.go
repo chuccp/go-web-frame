@@ -42,7 +42,7 @@ func loadTemplateTestSet(t *testing.T, fsys fstest.MapFS, options ...TemplateOpt
 		WithPartials("partials"),
 	}
 	base = append(base, options...)
-	set, err := LoadTemplates(fsys, "templates", base...)
+	set, err := loadTemplates(fsys, "templates", base...)
 	if err != nil {
 		t.Fatalf("LoadTemplates() error = %v", err)
 	}
@@ -366,7 +366,7 @@ func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
 	templateFS := EmbedFs("templates", views).
 		Reload(true).
 		ReloadPath("testdata/template-embed/templates")
-	set, err := LoadTemplates(
+	set, err := loadTemplates(
 		templateFS,
 		".",
 		WithLayouts("layout"),
@@ -475,7 +475,7 @@ func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 	views["templates/invalid.html"] = &fstest.MapFile{
 		Data: []byte(`{{define "content"}}{{if}}{{end}}`),
 	}
-	if _, err := LoadTemplates(
+	if _, err := loadTemplates(
 		views,
 		"templates",
 		WithLayouts("layout", "bare"),
@@ -484,7 +484,7 @@ func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 		t.Fatal("LoadTemplates() error = nil, want parse error")
 	}
 
-	if _, err := LoadTemplates(views, "../templates"); err == nil {
+	if _, err := loadTemplates(views, "../templates"); err == nil {
 		t.Fatal("LoadTemplates() error = nil, want invalid root error")
 	}
 }

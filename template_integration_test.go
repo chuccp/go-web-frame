@@ -25,7 +25,7 @@ type templateIntegrationRest struct {
 }
 
 func (r *templateIntegrationRest) Init(ctx *core.Context) error {
-	templates, err := web.LoadTemplates(
+	templateOption, err := web.LoadTemplateOption(
 		integrationTemplatesFS,
 		"testdata/template-integration/templates",
 		web.WithLayouts("layout", "bare"),
@@ -34,7 +34,6 @@ func (r *templateIntegrationRest) Init(ctx *core.Context) error {
 	if err != nil {
 		return err
 	}
-	templateOption := web.WithTemplateSet(templates)
 
 	ctx.GetTemplate("/template-get", func(view *web.Template) error {
 		view.View("page").Data(templateIntegrationData{Name: view.Request().Query("name")})

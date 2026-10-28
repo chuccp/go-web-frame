@@ -116,6 +116,7 @@ type Server struct {
 	engine       *gin.Engine
 	converter    Converter
 	filters      []Filter
+	templateSet  *TemplateSet
 }
 
 func DefaultServer() *Server {
@@ -217,6 +218,14 @@ func (server *Server) Any(relativePath string, handlers ...HandlerFunc) *Route {
 
 func (server *Server) Standard(relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers(standardMethods, relativePath, handlers...)
+}
+
+func (server *Server) Template(httpMethod string, relativePath string, handlers TemplateHandler) *Route {
+	return server.Handle(httpMethod, relativePath, func(r *Request) (any, error) {
+		return &TemplateResponse{
+			Handler: handlers,
+		}, nil
+	})
 }
 
 // Handle registers a handler for a single HTTP method on this server.
@@ -549,6 +558,7 @@ func (server *Server) toGinHandlerFunc(route *Route) []gin.HandlerFunc {
 func (server *Server) toSingleGinHandlerFunc(route *Route, handler HandlerFunc) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		req := request(ctx, route, server.serverConfig)
+		req.templateSet = server.templateSet
 		mock := newFilterChain(req, server.converter, server.filters, handler)
 		mock.next()
 	}

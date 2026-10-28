@@ -54,6 +54,7 @@ type Request struct {
 	handlerMeta  *HandlerMeta
 	response     Response
 	serverConfig *ServerConfig
+	templateSet  *TemplateSet
 }
 
 // HandlerMeta returns the metadata attached to the matched route handler.

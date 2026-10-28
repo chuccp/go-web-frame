@@ -52,6 +52,8 @@ func (c *DefaultConverter) Request(filterChain FilterChain, request *Request) {
 				c.ReverseProxyResponse(request, t)
 			case *os.File:
 				c.RawFile(request, t)
+			case *TemplateResponse:
+				c.TemplateResponse(request, t)
 			case string:
 				c.String(request, t)
 			case error:
@@ -142,6 +144,65 @@ func (c *DefaultConverter) String(request *Request, value string) {
 	if _, err := request.response.WriteString(value); err != nil {
 		log.Debug("converter: WriteString error", zap.Error(err))
 	}
+}
+
+// TemplateResponse prepares and renders an HTML page. The page is written only
+// after both the TemplateHandler and template execution succeed.
+func (c *DefaultConverter) TemplateResponse(request *Request, value *TemplateResponse) {
+	if value == nil {
+		c.templateError(request, fmt.Errorf("template response is nil"))
+		return
+	}
+	if value.Handler == nil {
+		c.templateError(request, fmt.Errorf("template handler is nil"))
+		return
+	}
+	view := newTemplate(request)
+	if err := value.Handler(view); err != nil {
+		c.Error(request, nil, err)
+		return
+	}
+	if view.redirectCode != 0 {
+		if view.redirectCode < http.StatusMultipleChoices || view.redirectCode >= http.StatusBadRequest {
+			c.templateError(request, fmt.Errorf("invalid template redirect status code %d", view.redirectCode))
+			return
+		}
+		writeTemplateHeaders(request, view)
+		request.response.Redirect(view.redirectCode, view.redirectTo)
+		return
+	}
+
+	body, err := view.render()
+	if err != nil {
+		c.templateError(request, err)
+		return
+	}
+
+	writeTemplateHeaders(request, view)
+	request.response.Header().Set("Content-Type", "text/html; charset=utf-8")
+	request.response.WriteStatus(view.status)
+	if view.status == http.StatusNoContent || view.status == http.StatusNotModified {
+		return
+	}
+	if _, err := request.response.Write(body); err != nil {
+		log.Debug("converter: template write error", zap.Error(err))
+	}
+}
+
+func writeTemplateHeaders(request *Request, value *Template) {
+	for key, values := range value.headers {
+		for _, headerValue := range values {
+			request.response.Header().Add(key, headerValue)
+		}
+	}
+}
+
+func (c *DefaultConverter) templateError(request *Request, err error) {
+	log.Error("converter: template error", zap.Error(err))
+	request.response.AbortWithStatusJSON(http.StatusInternalServerError, &Message{
+		Code: http.StatusInternalServerError,
+		Msg:  "template rendering failed",
+	})
 }
 
 // Error writes an error response and aborts the request.

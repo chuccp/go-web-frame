@@ -277,6 +277,11 @@ func (c *Context) Handle(httpMethod string, relativePath string, handlers ...web
 	return c.handle(httpMethod, relativePath, handlers...)
 }
 
+// Template registers an HTML template route.
+func (c *Context) Template(httpMethod string, relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.Template(httpMethod, relativePath, handler)
+}
+
 // GetConfig returns the configuration object associated with this context.
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config

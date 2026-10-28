@@ -24,9 +24,10 @@ type ServerConfig struct {
 
 // SSLConfig holds TLS/HTTPS configuration with optional auto-certification hosts.
 type SSLConfig struct {
-	Enabled bool             // Whether HTTPS is enabled
-	Hosts   []string         // Domain names for Let's Encrypt auto-certification
-	Certs   []SSLCertificate // Local certificate entries for pre-obtained certificates
+	Enabled  bool             // Whether HTTPS is enabled
+	Hosts    []string         // Domain names for Let's Encrypt auto-certification
+	Certs    []SSLCertificate // Local certificate entries for pre-obtained certificates
+	BindHTTP bool             // Listen on port 80 and redirect HTTP requests to HTTPS
 }
 
 // SSLCertificate holds paths to a TLS certificate and private key file.

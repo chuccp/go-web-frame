@@ -58,11 +58,16 @@ web:
       hosts:
         - example.com
         - api.example.com
+      bind_http: true
 ```
 
 Certificates are auto-generated and cached in `./certs`.
 
-> **Note**: Ports 80 and 443 must be publicly accessible, and the domain must resolve to the server IP.
+> **Note**: Automatic certificates use the TLS-ALPN-01 challenge. Only port 443 must be publicly accessible, and the application must listen on that port directly with TLS 1.2 enabled. Port 80 is not required.
+
+Set `bind_http: true` to listen on port 80 and redirect HTTP requests to HTTPS with a 308 response. Certificate issuance still uses TLS-ALPN-01 on port 443 only; HTTP-01 is not enabled.
+
+If an explicit port 80 server is already registered, it takes precedence and the framework does not create an additional redirect listener.
 
 ### Local Certificate Files
 
@@ -159,9 +164,10 @@ web:
 | `web.server.context_path` | Route prefix | none |
 | `web.server.locations` | Static file directories | none |
 | `web.server.page404` | 404 fallback page | none |
-| `web.ssl.enabled` | Enable HTTPS | false |
-| `web.ssl.hosts` | Domains for Let's Encrypt | none |
-| `web.ssl.certs` | Local certificate entries | none |
+| `web.server.ssl.enabled` | Enable HTTPS | false |
+| `web.server.ssl.hosts` | Domains for Let's Encrypt | none |
+| `web.server.ssl.certs` | Local certificate entries | none |
+| `web.server.ssl.bind_http` | Listen on port 80 and redirect to HTTPS | false |
 
 ## Production Checklist
 

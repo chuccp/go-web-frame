@@ -64,18 +64,20 @@ func main() {
 web:
   server:
     port: 443
-  ssl:
-    enabled: true
-    hosts:
-      - example.com
-      - www.example.com
+    ssl:
+      enabled: true
+      hosts:
+        - example.com
+        - www.example.com
+      bind_http: false
 ```
 
 | 配置项 | 说明 |
 |--------|------|
-| `web.ssl.enabled` | 是否启用 HTTPS |
-| `web.ssl.hosts` | 证书域名列表（用于 Let's Encrypt 自动证书） |
-| `web.ssl.certs` | 本地证书配置列表（用于已有证书文件） |
+| `web.server.ssl.enabled` | 是否启用 HTTPS |
+| `web.server.ssl.hosts` | 证书域名列表（用于 Let's Encrypt 自动证书） |
+| `web.server.ssl.certs` | 本地证书配置列表（用于已有证书文件） |
+| `web.server.ssl.bind_http` | 是否监听 80 端口并把 HTTP 308 重定向到 HTTPS，默认 `false` |
 
 ### Let's Encrypt 自动证书
 
@@ -85,18 +87,23 @@ web:
 web:
   server:
     port: 443
-  ssl:
-    enabled: true
-    hosts:
-      - yourdomain.com
+    ssl:
+      enabled: true
+      hosts:
+        - yourdomain.com
+      bind_http: true
 ```
 
 启动后框架自动完成：
 1. 向 Let's Encrypt 申请域名证书
 2. 自动续期（证书快过期时自动更新）
-3. HTTP 请求自动重定向到 HTTPS
+3. 通过 TLS-ALPN-01 在 443 端口完成域名验证
 
-> **注意**：使用 Let's Encrypt 自动证书需要服务器 80 和 443 端口对外可访问，且域名已解析到服务器 IP。
+> **注意**：自动证书只需要服务器的 443 端口对外可访问，且域名已解析到服务器 IP；不需要开放 80 端口。TLS-ALPN-01 要求 443 端口直接由本应用监听并支持 TLS 1.2。
+
+如果还需要把 `http://` 请求重定向到 HTTPS，把 `bind_http` 设为 `true`。此时框架会额外监听 80 端口，但证书验证仍只使用 443 上的 TLS-ALPN-01，不会启用 HTTP-01。
+
+如果已经显式注册了 80 端口服务，该服务优先，框架不会再创建自动重定向监听。
 
 ### 本地证书文件
 
@@ -209,6 +216,7 @@ web:
     enabled: false          # 是否启用 HTTPS
     hosts: []               # Let's Encrypt 域名列表
     certs: []               # 本地证书配置列表
+    bind_http: false        # 是否监听 80 并重定向到 HTTPS
 ```
 
 | 配置项 | 说明 | 默认值 |
@@ -217,9 +225,10 @@ web:
 | `web.server.context_path` | 路由前缀 | 无 |
 | `web.server.locations` | 静态文件目录 | 无 |
 | `web.server.page404` | 404 页面 | 无 |
-| `web.ssl.enabled` | 是否启用 HTTPS | false |
-| `web.ssl.hosts` | 证书域名列表 | 无 |
-| `web.ssl.certs` | 本地证书配置列表 | 无 |
+| `web.server.ssl.enabled` | 是否启用 HTTPS | false |
+| `web.server.ssl.hosts` | 证书域名列表 | 无 |
+| `web.server.ssl.certs` | 本地证书配置列表 | 无 |
+| `web.server.ssl.bind_http` | 是否监听 80 并重定向到 HTTPS | false |
 
 ### Context Path
 

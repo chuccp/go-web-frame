@@ -198,6 +198,21 @@ func (c *Context) Template(
 
 它只负责委托给 `c.Server().Template(...)`，不复制路由逻辑。
 
+常用 HTTP 方法另提供便捷入口，`Server` 和 `Context` 的签名一致：
+
+```go
+server.GetTemplate("/dashboard", dashboardPage)
+server.PostTemplate("/login", loginPage)
+server.PutTemplate("/settings", settingsPage)
+server.DeleteTemplate("/account", accountPage)
+server.PatchTemplate("/profile", profilePage)
+
+ctx.GetTemplate("/dashboard", dashboardPage)
+ctx.PostTemplate("/login", loginPage)
+```
+
+这些方法只固定 HTTP 方法，最终仍然调用 `Template(...)`。
+
 ## 5. 模板编译模型
 
 ### 5.1 为什么不能一次解析全部页面

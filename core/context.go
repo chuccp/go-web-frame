@@ -282,6 +282,31 @@ func (c *Context) Template(httpMethod string, relativePath string, handler web.T
 	return c.server.Template(httpMethod, relativePath, handler)
 }
 
+// GetTemplate registers a GET route handled by a TemplateHandler.
+func (c *Context) GetTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.GetTemplate(relativePath, handler)
+}
+
+// PostTemplate registers a POST route handled by a TemplateHandler.
+func (c *Context) PostTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.PostTemplate(relativePath, handler)
+}
+
+// PutTemplate registers a PUT route handled by a TemplateHandler.
+func (c *Context) PutTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.PutTemplate(relativePath, handler)
+}
+
+// DeleteTemplate registers a DELETE route handled by a TemplateHandler.
+func (c *Context) DeleteTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.DeleteTemplate(relativePath, handler)
+}
+
+// PatchTemplate registers a PATCH route handled by a TemplateHandler.
+func (c *Context) PatchTemplate(relativePath string, handler web.TemplateHandler) *web.Route {
+	return c.server.PatchTemplate(relativePath, handler)
+}
+
 // GetConfig returns the configuration object associated with this context.
 func (c *Context) GetConfig() config2.IConfig {
 	return c.config

@@ -139,9 +139,9 @@ web:
 | `web.server.context_path` | Route prefix | none |
 | `web.server.locations` | Static file directories | none |
 | `web.server.page404` | 404 fallback page | none |
-| `web.ssl.enabled` | Enable HTTPS | false |
-| `web.ssl.hosts` | Domains for Let's Encrypt | none |
-| `web.ssl.certs` | Local certificate entries | none |
+| `web.server.ssl.enabled` | Enable HTTPS | false |
+| `web.server.ssl.hosts` | Domains for Let's Encrypt | none |
+| `web.server.ssl.certs` | Local certificate entries | none |
 
 ### Database
 

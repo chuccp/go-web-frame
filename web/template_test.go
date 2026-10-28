@@ -78,6 +78,43 @@ func TestTemplateRouteRendersLayoutAndPartials(t *testing.T) {
 	}
 }
 
+func TestTemplateMethodRouteHelpers(t *testing.T) {
+	server := DefaultServer()
+	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))
+
+	routes := []struct {
+		method   string
+		register func(*Server, string, TemplateHandler) *Route
+	}{
+		{method: http.MethodGet, register: (*Server).GetTemplate},
+		{method: http.MethodPost, register: (*Server).PostTemplate},
+		{method: http.MethodPut, register: (*Server).PutTemplate},
+		{method: http.MethodDelete, register: (*Server).DeleteTemplate},
+		{method: http.MethodPatch, register: (*Server).PatchTemplate},
+	}
+	for _, route := range routes {
+		method := route.method
+		route.register(server, "/"+strings.ToLower(method), func(view *Template) error {
+			view.View("two").
+				Layout("bare").
+				Data(templateTestData{Title: method})
+			return nil
+		})
+	}
+	handler := server.GetHandler()
+
+	for _, route := range routes {
+		recorder := templateTestRequest(handler, route.method, "/"+strings.ToLower(route.method))
+		if recorder.Code != http.StatusOK {
+			t.Errorf("%s status = %d, want %d", route.method, recorder.Code, http.StatusOK)
+			continue
+		}
+		if body := recorder.Body.String(); !strings.Contains(body, "<h2>"+route.method+"</h2>") {
+			t.Errorf("%s rendered unexpected body: %s", route.method, body)
+		}
+	}
+}
+
 func TestTemplatePagesAndLayoutsAreIsolated(t *testing.T) {
 	server := DefaultServer()
 	server.SetTemplates(loadTemplateTestSet(t, templateTestFS()))

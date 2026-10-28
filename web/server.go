@@ -17,6 +17,7 @@ import (
 	"github.com/chuccp/go-web-frame/util"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/acme"
 	"golang.org/x/net/http2"
 )
 
@@ -228,6 +229,31 @@ func (server *Server) Template(httpMethod string, relativePath string, handlers 
 	})
 }
 
+// GetTemplate registers a GET route handled by a TemplateHandler.
+func (server *Server) GetTemplate(relativePath string, handlers TemplateHandler) *Route {
+	return server.Template(http.MethodGet, relativePath, handlers)
+}
+
+// PostTemplate registers a POST route handled by a TemplateHandler.
+func (server *Server) PostTemplate(relativePath string, handlers TemplateHandler) *Route {
+	return server.Template(http.MethodPost, relativePath, handlers)
+}
+
+// PutTemplate registers a PUT route handled by a TemplateHandler.
+func (server *Server) PutTemplate(relativePath string, handlers TemplateHandler) *Route {
+	return server.Template(http.MethodPut, relativePath, handlers)
+}
+
+// DeleteTemplate registers a DELETE route handled by a TemplateHandler.
+func (server *Server) DeleteTemplate(relativePath string, handlers TemplateHandler) *Route {
+	return server.Template(http.MethodDelete, relativePath, handlers)
+}
+
+// PatchTemplate registers a PATCH route handled by a TemplateHandler.
+func (server *Server) PatchTemplate(relativePath string, handlers TemplateHandler) *Route {
+	return server.Template(http.MethodPatch, relativePath, handlers)
+}
+
 // Handle registers a handler for a single HTTP method on this server.
 func (server *Server) Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) *Route {
 	return server.Handlers([]string{httpMethod}, relativePath, handlers...)
@@ -391,21 +417,15 @@ func (server *Server) addHandler(httpMethod string, route *Route) {
 	server.engine.Handle(httpMethod, relativePath, server.toGinHandlerFunc(route)...)
 }
 
-func (server *Server) Listen(ctx context.Context, certs *certStore) error {
+func (server *Server) Listen(ctx context.Context, _ *certStore) error {
 	server.initRoute()
-	var engine http.Handler = server.engine
-	if certs != nil && certs.hasAutoCert() {
-		if server.serverConfig.Port == 80 {
-			engine = certs.autoCertManager.HTTPHandler(engine)
-		}
-	}
 	addr := ":" + strconv.Itoa(server.serverConfig.Port)
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {
 			return server.ctx
 		},
 		Addr:              addr,
-		Handler:           engine,
+		Handler:           server.engine,
 		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
 		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
 		ReadTimeout:       server.serverConfig.GetReadTimeout(),
@@ -437,21 +457,7 @@ func shutdownServer(ctx context.Context, server *http.Server) error {
 func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
 	server.initRoute()
 	var engine http.Handler = server.engine
-	if certs.hasAutoCert() {
-		if server.serverConfig.Port == 443 {
-			engine = certs.autoCertManager.HTTPHandler(engine)
-		}
-	}
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		NextProtos: []string{http2.NextProtoTLS, "http/1.1"},
-		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			if server.isAuto(info.ServerName) {
-				return certs.autoCertManager.GetCertificate(info)
-			}
-			return certs.getCertificate(info.ServerName)
-		},
-	}
+	tlsConfig := server.serverTLSConfig(certs)
 	addr := ":" + strconv.Itoa(server.serverConfig.Port)
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {
@@ -472,6 +478,28 @@ func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
 	}()
 	server.logTLSListen(certs, addr)
 	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
+}
+
+func (server *Server) serverTLSConfig(certs *certStore) *tls.Config {
+	nextProtos := []string{http2.NextProtoTLS, "http/1.1"}
+	if certs != nil && certs.hasAutoCert() {
+		// TLS-ALPN-01 is validated by the CA on port 443 using this ALPN
+		// protocol. HTTP-01 is intentionally never enabled.
+		nextProtos = append(nextProtos, acme.ALPNProto)
+	}
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		NextProtos: nextProtos,
+		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			if certs == nil {
+				return nil, errors.New("certificate store is nil")
+			}
+			if server.isAuto(info.ServerName) {
+				return certs.autoCertManager.GetCertificate(info)
+			}
+			return certs.getCertificate(info.ServerName)
+		},
+	}
 }
 
 func (server *Server) logTLSListen(certs *certStore, addr string) {

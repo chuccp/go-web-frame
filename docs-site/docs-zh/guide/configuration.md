@@ -128,7 +128,7 @@ web:
 | `web.server.host` | 主机 | `0.0.0.0` |
 | `web.server.read_timeout` | 读取超时（秒） | 30 |
 | `web.server.write_timeout` | 写入超时（秒） | 30 |
-| `web.ssl.enabled` | 是否启用 HTTPS | false |
+| `web.server.ssl.enabled` | 是否启用 HTTPS | false |
 
 ### 数据库配置
 

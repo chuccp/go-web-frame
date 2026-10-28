@@ -11,10 +11,10 @@ const DefaultMaxBodySize int64 = 10 << 20
 
 // ServerConfig holds the HTTP server configuration including port, context path, and TLS.
 type ServerConfig struct {
-	Port              int           // Listen port (default: 19009)
-	ContextPath       string        // Route prefix applied to all routes (e.g., "/api")
-	Locations         []string      // Static file directories to serve
-	Page404           string        // Fallback page for 404 responses (useful for SPA)
+	Port              int        // Listen port (default: 19009)
+	ContextPath       string     // Route prefix applied to all routes (e.g., "/api")
+	Locations         []string   // Static file directories to serve
+	Page404           string     // Fallback page for 404 responses (useful for SPA)
 	MaxBodySize       int64      // Maximum request body size in bytes (0 = default 10 MB, -1 = unlimited)
 	ReadHeaderTimeout int        // Timeout in seconds for reading request headers (0 = default 30s)
 	ReadTimeout       int        // Timeout in seconds for reading the entire request (0 = default 10min)
@@ -24,8 +24,8 @@ type ServerConfig struct {
 
 // SSLConfig holds TLS/HTTPS configuration with optional auto-certification hosts.
 type SSLConfig struct {
-	Enabled bool      // Whether HTTPS is enabled
-	Hosts   []string  // Domain names for Let's Encrypt auto-certification
+	Enabled bool             // Whether HTTPS is enabled
+	Hosts   []string         // Domain names for Let's Encrypt auto-certification
 	Certs   []SSLCertificate // Local certificate entries for pre-obtained certificates
 }
 

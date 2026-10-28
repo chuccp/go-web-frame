@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.24']
+        go-version: ['1.26']
 
     steps:
       - name: Checkout code
@@ -50,3 +50,19 @@ jobs:
 
       - name: Run benchmarks
         run: go test -bench=. -benchmem -run=XXX ./...
+
+  all-modules:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Run all module tests, race checks, and vet
+        run: go test -tags projectcheck -run '^TestEntireProject$' -v .

@@ -20,14 +20,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.26'
           cache: true
 
-      - name: Run tests
-        run: go test -race ./...
-
-      - name: Run go vet
-        run: go vet ./...
+      - name: Run all module tests, race checks, and vet
+        run: go test -tags projectcheck -run '^TestEntireProject$' -v .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

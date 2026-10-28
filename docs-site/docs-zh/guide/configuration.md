@@ -114,8 +114,10 @@ web:
     host: 0.0.0.0       # 主机
     read_timeout: 30    # 读取超时（秒）
     write_timeout: 30   # 写入超时（秒）
-  ssl:
-    enabled: false       # 是否启用 HTTPS
+    ssl:
+      enabled: false       # 是否启用 HTTPS
+      bind_http: false     # 是否监听 80 并跳转到 HTTPS
+      acme_challenge: auto # auto | tls-alpn-01 | http-01
   locations:            # 静态文件目录
     - ./view/dist
     - www
@@ -129,6 +131,8 @@ web:
 | `web.server.read_timeout` | 读取超时（秒） | 30 |
 | `web.server.write_timeout` | 写入超时（秒） | 30 |
 | `web.server.ssl.enabled` | 是否启用 HTTPS | false |
+| `web.server.ssl.bind_http` | 是否监听 80 并跳转到 HTTPS | false |
+| `web.server.ssl.acme_challenge` | 自动证书验证方式 | auto |
 
 ### 数据库配置
 

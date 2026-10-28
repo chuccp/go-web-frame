@@ -9,6 +9,15 @@ const ServerConfigKey = "web.server"
 // DefaultMaxBodySize is the default maximum request body size (10 MB).
 const DefaultMaxBodySize int64 = 10 << 20
 
+const (
+	// ACMEChallengeAuto selects TLS-ALPN-01 on port 443 and HTTP-01 otherwise.
+	ACMEChallengeAuto = "auto"
+	// ACMEChallengeTLSALPN01 forces the TLS-ALPN-01 challenge.
+	ACMEChallengeTLSALPN01 = "tls-alpn-01"
+	// ACMEChallengeHTTP01 forces the HTTP-01 challenge.
+	ACMEChallengeHTTP01 = "http-01"
+)
+
 // ServerConfig holds the HTTP server configuration including port, context path, and TLS.
 type ServerConfig struct {
 	Port              int        // Listen port (default: 19009)
@@ -24,10 +33,11 @@ type ServerConfig struct {
 
 // SSLConfig holds TLS/HTTPS configuration with optional auto-certification hosts.
 type SSLConfig struct {
-	Enabled  bool             // Whether HTTPS is enabled
-	Hosts    []string         // Domain names for Let's Encrypt auto-certification
-	Certs    []SSLCertificate // Local certificate entries for pre-obtained certificates
-	BindHTTP bool             // Listen on port 80 and redirect HTTP requests to HTTPS
+	Enabled       bool             // Whether HTTPS is enabled
+	Hosts         []string         // Domain names for Let's Encrypt auto-certification
+	Certs         []SSLCertificate // Local certificate entries for pre-obtained certificates
+	BindHTTP      bool             // Listen on port 80 and redirect HTTP requests to HTTPS
+	ACMEChallenge string           `json:"acme_challenge"` // auto (default), tls-alpn-01, or http-01
 }
 
 // SSLCertificate holds paths to a TLS certificate and private key file.

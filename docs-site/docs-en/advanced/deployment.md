@@ -59,15 +59,25 @@ web:
         - example.com
         - api.example.com
       bind_http: true
+      # auto | tls-alpn-01 | http-01
+      acme_challenge: auto
 ```
 
 Certificates are auto-generated and cached in `./certs`.
 
-> **Note**: Automatic certificates use the TLS-ALPN-01 challenge. Only port 443 must be publicly accessible, and the application must listen on that port directly with TLS 1.2 enabled. Port 80 is not required.
+`acme_challenge` defaults to `auto` and may be omitted.
 
-Set `bind_http: true` to listen on port 80 and redirect HTTP requests to HTTPS with a 308 response. Certificate issuance still uses TLS-ALPN-01 on port 443 only; HTTP-01 is not enabled.
+| Application port | `auto` challenge | CA validation port |
+|---|---|---:|
+| `443` | `tls-alpn-01` | 443 |
+| Any other port, e.g. `8443` | `http-01` | 80 |
 
-If an explicit port 80 server is already registered, it takes precedence and the framework does not create an additional redirect listener.
+Use `acme_challenge: tls-alpn-01` or `acme_challenge: http-01` to override the automatic selection. Existing configurations do not need migration; explicitly set `tls-alpn-01` to preserve the previous behavior on a non-443 port.
+
+- TLS-ALPN-01 requires CA access to port 443.
+- HTTP-01 requires port 80 and binds it even when `bind_http` is false.
+- `bind_http: true` redirects non-challenge HTTP traffic to the matching HTTPS port with status 308.
+- Existing explicit port 80 or 443 servers are reused instead of creating duplicate listeners.
 
 ### Local Certificate Files
 
@@ -168,6 +178,7 @@ web:
 | `web.server.ssl.hosts` | Domains for Let's Encrypt | none |
 | `web.server.ssl.certs` | Local certificate entries | none |
 | `web.server.ssl.bind_http` | Listen on port 80 and redirect to HTTPS | false |
+| `web.server.ssl.acme_challenge` | Automatic certificate challenge | auto |
 
 ## Production Checklist
 

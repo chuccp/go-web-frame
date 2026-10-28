@@ -131,6 +131,8 @@ web:
       enabled: false
       hosts: []
       certs: []
+      bind_http: false
+      acme_challenge: auto
 ```
 
 | Key | Description | Default |
@@ -142,6 +144,8 @@ web:
 | `web.server.ssl.enabled` | Enable HTTPS | false |
 | `web.server.ssl.hosts` | Domains for Let's Encrypt | none |
 | `web.server.ssl.certs` | Local certificate entries | none |
+| `web.server.ssl.bind_http` | Listen on port 80 and redirect to HTTPS | false |
+| `web.server.ssl.acme_challenge` | Automatic certificate challenge | auto |
 
 ### Database
 

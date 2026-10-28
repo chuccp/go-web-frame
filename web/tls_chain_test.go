@@ -115,23 +115,63 @@ func TestTLSCertificateChainRejectsWrongOrder(t *testing.T) {
 	}
 }
 
-func TestAutoCertTLSConfigEnablesTLSALPN(t *testing.T) {
+func TestACMEChallengeSelection(t *testing.T) {
+	tests := []struct {
+		name       string
+		port       int
+		configured string
+		want       string
+		wantALPN   bool
+	}{
+		{name: "auto on 443", port: 443, want: ACMEChallengeTLSALPN01, wantALPN: true},
+		{name: "auto on custom port", port: 8443, want: ACMEChallengeHTTP01},
+		{name: "force TLS ALPN", port: 8443, configured: ACMEChallengeTLSALPN01, want: ACMEChallengeTLSALPN01, wantALPN: true},
+		{name: "force HTTP", port: 443, configured: ACMEChallengeHTTP01, want: ACMEChallengeHTTP01},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := DefaultServer()
+			server.serverConfig.Port = tt.port
+			server.serverConfig.SSL = &SSLConfig{
+				Enabled:       true,
+				Hosts:         []string{"auto.example.com"},
+				ACMEChallenge: tt.configured,
+			}
+			mode, err := server.acmeChallengeMode()
+			if err != nil {
+				t.Fatalf("acmeChallengeMode() error = %v", err)
+			}
+			if mode != tt.want {
+				t.Fatalf("acmeChallengeMode() = %q, want %q", mode, tt.want)
+			}
+
+			certs := newCertStore(t.TempDir())
+			if err := certs.init([]*Server{server}); err != nil {
+				t.Fatalf("certStore.init() error = %v", err)
+			}
+			config, err := server.serverTLSConfig(certs)
+			if err != nil {
+				t.Fatalf("serverTLSConfig() error = %v", err)
+			}
+			if !slices.Contains(config.NextProtos, "h2") {
+				t.Errorf("TLS NextProtos = %v, missing HTTP/2", config.NextProtos)
+			}
+			if got := slices.Contains(config.NextProtos, acme.ALPNProto); got != tt.wantALPN {
+				t.Errorf("TLS NextProtos = %v, acme ALPN = %v, want %v", config.NextProtos, got, tt.wantALPN)
+			}
+		})
+	}
+}
+
+func TestACMEChallengeRejectsInvalidValue(t *testing.T) {
 	server := DefaultServer()
 	server.serverConfig.SSL = &SSLConfig{
-		Enabled: true,
-		Hosts:   []string{"auto.example.com"},
+		Enabled:       true,
+		Hosts:         []string{"auto.example.com"},
+		ACMEChallenge: "invalid",
 	}
-	certs := newCertStore(t.TempDir())
-	if err := certs.init([]*Server{server}); err != nil {
-		t.Fatalf("certStore.init() error = %v", err)
-	}
-
-	config := server.serverTLSConfig(certs)
-	if !slices.Contains(config.NextProtos, acme.ALPNProto) {
-		t.Fatalf("TLS NextProtos = %v, missing %q", config.NextProtos, acme.ALPNProto)
-	}
-	if !slices.Contains(config.NextProtos, "h2") {
-		t.Errorf("TLS NextProtos = %v, missing HTTP/2", config.NextProtos)
+	if _, err := server.acmeChallengeMode(); err == nil {
+		t.Fatal("acmeChallengeMode() error = nil, want invalid challenge error")
 	}
 }
 
@@ -142,6 +182,7 @@ web:
     ssl:
       enabled: true
       bind_http: true
+      acme_challenge: http-01
 `)
 	cfg, err := config2.NewFromBytes(raw, "yaml")
 	if err != nil {
@@ -153,6 +194,9 @@ web:
 	}
 	if serverConfig.SSL == nil || !serverConfig.SSL.BindHTTP {
 		t.Fatalf("SSLConfig.BindHTTP = %v, want true", serverConfig.SSL)
+	}
+	if serverConfig.SSL.ACMEChallenge != ACMEChallengeHTTP01 {
+		t.Fatalf("SSLConfig.ACMEChallenge = %q, want %q", serverConfig.SSL.ACMEChallenge, ACMEChallengeHTTP01)
 	}
 }
 
@@ -221,6 +265,111 @@ func TestHTTPRedirectTarget(t *testing.T) {
 	if target, ok := runner.httpRedirectTarget(); ok || target != nil {
 		t.Fatalf("httpRedirectTarget() = %v, %v; want nil, false", target, ok)
 	}
+}
+
+func TestMixedACMEHostsSharePort80(t *testing.T) {
+	tlsServer := DefaultServer()
+	tlsServer.serverConfig.Port = 443
+	tlsServer.serverConfig.SSL = &SSLConfig{
+		Enabled:       true,
+		Hosts:         []string{"tls.example.com"},
+		ACMEChallenge: ACMEChallengeTLSALPN01,
+	}
+
+	httpServer := DefaultServer()
+	httpServer.serverConfig.Port = 8443
+	httpServer.serverConfig.SSL = &SSLConfig{
+		Enabled:       true,
+		Hosts:         []string{"http.example.com"},
+		ACMEChallenge: ACMEChallengeHTTP01,
+		BindHTTP:      true,
+	}
+
+	certs := newCertStore(t.TempDir())
+	servers := []*Server{tlsServer, httpServer}
+	if err := certs.init(servers); err != nil {
+		t.Fatalf("certStore.init() error = %v", err)
+	}
+	if !certs.hasAutoCertForMode(ACMEChallengeTLSALPN01) ||
+		!certs.hasAutoCertForMode(ACMEChallengeHTTP01) {
+		t.Fatal("expected one TLS-ALPN manager and one HTTP manager")
+	}
+
+	runner := &ServerRunner{
+		servers:      servers,
+		serversMap:   map[int]*Server{443: tlsServer, 8443: httpServer},
+		certs:        certs,
+		serverConfig: tlsServer.serverConfig,
+	}
+	handler, ok := runner.http80Handler()
+	if !ok {
+		t.Fatal("http80Handler() did not enable port 80")
+	}
+
+	httpRequest := httptest.NewRequest(http.MethodGet, "http://http.example.com/users?page=2", nil)
+	httpRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(httpRecorder, httpRequest)
+	if httpRecorder.Code != http.StatusPermanentRedirect {
+		t.Errorf("HTTP host status = %d, want %d", httpRecorder.Code, http.StatusPermanentRedirect)
+	}
+	if location := httpRecorder.Header().Get("Location"); location != "https://http.example.com:8443/users?page=2" {
+		t.Errorf("HTTP host Location = %q", location)
+	}
+
+	tlsRequest := httptest.NewRequest(http.MethodGet, "http://tls.example.com/users", nil)
+	tlsRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(tlsRecorder, tlsRequest)
+	if tlsRecorder.Code != http.StatusNotFound {
+		t.Errorf("TLS host HTTP status = %d, want %d", tlsRecorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestACMEChallengePortCompatibility(t *testing.T) {
+	t.Run("HTTP-01 cannot use a TLS listener on 80", func(t *testing.T) {
+		server := DefaultServer()
+		server.serverConfig.Port = 80
+		server.serverConfig.SSL = &SSLConfig{
+			Enabled:       true,
+			Hosts:         []string{"http.example.com"},
+			ACMEChallenge: ACMEChallengeHTTP01,
+		}
+		certs := newCertStore(t.TempDir())
+		if err := certs.init([]*Server{server}); err != nil {
+			t.Fatalf("certStore.init() error = %v", err)
+		}
+		runner := &ServerRunner{
+			servers:    []*Server{server},
+			serversMap: map[int]*Server{80: server},
+			certs:      certs,
+		}
+		if err := runner.validateChallengePorts(); err == nil {
+			t.Fatal("validateChallengePorts() error = nil, want HTTP/TLS conflict")
+		}
+	})
+
+	t.Run("TLS-ALPN-01 cannot use a plain HTTP listener on 443", func(t *testing.T) {
+		autoServer := DefaultServer()
+		autoServer.serverConfig.Port = 8443
+		autoServer.serverConfig.SSL = &SSLConfig{
+			Enabled:       true,
+			Hosts:         []string{"tls.example.com"},
+			ACMEChallenge: ACMEChallengeTLSALPN01,
+		}
+		plainServer := DefaultServer()
+		plainServer.serverConfig.Port = 443
+		certs := newCertStore(t.TempDir())
+		if err := certs.init([]*Server{autoServer}); err != nil {
+			t.Fatalf("certStore.init() error = %v", err)
+		}
+		runner := &ServerRunner{
+			servers:    []*Server{autoServer, plainServer},
+			serversMap: map[int]*Server{443: plainServer, 8443: autoServer},
+			certs:      certs,
+		}
+		if err := runner.validateChallengePorts(); err == nil {
+			t.Fatal("validateChallengePorts() error = nil, want TLS/HTTP conflict")
+		}
+	})
 }
 
 func generateTLSTestChain(

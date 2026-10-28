@@ -47,19 +47,26 @@ func (sr *ServerRunner) Start() error {
 		log.PrintPanic(err)
 		log.Error("certs init", zap.Error(err))
 	}
+	if err := sr.validateChallengePorts(); err != nil {
+		return errors.WithStackIf(err)
+	}
 
 	errorPool := pool.New().WithContext(sr.ctx).WithFirstError()
 
-	if target, ok := sr.httpRedirectTarget(); ok {
-		if _, occupied := sr.serversMap[80]; occupied {
-			log.Warn("bind_http ignored because port 80 has an explicit server")
+	httpHandler, needsHTTP80 := sr.http80Handler()
+	if needsHTTP80 {
+		if httpServer, occupied := sr.serversMap[80]; occupied {
+			if sr.certs.hasAutoCertForMode(ACMEChallengeHTTP01) {
+				httpServer.httpHandler = sr.certs.httpChallengeHandler(httpServer.engine)
+			}
+			log.Warn("automatic HTTP redirect binding ignored because port 80 has an explicit server")
 		} else {
 			errorPool.Go(func(ctx context.Context) error {
-				return sr.startHTTPRedirectServer(ctx, target)
+				return sr.startHTTP80Server(ctx, httpHandler)
 			})
 		}
 	}
-	if sr.certs.hasAutoCert() {
+	if sr.certs.hasAutoCertForMode(ACMEChallengeTLSALPN01) {
 		if _, ok := sr.serversMap[443]; !ok {
 			errorPool.Go(func(ctx context.Context) error {
 				return sr.startTLSChallengeServer(ctx)
@@ -72,6 +79,20 @@ func (sr *ServerRunner) Start() error {
 		})
 	}
 	return errorPool.Wait()
+}
+
+func (sr *ServerRunner) validateChallengePorts() error {
+	if sr.certs.hasAutoCertForMode(ACMEChallengeHTTP01) {
+		if server, ok := sr.serversMap[80]; ok && server.isTls() {
+			return errors.New("HTTP-01 requires port 80 to serve plain HTTP, but port 80 is configured for TLS")
+		}
+	}
+	if sr.certs.hasAutoCertForMode(ACMEChallengeTLSALPN01) {
+		if server, ok := sr.serversMap[443]; ok && !server.isTls() {
+			return errors.New("TLS-ALPN-01 requires port 443 to serve TLS, but port 443 is configured for plain HTTP")
+		}
+	}
+	return nil
 }
 
 func (sr *ServerRunner) startServer(ctx context.Context, server *Server) error {
@@ -90,13 +111,58 @@ func (sr *ServerRunner) httpRedirectTarget() (*Server, bool) {
 	return nil, false
 }
 
-func (sr *ServerRunner) startHTTPRedirectServer(ctx context.Context, target *Server) error {
+func (sr *ServerRunner) http80Handler() (http.Handler, bool) {
+	httpChallenge := sr.certs.hasAutoCertForMode(ACMEChallengeHTTP01)
+	defaultHTTPSPort, hasDefaultHTTPSPort := sr.defaultHTTPSPort()
+	if !httpChallenge && !hasDefaultHTTPSPort {
+		return nil, false
+	}
+
+	challengeHandler := sr.certs.httpChallengeHandler(http.NotFoundHandler())
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := normalizeRequestHost(r.Host)
+		route, configured := sr.certs.hostRoute(host)
+		if strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
+			if configured && route.challenge == ACMEChallengeHTTP01 {
+				challengeHandler.ServeHTTP(w, r)
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
+		if configured && route.bindHTTP {
+			writeHTTPSRedirect(w, r, host, route.httpsPort)
+			return
+		}
+		if !configured && hasDefaultHTTPSPort {
+			writeHTTPSRedirect(w, r, host, defaultHTTPSPort)
+			return
+		}
+		http.NotFound(w, r)
+	}), true
+}
+
+func (sr *ServerRunner) defaultHTTPSPort() (int, bool) {
+	port := 0
+	for _, server := range sr.servers {
+		if !server.isTls() || !server.serverConfig.SSL.BindHTTP {
+			continue
+		}
+		if port != 0 && port != server.serverConfig.Port {
+			return 0, false
+		}
+		port = server.serverConfig.Port
+	}
+	return port, port != 0
+}
+
+func (sr *ServerRunner) startHTTP80Server(ctx context.Context, handler http.Handler) error {
 	server := &http.Server{
 		Addr:              ":80",
-		Handler:           httpRedirectHandler(target.serverConfig.Port),
-		ReadHeaderTimeout: target.serverConfig.GetReadHeaderTimeout(),
-		MaxHeaderBytes:    target.serverConfig.GetMaxHeaderBytes(),
-		ReadTimeout:       target.serverConfig.GetReadTimeout(),
+		Handler:           handler,
+		ReadHeaderTimeout: sr.serverConfig.GetReadHeaderTimeout(),
+		MaxHeaderBytes:    sr.serverConfig.GetMaxHeaderBytes(),
+		ReadTimeout:       sr.serverConfig.GetReadTimeout(),
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx
 		},
@@ -104,12 +170,12 @@ func (sr *ServerRunner) startHTTPRedirectServer(ctx context.Context, target *Ser
 	go func() {
 		<-ctx.Done()
 		if err := shutdownServer(ctx, server); err != nil {
-			log.Error("Failed to shutdown HTTP redirect server", zap.Error(err))
+			log.Error("Failed to shutdown HTTP port 80 server", zap.Error(err))
 		}
 	}()
-	log.Info("starting HTTP-to-HTTPS redirect server on :80")
+	log.Info("starting HTTP port 80 server for ACME and/or HTTPS redirects")
 	if err := errors.WithStackIf(server.ListenAndServe()); err != nil {
-		log.Error("HTTP redirect server error", zap.Error(err))
+		log.Error("HTTP port 80 server error", zap.Error(err))
 		return err
 	}
 	return nil
@@ -117,25 +183,36 @@ func (sr *ServerRunner) startHTTPRedirectServer(ctx context.Context, target *Ser
 
 func httpRedirectHandler(httpsPort int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		if parsedHost, _, err := net.SplitHostPort(host); err == nil {
-			host = parsedHost
-		}
-		host = strings.TrimSpace(host)
-		if host == "" {
-			host = "localhost"
-		}
-		if httpsPort != 443 {
-			host = net.JoinHostPort(host, strconv.Itoa(httpsPort))
-		} else if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
-			host = "[" + host + "]"
-		}
-		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusPermanentRedirect)
+		writeHTTPSRedirect(w, r, normalizeRequestHost(r.Host), httpsPort)
 	})
 }
 
+func normalizeRequestHost(host string) string {
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = parsedHost
+	}
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return "localhost"
+	}
+	return host
+}
+
+func writeHTTPSRedirect(w http.ResponseWriter, r *http.Request, host string, httpsPort int) {
+	if httpsPort != 443 {
+		host = net.JoinHostPort(host, strconv.Itoa(httpsPort))
+	} else if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusPermanentRedirect)
+}
+
 func (sr *ServerRunner) startTLSChallengeServer(ctx context.Context) error {
-	tlsConfig := sr.certs.autoCertManager.TLSConfig()
+	manager := sr.certs.autoCertManager(ACMEChallengeTLSALPN01)
+	if manager == nil {
+		return errors.New("TLS-ALPN-01 manager is not configured")
+	}
+	tlsConfig := manager.TLSConfig()
 	tlsConfig.MinVersion = tls.VersionTLS12
 
 	server := &http.Server{

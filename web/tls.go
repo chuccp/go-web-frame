@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -196,29 +197,74 @@ func (e *selfCertEntry) generate() (*tls.Certificate, error) {
 // ---- certStore ----
 
 type certStore struct {
-	autoCertManager *autocert.Manager
-	autoHosts       []string
-	certEntries     []certEntry
-	certMap         map[string]certEntry
-	wildcardCache   map[string]certEntry
-	mu              sync.RWMutex
-	certsPath       string
+	autoCertManagers map[string]*autocert.Manager
+	autoHostModes    map[string]string
+	hostRoutes       map[string]acmeHostRoute
+	certEntries      []certEntry
+	certMap          map[string]certEntry
+	wildcardCache    map[string]certEntry
+	mu               sync.RWMutex
+	certsPath        string
+}
+
+type acmeHostRoute struct {
+	challenge string
+	httpsPort int
+	bindHTTP  bool
 }
 
 func newCertStore(certsPath string) *certStore {
 	return &certStore{
-		certsPath:     certsPath,
-		certEntries:   make([]certEntry, 0),
-		certMap:       make(map[string]certEntry),
-		wildcardCache: make(map[string]certEntry),
+		certsPath:        certsPath,
+		autoCertManagers: make(map[string]*autocert.Manager),
+		autoHostModes:    make(map[string]string),
+		hostRoutes:       make(map[string]acmeHostRoute),
+		certEntries:      make([]certEntry, 0),
+		certMap:          make(map[string]certEntry),
+		wildcardCache:    make(map[string]certEntry),
 	}
 }
 
+func (server *Server) acmeChallengeMode() (string, error) {
+	if server.serverConfig.SSL == nil {
+		return "", errors.New("TLS configuration is nil")
+	}
+	mode := strings.ToLower(strings.TrimSpace(server.serverConfig.SSL.ACMEChallenge))
+	switch mode {
+	case "", ACMEChallengeAuto:
+		if server.serverConfig.Port == 443 {
+			return ACMEChallengeTLSALPN01, nil
+		}
+		return ACMEChallengeHTTP01, nil
+	case ACMEChallengeTLSALPN01, ACMEChallengeHTTP01:
+		return mode, nil
+	default:
+		return "", errors.Errorf(
+			"invalid acme_challenge %q: want %s, %s, or %s",
+			server.serverConfig.SSL.ACMEChallenge,
+			ACMEChallengeAuto,
+			ACMEChallengeTLSALPN01,
+			ACMEChallengeHTTP01,
+		)
+	}
+}
+
+func (server *Server) hasAutoCertConfig() bool {
+	return server.isTls() &&
+		server.serverConfig.SSL != nil &&
+		len(server.serverConfig.SSL.Certs) == 0 &&
+		len(server.serverConfig.SSL.Hosts) > 0
+}
+
 func (cs *certStore) init(servers []*Server) error {
-	hosts := make([]string, 0)
+	hostsByMode := make(map[string][]string)
 	errs := make([]error, 0)
 	for _, server := range servers {
 		if server.isTls() {
+			route := acmeHostRoute{
+				httpsPort: server.serverConfig.Port,
+				bindHTTP:  server.serverConfig.SSL.BindHTTP,
+			}
 			var hasFile = false
 			for _, certCfg := range server.serverConfig.SSL.Certs {
 				entry, err := cs.parseCert(certCfg.CertFile, certCfg.KeyFile)
@@ -228,20 +274,40 @@ func (cs *certStore) init(servers []*Server) error {
 				}
 				hasFile = true
 				cs.addCertEntry(entry)
+				for _, host := range entry.domains() {
+					if err := cs.registerHostRoute(host, route); err != nil {
+						errs = append(errs, err)
+					}
+				}
 			}
 			if hasFile {
 				continue
 			}
 			if len(server.serverConfig.SSL.Hosts) > 0 {
-				hosts = append(hosts, server.serverConfig.SSL.Hosts...)
+				mode, err := server.acmeChallengeMode()
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				route.challenge = mode
+				for _, host := range server.serverConfig.SSL.Hosts {
+					host = strings.ToLower(host)
+					if err := cs.registerHostRoute(host, route); err != nil {
+						errs = append(errs, err)
+						continue
+					}
+					if _, exists := cs.autoHostModes[host]; exists {
+						continue
+					}
+					cs.autoHostModes[host] = mode
+					hostsByMode[mode] = append(hostsByMode[mode], host)
+				}
 			}
-
 		}
 	}
-	cs.autoHosts = hosts
 
-	if len(hosts) > 0 {
-		cs.autoCertManager = &autocert.Manager{
+	for mode, hosts := range hostsByMode {
+		cs.autoCertManagers[mode] = &autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			Cache:      autocert.DirCache(cs.certsPath),
 			HostPolicy: autocert.HostWhitelist(hosts...),
@@ -250,6 +316,26 @@ func (cs *certStore) init(servers []*Server) error {
 	if len(errs) > 0 {
 		return errors.Combine(errs...)
 	}
+	return nil
+}
+
+func (cs *certStore) registerHostRoute(host string, route acmeHostRoute) error {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return errors.New("TLS host is empty")
+	}
+	if existing, ok := cs.hostRoutes[host]; ok {
+		if existing != route {
+			return errors.Errorf(
+				"TLS host %q has conflicting configurations: %+v and %+v",
+				host,
+				existing,
+				route,
+			)
+		}
+		return nil
+	}
+	cs.hostRoutes[host] = route
 	return nil
 }
 
@@ -312,7 +398,9 @@ func (cs *certStore) getCertificate(host string) (*tls.Certificate, error) {
 		cs.mu.Unlock()
 		return entry.get()
 	}
-	if cs.autoCertManager == nil {
+	mode, ok := cs.autoHostModes[host]
+	manager := cs.autoCertManagers[mode]
+	if !ok || manager == nil {
 		if len(cs.certEntries) > 0 {
 			certEntry0 := cs.certEntries[0]
 			cs.mu.Lock()
@@ -322,7 +410,7 @@ func (cs *certStore) getCertificate(host string) (*tls.Certificate, error) {
 		}
 		return nil, nil
 	}
-	return cs.autoCertManager.GetCertificate(&tls.ClientHelloInfo{ServerName: host})
+	return manager.GetCertificate(&tls.ClientHelloInfo{ServerName: host})
 }
 
 func (cs *certStore) matchWildcard(host string) certEntry {
@@ -356,7 +444,47 @@ func (cs *certStore) generateSelfSigned(host string) certEntry {
 }
 
 func (cs *certStore) hasAutoCert() bool {
-	return len(cs.autoHosts) > 0
+	return len(cs.autoHostModes) > 0
+}
+
+func (cs *certStore) hasAutoCertForMode(mode string) bool {
+	return cs.autoCertManagers[mode] != nil
+}
+
+func (cs *certStore) autoCertManager(mode string) *autocert.Manager {
+	return cs.autoCertManagers[mode]
+}
+
+func (cs *certStore) autoHostMode(host string) (string, bool) {
+	mode, ok := cs.autoHostModes[strings.ToLower(host)]
+	return mode, ok
+}
+
+func (cs *certStore) hostRoute(host string) (acmeHostRoute, bool) {
+	host = strings.ToLower(host)
+	if route, ok := cs.hostRoutes[host]; ok {
+		return route, true
+	}
+	for configuredHost, route := range cs.hostRoutes {
+		if strings.HasPrefix(configuredHost, "*.") {
+			suffix := configuredHost[1:]
+			if strings.HasSuffix(host, suffix) {
+				prefix := strings.TrimSuffix(host, suffix)
+				if prefix != "" && !strings.Contains(prefix, ".") {
+					return route, true
+				}
+			}
+		}
+	}
+	return acmeHostRoute{}, false
+}
+
+func (cs *certStore) httpChallengeHandler(fallback http.Handler) http.Handler {
+	manager := cs.autoCertManager(ACMEChallengeHTTP01)
+	if manager == nil {
+		return fallback
+	}
+	return manager.HTTPHandler(fallback)
 }
 
 func (cs *certStore) matchingDomains() []string {

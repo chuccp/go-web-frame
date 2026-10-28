@@ -92,18 +92,41 @@ web:
       hosts:
         - yourdomain.com
       bind_http: true
+      # auto | tls-alpn-01 | http-01
+      acme_challenge: auto
 ```
 
 启动后框架自动完成：
 1. 向 Let's Encrypt 申请域名证书
 2. 自动续期（证书快过期时自动更新）
-3. 通过 TLS-ALPN-01 在 443 端口完成域名验证
+3. 根据应用端口和配置选择 ACME challenge
 
-> **注意**：自动证书只需要服务器的 443 端口对外可访问，且域名已解析到服务器 IP；不需要开放 80 端口。TLS-ALPN-01 要求 443 端口直接由本应用监听并支持 TLS 1.2。
+`acme_challenge` 可省略，默认值为 `auto`：
 
-如果还需要把 `http://` 请求重定向到 HTTPS，把 `bind_http` 设为 `true`。此时框架会额外监听 80 端口，但证书验证仍只使用 443 上的 TLS-ALPN-01，不会启用 HTTP-01。
+| 应用端口 | `auto` 选择 | CA 验证端口 |
+|---|---|---:|
+| `443` | `tls-alpn-01` | 443 |
+| 其他端口，例如 `8443` | `http-01` | 80 |
 
-如果已经显式注册了 80 端口服务，该服务优先，框架不会再创建自动重定向监听。
+也可以强制指定：
+
+```yaml
+ssl:
+  acme_challenge: tls-alpn-01  # 强制 TLS-ALPN-01
+```
+
+```yaml
+ssl:
+  acme_challenge: http-01      # 强制 HTTP-01
+```
+
+兼容说明：已有配置不需要修改，省略 `acme_challenge` 即使用 `auto`。如果原来在非 443 端口使用 TLS-ALPN-01，并希望继续保持原行为，请显式设置为 `tls-alpn-01`。
+
+- TLS-ALPN-01 要求 CA 能直接连接 443；应用不监听 443 时，框架会启动专用验证监听。
+- HTTP-01 必须使用 80；应用不监听 80 时，框架会自动启动验证监听。
+- `bind_http: true` 会把非 challenge 的 HTTP 请求以 308 跳转到对应 HTTPS 端口。
+- HTTP-01 模式下即使 `bind_http: false`，80 端口仍会被验证服务使用。
+- 如果已有显式 80 或 443 服务，框架优先复用，避免重复绑定。
 
 ### 本地证书文件
 
@@ -217,6 +240,7 @@ web:
     hosts: []               # Let's Encrypt 域名列表
     certs: []               # 本地证书配置列表
     bind_http: false        # 是否监听 80 并重定向到 HTTPS
+    acme_challenge: auto    # auto | tls-alpn-01 | http-01
 ```
 
 | 配置项 | 说明 | 默认值 |
@@ -229,6 +253,7 @@ web:
 | `web.server.ssl.hosts` | 证书域名列表 | 无 |
 | `web.server.ssl.certs` | 本地证书配置列表 | 无 |
 | `web.server.ssl.bind_http` | 是否监听 80 并重定向到 HTTPS | false |
+| `web.server.ssl.acme_challenge` | 自动证书验证方式 | auto |
 
 ### Context Path
 

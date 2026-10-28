@@ -118,6 +118,7 @@ type Server struct {
 	converter    Converter
 	filters      []Filter
 	templateSet  *TemplateSet
+	httpHandler  http.Handler
 }
 
 func DefaultServer() *Server {
@@ -419,13 +420,17 @@ func (server *Server) addHandler(httpMethod string, route *Route) {
 
 func (server *Server) Listen(ctx context.Context, _ *certStore) error {
 	server.initRoute()
+	var engine http.Handler = server.engine
+	if server.httpHandler != nil {
+		engine = server.httpHandler
+	}
 	addr := ":" + strconv.Itoa(server.serverConfig.Port)
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {
 			return server.ctx
 		},
 		Addr:              addr,
-		Handler:           server.engine,
+		Handler:           engine,
 		ReadHeaderTimeout: server.serverConfig.GetReadHeaderTimeout(),
 		MaxHeaderBytes:    server.serverConfig.GetMaxHeaderBytes(),
 		ReadTimeout:       server.serverConfig.GetReadTimeout(),
@@ -457,7 +462,10 @@ func shutdownServer(ctx context.Context, server *http.Server) error {
 func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
 	server.initRoute()
 	var engine http.Handler = server.engine
-	tlsConfig := server.serverTLSConfig(certs)
+	tlsConfig, err := server.serverTLSConfig(certs)
+	if err != nil {
+		return errors.WithStackIf(err)
+	}
 	addr := ":" + strconv.Itoa(server.serverConfig.Port)
 	httpServer := &http.Server{
 		BaseContext: func(listener net.Listener) context.Context {
@@ -480,11 +488,20 @@ func (server *Server) ListenTLS(ctx context.Context, certs *certStore) error {
 	return errors.WithStackIf(httpServer.ListenAndServeTLS("", ""))
 }
 
-func (server *Server) serverTLSConfig(certs *certStore) *tls.Config {
+func (server *Server) serverTLSConfig(certs *certStore) (*tls.Config, error) {
 	nextProtos := []string{http2.NextProtoTLS, "http/1.1"}
-	if certs != nil && certs.hasAutoCert() {
-		// TLS-ALPN-01 is validated by the CA on port 443 using this ALPN
-		// protocol. HTTP-01 is intentionally never enabled.
+	challengeMode := ""
+	if certs != nil && server.hasAutoCertConfig() {
+		var err error
+		challengeMode, err = server.acmeChallengeMode()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if certs != nil && server.serverConfig.Port == 443 &&
+		certs.hasAutoCertForMode(ACMEChallengeTLSALPN01) {
+		nextProtos = append(nextProtos, acme.ALPNProto)
+	} else if challengeMode == ACMEChallengeTLSALPN01 {
 		nextProtos = append(nextProtos, acme.ALPNProto)
 	}
 	return &tls.Config{
@@ -494,12 +511,33 @@ func (server *Server) serverTLSConfig(certs *certStore) *tls.Config {
 			if certs == nil {
 				return nil, errors.New("certificate store is nil")
 			}
+			if mode, ok := certs.autoHostMode(info.ServerName); ok {
+				if mode == ACMEChallengeHTTP01 && isTLSALPNHello(info) {
+					return nil, errors.Errorf(
+						"host %q is configured for HTTP-01 and cannot use TLS-ALPN-01",
+						info.ServerName,
+					)
+				}
+				manager := certs.autoCertManager(mode)
+				if manager == nil {
+					return nil, errors.Errorf("ACME manager for challenge %q is not configured", mode)
+				}
+				return manager.GetCertificate(info)
+			}
 			if server.isAuto(info.ServerName) {
-				return certs.autoCertManager.GetCertificate(info)
+				manager := certs.autoCertManager(challengeMode)
+				if manager == nil {
+					return nil, errors.Errorf("ACME manager for challenge %q is not configured", challengeMode)
+				}
+				return manager.GetCertificate(info)
 			}
 			return certs.getCertificate(info.ServerName)
 		},
-	}
+	}, nil
+}
+
+func isTLSALPNHello(info *tls.ClientHelloInfo) bool {
+	return len(info.SupportedProtos) == 1 && info.SupportedProtos[0] == acme.ALPNProto
 }
 
 func (server *Server) logTLSListen(certs *certStore, addr string) {

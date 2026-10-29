@@ -744,6 +744,75 @@ web:
     page404: 404.html
 ```
 
+### Templates & Assets: Hot Reload in Development, Embedded in Release
+
+Recommended setup: keep templates and static files on disk while developing and embed
+them in release binaries. A build tag picks the declarations, and `Reload(true/false)`
+picks the matching mode.
+
+```go
+// assets_dev.go
+//go:build !release
+
+package webui
+
+import "github.com/chuccp/go-web-frame/web"
+
+// Development: read the working tree and reload on every request.
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/templates").Reload(true)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/static").Reload(true)
+}
+```
+
+```go
+// assets_release.go
+//go:build release
+
+package webui
+
+import (
+    "embed"
+
+    "github.com/chuccp/go-web-frame/web"
+)
+
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed static
+var static embed.FS
+
+// Release: serve the embedded copies and never touch the disk.
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("templates", templates).Reload(false)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("static", static).Reload(false)
+}
+```
+
+```go
+templateOption, err := web.LoadTemplateOption(
+    templateFiles(),
+    web.WithLayouts("layout", "bare"),
+    web.WithPartials("partials"),
+)
+ctx.AddEmbedFs("/static", staticFiles())
+```
+
+```bash
+go run main.go              # hot reload from disk
+go build -tags release .    # templates and static assets embedded
+```
+
+If the development directory differs from the working directory, point `ReloadPath`
+at it (for example `web.EmbedFs("templates", templates).Reload(true).ReloadPath("webui/templates")`).
+
 ### Reverse Proxy
 
 ```go

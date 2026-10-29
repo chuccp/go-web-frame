@@ -461,6 +461,74 @@ func TestUserController_GetUser(t *testing.T) {
 }
 ```
 
+## 模板与静态资源：开发热加载 / 发布嵌入
+
+开发时从磁盘读取并热加载，发布时把模板和静态资源嵌入二进制。用构建标签切换声明，
+`Reload(true)` 开启热加载，`Reload(false)` 使用嵌入文件：
+
+```go
+// assets_dev.go
+//go:build !release
+
+package webui
+
+import "github.com/chuccp/go-web-frame/web"
+
+// 开发：每次请求重新读取工作目录。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/templates").Reload(true)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/static").Reload(true)
+}
+```
+
+```go
+// assets_release.go
+//go:build release
+
+package webui
+
+import (
+    "embed"
+
+    "github.com/chuccp/go-web-frame/web"
+)
+
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed static
+var static embed.FS
+
+// 发布：使用嵌入文件，不再访问磁盘。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("templates", templates).Reload(false)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("static", static).Reload(false)
+}
+```
+
+```go
+templateOption, err := web.LoadTemplateOption(
+    templateFiles(),
+    web.WithLayouts("layout", "bare"),
+    web.WithPartials("partials"),
+)
+ctx.AddEmbedFs("/static", staticFiles())
+```
+
+```bash
+go run main.go              # 从磁盘热加载
+go build -tags release .    # 模板和静态资源嵌入二进制
+```
+
+如果开发目录与工作目录不一致，用 `ReloadPath` 指定，例如
+`web.EmbedFs("templates", templates).Reload(true).ReloadPath("webui/templates")`。
+
 ## 性能技巧
 
 1. **使用连接池** - 配置合适的池大小

@@ -743,6 +743,74 @@ web:
     page404: 404.html
 ```
 
+### 模板与静态资源：开发热加载，发布嵌入
+
+推荐做法：开发时模板和静态文件保留在磁盘上，发布时嵌入二进制。用构建标签选择声明，
+用 `Reload(true/false)` 选择对应模式。
+
+```go
+// assets_dev.go
+//go:build !release
+
+package webui
+
+import "github.com/chuccp/go-web-frame/web"
+
+// 开发：读取工作目录，每次请求重新加载。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/templates").Reload(true)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/static").Reload(true)
+}
+```
+
+```go
+// assets_release.go
+//go:build release
+
+package webui
+
+import (
+    "embed"
+
+    "github.com/chuccp/go-web-frame/web"
+)
+
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed static
+var static embed.FS
+
+// 发布：使用嵌入文件，不再访问磁盘。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("templates", templates).Reload(false)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("static", static).Reload(false)
+}
+```
+
+```go
+templateOption, err := web.LoadTemplateOption(
+    templateFiles(),
+    web.WithLayouts("layout", "bare"),
+    web.WithPartials("partials"),
+)
+ctx.AddEmbedFs("/static", staticFiles())
+```
+
+```bash
+go run main.go              # 从磁盘热加载
+go build -tags release .    # 模板和静态资源嵌入二进制
+```
+
+如果开发目录与工作目录不一致，用 `ReloadPath` 指定，例如
+`web.EmbedFs("templates", templates).Reload(true).ReloadPath("webui/templates")`。
+
 ### 反向代理
 
 ```go

@@ -743,6 +743,74 @@ web:
     page404: 404.html
 ```
 
+### テンプレートと静的ファイル：開発時ホットリロード、リリース時埋め込み
+
+推奨構成：開発中はテンプレートと静的ファイルをディスクに置き、リリースバイナリには
+埋め込みます。ビルドタグで宣言を切り替え、`Reload(true/false)` で対応するモードを選びます。
+
+```go
+// assets_dev.go
+//go:build !release
+
+package webui
+
+import "github.com/chuccp/go-web-frame/web"
+
+// 開発時：作業ツリーを読み、リクエストごとに再読み込みする。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/templates").Reload(true)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("webui/static").Reload(true)
+}
+```
+
+```go
+// assets_release.go
+//go:build release
+
+package webui
+
+import (
+    "embed"
+
+    "github.com/chuccp/go-web-frame/web"
+)
+
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed static
+var static embed.FS
+
+// リリース時：埋め込みファイルを使用し、ディスクにはアクセスしない。
+func templateFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("templates", templates).Reload(false)
+}
+
+func staticFiles() *web.EmbedFileSystem {
+    return web.EmbedFs("static", static).Reload(false)
+}
+```
+
+```go
+templateOption, err := web.LoadTemplateOption(
+    templateFiles(),
+    web.WithLayouts("layout", "bare"),
+    web.WithPartials("partials"),
+)
+ctx.AddEmbedFs("/static", staticFiles())
+```
+
+```bash
+go run main.go              # ディスクからホットリロード
+go build -tags release .    # テンプレートと静的ファイルを埋め込み
+```
+
+開発ディレクトリが作業ディレクトリと異なる場合は、`ReloadPath` で指定します
+（例：`web.EmbedFs("templates", templates).Reload(true).ReloadPath("webui/templates")`）。
+
 ### リバースプロキシ
 
 ```go

@@ -27,7 +27,6 @@ type templateIntegrationRest struct {
 func (r *templateIntegrationRest) Init(ctx *core.Context) error {
 	templateOption, err := web.LoadTemplateOption(
 		web.EmbedFs("testdata/template-integration/templates", integrationTemplatesFS),
-		".",
 		web.WithLayouts("layout", "bare"),
 		web.WithPartials("partials"),
 	)

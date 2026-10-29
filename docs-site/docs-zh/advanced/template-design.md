@@ -164,10 +164,10 @@ func WithEmbedFileSystem(fileSystem *EmbedFileSystem) TemplateOption
 // 页面 Handler 可通过 Template.Reload 单独覆盖。
 func WithReload(enabled bool) TemplateOption
 
-// LoadTemplateOption 编译模板，并返回包含文件系统、根目录和缓存的路由选项。
+// LoadTemplateOption 编译模板，并返回包含文件系统和缓存的路由选项。
+// 模板根目录由 EmbedFileSystem 本身决定。
 func LoadTemplateOption(
     fileSystem *EmbedFileSystem,
-    root string,
     options ...TemplateOption,
 ) (TemplateOption, error)
 
@@ -178,14 +178,15 @@ func (c *Context) GetTemplate(
 ) *web.Route
 ```
 
-根目录为 `templates` 时，逻辑名称和文件的对应关系如下：
+`EmbedFs("templates", templatesFS)` 的根目录就是模板根目录。逻辑名称和文件系统内
+路径的对应关系如下：
 
-| 逻辑名称 | 文件 |
+| 逻辑名称 | 文件（相对模板根目录） |
 | --- | --- |
-| 页面 `dashboard` | `templates/dashboard.html` |
-| 布局 `layout` | `templates/layout.html` |
-| 布局 `bare` | `templates/bare.html` |
-| 公共片段 `partials` | `templates/partials.html` |
+| 页面 `dashboard` | `dashboard.html` |
+| 布局 `layout` | `layout.html` |
+| 布局 `bare` | `bare.html` |
+| 公共片段 `partials` | `partials.html` |
 
 第一版默认使用 `.html` 扩展名。后续如需支持 `.gohtml`、`.tmpl`，可以增加
 `WithTemplateExtension`，不影响当前接口。
@@ -257,10 +258,10 @@ ctx.PostTemplate("/login", loginPage)
 ```go
 template.New("dashboard").
     Funcs(funcs).
-    ParseFS(templatesFS,
-        "templates/layout.html",
-        "templates/partials.html",
-        "templates/dashboard.html",
+    ParseFS(web.EmbedFs("templates", templatesFS),
+        "layout.html",
+        "partials.html",
+        "dashboard.html",
     )
 ```
 
@@ -268,8 +269,8 @@ template.New("dashboard").
 
 ### 5.2 编译矩阵
 
-`LoadTemplateOption` 扫描根目录，排除布局和公共片段后得到页面列表，并为页面与布局的
-组合建立缓存：
+`LoadTemplateOption` 扫描 `EmbedFileSystem` 的根目录，排除布局和公共片段后得到页面
+列表，并为页面与布局的组合建立缓存：
 
 ```text
 (dashboard, layout) -> *template.Template
@@ -303,7 +304,7 @@ tmpl.ExecuteTemplate(&buf, "layout", data)
 
 ### 5.3 校验规则
 
-- `root` 必须是不含 `..` 的相对路径；空值按 `.` 处理。
+- 模板根目录由 `EmbedFileSystem` 决定，必须存在且为目录。
 - 页面、布局和公共片段名必须拒绝空值、绝对路径、反斜杠和 `..`。
 - 页面或布局不存在时，`LoadTemplateOption` 返回包含逻辑名称的错误。
 - 页面必须定义 `content`，布局必须定义 `layout`；实际执行时缺失直接视为模板错误。
@@ -445,7 +446,6 @@ templateOption, err := web.LoadTemplateOption(
     web.EmbedFs("templates", templatesFS).
         Reload(devMode).
         ReloadPath("webui/templates"),
-    ".",
     web.WithTemplateFuncs(templateFuncs),
     web.WithLayouts("layout", "bare"),
     web.WithPartials("partials"),
@@ -474,7 +474,6 @@ func (p *Pages) Init(ctx *core.Context) error {
         web.EmbedFs("templates", templatesFS).
             Reload(developmentMode).
             ReloadPath("webui/templates"),
-        ".",
         web.WithLayouts("layout", "bare"),
         web.WithPartials("partials"),
     )
@@ -659,7 +658,8 @@ case *web.TemplateResponse:
 
 - `Template`；
 - `TemplateHandler`；
-- `LoadTemplateOption` 返回的编译模板路由选项；
+- `LoadTemplateOption` 返回的编译模板路由选项；模板根目录直接取 `EmbedFileSystem`
+  的根目录，不再单独传入 `root`；
 - `TemplateOption`；
 - `DefaultConverter` 的模板分支；
 - `core.Context.Template` 便捷入口。

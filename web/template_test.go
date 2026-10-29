@@ -42,7 +42,7 @@ func loadTemplateTestSet(t *testing.T, fsys fstest.MapFS, options ...TemplateOpt
 		WithPartials("partials"),
 	}
 	base = append(base, options...)
-	set, err := loadTemplates(EmbedFs("templates", fsys), ".", base...)
+	set, err := loadTemplates(EmbedFs("templates", fsys), base...)
 	if err != nil {
 		t.Fatalf("LoadTemplates() error = %v", err)
 	}
@@ -368,7 +368,6 @@ func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
 		ReloadPath("testdata/template-embed/templates")
 	set, err := loadTemplates(
 		templateFS,
-		".",
 		WithLayouts("layout"),
 		WithPartials("partials"),
 	)
@@ -383,7 +382,6 @@ func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
 func TestLoadTemplateOptionReturnsRouteOption(t *testing.T) {
 	templateOption, err := LoadTemplateOption(
 		EmbedFs("templates", templateTestFS()),
-		".",
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	)
@@ -431,7 +429,6 @@ func TestWithEmbedFileSystemConfiguresTemplateSource(t *testing.T) {
 func TestTemplateOptionsReuseCompiledCacheAndIsolateOverrides(t *testing.T) {
 	compiled, err := loadTemplates(
 		EmbedFs("templates", templateTestFS()),
-		".",
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	)
@@ -555,15 +552,14 @@ func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 	}
 	if _, err := loadTemplates(
 		EmbedFs("templates", views),
-		".",
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	); err == nil {
 		t.Fatal("LoadTemplates() error = nil, want parse error")
 	}
 
-	if _, err := loadTemplates(EmbedFs("templates", views), "../"); err == nil {
-		t.Fatal("LoadTemplates() error = nil, want invalid root error")
+	if _, err := loadTemplates(EmbedFs("missing", views)); err == nil {
+		t.Fatal("LoadTemplates() error = nil, want missing root error")
 	}
 }
 

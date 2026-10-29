@@ -10,6 +10,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 - **Unified template configuration**: Template filesystems, parse options, and caches now use the internal `templateOptions` state. `TemplateSet` and `WithTemplateSet` were removed; `LoadTemplateOption` returns a reusable compiled option.
+- **Unified template root**: `LoadTemplateOption` no longer takes a `root` argument; the root of the `EmbedFileSystem` is the template root.
 
 ## [1.0.14] - 2026-07-16
 

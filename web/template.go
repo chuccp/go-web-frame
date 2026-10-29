@@ -161,7 +161,6 @@ type templateKey struct {
 
 type templateOptions struct {
 	embedFileSystem *EmbedFileSystem
-	root            string
 	funcs           template.FuncMap
 	layouts         []string
 	partials        []string
@@ -264,10 +263,9 @@ func WithReload(enabled bool) TemplateOption {
 
 // loadTemplates parses every page together with each registered layout and the
 // configured partials into templateOptions. Logical names omit the .html
-// extension.
-func loadTemplates(embedFileSystem *EmbedFileSystem, root string, options ...TemplateOption) (*templateOptions, error) {
+// extension. The template root is the root of the embedded file system.
+func loadTemplates(embedFileSystem *EmbedFileSystem, options ...TemplateOption) (*templateOptions, error) {
 	config := templateOptions{
-		root:    root,
 		funcs:   make(template.FuncMap),
 		layouts: []string{"layout"},
 	}
@@ -309,10 +307,6 @@ func (o *templateOptions) compile() (*templateOptions, error) {
 		return nil, fmt.Errorf("embedded template filesystem is nil")
 	}
 
-	root, err := normalizeTemplateRoot(o.root)
-	if err != nil {
-		return nil, err
-	}
 	if len(o.layouts) == 0 {
 		return nil, fmt.Errorf("at least one template layout is required")
 	}
@@ -327,25 +321,24 @@ func (o *templateOptions) compile() (*templateOptions, error) {
 	}
 	defaultLayout := layouts[0]
 
-	info, err := fs.Stat(o.embedFileSystem, root)
+	info, err := fs.Stat(o.embedFileSystem, ".")
 	if err != nil {
-		return nil, fmt.Errorf("stat template root %q: %w", root, err)
+		return nil, fmt.Errorf("stat template root: %w", err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("template root %q is not a directory", root)
+		return nil, fmt.Errorf("template root is not a directory")
 	}
 
-	views, err := discoverTemplateViews(o.embedFileSystem, root, layouts, partials)
+	views, err := discoverTemplateViews(o.embedFileSystem, layouts, partials)
 	if err != nil {
 		return nil, err
 	}
 	if len(views) == 0 {
-		return nil, fmt.Errorf("no page templates found under %q", root)
+		return nil, fmt.Errorf("no page templates found")
 	}
 
 	compiled := &templateOptions{
 		embedFileSystem: o.embedFileSystem,
-		root:            root,
 		funcs:           cloneTemplateFuncs(o.funcs),
 		layouts:         append([]string(nil), layouts...),
 		defaultLayout:   defaultLayout,
@@ -378,23 +371,14 @@ func (o *templateOptions) compile() (*templateOptions, error) {
 }
 
 // LoadTemplateOption compiles templates once and returns the compiled
-// templateOptions as a reusable route option.
-func LoadTemplateOption(embedFileSystem *EmbedFileSystem, root string, options ...TemplateOption) (TemplateOption, error) {
-	compiled, err := loadTemplates(embedFileSystem, root, options...)
+// templateOptions as a reusable route option. The root of embedFileSystem is
+// the template root; logical names map to files directly below it.
+func LoadTemplateOption(embedFileSystem *EmbedFileSystem, options ...TemplateOption) (TemplateOption, error) {
+	compiled, err := loadTemplates(embedFileSystem, options...)
 	if err != nil {
 		return nil, err
 	}
 	return withTemplateOptions(compiled), nil
-}
-
-func normalizeTemplateRoot(root string) (string, error) {
-	if root == "" {
-		return ".", nil
-	}
-	if !fs.ValidPath(root) {
-		return "", fmt.Errorf("invalid template root %q", root)
-	}
-	return path.Clean(root), nil
 }
 
 func normalizeTemplateNames(names []string) ([]string, error) {
@@ -429,7 +413,6 @@ func normalizeTemplateName(name string) (string, error) {
 
 func discoverTemplateViews(
 	fsys fs.FS,
-	root string,
 	layouts []string,
 	partials []string,
 ) ([]string, error) {
@@ -442,7 +425,7 @@ func discoverTemplateViews(
 	}
 
 	views := make([]string, 0)
-	err := fs.WalkDir(fsys, root, func(filePath string, entry fs.DirEntry, walkErr error) error {
+	err := fs.WalkDir(fsys, ".", func(filePath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -450,11 +433,7 @@ func discoverTemplateViews(
 			return nil
 		}
 
-		relative := filePath
-		if root != "." {
-			relative = strings.TrimPrefix(filePath, root+"/")
-		}
-		name := strings.TrimSuffix(relative, templateExtension)
+		name := strings.TrimSuffix(filePath, templateExtension)
 		if _, skip := excluded[name]; skip {
 			return nil
 		}
@@ -465,7 +444,7 @@ func discoverTemplateViews(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("scan templates under %q: %w", root, err)
+		return nil, fmt.Errorf("scan templates: %w", err)
 	}
 	return views, nil
 }
@@ -481,21 +460,17 @@ func cloneTemplateFuncs(funcs template.FuncMap) template.FuncMap {
 	return result
 }
 
-func (o *templateOptions) filePath(name string) string {
-	file := name + templateExtension
-	if o.root == "." {
-		return file
-	}
-	return o.root + "/" + file
+func templateFilePath(name string) string {
+	return name + templateExtension
 }
 
 func (o *templateOptions) parse(view string, layout string) (*template.Template, error) {
 	files := make([]string, 0, len(o.partials)+2)
-	files = append(files, o.filePath(layout))
+	files = append(files, templateFilePath(layout))
 	for _, partial := range o.partials {
-		files = append(files, o.filePath(partial))
+		files = append(files, templateFilePath(partial))
 	}
-	files = append(files, o.filePath(view))
+	files = append(files, templateFilePath(view))
 
 	tmpl, err := template.New(view+"@"+layout).
 		Funcs(o.funcs).

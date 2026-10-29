@@ -10,6 +10,7 @@
 
 ### 变更
 - **模板配置统一**：模板文件系统、解析配置和缓存统一由内部 `templateOptions` 管理，移除 `TemplateSet` 与 `WithTemplateSet`；`LoadTemplateOption` 返回可直接复用的编译选项。
+- **模板根目录统一**：`LoadTemplateOption` 移除 `root` 参数，模板根目录直接由 `EmbedFileSystem` 决定，避免重复配置。
 - **CORS 拼写修正**：`NewCrosFilter` 重命名为 `NewCorsFilter`，`crosHandlerFunc` 重命名为 `corsHandlerFunc`。旧名称保留为 deprecated 别名，将在未来版本移除。
 
 ## [1.0.14] - 2026-07-16

@@ -5,8 +5,11 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
-- **Per-request template reload**: `Template.Reload(bool)` overrides the `TemplateSet` default and lets the framework reparse the selected page, layouts, and partials.
+- **Per-request template reload**: `Template.Reload(bool)` overrides the default set by `WithReload(bool)` and lets the framework reparse the selected page, layouts, and partials.
 - **Embedded static files**: `EmbedFs` / `AddEmbedFs` switch a static tree between embedded files and a development directory; `ReloadPath` selects the development path.
+
+### Changed
+- **Unified template configuration**: Template filesystems, parse options, and caches now use the internal `templateOptions` state. `TemplateSet` and `WithTemplateSet` were removed; `LoadTemplateOption` returns a reusable compiled option.
 
 ## [1.0.14] - 2026-07-16
 

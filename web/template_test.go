@@ -35,22 +35,22 @@ func templateTestFS() fstest.MapFS {
 	}
 }
 
-func loadTemplateTestSet(t *testing.T, fsys fstest.MapFS, options ...TemplateOption) *TemplateSet {
+func loadTemplateTestSet(t *testing.T, fsys fstest.MapFS, options ...TemplateOption) *templateOptions {
 	t.Helper()
 	base := []TemplateOption{
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	}
 	base = append(base, options...)
-	set, err := loadTemplates(fsys, "templates", base...)
+	set, err := loadTemplates(EmbedFs("templates", fsys), ".", base...)
 	if err != nil {
 		t.Fatalf("LoadTemplates() error = %v", err)
 	}
 	return set
 }
 
-func registerTemplate(server *Server, set *TemplateSet, method string, relativePath string, handler TemplateHandler) *Route {
-	return server.Template(method, relativePath, handler, WithTemplateSet(set))
+func registerTemplate(server *Server, options *templateOptions, method string, relativePath string, handler TemplateHandler) *Route {
+	return server.Template(method, relativePath, handler, withTemplateOptions(options))
 }
 
 func templateTestRequest(handler http.Handler, method string, target string) *httptest.ResponseRecorder {
@@ -113,7 +113,7 @@ func TestTemplateMethodRouteHelpers(t *testing.T) {
 				Layout("bare").
 				Data(templateTestData{Title: method})
 			return nil
-		}, WithTemplateSet(set))
+		}, withTemplateOptions(set))
 	}
 	handler := server.GetHandler()
 
@@ -319,7 +319,7 @@ func TestTemplateMissingConfigurationAndViewReturnServerError(t *testing.T) {
 			server := DefaultServer()
 			var options []TemplateOption
 			if tt.configure {
-				options = append(options, WithTemplateSet(loadTemplateTestSet(t, templateTestFS())))
+				options = append(options, withTemplateOptions(loadTemplateTestSet(t, templateTestFS())))
 			}
 			server.Template(http.MethodGet, "/failure", func(view *Template) error {
 				view.View(tt.view)
@@ -340,7 +340,7 @@ func TestTemplateDevReloadReadsCurrentFiles(t *testing.T) {
 		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
 	}
 	server := DefaultServer()
-	set := loadTemplateTestSet(t, views, WithDevReload(true))
+	set := loadTemplateTestSet(t, views, WithReload(true))
 	registerTemplate(server, set, http.MethodGet, "/reload", func(view *Template) error {
 		view.View("reload").Layout("bare")
 		return nil
@@ -382,8 +382,8 @@ func TestLoadTemplatesUsesEmbedFileSystemReloadState(t *testing.T) {
 
 func TestLoadTemplateOptionReturnsRouteOption(t *testing.T) {
 	templateOption, err := LoadTemplateOption(
-		templateTestFS(),
-		"templates",
+		EmbedFs("templates", templateTestFS()),
+		".",
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	)
@@ -405,13 +405,91 @@ func TestLoadTemplateOptionReturnsRouteOption(t *testing.T) {
 	}
 }
 
+func TestWithEmbedFileSystemConfiguresTemplateSource(t *testing.T) {
+	server := DefaultServer()
+	server.Template(
+		http.MethodGet,
+		"/filesystem-option",
+		func(view *Template) error {
+			view.View("two").Layout("bare").Data(templateTestData{Title: "Filesystem option"})
+			return nil
+		},
+		WithEmbedFileSystem(EmbedFs("templates", templateTestFS())),
+		WithLayouts("layout", "bare"),
+		WithPartials("partials"),
+	)
+
+	recorder := templateTestRequest(server.GetHandler(), http.MethodGet, "/filesystem-option")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, "<h2>Filesystem option</h2>") {
+		t.Errorf("WithEmbedFileSystem() did not configure the template source: %s", body)
+	}
+}
+
+func TestTemplateOptionsReuseCompiledCacheAndIsolateOverrides(t *testing.T) {
+	compiled, err := loadTemplates(
+		EmbedFs("templates", templateTestFS()),
+		".",
+		WithLayouts("layout", "bare"),
+		WithPartials("partials"),
+	)
+	if err != nil {
+		t.Fatalf("loadTemplates() error = %v", err)
+	}
+	option := withTemplateOptions(compiled)
+
+	first := templateOptions{}
+	second := templateOptions{}
+	option(&first)
+	option(&second)
+
+	key := templateKey{view: "one", layout: "layout"}
+	if first.byKey[key] == nil {
+		t.Fatal("route option did not include a compiled template")
+	}
+	if first.byKey[key] != second.byKey[key] {
+		t.Fatal("route option did not reuse the compiled template cache")
+	}
+
+	WithTemplateFuncs(template.FuncMap{
+		"upper": strings.ToUpper,
+	})(&first)
+	recompiled, err := first.resolve()
+	if err != nil {
+		t.Fatalf("resolve() error = %v", err)
+	}
+	if recompiled.byKey[key] == compiled.byKey[key] {
+		t.Fatal("runtime options did not trigger recompilation")
+	}
+	if _, ok := compiled.funcs["upper"]; ok {
+		t.Fatal("runtime options mutated the shared compiled configuration")
+	}
+
+	ordered := templateOptions{}
+	WithLayouts("bare", "layout")(&ordered)
+	WithTemplateFuncs(template.FuncMap{"upper": strings.ToUpper})(&ordered)
+	option(&ordered)
+	resolved, err := ordered.resolve()
+	if err != nil {
+		t.Fatalf("resolve() with options before route configuration error = %v", err)
+	}
+	if resolved.defaultLayout != "bare" {
+		t.Fatalf("default layout = %q, want bare", resolved.defaultLayout)
+	}
+	if _, ok := resolved.funcs["upper"]; !ok {
+		t.Fatal("route configuration discarded an earlier runtime option")
+	}
+}
+
 func TestTemplateReloadOverridesSetDefault(t *testing.T) {
 	views := templateTestFS()
 	views["templates/reload.html"] = &fstest.MapFile{
 		Data: []byte(`{{define "content"}}<p>before</p>{{end}}`),
 	}
 	server := DefaultServer()
-	set := loadTemplateTestSet(t, views, WithDevReload(true))
+	set := loadTemplateTestSet(t, views, WithReload(true))
 	registerTemplate(server, set, http.MethodGet, "/reload", func(view *Template) error {
 		view.View("reload").Layout("bare")
 		if view.Request().Query("reload") != "1" {
@@ -476,20 +554,20 @@ func TestLoadTemplatesRejectsInvalidTemplates(t *testing.T) {
 		Data: []byte(`{{define "content"}}{{if}}{{end}}`),
 	}
 	if _, err := loadTemplates(
-		views,
-		"templates",
+		EmbedFs("templates", views),
+		".",
 		WithLayouts("layout", "bare"),
 		WithPartials("partials"),
 	); err == nil {
 		t.Fatal("LoadTemplates() error = nil, want parse error")
 	}
 
-	if _, err := loadTemplates(views, "../templates"); err == nil {
+	if _, err := loadTemplates(EmbedFs("templates", views), "../"); err == nil {
 		t.Fatal("LoadTemplates() error = nil, want invalid root error")
 	}
 }
 
-func TestTemplateSetConcurrentRendering(t *testing.T) {
+func TestTemplateOptionsConcurrentRendering(t *testing.T) {
 	server := DefaultServer()
 	set := loadTemplateTestSet(t, templateTestFS())
 	registerTemplate(server, set, http.MethodGet, "/concurrent", func(view *Template) error {

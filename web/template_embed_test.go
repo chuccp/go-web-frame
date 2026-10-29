@@ -12,8 +12,8 @@ var embeddedTemplateFS embed.FS
 
 func TestLoadTemplatesFromEmbedFS(t *testing.T) {
 	set, err := loadTemplates(
-		embeddedTemplateFS,
-		"testdata/template-embed/templates",
+		EmbedFs("testdata/template-embed/templates", embeddedTemplateFS),
+		".",
 		WithPartials("partials"),
 	)
 	if err != nil {

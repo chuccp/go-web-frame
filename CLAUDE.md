@@ -92,7 +92,7 @@ Built on Gin, provides:
 - Routing with HTTP method support (GET, POST, PUT, DELETE, etc.)
 - Filter/middleware support
 - Conversion between service responses and HTTP responses
-- HTML templates via `TemplateSet`, with per-response reload through `Template.Reload`
+- HTML templates via compiled `TemplateOption` values, with per-response reload through `Template.Reload`
 - Embedded and local static files via `EmbedFs` / `AddEmbedFs`
 - WebSocket support via `AddWebSocket` / `ctx.WebSocket` (uses `coder/websocket`)
 - SSE (Server-Sent Events) via `AddSSE` / `ctx.SSE`

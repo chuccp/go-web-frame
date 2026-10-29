@@ -51,7 +51,7 @@ func (t *Template) Option(options ...TemplateOption) *Template {
 	return t
 }
 
-// Reload overrides the template set's default reload behavior for this response.
+// Reload overrides the template option's default reload behavior for this response.
 // When enabled, the selected page, layout and partials are parsed from the source
 // filesystem again instead of using the compiled cache.
 func (t *Template) Reload(reload bool) *Template {
@@ -103,7 +103,7 @@ func newTemplate(request *Request) *Template {
 	return t
 }
 
-func (t *Template) resolveOptions() (*TemplateSet, error) {
+func (t *Template) resolveOptions() (*templateOptions, error) {
 	config := templateOptions{}
 	for _, option := range t.options {
 		if option != nil {
@@ -111,35 +111,24 @@ func (t *Template) resolveOptions() (*TemplateSet, error) {
 		}
 	}
 
-	set := config.templateSet
-	if set == nil {
-		return nil, fmt.Errorf("templates are not configured")
-	}
-	if config.funcsSet || config.layoutsSet || config.partialsSet {
-		var err error
-		set, err = set.withOptions(config)
-		if err != nil {
-			return nil, err
-		}
+	options, err := config.resolve()
+	if err != nil {
+		return nil, err
 	}
 	if t.layout == "" {
-		t.layout = set.defaultLayout
+		t.layout = options.defaultLayout
 	}
 	if !t.reloadSet {
-		if config.reloadSet {
-			t.reload = config.defaultReload
-		} else if config.templateSet != nil {
-			t.reload = set.defaultReload
-		}
+		t.reload = options.defaultReload
 	}
-	return set, nil
+	return options, nil
 }
 
 func (t *Template) render() ([]byte, error) {
 	if t == nil {
 		return nil, fmt.Errorf("template response is nil")
 	}
-	set, err := t.resolveOptions()
+	options, err := t.resolveOptions()
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +142,7 @@ func (t *Template) render() ([]byte, error) {
 		return nil, fmt.Errorf("invalid template status code %d", t.status)
 	}
 
-	tmpl, err := set.templateFor(t.view, t.layout, t.reload)
+	tmpl, err := options.templateFor(t.view, t.layout, t.reload)
 	if err != nil {
 		return nil, err
 	}
@@ -171,18 +160,24 @@ type templateKey struct {
 }
 
 type templateOptions struct {
-	funcs         template.FuncMap
-	layouts       []string
-	partials      []string
-	templateSet   *TemplateSet
-	funcsSet      bool
-	layoutsSet    bool
-	partialsSet   bool
-	reloadSet     bool
-	defaultReload bool
+	embedFileSystem *EmbedFileSystem
+	root            string
+	funcs           template.FuncMap
+	layouts         []string
+	partials        []string
+	funcsSet        bool
+	layoutsSet      bool
+	partialsSet     bool
+	reloadSet       bool
+	defaultReload   bool
+	defaultLayout   string
+	layoutSet       map[string]struct{}
+	viewSet         map[string]struct{}
+	byKey           map[templateKey]*template.Template
 }
 
-// TemplateOption configures a TemplateSet before templates are parsed.
+// TemplateOption configures the filesystem, parse options, or compiled cache
+// used by a Template response.
 type TemplateOption func(*templateOptions)
 
 // WithTemplateFuncs registers functions used during template parsing. Multiple
@@ -215,78 +210,124 @@ func WithPartials(names ...string) TemplateOption {
 	}
 }
 
-// WithTemplateSet selects an already compiled template set for a response.
-func WithTemplateSet(set *TemplateSet) TemplateOption {
+// WithEmbedFileSystem selects the embedded or development filesystem used to
+// load templates. Its current reload state becomes the default unless
+// WithReload is applied later.
+func WithEmbedFileSystem(embedFileSystem *EmbedFileSystem) TemplateOption {
 	return func(options *templateOptions) {
-		options.templateSet = set
+		options.embedFileSystem = embedFileSystem
+		if !options.reloadSet {
+			options.defaultReload = embedFileSystem.ReloadEnabled()
+		}
+		options.layoutSet = nil
+		options.viewSet = nil
+		options.byKey = nil
 	}
 }
 
-// WithDevReload sets the default reload behavior for all Template responses. A
+func withTemplateOptions(compiled *templateOptions) TemplateOption {
+	return func(options *templateOptions) {
+		previous := *options
+		clone := compiled.clone()
+		*options = *clone
+
+		if previous.funcsSet {
+			options.funcsSet = true
+			for name, fn := range previous.funcs {
+				options.funcs[name] = fn
+			}
+		}
+		if previous.layoutsSet {
+			options.layoutsSet = true
+			options.layouts = previous.layouts
+		}
+		if previous.partialsSet {
+			options.partialsSet = true
+			options.partials = previous.partials
+		}
+		if previous.reloadSet {
+			options.reloadSet = true
+			options.defaultReload = previous.defaultReload
+		}
+	}
+}
+
+// WithReload sets the default reload behavior for all Template responses. A
 // handler can override it per request with Template.Reload. Reloading is intended
 // for development with an os.DirFS and should be disabled in production.
-func WithDevReload(enabled bool) TemplateOption {
+func WithReload(enabled bool) TemplateOption {
 	return func(options *templateOptions) {
 		options.reloadSet = true
 		options.defaultReload = enabled
 	}
 }
 
-// TemplateSet contains the compiled page/layout combinations loaded from an
-// fs.FS. A TemplateSet is immutable after loadTemplates returns and can be
-// shared by multiple servers and requests.
-type TemplateSet struct {
-	fsys          fs.FS
-	root          string
-	funcs         template.FuncMap
-	layouts       map[string]struct{}
-	layoutNames   []string
-	defaultLayout string
-	partials      []string
-	views         map[string]struct{}
-	byKey         map[templateKey]*template.Template
-	defaultReload bool
-}
-
 // loadTemplates parses every page together with each registered layout and the
-// configured partials. Logical names omit the .html extension.
-func loadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*TemplateSet, error) {
-	if fsys == nil {
-		return nil, fmt.Errorf("template filesystem is nil")
-	}
-
-	root, err := normalizeTemplateRoot(root)
-	if err != nil {
-		return nil, err
-	}
-
+// configured partials into templateOptions. Logical names omit the .html
+// extension.
+func loadTemplates(embedFileSystem *EmbedFileSystem, root string, options ...TemplateOption) (*templateOptions, error) {
 	config := templateOptions{
+		root:    root,
 		funcs:   make(template.FuncMap),
 		layouts: []string{"layout"},
 	}
-	if reloadFS, ok := fsys.(interface{ ReloadEnabled() bool }); ok {
-		config.defaultReload = reloadFS.ReloadEnabled()
-	}
+	WithEmbedFileSystem(embedFileSystem)(&config)
 	for _, option := range options {
 		if option != nil {
 			option(&config)
 		}
 	}
-	if len(config.layouts) == 0 {
+	return config.compile()
+}
+
+func (o *templateOptions) clone() *templateOptions {
+	if o == nil {
+		return &templateOptions{}
+	}
+	clone := *o
+	clone.funcs = cloneTemplateFuncs(o.funcs)
+	if o.funcs != nil && clone.funcs == nil {
+		clone.funcs = make(template.FuncMap)
+	}
+	clone.layouts = append([]string(nil), o.layouts...)
+	clone.partials = append([]string(nil), o.partials...)
+	return &clone
+}
+
+func (o *templateOptions) resolve() (*templateOptions, error) {
+	if o == nil || o.embedFileSystem == nil {
+		return nil, fmt.Errorf("templates are not configured")
+	}
+	if o.byKey != nil && !o.funcsSet && !o.layoutsSet && !o.partialsSet {
+		return o, nil
+	}
+	return o.compile()
+}
+
+func (o *templateOptions) compile() (*templateOptions, error) {
+	if o == nil || o.embedFileSystem == nil {
+		return nil, fmt.Errorf("embedded template filesystem is nil")
+	}
+
+	root, err := normalizeTemplateRoot(o.root)
+	if err != nil {
+		return nil, err
+	}
+	if len(o.layouts) == 0 {
 		return nil, fmt.Errorf("at least one template layout is required")
 	}
 
-	layouts, err := normalizeTemplateNames(config.layouts)
+	layouts, err := normalizeTemplateNames(o.layouts)
 	if err != nil {
 		return nil, fmt.Errorf("invalid template layout: %w", err)
 	}
-	partials, err := normalizeTemplateNames(config.partials)
+	partials, err := normalizeTemplateNames(o.partials)
 	if err != nil {
 		return nil, fmt.Errorf("invalid template partial: %w", err)
 	}
 	defaultLayout := layouts[0]
 
-	info, err := fs.Stat(fsys, root)
+	info, err := fs.Stat(o.embedFileSystem, root)
 	if err != nil {
 		return nil, fmt.Errorf("stat template root %q: %w", root, err)
 	}
@@ -294,7 +335,7 @@ func loadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 		return nil, fmt.Errorf("template root %q is not a directory", root)
 	}
 
-	views, err := discoverTemplateViews(fsys, root, layouts, partials)
+	views, err := discoverTemplateViews(o.embedFileSystem, root, layouts, partials)
 	if err != nil {
 		return nil, err
 	}
@@ -302,44 +343,48 @@ func loadTemplates(fsys fs.FS, root string, options ...TemplateOption) (*Templat
 		return nil, fmt.Errorf("no page templates found under %q", root)
 	}
 
-	set := &TemplateSet{
-		fsys:          fsys,
-		root:          root,
-		funcs:         cloneTemplateFuncs(config.funcs),
-		layouts:       make(map[string]struct{}, len(layouts)),
-		layoutNames:   append([]string(nil), layouts...),
-		defaultLayout: defaultLayout,
-		partials:      partials,
-		views:         make(map[string]struct{}, len(views)),
-		byKey:         make(map[templateKey]*template.Template, len(views)*len(layouts)),
-		defaultReload: config.defaultReload,
+	compiled := &templateOptions{
+		embedFileSystem: o.embedFileSystem,
+		root:            root,
+		funcs:           cloneTemplateFuncs(o.funcs),
+		layouts:         append([]string(nil), layouts...),
+		defaultLayout:   defaultLayout,
+		partials:        partials,
+		defaultReload:   o.defaultReload,
+		layoutSet:       make(map[string]struct{}, len(layouts)),
+		viewSet:         make(map[string]struct{}, len(views)),
+		byKey:           make(map[templateKey]*template.Template, len(views)*len(layouts)),
+	}
+	if compiled.funcs == nil {
+		compiled.funcs = make(template.FuncMap)
 	}
 	for _, layout := range layouts {
-		set.layouts[layout] = struct{}{}
+		compiled.layoutSet[layout] = struct{}{}
 	}
 	for _, view := range views {
-		set.views[view] = struct{}{}
+		compiled.viewSet[view] = struct{}{}
 	}
 
 	for _, view := range views {
 		for _, layout := range layouts {
-			tmpl, err := set.parse(view, layout)
+			tmpl, err := compiled.parse(view, layout)
 			if err != nil {
 				return nil, err
 			}
-			set.byKey[templateKey{view: view, layout: layout}] = tmpl
+			compiled.byKey[templateKey{view: view, layout: layout}] = tmpl
 		}
 	}
-	return set, nil
+	return compiled, nil
 }
 
-// LoadTemplateOption compiles a template set and returns it as a route option.
-func LoadTemplateOption(fsys fs.FS, root string, options ...TemplateOption) (TemplateOption, error) {
-	set, err := loadTemplates(fsys, root, options...)
+// LoadTemplateOption compiles templates once and returns the compiled
+// templateOptions as a reusable route option.
+func LoadTemplateOption(embedFileSystem *EmbedFileSystem, root string, options ...TemplateOption) (TemplateOption, error) {
+	compiled, err := loadTemplates(embedFileSystem, root, options...)
 	if err != nil {
 		return nil, err
 	}
-	return WithTemplateSet(set), nil
+	return withTemplateOptions(compiled), nil
 }
 
 func normalizeTemplateRoot(root string) (string, error) {
@@ -436,58 +481,25 @@ func cloneTemplateFuncs(funcs template.FuncMap) template.FuncMap {
 	return result
 }
 
-func (s *TemplateSet) withOptions(config templateOptions) (*TemplateSet, error) {
-	funcs := cloneTemplateFuncs(s.funcs)
-	if funcs == nil {
-		funcs = make(template.FuncMap)
-	}
-	for name, fn := range config.funcs {
-		funcs[name] = fn
-	}
-	layouts := append([]string(nil), s.layoutNames...)
-	if config.layoutsSet {
-		layouts = append([]string(nil), config.layouts...)
-	}
-	if len(layouts) == 0 {
-		return nil, fmt.Errorf("at least one template layout is required")
-	}
-	partials := append([]string(nil), s.partials...)
-	if config.partialsSet {
-		partials = append([]string(nil), config.partials...)
-	}
-	reload := s.defaultReload
-	if config.reloadSet {
-		reload = config.defaultReload
-	}
-	return loadTemplates(
-		s.fsys,
-		s.root,
-		WithTemplateFuncs(funcs),
-		WithLayouts(layouts[0], layouts[1:]...),
-		WithPartials(partials...),
-		WithDevReload(reload),
-	)
-}
-
-func (s *TemplateSet) filePath(name string) string {
+func (o *templateOptions) filePath(name string) string {
 	file := name + templateExtension
-	if s.root == "." {
+	if o.root == "." {
 		return file
 	}
-	return s.root + "/" + file
+	return o.root + "/" + file
 }
 
-func (s *TemplateSet) parse(view string, layout string) (*template.Template, error) {
-	files := make([]string, 0, len(s.partials)+2)
-	files = append(files, s.filePath(layout))
-	for _, partial := range s.partials {
-		files = append(files, s.filePath(partial))
+func (o *templateOptions) parse(view string, layout string) (*template.Template, error) {
+	files := make([]string, 0, len(o.partials)+2)
+	files = append(files, o.filePath(layout))
+	for _, partial := range o.partials {
+		files = append(files, o.filePath(partial))
 	}
-	files = append(files, s.filePath(view))
+	files = append(files, o.filePath(view))
 
 	tmpl, err := template.New(view+"@"+layout).
-		Funcs(s.funcs).
-		ParseFS(s.fsys, files...)
+		Funcs(o.funcs).
+		ParseFS(o.embedFileSystem, files...)
 	if err != nil {
 		return nil, fmt.Errorf("parse template %q with layout %q: %w", view, layout, err)
 	}
@@ -500,17 +512,17 @@ func (s *TemplateSet) parse(view string, layout string) (*template.Template, err
 	return tmpl, nil
 }
 
-func (s *TemplateSet) templateFor(view string, layout string, reload bool) (*template.Template, error) {
-	if _, ok := s.views[view]; !ok {
+func (o *templateOptions) templateFor(view string, layout string, reload bool) (*template.Template, error) {
+	if _, ok := o.viewSet[view]; !ok {
 		return nil, fmt.Errorf("template page %q is not registered", view)
 	}
-	if _, ok := s.layouts[layout]; !ok {
+	if _, ok := o.layoutSet[layout]; !ok {
 		return nil, fmt.Errorf("template layout %q is not registered", layout)
 	}
 	if reload {
-		return s.parse(view, layout)
+		return o.parse(view, layout)
 	}
-	tmpl, ok := s.byKey[templateKey{view: view, layout: layout}]
+	tmpl, ok := o.byKey[templateKey{view: view, layout: layout}]
 	if !ok {
 		return nil, fmt.Errorf("template %q with layout %q is not compiled", view, layout)
 	}

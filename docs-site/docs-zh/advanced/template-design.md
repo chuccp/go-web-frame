@@ -76,7 +76,7 @@ webui/templates/
 | 项目 | 决策 |
 | --- | --- |
 | 模板引擎 | `html/template` |
-| 模板来源 | 任意 `fs.FS`，包括 `embed.FS` 和 `os.DirFS` |
+| 模板来源 | `EmbedFileSystem`，支持嵌入文件和开发磁盘目录切换 |
 | 页面组织 | 每个 `(view, layout)` 组合独立编译 |
 | 公共片段 | 在编译每个页面时一起加入 |
 | 模板函数 | 解析前通过 Option 注册 |
@@ -84,7 +84,7 @@ webui/templates/
 | 渲染时机 | Converter 收到 `TemplateResponse` 后调用 `TemplateHandler` 并渲染 |
 | 输出方式 | 先渲染到 `bytes.Buffer`，成功后一次写入响应 |
 | 缓存 | release 模式永久复用编译结果 |
-| 开发模式 | `WithDevReload(true)` 设置默认值，`Template.Reload` 可按请求覆盖 |
+| 开发模式 | `WithReload(true)` 设置默认值，`Template.Reload` 可按请求覆盖 |
 | 静态资源 | 使用 `fs.Sub + http.FS` 或 `http.Dir`，沿用现有静态路由 |
 | 错误 | 预留数据准备失败、模板不存在、执行失败三个阶段 |
 
@@ -134,21 +134,18 @@ func (t *Template) Header(key, value string) *Template
 // Redirect 让当前响应改为重定向，不再渲染页面。
 func (t *Template) Redirect(code int, location string) *Template
 
-// Reload 覆盖 TemplateSet 的默认重载设置。
+// Reload 覆盖模板选项的默认重载设置。
 // true 时重新解析当前页面、布局和公共片段，false 时复用预编译结果。
 func (t *Template) Reload(reload bool) *Template
 ```
 
-### 4.2 模板集合
+### 4.2 模板选项与编译结果
 
-模板集合和单次请求的页面状态分离。编译结果可以跨 Server 重建复用：
+模板配置和编译缓存统一保存在内部 `templateOptions` 中，不再暴露独立的模板集合类型。
+`LoadTemplateOption` 会完成一次编译，并返回可跨 Server 重建复用的路由选项：
 
 ```go
 package web
-
-type TemplateSet struct {
-    // 编译缓存及来源信息
-}
 
 type TemplateOption func(*templateOptions)
 
@@ -160,23 +157,19 @@ func WithLayouts(defaultLayout string, others ...string) TemplateOption
 // WithPartials 注册所有页面都会加载的公共片段。
 func WithPartials(names ...string) TemplateOption
 
-// WithDevReload 设置所有模板响应的默认重载行为。
+// WithEmbedFileSystem 选择模板来源，并沿用其 Reload 状态。
+func WithEmbedFileSystem(fileSystem *EmbedFileSystem) TemplateOption
+
+// WithReload 设置所有模板响应的默认重载行为。
 // 页面 Handler 可通过 Template.Reload 单独覆盖。
-func WithDevReload(enabled bool) TemplateOption
+func WithReload(enabled bool) TemplateOption
 
-func LoadTemplates(
-    fsys fs.FS,
-    root string,
-    options ...TemplateOption,
-) (*TemplateSet, error)
-
+// LoadTemplateOption 编译模板，并返回包含文件系统、根目录和缓存的路由选项。
 func LoadTemplateOption(
-    fsys fs.FS,
+    fileSystem *EmbedFileSystem,
     root string,
     options ...TemplateOption,
 ) (TemplateOption, error)
-
-func WithTemplateSet(set *TemplateSet) TemplateOption
 
 func (c *Context) GetTemplate(
     relativePath string,
@@ -275,7 +268,7 @@ template.New("dashboard").
 
 ### 5.2 编译矩阵
 
-`LoadTemplates` 扫描根目录，排除布局和公共片段后得到页面列表，并为页面与布局的
+`LoadTemplateOption` 扫描根目录，排除布局和公共片段后得到页面列表，并为页面与布局的
 组合建立缓存：
 
 ```text
@@ -312,7 +305,7 @@ tmpl.ExecuteTemplate(&buf, "layout", data)
 
 - `root` 必须是不含 `..` 的相对路径；空值按 `.` 处理。
 - 页面、布局和公共片段名必须拒绝空值、绝对路径、反斜杠和 `..`。
-- 页面或布局不存在时，`LoadTemplates` 返回包含逻辑名称的错误。
+- 页面或布局不存在时，`LoadTemplateOption` 返回包含逻辑名称的错误。
 - 页面必须定义 `content`，布局必须定义 `layout`；实际执行时缺失直接视为模板错误。
 - 重复出现同名定义时，不依赖 Go 模板的覆盖顺序，配置阶段应尽量提前报错。
 - 模板函数必须在任何页面解析前注册，因为 `html/template` 在解析阶段绑定函数。
@@ -326,7 +319,7 @@ sequenceDiagram
     participant H as Template Route Wrapper
     participant V as Template
     participant D as DefaultConverter
-    participant T as TemplateSet
+    participant T as templateOptions
 
     C->>F: HTTP request
     F->>H: Next()
@@ -412,7 +405,7 @@ Converter 检测到重定向状态后，只写 `Location` 和状态码，不执�
 
 ### 7.5 按请求重载
 
-重载由框架执行。`WithDevReload` 提供默认值，页面 Handler 可以按当前请求覆盖：
+重载由框架执行。`WithReload` 提供默认值，页面 Handler 可以按当前请求覆盖：
 
 ```go
 view.View("dashboard").
@@ -422,10 +415,10 @@ view.View("dashboard").
 ```
 
 `Reload(true)` 会重新读取并解析当前页面、布局和公共片段；`Reload(false)` 使用
-`TemplateSet` 中已经编译的版本。该开关只控制模板解析，不会重新扫描新增页面文件。
+`templateOptions` 中已经编译的版本。该开关只控制模板解析，不会重新扫描新增页面文件。
 
-如果传入 `LoadTemplates` 的 `fs.FS` 同时实现 `ReloadEnabled() bool`（例如
-`web.EmbedFs(...).Reload(...)`），框架会自动把它作为默认重载设置。
+传入 `LoadTemplateOption` 的 `EmbedFileSystem`（例如
+`web.EmbedFs(...).Reload(...)`）会提供默认重载设置。
 
 ## 8. `http2smtp/webui` 接入示例
 
@@ -445,7 +438,7 @@ var staticFS embed.FS
 
 应用层如果仍需要开发模式切换，可以继续保留当前的 `devMode`。
 
-### 8.2 加载模板集合
+### 8.2 编译模板路由选项
 
 ```go
 templateOption, err := web.LoadTemplateOption(
@@ -477,7 +470,7 @@ var templateFuncs = template.FuncMap{
 
 ```go
 func (p *Pages) Init(ctx *core.Context) error {
-    templates, err := web.LoadTemplates(
+    templateOption, err := web.LoadTemplateOption(
         web.EmbedFs("templates", templatesFS).
             Reload(developmentMode).
             ReloadPath("webui/templates"),
@@ -496,9 +489,9 @@ func (p *Pages) Init(ctx *core.Context) error {
 }
 ```
 
-模板集合通过 `WithTemplateSet` 作为路由选项显式传入；Server、Context 和 Request
-都不保存全局模板状态。页面 Handler 还可以通过 `view.Option(...)` 为当前响应追加
-布局、函数或模板集合选项。
+编译后的 `templateOption` 通过 `LoadTemplateOption` 返回并作为路由选项显式传入；
+Server、Context 和 Request 都不保存全局模板状态。页面 Handler 还可以通过
+`view.Option(...)` 为当前响应追加重编译所需的布局、函数或公共片段选项。
 
 ### 8.4 将现有 render 适配为 TemplateHandler
 
@@ -625,12 +618,12 @@ ctx.StaticFs("/static", http.Dir("webui/static"))
 
 ## 11. 并发与性能
 
-- 一个 `TemplateSet` 编译后是只读的，可以被多个请求并发使用。
+- 一个编译后的 `templateOptions` 缓存是只读的，可以被多个请求并发使用。
 - `html/template` 已解析完成后的执行可以并发进行。
 - 每次请求单独创建 `*Template`，不能把页面数据或状态放到 Server 全局变量中。
 - release 模式不访问磁盘，也不需要每个请求重新解析模板。
 - 当前 webui 有约 20 个页面和 2 个布局，预编译几十个模板集合的内存成本可接受。
-- `TemplateSet` 与实际 `Server` 分离，可以在应用重启、重建 Server 时复用。
+- `LoadTemplateOption` 的返回值与实际 `Server` 分离，可以在应用重启、重建 Server 时复用。
 - `Template.Reload(true)` 只用于开发模式，不应用于 release 构建。
 
 ## 12. 与现有 Converter 的关系
@@ -666,7 +659,7 @@ case *web.TemplateResponse:
 
 - `Template`；
 - `TemplateHandler`；
-- `TemplateSet`；
+- `LoadTemplateOption` 返回的编译模板路由选项；
 - `TemplateOption`；
 - `DefaultConverter` 的模板分支；
 - `core.Context.Template` 便捷入口。
@@ -676,7 +669,7 @@ case *web.TemplateResponse:
 建议分三步迁移：
 
 1. 保留 `embed.go`、`layout.html`、`bare.html`、`partials.html` 和全部页面模板。
-2. 用 `LoadTemplates` 替代 `parseTemplates` / `templateFor` 的缓存部分。
+2. 用 `LoadTemplateOption` 替代 `parseTemplates` / `templateFor` 的缓存部分。
 3. 先迁移只读 GET 页面，再迁移表单错误页和重定向页面。
 
 现有 `p.render` 在迁移完成后可以删除，或暂时保留给尚未迁移的页面使用。两种渲染
@@ -685,7 +678,7 @@ case *web.TemplateResponse:
 ### 13.3 Builder 层
 
 第一版可以只实现 `Server.Template` 和 `Context.Template`。如果之后希望支持
-`builder.Template(...)`，需要额外把 `TemplateSet` 从 Builder 传递到最终 Server，
+`builder.Template(...)`，需要额外把编译后的 `TemplateOption` 从 Builder 传递到最终 Server，
 这不应混入第一版的核心改动。
 
 ## 14. 测试计划
@@ -702,7 +695,7 @@ case *web.TemplateResponse:
 - 状态码、响应头和重定向正确。
 - 缺失页面、缺失布局、模板执行失败时返回 500，且没有部分响应体。
 - 用户输入中的 `<script>` 被自动转义。
-- 并行请求使用同一 `TemplateSet` 时不发生数据竞争。
+- 并行请求复用同一 `TemplateOption` 时不发生数据竞争。
 - `embed.FS` 和 `fstest.MapFS` 都可以使用。
 - 开发重载模式能读取到修改后的模板。
 
@@ -726,7 +719,7 @@ case *web.TemplateResponse:
 4. 多个页面可以同时定义 `content`，且不会互相覆盖。
 5. 页面渲染失败时不会写出半页 HTML。
 6. release 模式每个模板组合只编译一次。
-7. 开发模式可通过 `WithDevReload(true)` 设置默认重载，并由
+7. 开发模式可通过 `WithReload(true)` 设置默认重载，并由
    `Template.Reload(bool)` 按请求覆盖。
 8. 默认 Converter、Filter、路由元数据和错误码行为保持向后兼容。
 

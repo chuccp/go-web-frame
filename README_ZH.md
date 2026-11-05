@@ -929,6 +929,8 @@ web:
     db: 0
 ```
 
+MySQL 连接由框架内置的日志驱动创建：GORM 查询和直接通过 `GetGorm().DB()` 使用的 `database/sql` 查询，都会在 `log.level: debug` 时输出 `SQL` 日志（SQL、参数摘要、耗时）；GORM 自身的 SQL 日志已关闭，避免重复。
+
 PostgreSQL 和 SQLite：
 
 ```yaml

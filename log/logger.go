@@ -81,7 +81,7 @@ func getFileLogWriter(cfg *Config) zapcore.Core {
 		LocalTime:  cfg.LocalTime,
 	}
 	encoder := getEncoder()
-	core := zapcore.NewCore(encoder, zapcore.AddSync(logger), zapcore.InfoLevel)
+	core := zapcore.NewCore(encoder, zapcore.AddSync(logger), zapcore.DebugLevel)
 	return core
 }
 func getStdoutLogWriter() zapcore.Core {

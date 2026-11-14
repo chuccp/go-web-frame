@@ -305,6 +305,38 @@ func TestTemplateFailuresDoNotWritePartialHTML(t *testing.T) {
 	}
 }
 
+func TestTemplateFailureRedirectsToConfiguredErrorPage(t *testing.T) {
+	server := DefaultServer()
+	server.AddFilter(templateErrorRedirectFilter{})
+	views := templateTestFS()
+	views["templates/broken.html"] = &fstest.MapFile{
+		Data: []byte(`{{define "content"}}SHOULD_NOT_LEAK{{.Missing}}{{end}}`),
+	}
+	set := loadTemplateTestSet(t, views)
+	registerTemplate(server, set, http.MethodGet, "/broken", func(view *Template) error {
+		view.View("broken").Data(templateTestData{})
+		return nil
+	})
+
+	recorder := templateTestRequest(server.GetHandler(), http.MethodGet, "/broken")
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusFound)
+	}
+	if location := recorder.Header().Get("Location"); location != "/error?code=500" {
+		t.Errorf("Location = %q, want /error?code=500", location)
+	}
+	if strings.Contains(recorder.Body.String(), "SHOULD_NOT_LEAK") {
+		t.Errorf("partial template output was written: %s", recorder.Body.String())
+	}
+}
+
+type templateErrorRedirectFilter struct{}
+
+func (templateErrorRedirectFilter) Handle(next FilterChain, request *Request) (any, error) {
+	request.SetErrorRedirect("/error?code=")
+	return next.Next()
+}
+
 func TestTemplateMissingConfigurationAndViewReturnServerError(t *testing.T) {
 	tests := []struct {
 		name      string

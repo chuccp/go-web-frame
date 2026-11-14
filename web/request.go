@@ -56,6 +56,21 @@ type Request struct {
 	serverConfig *ServerConfig
 }
 
+const errorRedirectContextKey = "web.error_redirect"
+
+// SetErrorRedirect configures where page-level failures should redirect. Filters
+// set this before the handler runs; the converter appends the HTTP status code.
+func (r *Request) SetErrorRedirect(target string) {
+	r.c.Set(errorRedirectContextKey, target)
+}
+
+// ErrorRedirect returns the page-level failure target configured by a filter.
+func (r *Request) ErrorRedirect() string {
+	target, _ := r.c.Get(errorRedirectContextKey)
+	value, _ := target.(string)
+	return value
+}
+
 // HandlerMeta returns the metadata attached to the matched route handler.
 func (r *Request) HandlerMeta() *HandlerMeta {
 	return r.handlerMeta

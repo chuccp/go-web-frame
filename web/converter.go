@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/chuccp/go-web-frame/log"
@@ -177,7 +178,7 @@ func (c *DefaultConverter) TemplateResponse(request *Request, value *TemplateRes
 	view := newTemplate(request)
 	view.Option(value.Options...)
 	if err := value.Handler(view); err != nil {
-		c.Error(request, nil, err)
+		c.pageError(request, err)
 		return
 	}
 	if view.redirectCode != 0 {
@@ -217,17 +218,38 @@ func writeTemplateHeaders(request *Request, value *Template) {
 
 func (c *DefaultConverter) templateError(request *Request, err error) {
 	log.Error("converter: template error", zap.Error(err))
-	request.response.AbortWithStatusJSON(http.StatusInternalServerError, &Message{
-		Code: http.StatusInternalServerError,
-		Msg:  "template rendering failed",
-	})
+	c.pageError(request, err)
 }
 
 // Error writes an error response and aborts the request.
 // It recognizes *ErrorCode, *Message, os sentinel errors, and maps them to appropriate HTTP status codes.
 func (c *DefaultConverter) Error(request *Request, value any, err error) {
 	code, msg := ClassifyError(value, err)
+	if c.redirectPageError(request, code) {
+		return
+	}
 	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: msg})
+}
+
+func (c *DefaultConverter) pageError(request *Request, err error) {
+	code, _ := ClassifyError(nil, err)
+	if c.redirectPageError(request, code) {
+		return
+	}
+	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: "template rendering failed"})
+}
+
+func (c *DefaultConverter) redirectPageError(request *Request, status int) bool {
+	target := request.ErrorRedirect()
+	if target == "" {
+		return false
+	}
+	if status < http.StatusBadRequest {
+		status = http.StatusInternalServerError
+	}
+	request.response.Redirect(http.StatusFound, target+strconv.Itoa(status))
+	request.response.Abort()
+	return true
 }
 
 // ClassifyError  maps an error to an HTTP status code and message string.

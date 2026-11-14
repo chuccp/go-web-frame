@@ -372,7 +372,8 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 	converter := &web.DefaultConverter{}
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Accept", "application/json")
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	mockResp := &TestResponse{ResponseWriter: c.Writer, ctx: c}
@@ -390,6 +391,7 @@ func TestDefaultConverter_Request_Error(t *testing.T) {
 	// web.DefaultConverter calls AbortWithError for errors.
 	// AbortWithError writes 500 status on the gin context's internal writer.
 	assert.Equal(t, http.StatusInternalServerError, c.Writer.Status())
+	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
 }
 
 func TestDefaultConverter_Request_File(t *testing.T) {

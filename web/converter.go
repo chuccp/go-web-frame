@@ -83,11 +83,6 @@ func (c *DefaultConverter) Message(request *Request, value *Message) {
 		request.response.Abort()
 		return
 	}
-	if IsErrorCode(value.Code) {
-		status := HTTPStatusForCode(value.Code)
-		request.response.JSON(status, NewErrorMessage(value.Code, value.Msg))
-		return
-	}
 	request.response.JSON(value.Code, value)
 }
 
@@ -236,15 +231,15 @@ func (c *DefaultConverter) Error(request *Request, value any, err error) {
 	if c.redirectPageError(request, code) {
 		return
 	}
-	request.response.AbortWithStatusJSON(HTTPStatusForCode(code), NewErrorMessage(code, msg))
+	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: msg})
 }
 
 func (c *DefaultConverter) pageError(request *Request, err error) {
-	code, msg := ClassifyError(nil, err)
+	code, _ := ClassifyError(nil, err)
 	if c.redirectPageError(request, code) {
 		return
 	}
-	request.response.AbortWithStatusJSON(HTTPStatusForCode(code), NewErrorMessage(code, msg))
+	request.response.AbortWithStatusJSON(code, &Message{Code: code, Msg: "template rendering failed"})
 }
 
 func (c *DefaultConverter) redirectPageError(request *Request, status int) bool {

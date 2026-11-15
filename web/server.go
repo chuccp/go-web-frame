@@ -100,23 +100,6 @@ func (servers *Servers) GetHandler() http.Handler {
 func defaultEngine() *gin.Engine {
 	engine := gin.New()
 	engine.ForwardedByClientIP = true
-	engine.Use(gin.CustomRecovery(func(c *gin.Context, recovered any) {
-		log.Error("panic recovered",
-			zap.Any("panic", recovered),
-			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-		)
-		if c.Writer.Written() {
-			c.Abort()
-			return
-		}
-		if strings.Contains(strings.ToLower(c.Request.Header.Get("Accept")), "text/html") {
-			c.Redirect(http.StatusFound, "/error?code=500")
-			c.Abort()
-			return
-		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorMessage(http.StatusInternalServerError, ""))
-	}))
 	return engine
 }
 
@@ -384,6 +367,9 @@ func (server *Server) optionsMiddleware() {
 }
 
 func (server *Server) noRoute() {
+	if len(server.serverConfig.Locations) == 0 && server.notFound == nil {
+		return
+	}
 	var fs *MemFileSystem
 	if len(server.serverConfig.Locations) > 0 {
 		fs = DefaultMemFileSystem(server.serverConfig.Locations)
@@ -416,7 +402,7 @@ func (server *Server) noRoute() {
 		// SPA fallback: 非图片请求返回 404 页面
 		accept := c.Request.Header.Get("Accept")
 		if strings.Contains(accept, "html") && !util.IsImagePath(path) {
-			if fs != nil && len(server.serverConfig.Page404) > 0 {
+			if len(server.serverConfig.Page404) > 0 {
 				if exists, _ := fs.ExistsFile(server.serverConfig.Page404); exists {
 					// 直接写入文件内容，不走 FileFromFS：gin 会把请求路径改写成文件名，
 					// 而 http.FileServer 对以 "/index.html" 结尾的路径一律 301 到 "./"，
@@ -430,10 +416,7 @@ func (server *Server) noRoute() {
 					}
 				}
 			}
-			c.Status(http.StatusNotFound)
-			return
 		}
-		c.AbortWithStatusJSON(http.StatusNotFound, NewErrorMessage(http.StatusNotFound, ""))
 	})
 }
 

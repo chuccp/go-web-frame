@@ -50,8 +50,8 @@ type loggingConn struct {
 func (c *loggingConn) Prepare(query string) (driver.Stmt, error) {
 	start := time.Now()
 	stmt, err := c.Conn.Prepare(query)
-	logSQL(query, nil, time.Since(start), err)
 	if err != nil {
+		logSQL(query, nil, time.Since(start), err)
 		return nil, err
 	}
 	return &loggingStmt{Stmt: stmt, query: query}, nil
@@ -68,8 +68,8 @@ func (c *loggingConn) PrepareContext(ctx context.Context, query string) (driver.
 	} else {
 		stmt, err = c.Conn.Prepare(query)
 	}
-	logSQL(query, nil, time.Since(start), err)
 	if err != nil {
+		logSQL(query, nil, time.Since(start), err)
 		return nil, err
 	}
 	return &loggingStmt{Stmt: stmt, query: query}, nil
@@ -82,6 +82,11 @@ func (c *loggingConn) ExecContext(ctx context.Context, query string, args []driv
 	}
 	start := time.Now()
 	result, err := execer.ExecContext(ctx, query, args)
+	// ErrSkip 表示参数无法走文本协议快速路径，database/sql 会改用预编译语句。
+	// 这不是执行失败，也不能在这里记录，否则同一条 SQL 会重复出现。
+	if err == driver.ErrSkip {
+		return nil, err
+	}
 	logSQL(query, namedToAny(args), time.Since(start), err)
 	return result, err
 }
@@ -93,6 +98,10 @@ func (c *loggingConn) QueryContext(ctx context.Context, query string, args []dri
 	}
 	start := time.Now()
 	rows, err := queryer.QueryContext(ctx, query, args)
+	// 与 ExecContext 相同：快速路径回退由最终的预编译语句负责记录。
+	if err == driver.ErrSkip {
+		return nil, err
+	}
 	logSQL(query, namedToAny(args), time.Since(start), err)
 	return rows, err
 }

@@ -24,7 +24,6 @@ type ServerConfig struct {
 	ContextPath       string     // Route prefix applied to all routes (e.g., "/api")
 	Locations         []string   // Static file directories to serve
 	Page404           string     // Fallback page for 404 responses (useful for SPA)
-	StaticNoCache     bool       // Ask browsers to revalidate embedded static assets
 	MaxBodySize       int64      // Maximum request body size in bytes (0 = default 10 MB, -1 = unlimited)
 	ReadHeaderTimeout int        // Timeout in seconds for reading request headers (0 = default 30s)
 	ReadTimeout       int        // Timeout in seconds for reading the entire request (0 = default 10min)

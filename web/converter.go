@@ -118,7 +118,7 @@ func (c *DefaultConverter) EmbedFileSystemResponse(request *Request, value *Embe
 		c.Error(request, nil, err)
 		return
 	}
-	if request.serverConfig != nil && request.serverConfig.StaticNoCache {
+	if value.fs.ReloadEnabled() {
 		request.response.Header().Set("Cache-Control", "no-cache, must-revalidate")
 	}
 	request.GinContext().FileFromFS(value.filepath, filesystem)

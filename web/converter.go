@@ -118,6 +118,7 @@ func (c *DefaultConverter) EmbedFileSystemResponse(request *Request, value *Embe
 		c.Error(request, nil, err)
 		return
 	}
+	request.response.Header().Set("Cache-Control", "no-cache, must-revalidate")
 	request.GinContext().FileFromFS(value.filepath, filesystem)
 }
 

@@ -116,3 +116,19 @@ func TestNoRoutePage404DoesNotRedirect(t *testing.T) {
 		})
 	}
 }
+
+func TestNoRouteCustomHandler(t *testing.T) {
+	server := DefaultServer()
+	server.SetNotFoundHandler(func(request *Request) (any, error) {
+		request.Response().WriteStatus(http.StatusNotFound)
+		_, _ = request.Response().Write([]byte("custom-not-found:" + request.URL().Path))
+		return nil, nil
+	})
+
+	ts := httptest.NewServer(server.GetHandler())
+	t.Cleanup(ts.Close)
+	resp, body := getNoRedirect(t, ts, "/mobille", "text/html")
+	if resp.StatusCode != http.StatusNotFound || !strings.Contains(body, "custom-not-found:/mobille") {
+		t.Fatalf("GET /mobille = %d %q, want custom 404", resp.StatusCode, body)
+	}
+}

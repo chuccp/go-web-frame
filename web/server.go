@@ -117,6 +117,7 @@ type Server struct {
 	engine       *gin.Engine
 	converter    Converter
 	filters      []Filter
+	notFound     HandlerFunc
 	httpHandler  http.Handler
 }
 
@@ -178,6 +179,12 @@ func (server *Server) AddFilters(filters ...Filter) {
 // SetConverter sets a custom converter that transforms handler results to HTTP responses.
 func (server *Server) SetConverter(converter Converter) {
 	server.converter = converter
+}
+
+// SetNotFoundHandler installs a fallback handler for requests that do not match
+// any route. It is evaluated before the legacy static-file / Page404 fallback.
+func (server *Server) SetNotFoundHandler(handler HandlerFunc) {
+	server.notFound = handler
 }
 
 // AddHandles transfers all routes from the given Handles into this Server.
@@ -360,10 +367,13 @@ func (server *Server) optionsMiddleware() {
 }
 
 func (server *Server) noRoute() {
-	if len(server.serverConfig.Locations) == 0 {
+	if len(server.serverConfig.Locations) == 0 && server.notFound == nil {
 		return
 	}
-	fs := DefaultMemFileSystem(server.serverConfig.Locations)
+	var fs *MemFileSystem
+	if len(server.serverConfig.Locations) > 0 {
+		fs = DefaultMemFileSystem(server.serverConfig.Locations)
+	}
 	server.engine.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		// 去除 ContextPath 前缀，memfs 中的路径不带 ContextPath。
@@ -375,7 +385,18 @@ func (server *Server) noRoute() {
 				path = stripped
 			}
 		}
-		if server.tryServeFile(c, fs, path) {
+		if fs != nil && server.tryServeFile(c, fs, path) {
+			return
+		}
+		if server.notFound != nil {
+			req := &Request{
+				c:            c,
+				cookie:       NewCookie(c),
+				handlerMeta:  NewHandlerMeta(),
+				response:     newResponse(c),
+				serverConfig: server.serverConfig,
+			}
+			newFilterChain(req, server.converter, nil, server.notFound).next()
 			return
 		}
 		// SPA fallback: 非图片请求返回 404 页面

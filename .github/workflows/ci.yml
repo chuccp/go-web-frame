@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.26']
+        go-version: ['stable']
 
     steps:
       - name: Checkout code
@@ -61,7 +61,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: 'stable'
           cache: true
 
       - name: Run all module tests, race checks, and vet

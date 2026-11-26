@@ -454,14 +454,21 @@ userModel := wf.MustModel[*UserModel](ctx)
 userService := wf.MustService[*UserService](ctx)
 authFilter := wf.MustFilter[*AuthFilter](ctx)
 cleanupTask := wf.MustRunner[*CleanupTask](ctx)
+
+// Go 1.27+ はジェネリックメソッドに対応しているため、ctx 上で直接呼び出せます：
+userModel = ctx.GetModel[*UserModel]()
+userService = ctx.GetService[*UserService]()
+authFilter = ctx.GetFilter[*AuthFilter]()
+cleanupTask = ctx.GetRunner[*CleanupTask]()
 ```
 
-`Must*` バリアントは型が未登録の場合に即座に panic します ——起動時に配線エラーを検出でき、リクエスト時に露呈するのを防ぎます。旧来の `Get*` 関数は引き続き利用できますが、deprecated としてマークされています。
+どちらの形式も型が未登録の場合は panic します ——起動時に配線エラーを検出でき、リクエスト時に露呈するのを防ぎます。旧来のパッケージレベル `Get*` 関数は引き続き利用できますが deprecated です。新しいコードではメソッド形式を推奨します。
 
 別の DB にバインドする必要がある Model（トランザクション内など）：
 
 ```go
-txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+txModel := ctx.GetReNewModel[*UserModel](txDB)
+// または: wf.MustReNewModel[*UserModel](txDB, ctx)
 ```
 
 ### Service 層：ビジネスロジックの共有

@@ -155,8 +155,8 @@ func (c *Context) IsServiceRegistered(s IService) bool {
 	return ok
 }
 
-// GetRunner finds the first runner matching the predicate function.
-func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
+// FindRunner finds the first runner matching the predicate function.
+func (c *Context) FindRunner(f func(m IRunner) bool) IRunner {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
 	for _, r := range c.runnerMap {
@@ -167,8 +167,8 @@ func (c *Context) GetRunner(f func(m IRunner) bool) IRunner {
 	return nil
 }
 
-// GetService finds the first service (including runners and model groups) matching the predicate.
-func (c *Context) GetService(f func(m IService) bool) IService {
+// FindService finds the first service (including runners and model groups) matching the predicate.
+func (c *Context) FindService(f func(m IService) bool) IService {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
 	for _, s := range c.allServiceMap {
@@ -179,8 +179,8 @@ func (c *Context) GetService(f func(m IService) bool) IService {
 	return nil
 }
 
-// GetModel finds the first model matching the predicate.
-func (c *Context) GetModel(f func(m IModel) bool) IModel {
+// FindModel finds the first model matching the predicate.
+func (c *Context) FindModel(f func(m IModel) bool) IModel {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
 	for _, m := range c.modelMap {
@@ -191,8 +191,8 @@ func (c *Context) GetModel(f func(m IModel) bool) IModel {
 	return nil
 }
 
-// GetFilter finds the first filter matching the predicate.
-func (c *Context) GetFilter(f func(m IFilter) bool) IFilter {
+// FindFilter finds the first filter matching the predicate.
+func (c *Context) FindFilter(f func(m IFilter) bool) IFilter {
 	c.rLock.RLock()
 	defer c.rLock.RUnlock()
 	for _, filter := range c.filters {
@@ -328,10 +328,15 @@ func (c *Context) GetRunners() []IRunner {
 	return runners
 }
 
-// GetService retrieves a service of the specified type from the context.
-// Panics if the service is not registered.
-func GetService[T IService](c *Context) T {
-	t, ok := c.GetService(func(m IService) bool {
+// GetService returns the registered service of type T.
+// Runners and model groups are registered as services too, so they are found as well.
+// Panics if no service of type T is registered.
+//
+// Example:
+//
+//	store := ctx.GetService[*Store]()
+func (c *Context) GetService[T IService]() T {
+	t, ok := c.FindService(func(m IService) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
@@ -341,15 +346,24 @@ func GetService[T IService](c *Context) T {
 	return t
 }
 
+// GetService retrieves a service of the specified type from the context.
+// Panics if the service is not registered.
+func GetService[T IService](c *Context) T {
+	return c.GetService[T]()
+}
+
 func MustService[T IService](c *Context) T {
 	return GetService[T](c)
 }
 
-// GetModel retrieves a model of the specified type from the context.
-// Panics if the model is not registered.
-// Deprecated
-func GetModel[T IModel](c *Context) T {
-	t, ok := c.GetModel(func(m IModel) bool {
+// GetModel returns the registered model of type T.
+// Panics if no model of type T is registered.
+//
+// Example:
+//
+//	userModel := ctx.GetModel[*UserModel]()
+func (c *Context) GetModel[T IModel]() T {
+	t, ok := c.FindModel(func(m IModel) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
@@ -358,15 +372,26 @@ func GetModel[T IModel](c *Context) T {
 	}
 	return t
 }
+
+// GetModel retrieves a model of the specified type from the context.
+// Panics if the model is not registered.
+// Deprecated: use the method form ctx.GetModel[T]().
+func GetModel[T IModel](c *Context) T {
+	return c.GetModel[T]()
+}
+
 func MustModel[T IModel](c *Context) T {
 	return GetModel[T](c)
 }
 
-// GetFilter retrieves a filter of the specified type from the context.
-// Panics if the filter is not registered.
-// Deprecated
-func GetFilter[T IFilter](c *Context) T {
-	t, ok := c.GetFilter(func(m IFilter) bool {
+// GetFilter returns the registered filter of type T.
+// Panics if no filter of type T is registered.
+//
+// Example:
+//
+//	authFilter := ctx.GetFilter[*AuthFilter]()
+func (c *Context) GetFilter[T IFilter]() T {
+	t, ok := c.FindFilter(func(m IFilter) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
@@ -375,37 +400,54 @@ func GetFilter[T IFilter](c *Context) T {
 	}
 	return t
 }
+
+// GetFilter retrieves a filter of the specified type from the context.
+// Panics if the filter is not registered.
+// Deprecated: use the method form ctx.GetFilter[T]().
+func GetFilter[T IFilter](c *Context) T {
+	return c.GetFilter[T]()
+}
+
 func MustFilter[T IFilter](c *Context) T {
 	return GetFilter[T](c)
 }
 
-// GetReNewModel retrieves a model of the specified type and creates a fresh instance
-// with the given database connection, useful for transaction handling.
-// Panics if the model is not registered.
-// Deprecated
-func GetReNewModel[T IModel](db *db.DB, c *Context) T {
-	t, ok := c.GetModel(func(m IModel) bool {
-		_, ok := m.(T)
-		return ok
-	}).(T)
-	if !ok {
-		log.PanicErrors("GetModel error", errors.New(util.GetStructFullQualifiedName(t)+" no register"))
-	}
+// GetReNewModel returns a fresh instance of the registered model of type T,
+// bound to the given database connection (useful for transaction handling).
+// Panics if no model of type T is registered.
+//
+// Example:
+//
+//	txModel := ctx.GetReNewModel[*UserModel](txDB)
+func (c *Context) GetReNewModel[T IModel](db *db.DB) T {
+	t := c.GetModel[T]()
 	renewed, ok := t.ReNew(db, c).(T)
 	if !ok {
 		log.PanicErrors("ReNew model type mismatch", errors.New(util.GetStructFullQualifiedName(t)+" ReNew returned wrong type"))
 	}
 	return renewed
 }
+
+// GetReNewModel retrieves a model of the specified type and creates a fresh instance
+// with the given database connection, useful for transaction handling.
+// Panics if the model is not registered.
+// Deprecated: use the method form ctx.GetReNewModel[T](db).
+func GetReNewModel[T IModel](db *db.DB, c *Context) T {
+	return c.GetReNewModel[T](db)
+}
+
 func MustReNewModel[T IModel](db *db.DB, c *Context) T {
 	return GetReNewModel[T](db, c)
 }
 
-// GetRunner retrieves a runner of the specified type from the context.
-// Panics if the runner is not registered.
-// Deprecated
-func GetRunner[T IRunner](c *Context) T {
-	t, ok := c.GetRunner(func(m IRunner) bool {
+// GetRunner returns the registered runner of type T.
+// Panics if no runner of type T is registered.
+//
+// Example:
+//
+//	cleanupTask := ctx.GetRunner[*CleanupTask]()
+func (c *Context) GetRunner[T IRunner]() T {
+	t, ok := c.FindRunner(func(m IRunner) bool {
 		_, ok := m.(T)
 		return ok
 	}).(T)
@@ -414,6 +456,14 @@ func GetRunner[T IRunner](c *Context) T {
 	}
 	return t
 }
+
+// GetRunner retrieves a runner of the specified type from the context.
+// Panics if the runner is not registered.
+// Deprecated: use the method form ctx.GetRunner[T]().
+func GetRunner[T IRunner](c *Context) T {
+	return c.GetRunner[T]()
+}
+
 func MustRunner[T IRunner](c *Context) T {
 	return GetRunner[T](c)
 }

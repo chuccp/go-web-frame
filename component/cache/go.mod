@@ -1,6 +1,6 @@
 module github.com/chuccp/go-web-frame/component/cache
 
-go 1.26.0
+go 1.27.3
 
 require (
 	emperror.dev/errors v0.8.1

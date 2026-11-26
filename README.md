@@ -454,14 +454,21 @@ userModel := wf.MustModel[*UserModel](ctx)
 userService := wf.MustService[*UserService](ctx)
 authFilter := wf.MustFilter[*AuthFilter](ctx)
 cleanupTask := wf.MustRunner[*CleanupTask](ctx)
+
+// Go 1.27+ also supports generic methods, so the same lookups can be called on ctx:
+userModel = ctx.GetModel[*UserModel]()
+userService = ctx.GetService[*UserService]()
+authFilter = ctx.GetFilter[*AuthFilter]()
+cleanupTask = ctx.GetRunner[*CleanupTask]()
 ```
 
-`Must*` variants panic if the type was not registered — catches wiring errors at startup instead of at request time. The old `Get*` functions still work but are deprecated.
+Both forms panic if the type was not registered — catches wiring errors at startup instead of at request time. The old package-level `Get*` functions still work but are deprecated; prefer the method form in new code.
 
 For models that need a different DB (e.g. inside a transaction):
 
 ```go
-txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+txModel := ctx.GetReNewModel[*UserModel](txDB)
+// or: wf.MustReNewModel[*UserModel](txDB, ctx)
 ```
 
 ### Service Layer: Shared Business Logic

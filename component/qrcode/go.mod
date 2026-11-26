@@ -1,6 +1,6 @@
 module github.com/chuccp/go-web-frame/component/qrcode
 
-go 1.26
+go 1.27.3
 
 require (
 	github.com/yeqown/go-qrcode/v2 v2.2.5

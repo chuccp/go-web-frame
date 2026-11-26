@@ -237,6 +237,24 @@ func TestGetService(t *testing.T) {
 	assert.Equal(t, service, result)
 }
 
+// TestContext_GetServiceMethod verifies the Go 1.27 generic method form ctx.GetService[T]().
+func TestContext_GetServiceMethod(t *testing.T) {
+	// Arrange
+	config := config2.NewConfig()
+	service := &MockService{}
+	app := NewBuilder(config).Service(service).Build()
+
+	// Act — the app context exposes the method-style getter
+	err := app.Test(func(appCtx *core.Context) error {
+		result := appCtx.GetService[*MockService]()
+		assert.Same(t, service, result)
+		return nil
+	})
+
+	// Assert
+	assert.NoError(t, err)
+}
+
 func TestGetModel(t *testing.T) {
 	// Arrange
 	config := config2.NewConfig()

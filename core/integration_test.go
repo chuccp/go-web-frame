@@ -35,10 +35,7 @@ func TestIntegration_ServiceDependencyInjection(t *testing.T) {
 	assert.True(t, serviceInitCalled)
 
 	// Verify service can retrieve model from context
-	retrievedModel := ctx.GetModel(func(m IModel) bool {
-		_, ok := m.(*testModel)
-		return ok
-	})
+	retrievedModel := ctx.GetModel[*testModel]()
 	assert.NotNil(t, retrievedModel)
 }
 
@@ -77,10 +74,7 @@ func TestIntegration_FilterChainExecution(t *testing.T) {
 	ctx.AddService(svc1, svc2)
 
 	// Verify services are accessible
-	retrieved := ctx.GetService(func(m IService) bool {
-		_, ok := m.(*testService)
-		return ok
-	})
+	retrieved := ctx.GetService[*testService]()
 	assert.NotNil(t, retrieved)
 }
 
@@ -112,10 +106,7 @@ func TestIntegration_ConcurrentContextAccess(t *testing.T) {
 	assert.GreaterOrEqual(t, count, 1)
 
 	// Verify service is accessible
-	retrieved := ctx.GetService(func(m IService) bool {
-		_, ok := m.(*testService)
-		return ok
-	})
+	retrieved := ctx.GetService[*testService]()
 	assert.NotNil(t, retrieved)
 }
 
@@ -151,16 +142,10 @@ func TestIntegration_ContextCopyIsolation(t *testing.T) {
 	copiedCtx := ctx.Copy(server2, nil)
 
 	// Both contexts share services (copied by reference)
-	retrievedService := ctx.GetService(func(m IService) bool {
-		_, ok := m.(*testService)
-		return ok
-	})
+	retrievedService := ctx.GetService[*testService]()
 	assert.NotNil(t, retrievedService)
 
-	retrievedService2 := copiedCtx.GetService(func(m IService) bool {
-		_, ok := m.(*testService)
-		return ok
-	})
+	retrievedService2 := copiedCtx.GetService[*testService]()
 	assert.NotNil(t, retrievedService2)
 
 	// But servers are different instances

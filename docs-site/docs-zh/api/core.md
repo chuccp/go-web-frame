@@ -185,6 +185,16 @@ runner := wf.GetRunner[*EmailRunner](ctx)
 filter := wf.GetFilter[*AuthFilter](ctx)
 ```
 
+Go 1.27+ 支持泛型方法，也可以直接在 context 上调用：
+
+```go
+service := ctx.GetService[*UserService]()
+model := ctx.GetModel[*UserModel]()
+component := ctx.GetService[*CacheComponent]()
+runner := ctx.GetRunner[*EmailRunner]()
+filter := ctx.GetFilter[*AuthFilter]()
+```
+
 ### 注册路由
 
 ```go

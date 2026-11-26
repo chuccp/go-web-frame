@@ -127,7 +127,7 @@ A typical application using this framework will:
 ### Dependency Injection
 The framework uses a context-based DI container:
 - All components implement the `IService` interface with `Init(ctx *Context) error`
-- Services can be retrieved from context using generic getters: `wf.GetService[T](ctx)`, `wf.GetModel[T](ctx)`
+- Services can be retrieved from context using generic getters: `wf.GetService[T](ctx)`, `wf.GetModel[T](ctx)`, or — with Go 1.27 generic methods — directly on the context: `ctx.GetService[T]()`, `ctx.GetModel[T]()`, `ctx.GetRunner[T]()`, `ctx.GetFilter[T]()`
 - Context provides access to configuration through `ctx.Config()`
 
 ### Configuration

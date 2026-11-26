@@ -1,6 +1,6 @@
 module github.com/chuccp/go-web-frame/component/captcha
 
-go 1.26.0
+go 1.27.3
 
 require (
 	github.com/bytedance/sonic v1.15.3

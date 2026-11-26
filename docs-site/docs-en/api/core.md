@@ -129,6 +129,16 @@ runner := wf.GetRunner[*EmailRunner](ctx)
 filter := wf.GetFilter[*AuthFilter](ctx)
 ```
 
+Go 1.27+ supports generic methods, so the same lookups can be called directly on the context:
+
+```go
+service := ctx.GetService[*UserService]()
+model := ctx.GetModel[*UserModel]()
+component := ctx.GetService[*CacheComponent]()
+runner := ctx.GetRunner[*EmailRunner]()
+filter := ctx.GetFilter[*AuthFilter]()
+```
+
 ### Register Routes
 
 ```go

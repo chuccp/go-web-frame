@@ -454,14 +454,21 @@ userModel := wf.MustModel[*UserModel](ctx)
 userService := wf.MustService[*UserService](ctx)
 authFilter := wf.MustFilter[*AuthFilter](ctx)
 cleanupTask := wf.MustRunner[*CleanupTask](ctx)
+
+// Go 1.27+ 支持泛型方法，也可以直接在 ctx 上调用：
+userModel = ctx.GetModel[*UserModel]()
+userService = ctx.GetService[*UserService]()
+authFilter = ctx.GetFilter[*AuthFilter]()
+cleanupTask = ctx.GetRunner[*CleanupTask]()
 ```
 
-`Must*` 变体在类型未注册时直接 panic ——能在启动时就发现装配错误，而不是等到请求时才暴露。旧的 `Get*` 函数仍然可用，但已标记为 deprecated。
+两种写法在类型未注册时都会直接 panic ——能在启动时就发现装配错误，而不是等到请求时才暴露。旧的包级 `Get*` 函数仍然可用，但已标记为 deprecated，新代码建议使用方法形式。
 
 对于需要绑定不同数据库的 Model（如事务中）：
 
 ```go
-txModel := wf.MustReNewModel[*UserModel](txDB, ctx)
+txModel := ctx.GetReNewModel[*UserModel](txDB)
+// 或：wf.MustReNewModel[*UserModel](txDB, ctx)
 ```
 
 ### Service 层：共享业务逻辑

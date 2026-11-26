@@ -1,6 +1,6 @@
 module github.com/chuccp/go-web-frame/component/cors
 
-go 1.26.0
+go 1.27.3
 
 require (
 	github.com/chuccp/go-web-frame v0.0.0

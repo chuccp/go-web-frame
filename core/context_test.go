@@ -60,6 +60,53 @@ func TestContext_GetService(t *testing.T) {
 	assert.Same(t, service, retrieved)
 }
 
+// TestContext_GetServiceMethod verifies the generic method form ctx.GetService[T]().
+func TestContext_GetServiceMethod(t *testing.T) {
+	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
+	ctx := NewContext(cfg, context.Background())
+	service := &TestService{}
+	ctx.AddService(service)
+
+	retrieved := ctx.GetService[*TestService]()
+	assert.Same(t, service, retrieved)
+}
+
+// TestContext_GetModelMethod verifies the generic method forms ctx.GetModel[T]()
+// and ctx.GetReNewModel[T](db).
+func TestContext_GetModelMethod(t *testing.T) {
+	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
+	ctx := NewContext(cfg, context.Background())
+	model := &testModel{initCalled: new(bool)}
+	ctx.AddModel(model)
+
+	retrieved := ctx.GetModel[*testModel]()
+	assert.Same(t, model, retrieved)
+
+	renewed := ctx.GetReNewModel[*testModel](nil)
+	assert.NotNil(t, renewed)
+}
+
+// TestContext_GetRunnerMethod verifies the generic method form ctx.GetRunner[T]().
+func TestContext_GetRunnerMethod(t *testing.T) {
+	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
+	ctx := NewContext(cfg, context.Background())
+	runner := &testRunner{}
+	ctx.AddRunner(runner)
+
+	retrieved := ctx.GetRunner[*testRunner]()
+	assert.Same(t, runner, retrieved)
+}
+
+// TestContext_GetFilterMethod verifies the generic method form ctx.GetFilter[T]().
+func TestContext_GetFilterMethod(t *testing.T) {
+	cfg, _ := config.NewFromBytes([]byte(`{}`), "json")
+	filter := &orderedFilter{}
+	ctx := NewContext(cfg, context.Background()).Copy(newTestServer(), []IFilter{filter})
+
+	retrieved := ctx.GetFilter[*orderedFilter]()
+	assert.Same(t, filter, retrieved)
+}
+
 func TestContext_GetConfig(t *testing.T) {
 	// Given: a context with config
 	cfg, _ := config.NewFromBytes([]byte(`{"test": {"key": "value", "num": 42}}`), "json")
